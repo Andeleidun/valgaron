@@ -1,0 +1,24 @@
+button {
+  cursor: pointer;
+}
+
+button.button.image-button {
+  border: 0;
+  padding: 0;
+  border-radius: 0;
+  margin: 0;
+  background: 0;
+}
+
+.toggle-button-container {
+  width: 100%;
+  display: grid;
+}
+
+.toggle-button-container .toggle-button {
+  display: grid;
+  grid-template-columns: 1fr 30px;
+  padding: 15px 0;
+  margin: 0;
+  text-transform: none;
+}

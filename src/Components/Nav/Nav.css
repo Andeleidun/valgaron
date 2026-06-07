@@ -1,0 +1,58 @@
+.who-app nav.container.who-nav {
+  position: fixed;
+  bottom: 0;
+  width: 100%;
+  max-width: 100%;
+  padding: 0;
+  z-index: 1200;
+}
+
+nav.container.who-nav .who-nav-menu {
+  height: var(--bar-height);
+  display: grid;
+  grid-template-columns: repeat(4, 4fr);
+  list-style: none;
+  align-items: center;
+  padding: 0;
+}
+
+.who-nav .who-nav-menu .who-nav-item {
+  display: inline-grid;
+  padding: 0;
+  height: 100%;
+  width: 100%;
+  -webkit-justify-content: normal;
+  justify-content: normal;
+  -webkit-align-items: normal;
+  align-items: normal;
+}
+
+.who-nav-item a {
+  text-decoration: none;
+}
+
+.who-nav .who-nav-menu .who-nav-item .who-nav-button {
+  border: 0;
+  font-size: var(--font-size-small);
+  height: 100%;
+  width: 100%;
+  border-left: 2px solid var(--darker);
+  border-radius: 0;
+  text-transform: none;
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  line-height: 1.4;
+  padding: 0;
+  background: var(--primary-dark);
+  color: var(--light-color);
+}
+
+.who-nav .who-nav-menu .who-nav-item a.who-nav-button {
+  min-width: 44px;
+  min-height: 44px;
+}
+
+.who-nav .who-nav-menu .who-nav-item .who-nav-button.active {
+  background: var(--secondary-dark);
+}

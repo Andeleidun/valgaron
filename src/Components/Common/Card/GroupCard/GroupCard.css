@@ -1,0 +1,80 @@
+.who-group-card {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.who-group-card-content {
+  display: grid;
+  gap: 0.75rem;
+  flex: 1 1 auto;
+}
+
+.who-group-card-summary {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.who-group-card-description {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-align: left;
+}
+
+.who-group-card-meta {
+  color: var(--color-text-muted, var(--text-color));
+  text-align: left;
+}
+
+.who-group-card-guidance {
+  align-items: start;
+}
+
+.who-group-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.who-group-card-actions {
+  display: grid;
+  gap: 0.75rem;
+  padding: 0 1rem 1rem;
+}
+
+.who-group-card-primary-actions,
+.who-group-card-secondary-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+  width: 100%;
+}
+
+.who-group-card-action-item {
+  min-width: 0;
+}
+
+.who-group-card-action-item .MuiButton-root {
+  width: 100%;
+}
+
+.who-group-card-utility-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+  width: 100%;
+}
+
+.who-group-card-utility-actions .MuiButton-root {
+  width: 100%;
+}
+
+@media (max-width: 767.98px) {
+  .who-group-card-primary-actions,
+  .who-group-card-secondary-actions,
+  .who-group-card-utility-actions {
+    grid-template-columns: 1fr;
+  }
+}
