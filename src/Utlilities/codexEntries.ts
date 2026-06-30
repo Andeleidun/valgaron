@@ -1,22 +1,40 @@
 import { worldSections } from './seedCodex';
 import type {
-  CharacterEntry,
-  FactionEntry,
-  LoreEntry,
-  PlaceEntry,
-  TimelineEntry,
   WorldCodex,
   WorldDetailFieldKey,
   WorldEntry,
   WorldEntryKind,
+  WorldEntryStatus,
   WorldSectionConfig,
   WorldSectionId,
 } from '../types';
 
+export const worldEntryStatusOptions: readonly {
+  value: WorldEntryStatus;
+  label: string;
+}[] = [
+  { value: 'draft', label: 'Draft' },
+  { value: 'canon', label: 'Canon' },
+  { value: 'needs-review', label: 'Needs Review' },
+  { value: 'deprecated', label: 'Deprecated' },
+  { value: 'archived', label: 'Archived' },
+];
+
+/** Return the display label for an entry status. */
+export function getEntryStatusLabel(status: WorldEntryStatus): string {
+  return (
+    worldEntryStatusOptions.find((option) => option.value === status)?.label ??
+    status
+  );
+}
+
 export type EntryDraft = {
   name: string;
   summary: string;
+  notes: string;
   tags: string;
+  status: WorldEntryStatus;
+  pinned: boolean;
   details: Record<string, string>;
 };
 
@@ -25,7 +43,10 @@ export function createEmptyDraft(): EntryDraft {
   return {
     name: '',
     summary: '',
+    notes: '',
     tags: '',
+    status: 'draft',
+    pinned: false,
     details: {},
   };
 }
@@ -35,25 +56,15 @@ export function getEntries(
   codex: WorldCodex,
   sectionId: WorldSectionId
 ): WorldEntry[] {
-  switch (sectionId) {
-    case 'characters':
-      return codex.characters;
-    case 'places':
-      return codex.places;
-    case 'factions':
-      return codex.factions;
-    case 'lore':
-      return codex.lore;
-    case 'timeline':
-      return codex.timeline;
-  }
+  return codex[sectionId] ?? [];
 }
 
 /** Resolve a section config from a route id. */
 export function getSectionById(
-  sectionId: string | undefined
+  sectionId: string | undefined,
+  sections: readonly WorldSectionConfig[] = worldSections
 ): WorldSectionConfig | null {
-  return worldSections.find((section) => section.id === sectionId) ?? null;
+  return sections.find((section) => section.id === sectionId) ?? null;
 }
 
 /** Read a detail field from any codex entry. */
@@ -61,11 +72,7 @@ export function getDetailValue(
   entry: WorldEntry,
   key: WorldDetailFieldKey
 ): string {
-  if (key in entry) {
-    const value = entry[key as keyof WorldEntry];
-    return typeof value === 'string' ? value : '';
-  }
-  return '';
+  return entry.fields[key] ?? '';
 }
 
 /** Build normalized search text for section-local filtering. */
@@ -113,7 +120,10 @@ export function draftFromEntry(
   return {
     name: entry.name,
     summary: entry.summary,
+    notes: entry.notes,
     tags: entry.tags.join(', '),
+    status: entry.status,
+    pinned: entry.pinned,
     details: Object.fromEntries(
       section.detailFields.map((field) => [
         field.key,
@@ -157,65 +167,21 @@ export function entryFromDraft(
 ): WorldEntry {
   const base = {
     id: existingEntry?.id ?? makeEntryId(section.kind, draft.name),
+    kind: section.kind,
     name: draft.name.trim(),
     summary: draft.summary.trim(),
+    notes: draft.notes.trim(),
     tags: normalizeTags(draft.tags),
+    status: draft.status,
+    pinned: draft.pinned,
+    createdAt: existingEntry?.createdAt ?? new Date().toISOString(),
     updatedAt: new Date().toISOString(),
+    fields: Object.fromEntries(
+      section.detailFields.map((field) => [field.key, detail(draft, field.key)])
+    ),
   };
 
-  switch (section.kind) {
-    case 'character': {
-      const entry: CharacterEntry = {
-        ...base,
-        kind: 'character',
-        role: detail(draft, 'role'),
-        home: detail(draft, 'home'),
-        affiliation: detail(draft, 'affiliation'),
-        status: detail(draft, 'status'),
-      };
-      return entry;
-    }
-    case 'place': {
-      const entry: PlaceEntry = {
-        ...base,
-        kind: 'place',
-        region: detail(draft, 'region'),
-        climate: detail(draft, 'climate'),
-        significance: detail(draft, 'significance'),
-      };
-      return entry;
-    }
-    case 'faction': {
-      const entry: FactionEntry = {
-        ...base,
-        kind: 'faction',
-        purpose: detail(draft, 'purpose'),
-        influence: detail(draft, 'influence'),
-        headquarters: detail(draft, 'headquarters'),
-      };
-      return entry;
-    }
-    case 'lore': {
-      const entry: LoreEntry = {
-        ...base,
-        kind: 'lore',
-        category: detail(draft, 'category'),
-        source: detail(draft, 'source'),
-        implications: detail(draft, 'implications'),
-      };
-      return entry;
-    }
-    case 'timeline': {
-      const entry: TimelineEntry = {
-        ...base,
-        kind: 'timeline',
-        dateLabel: detail(draft, 'dateLabel'),
-        era: detail(draft, 'era'),
-        consequences: detail(draft, 'consequences'),
-      };
-      return entry;
-    }
-  }
+  return base;
 }
 
 function upsertEntry<TEntry extends WorldEntry>(
@@ -230,19 +196,71 @@ function upsertEntry<TEntry extends WorldEntry>(
 }
 
 /** Apply a created or edited entry to the correct codex collection. */
-export function applyEntry(codex: WorldCodex, entry: WorldEntry): WorldCodex {
-  switch (entry.kind) {
-    case 'character':
-      return { ...codex, characters: upsertEntry(codex.characters, entry) };
-    case 'place':
-      return { ...codex, places: upsertEntry(codex.places, entry) };
-    case 'faction':
-      return { ...codex, factions: upsertEntry(codex.factions, entry) };
-    case 'lore':
-      return { ...codex, lore: upsertEntry(codex.lore, entry) };
-    case 'timeline':
-      return { ...codex, timeline: upsertEntry(codex.timeline, entry) };
-  }
+export function applyEntry(
+  codex: WorldCodex,
+  entry: WorldEntry,
+  sections: readonly WorldSectionConfig[] = worldSections
+): WorldCodex {
+  const section = sections.find((item) => item.kind === entry.kind);
+  const sectionId = section?.id ?? entry.kind;
+  return {
+    ...codex,
+    [sectionId]: upsertEntry(getEntries(codex, sectionId), entry),
+  };
+}
+
+/** Remove an entry from its section collection. */
+export function deleteEntry(
+  codex: WorldCodex,
+  entry: WorldEntry,
+  sections: readonly WorldSectionConfig[] = worldSections
+): WorldCodex {
+  const section = sections.find((item) => item.kind === entry.kind);
+  const sectionId = section?.id ?? entry.kind;
+  return {
+    ...codex,
+    [sectionId]: getEntries(codex, sectionId).filter(
+      (item) => item.id !== entry.id
+    ),
+  };
+}
+
+/** Archive or restore an entry without deleting it. */
+export function setEntryArchived(
+  codex: WorldCodex,
+  entry: WorldEntry,
+  archived: boolean,
+  sections: readonly WorldSectionConfig[] = worldSections
+): WorldCodex {
+  return applyEntry(
+    codex,
+    {
+      ...entry,
+      status: archived ? 'archived' : 'draft',
+      updatedAt: new Date().toISOString(),
+    },
+    sections
+  );
+}
+
+/** Create a duplicate entry with a fresh id. */
+export function duplicateEntry(
+  section: WorldSectionConfig,
+  entry: WorldEntry
+): WorldEntry {
+  const timestamp = new Date().toISOString();
+  return {
+    ...entry,
+    id: makeEntryId(entry.kind, `${entry.name} copy`),
+    name: `${entry.name} Copy`,
+    status: 'draft',
+    pinned: false,
+    createdAt: timestamp,
+    updatedAt: timestamp,
+    fields: { ...entry.fields },
+    tags: [...entry.tags],
+    kind: section.kind,
+  };
 }
 
 /** Format an ISO timestamp for the English prototype UI. */

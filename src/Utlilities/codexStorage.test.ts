@@ -1,11 +1,16 @@
 import { afterEach, beforeEach, describe, expect, it } from '@jest/globals';
 import {
   CODEX_STORAGE_KEY,
+  LEGACY_CODEX_STORAGE_KEY,
   loadCodex,
+  loadWorldDocument,
   resetCodexStorage,
+  resetWorldDocumentStorage,
   saveCodex,
+  saveWorldDocument,
 } from './codexStorage';
-import { createSeedCodex } from './seedCodex';
+import { createSeedCodex, createSeedWorldDocument } from './seedCodex';
+import { getActiveWorld } from './worldDocument';
 
 class MemoryStorage {
   private readonly entries = new Map<string, string>();
@@ -68,6 +73,7 @@ describe('codex storage', () => {
 
   it('loads seed data when storage is empty', () => {
     expect(loadCodex()).toEqual(createSeedCodex());
+    expect(loadWorldDocument()).toEqual(createSeedWorldDocument());
   });
 
   it('uses safe fallbacks outside the browser runtime', () => {
@@ -75,9 +81,30 @@ describe('codex storage', () => {
 
     expect(loadCodex()).toEqual(createSeedCodex());
     expect(saveCodex(createSeedCodex())).toBe(false);
+    expect(saveWorldDocument(createSeedWorldDocument())).toBe(false);
   });
 
-  it('saves and loads a valid codex document', () => {
+  it('saves and loads a valid world document', () => {
+    const document = createSeedWorldDocument();
+    const activeWorld = getActiveWorld(document);
+    const editedDocument = {
+      ...document,
+      worlds: document.worlds.map((world) =>
+        world.id === activeWorld.id
+          ? {
+              ...world,
+              name: 'Edited World',
+            }
+          : world
+      ),
+    };
+
+    expect(saveWorldDocument(editedDocument)).toBe(true);
+
+    expect(loadWorldDocument()).toEqual(editedDocument);
+  });
+
+  it('saves and loads a valid codex through compatibility helpers', () => {
     const codex = createSeedCodex();
     const editedCodex = {
       ...codex,
@@ -94,10 +121,30 @@ describe('codex storage', () => {
     expect(loadCodex()).toEqual(editedCodex);
   });
 
+  it('migrates a legacy codex document from the v1 storage key', () => {
+    const legacyCodex = createSeedCodex();
+    storage.setItem(LEGACY_CODEX_STORAGE_KEY, JSON.stringify(legacyCodex));
+
+    const migratedDocument = loadWorldDocument();
+
+    expect(migratedDocument.schemaVersion).toBe(2);
+    expect(migratedDocument.worlds).toHaveLength(1);
+    expect(getActiveWorld(migratedDocument).codex).toEqual(legacyCodex);
+  });
+
+  it('uses legacy storage when the v2 document is invalid', () => {
+    const legacyCodex = createSeedCodex();
+    storage.setItem(CODEX_STORAGE_KEY, '{not valid json');
+    storage.setItem(LEGACY_CODEX_STORAGE_KEY, JSON.stringify(legacyCodex));
+
+    expect(getActiveWorld(loadWorldDocument()).codex).toEqual(legacyCodex);
+  });
+
   it('does not throw when storage writes fail', () => {
     storage.shouldThrowOnSet = true;
 
     expect(saveCodex(createSeedCodex())).toBe(false);
+    expect(saveWorldDocument(createSeedWorldDocument())).toBe(false);
   });
 
   it('falls back to seed data for invalid stored JSON', () => {
@@ -132,8 +179,22 @@ describe('codex storage', () => {
     const resetCodex = resetCodexStorage();
 
     expect(resetCodex).toEqual(createSeedCodex());
+    expect(storage.getItem(CODEX_STORAGE_KEY)).toBeNull();
+  });
+
+  it('creates a fresh seed world document for reset flows', () => {
+    const resetDocument = resetWorldDocumentStorage();
+
+    expect(resetDocument).toEqual(createSeedWorldDocument());
+    expect(storage.getItem(CODEX_STORAGE_KEY)).toBeNull();
+  });
+
+  it('persists reset documents through the normal save path', () => {
+    const resetDocument = resetWorldDocumentStorage();
+
+    expect(saveWorldDocument(resetDocument)).toBe(true);
     expect(JSON.parse(storage.getItem(CODEX_STORAGE_KEY) ?? '')).toEqual(
-      createSeedCodex()
+      createSeedWorldDocument()
     );
   });
 });
