@@ -44,8 +44,8 @@ describe('world document helpers', () => {
       relationships: [
         {
           id: 'relationship-one',
-          sourceEntryId: 'character-sera-vall',
-          targetEntryId: 'faction-lantern-registry',
+          sourceEntryId: 'character-mira-rowan',
+          targetEntryId: 'faction-cartographers-guild',
           type: 'member of',
           directional: true,
           note: 'Works with the registry.',
@@ -99,10 +99,10 @@ describe('world document helpers', () => {
     const document = createSeedWorldDocument();
     const updatedDocument = updateActiveWorld(document, (world) => ({
       ...world,
-      name: 'Renamed Valgaron',
+      name: 'Renamed Workspace',
     }));
 
-    expect(getActiveWorld(updatedDocument).name).toBe('Renamed Valgaron');
+    expect(getActiveWorld(updatedDocument).name).toBe('Renamed Workspace');
     expect(updatedDocument.savedAt).not.toBe(document.savedAt);
   });
 

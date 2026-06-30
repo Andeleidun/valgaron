@@ -4,6 +4,7 @@ import {
   LEGACY_CODEX_STORAGE_KEY,
   loadCodex,
   loadWorldDocument,
+  loadWorldDocumentWithStatus,
   resetCodexStorage,
   resetWorldDocumentStorage,
   saveCodex,
@@ -140,6 +141,21 @@ describe('codex storage', () => {
     expect(getActiveWorld(loadWorldDocument()).codex).toEqual(legacyCodex);
   });
 
+  it('reports recovery when current storage is invalid but legacy storage loads', () => {
+    const legacyCodex = createSeedCodex();
+    storage.setItem(CODEX_STORAGE_KEY, '{not valid json');
+    storage.setItem(LEGACY_CODEX_STORAGE_KEY, JSON.stringify(legacyCodex));
+
+    const result = loadWorldDocumentWithStatus();
+
+    expect(getActiveWorld(result.document).codex).toEqual(legacyCodex);
+    expect(result.status.state).toBe('recovered');
+    expect(result.status.source).toBe('legacy');
+    expect(result.status.issues).toContain(
+      `${CODEX_STORAGE_KEY} is not valid JSON.`
+    );
+  });
+
   it('does not throw when storage writes fail', () => {
     storage.shouldThrowOnSet = true;
 
@@ -153,10 +169,34 @@ describe('codex storage', () => {
     expect(loadCodex()).toEqual(createSeedCodex());
   });
 
+  it('reports recovery when stored JSON falls back to seed data', () => {
+    storage.setItem(CODEX_STORAGE_KEY, '{not valid json');
+
+    const result = loadWorldDocumentWithStatus();
+
+    expect(result.document).toEqual(createSeedWorldDocument());
+    expect(result.status.state).toBe('recovered');
+    expect(result.status.source).toBe('seed');
+    expect(result.status.issues).toContain(
+      `${CODEX_STORAGE_KEY} is not valid JSON.`
+    );
+  });
+
   it('falls back to seed data when storage reads fail', () => {
     storage.shouldThrowOnGet = true;
 
     expect(loadCodex()).toEqual(createSeedCodex());
+  });
+
+  it('reports recovery when local storage reads fail', () => {
+    storage.shouldThrowOnGet = true;
+
+    const result = loadWorldDocumentWithStatus();
+
+    expect(result.document).toEqual(createSeedWorldDocument());
+    expect(result.status.state).toBe('recovered');
+    expect(result.status.issues).toHaveLength(2);
+    expect(result.status.issues[0]).toContain('could not be read');
   });
 
   it('falls back to seed data when stored entries have invalid timestamps', () => {

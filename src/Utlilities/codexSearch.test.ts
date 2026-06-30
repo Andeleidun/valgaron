@@ -20,12 +20,12 @@ describe('codex search helpers', () => {
       searchEntries(searchableEntries, worldSections, 'hidden atlas').map(
         (entry) => entry.id
       )
-    ).toEqual(['character-sera-vall']);
+    ).toEqual(['character-mira-rowan']);
     expect(
-      searchEntries(searchableEntries, worldSections, 'Cinderpeak').map(
+      searchEntries(searchableEntries, worldSections, 'Interior highlands').map(
         (entry) => entry.id
       )
-    ).toEqual(['place-ashmantle-gate']);
+    ).toEqual(['place-glassroot-forest']);
   });
 
   it('filters section entries by query, tag, status, and archived visibility', () => {
@@ -45,7 +45,7 @@ describe('codex search helpers', () => {
         showArchived: false,
         updatedWithinDays: null,
       }).map((entry) => entry.id)
-    ).toEqual(['character-kael-orrin']);
+    ).toEqual(['character-tomas-quill']);
     expect(
       filterSectionEntries(entries, section, {
         query: '',
@@ -54,16 +54,16 @@ describe('codex search helpers', () => {
         showArchived: false,
         updatedWithinDays: null,
       }).map((entry) => entry.id)
-    ).toEqual(['character-sera-vall']);
+    ).toEqual(['character-mira-rowan']);
     expect(
       filterSectionEntries(entries, section, {
-        query: 'sunstone',
-        activeTag: 'exile',
+        query: 'supplies',
+        activeTag: 'ledger',
         status: '',
         showArchived: false,
         updatedWithinDays: null,
       }).map((entry) => entry.id)
-    ).toEqual(['character-kael-orrin']);
+    ).toEqual(['character-tomas-quill']);
     expect(
       filterSectionEntries(entries, section, {
         query: '',
@@ -73,7 +73,7 @@ describe('codex search helpers', () => {
         updatedWithinDays: 3,
         now: new Date('2026-06-01T00:00:00.000Z'),
       }).map((entry) => entry.id)
-    ).toEqual(['character-kael-orrin']);
+    ).toEqual(['character-tomas-quill']);
   });
 
   it('sorts entries by name, created date, updated date, and status', () => {
@@ -94,11 +94,11 @@ describe('codex search helpers', () => {
     ];
 
     expect(sortEntries(entries, 'name').map((entry) => entry.name)).toEqual([
-      'Kael Orrin',
-      'Sera Vall',
+      'Mira Rowan',
+      'Tomas Quill',
     ]);
-    expect(sortEntries(entries, 'created-desc')[0].name).toBe('Kael Orrin');
-    expect(sortEntries(entries, 'updated-desc')[0].name).toBe('Sera Vall');
+    expect(sortEntries(entries, 'created-desc')[0].name).toBe('Tomas Quill');
+    expect(sortEntries(entries, 'updated-desc')[0].name).toBe('Mira Rowan');
     expect(sortEntries(entries, 'status')[0].status).toBe('canon');
   });
 });

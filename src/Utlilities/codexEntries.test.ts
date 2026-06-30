@@ -149,11 +149,11 @@ describe('codex entry helpers', () => {
     }
 
     const entries = getEntries(codex, section.id);
-    expect(entryMatchesFilters(entries[0], section, 'forbidden maps', '')).toBe(
+    expect(entryMatchesFilters(entries[0], section, 'route sketches', '')).toBe(
       true
     );
     expect(entryMatchesFilters(entries[0], section, '', 'maps')).toBe(true);
-    expect(entryMatchesFilters(entries[0], section, 'forbidden', 'exile')).toBe(
+    expect(entryMatchesFilters(entries[0], section, 'routes', 'ledger')).toBe(
       false
     );
   });

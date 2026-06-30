@@ -5,7 +5,9 @@ import {
   deleteRelationshipsForEntry,
   findEntryById,
   filterRelationships,
+  getBrokenRelationships,
   getEntryRelationships,
+  getOrphanedEntries,
   getRelationshipGraph,
   relationshipFromDraft,
   upsertRelationship,
@@ -14,12 +16,12 @@ import { createSeedCodex, worldSections } from './seedCodex';
 import type { WorldRelationship } from '../types';
 
 const fixedRelationship: WorldRelationship = {
-  id: 'relationship-sera-registry',
-  sourceEntryId: 'character-sera-vall',
-  targetEntryId: 'faction-lantern-registry',
+  id: 'relationship-mira-guild',
+  sourceEntryId: 'character-mira-rowan',
+  targetEntryId: 'faction-cartographers-guild',
   type: 'member of',
   directional: true,
-  note: 'Sera keeps witness ledgers for the Registry.',
+  note: 'Mira files route notes for the guild.',
   status: 'canon',
   createdAt: '2026-06-01T09:00:00.000Z',
   updatedAt: '2026-06-01T09:00:00.000Z',
@@ -39,8 +41,8 @@ describe('codexRelationships', () => {
 
   it('converts a draft into a saved relationship', () => {
     const relationship = relationshipFromDraft({
-      sourceEntryId: 'character-sera-vall',
-      targetEntryId: 'faction-lantern-registry',
+      sourceEntryId: 'character-mira-rowan',
+      targetEntryId: 'faction-cartographers-guild',
       type: ' member of ',
       directional: true,
       note: ' Keeps ledgers. ',
@@ -75,43 +77,43 @@ describe('codexRelationships', () => {
     const unrelatedRelationship = {
       ...fixedRelationship,
       id: 'relationship-other',
-      sourceEntryId: 'character-kael-orrin',
-      targetEntryId: 'lore-sunstones',
+      sourceEntryId: 'character-tomas-quill',
+      targetEntryId: 'lore-tide-calendar',
     };
 
     expect(
       deleteRelationshipsForEntry(
         [fixedRelationship, unrelatedRelationship],
-        'character-sera-vall'
+        'character-mira-rowan'
       )
     ).toEqual([unrelatedRelationship]);
   });
 
   it('filters relationships by type and attached entry', () => {
-    const sunstoneRelationship = {
+    const calendarRelationship = {
       ...fixedRelationship,
-      id: 'relationship-kael-sunstones',
-      sourceEntryId: 'character-kael-orrin',
-      targetEntryId: 'lore-sunstones',
-      type: 'carries',
+      id: 'relationship-tomas-calendar',
+      sourceEntryId: 'character-tomas-quill',
+      targetEntryId: 'lore-tide-calendar',
+      type: 'references',
     };
 
     expect(
-      filterRelationships([fixedRelationship, sunstoneRelationship], {
+      filterRelationships([fixedRelationship, calendarRelationship], {
         type: 'member of',
         entryId: '',
       })
     ).toEqual([fixedRelationship]);
     expect(
-      filterRelationships([fixedRelationship, sunstoneRelationship], {
+      filterRelationships([fixedRelationship, calendarRelationship], {
         type: '',
-        entryId: 'lore-sunstones',
+        entryId: 'lore-tide-calendar',
       })
-    ).toEqual([sunstoneRelationship]);
+    ).toEqual([calendarRelationship]);
     expect(
-      filterRelationships([fixedRelationship, sunstoneRelationship], {
+      filterRelationships([fixedRelationship, calendarRelationship], {
         type: 'member of',
-        entryId: 'character-kael-orrin',
+        entryId: 'character-tomas-quill',
       })
     ).toEqual([]);
   });
@@ -120,20 +122,20 @@ describe('codexRelationships', () => {
     const codex = createSeedCodex();
 
     expect(
-      findEntryById(codex, worldSections, 'character-sera-vall')?.name
-    ).toBe('Sera Vall');
+      findEntryById(codex, worldSections, 'character-mira-rowan')?.name
+    ).toBe('Mira Rowan');
     expect(
       getEntryRelationships(
         [fixedRelationship],
         codex,
         worldSections,
-        'character-sera-vall'
+        'character-mira-rowan'
       )
     ).toMatchObject([
       {
         id: fixedRelationship.id,
-        sourceEntry: { name: 'Sera Vall' },
-        targetEntry: { name: 'The Lantern Registry' },
+        sourceEntry: { name: 'Mira Rowan' },
+        targetEntry: { name: 'The Cartographers Guild' },
       },
     ]);
   });
@@ -155,27 +157,128 @@ describe('codexRelationships', () => {
     ).toEqual({
       nodes: [
         {
-          id: 'character-sera-vall',
-          name: 'Sera Vall',
+          id: 'character-mira-rowan',
+          name: 'Mira Rowan',
+          sectionId: 'characters',
           sectionTitle: 'Characters',
           status: 'draft',
+          tags: ['surveyor', 'routes', 'maps'],
         },
         {
-          id: 'faction-lantern-registry',
-          name: 'The Lantern Registry',
+          id: 'faction-cartographers-guild',
+          name: 'The Cartographers Guild',
+          sectionId: 'factions',
           sectionTitle: 'Factions',
           status: 'draft',
+          tags: ['maps', 'routes', 'guild'],
         },
       ],
       edges: [
         {
           id: fixedRelationship.id,
-          sourceId: 'character-sera-vall',
-          targetId: 'faction-lantern-registry',
+          sourceId: 'character-mira-rowan',
+          targetId: 'faction-cartographers-guild',
           label: 'member of',
           directional: true,
         },
       ],
     });
+  });
+
+  it('reports broken relationships with missing endpoints', () => {
+    const codex = createSeedCodex();
+    const brokenRelationship = {
+      ...fixedRelationship,
+      id: 'relationship-broken',
+      targetEntryId: 'missing-entry',
+    };
+
+    expect(
+      getBrokenRelationships(
+        [fixedRelationship, brokenRelationship],
+        codex,
+        worldSections
+      )
+    ).toMatchObject([
+      {
+        id: 'relationship-broken',
+        missingSource: false,
+        missingTarget: true,
+        sourceEntry: { name: 'Mira Rowan' },
+        targetEntry: null,
+      },
+    ]);
+  });
+
+  it('reports orphaned entries without saved relationships', () => {
+    const codex = createSeedCodex();
+
+    expect(
+      getOrphanedEntries([fixedRelationship], codex, worldSections).map(
+        (entry) => entry.id
+      )
+    ).toEqual([
+      'character-tomas-quill',
+      'place-northwatch-harbor',
+      'place-glassroot-forest',
+      'faction-ember-court',
+      'lore-waystones',
+      'lore-tide-calendar',
+      'timeline-first-survey',
+      'timeline-harbor-accord',
+    ]);
+  });
+
+  it('filters graph data by section, status, tag, and relationship type', () => {
+    const codex = createSeedCodex();
+    const referencesRelationship = {
+      ...fixedRelationship,
+      id: 'relationship-mira-waystones',
+      targetEntryId: 'lore-waystones',
+      type: 'references',
+    };
+
+    expect(
+      getRelationshipGraph(
+        [fixedRelationship, referencesRelationship],
+        codex,
+        worldSections,
+        {
+          sectionId: '',
+          status: 'draft',
+          tag: 'maps',
+          type: 'member of',
+        }
+      )
+    ).toMatchObject({
+      nodes: [
+        {
+          id: 'character-mira-rowan',
+          sectionId: 'characters',
+        },
+        {
+          id: 'faction-cartographers-guild',
+          sectionId: 'factions',
+        },
+      ],
+      edges: [
+        {
+          id: fixedRelationship.id,
+        },
+      ],
+    });
+    expect(
+      getRelationshipGraph(
+        [fixedRelationship, referencesRelationship],
+        codex,
+        worldSections,
+        {
+          sectionId: 'characters',
+          status: '',
+          tag: '',
+          type: 'member of',
+        }
+      ).edges
+    ).toEqual([]);
   });
 });

@@ -44,6 +44,12 @@ function getEntrySearchText(
     .toLowerCase();
 }
 
+function getSectionByIdMap(
+  sections: readonly WorldSectionConfig[]
+): Map<string, WorldSectionConfig> {
+  return new Map(sections.map((section) => [section.id, section]));
+}
+
 /** Return every entry with its owning section metadata attached. */
 export function getSearchableEntries(
   codex: WorldCodex,
@@ -69,8 +75,9 @@ export function searchEntries(
   if (!normalizedQuery) {
     return [];
   }
+  const sectionById = getSectionByIdMap(sections);
   return entries.filter((entry) => {
-    const section = sections.find((item) => item.id === entry.sectionId);
+    const section = sectionById.get(entry.sectionId);
     return section
       ? getEntrySearchText(entry, section).includes(normalizedQuery)
       : false;

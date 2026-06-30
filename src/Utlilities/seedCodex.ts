@@ -1,4 +1,5 @@
 import type {
+  InFictionWorld,
   WorldCodex,
   WorldDocument,
   WorldEntry,
@@ -11,7 +12,7 @@ import type {
 
 const SEED_CREATED_AT = '2026-05-01T08:00:00.000Z';
 const SEED_SAVED_AT = '2026-06-01T09:00:00.000Z';
-const SEED_WORLD_ID = 'world-valgaron';
+const SEED_WORLD_ID = 'world-starter-atlas';
 
 export const worldSections: readonly WorldSectionConfig[] = [
   {
@@ -73,7 +74,7 @@ export const worldSections: readonly WorldSectionConfig[] = [
     title: 'Timeline',
     singularTitle: 'Timeline Event',
     description:
-      'Ordered moments that explain how Valgaron reached its current state.',
+      'Ordered moments that explain how this setting reached its current state.',
     detailFields: [
       { key: 'order', label: 'Sort order' },
       { key: 'dateLabel', label: 'Date or order' },
@@ -105,165 +106,205 @@ function seedEntry(input: SeedEntryInput): WorldEntry {
   };
 }
 
+export const seedPlanetaryWorlds: readonly InFictionWorld[] = [
+  {
+    id: 'planetary-world-aster',
+    name: 'Aster',
+    summary:
+      'A temperate sample planet used to separate workspace management from in-fiction worldbuilding records.',
+    classification: 'Terrestrial planet',
+    climate: 'Mixed coastal and highland climates',
+    dominantTerrain: 'Harbors, forests, and inland routes',
+    notes: '',
+    tags: ['planet', 'temperate', 'sample'],
+    status: 'draft',
+    createdAt: SEED_CREATED_AT,
+    updatedAt: SEED_SAVED_AT,
+  },
+  {
+    id: 'planetary-world-lumen',
+    name: 'Lumen',
+    summary:
+      'A bright companion moon that supports calendar tests and simple orbital notes.',
+    classification: 'Moon',
+    climate: 'Airless highland surface',
+    dominantTerrain: 'Crater fields and reflective plains',
+    notes: '',
+    tags: ['moon', 'calendar', 'sample'],
+    status: 'draft',
+    createdAt: SEED_CREATED_AT,
+    updatedAt: '2026-05-18T16:05:00.000Z',
+  },
+];
+
+function clonePlanetaryWorlds(
+  planetaryWorlds: readonly InFictionWorld[]
+): InFictionWorld[] {
+  return planetaryWorlds.map((planetaryWorld) => ({
+    ...planetaryWorld,
+    tags: [...planetaryWorld.tags],
+  }));
+}
+
 export const seedCodex: WorldCodex = {
   characters: [
     seedEntry({
-      id: 'character-sera-vall',
+      id: 'character-mira-rowan',
       kind: 'character',
-      name: 'Sera Vall',
+      name: 'Mira Rowan',
       summary:
-        'A border archivist who records forbidden maps and quietly protects displaced travelers.',
-      tags: ['archivist', 'borderlands', 'maps'],
+        'A careful surveyor who keeps field notes, route sketches, and practical warnings for new expeditions.',
+      tags: ['surveyor', 'routes', 'maps'],
       updatedAt: '2026-06-01T09:00:00.000Z',
       fields: {
-        role: 'Archive keeper and reluctant field guide',
-        home: 'Greyharbor Annex',
-        affiliation: 'The Lantern Registry',
-        statusNote: 'Active in the western marches',
+        role: 'Lead surveyor and field guide',
+        home: 'Harbor District',
+        affiliation: 'The Cartographers Guild',
+        statusNote: 'Preparing the northern route survey',
       },
     }),
     seedEntry({
-      id: 'character-kael-orrin',
+      id: 'character-tomas-quill',
       kind: 'character',
-      name: 'Kael Orrin',
+      name: 'Tomas Quill',
       summary:
-        'A former oathblade carrying a royal debt, a cracked sunstone, and several false names.',
-      tags: ['oathblade', 'exile', 'sunstone'],
+        'A quartermaster who tracks supplies, favors, and the quiet politics of every camp ledger.',
+      tags: ['quartermaster', 'supplies', 'ledger'],
       updatedAt: '2026-05-29T13:30:00.000Z',
       fields: {
-        role: 'Exiled duelist',
-        home: 'The Ember Coast',
-        affiliation: 'None declared',
-        statusNote: 'Wanted in two crown provinces',
+        role: 'Expedition quartermaster',
+        home: 'South Market',
+        affiliation: 'Northwatch Survey',
+        statusNote: 'Balancing short supplies against an early departure',
       },
     }),
   ],
   places: [
     seedEntry({
-      id: 'place-mirrowfen',
+      id: 'place-northwatch-harbor',
       kind: 'place',
-      name: 'Mirrowfen',
+      name: 'Northwatch Harbor',
       summary:
-        'A mirror-bright wetland where roads appear after moonrise and vanish before dawn.',
-      tags: ['wetland', 'moonroads', 'haunted'],
+        'A practical harbor town built around survey ships, repair yards, and a busy winter market.',
+      tags: ['harbor', 'trade', 'survey'],
       updatedAt: '2026-05-27T10:15:00.000Z',
       fields: {
-        region: 'North of the Old Causeway',
-        climate: 'Cold marsh with silver fog',
+        region: 'Northern coast',
+        climate: 'Cold maritime wind and steady rain',
         significance:
-          'Travelers can cross a week of distance in one night if they know the right reflection.',
+          'Most expeditions begin here because charts, shipwrights, and supply brokers are easy to find.',
       },
     }),
     seedEntry({
-      id: 'place-ashmantle-gate',
+      id: 'place-glassroot-forest',
       kind: 'place',
-      name: 'Ashmantle Gate',
+      name: 'Glassroot Forest',
       summary:
-        'A mountain pass sealed by basalt doors after the last dragon tithe was refused.',
-      tags: ['mountains', 'sealed gate', 'dragons'],
+        'A deep forest where pale roots break the surface like glass and make night travel dangerous.',
+      tags: ['forest', 'waystones', 'dangerous'],
       updatedAt: '2026-05-24T18:00:00.000Z',
       fields: {
-        region: 'Cinderpeak Range',
-        climate: 'Dry alpine ashfall',
+        region: 'Interior highlands',
+        climate: 'Cool canopy with bright ground fog',
         significance:
-          'Controls the only reliable passage between the high valleys and the eastern kingdoms.',
+          'The shortest route to the inland ruins crosses the forest, but only marked paths are safe.',
       },
     }),
   ],
   factions: [
     seedEntry({
-      id: 'faction-lantern-registry',
+      id: 'faction-cartographers-guild',
       kind: 'faction',
-      name: 'The Lantern Registry',
+      name: 'The Cartographers Guild',
       summary:
-        'A civic order that maintains safe routes, witness ledgers, and signal houses.',
-      tags: ['routes', 'archives', 'civic'],
+        'A practical guild that licenses survey crews, maintains maps, and sells verified route updates.',
+      tags: ['maps', 'routes', 'guild'],
       updatedAt: '2026-05-26T15:45:00.000Z',
       fields: {
-        purpose: 'Keep travelers from disappearing between unstable borders.',
-        influence: 'Trusted by merchants, distrusted by several crowns',
-        headquarters: 'Greyharbor Annex',
+        purpose: 'Keep maps accurate enough for safe travel and fair trade.',
+        influence: 'Trusted by merchants, questioned by frontier captains',
+        headquarters: 'Northwatch Harbor',
       },
     }),
     seedEntry({
-      id: 'faction-gilded-choir',
+      id: 'faction-ember-court',
       kind: 'faction',
-      name: 'The Gilded Choir',
+      name: 'The Ember Court',
       summary:
-        'A devotional banking house that turns vows into legal currency.',
-      tags: ['faith', 'banking', 'vows'],
+        'A council of landholders and expedition patrons who fund surveys in exchange for first claims.',
+      tags: ['patrons', 'claims', 'council'],
       updatedAt: '2026-05-20T11:20:00.000Z',
       fields: {
         purpose:
-          'Bind patrons to sacred debts and fund temple-backed expeditions.',
-        influence: 'Deep in port cities and succession courts',
-        headquarters: 'Aurelion Basilica',
+          'Turn exploration reports into charters, claims, and leverage.',
+        influence: 'Strong in coastal offices and sponsor houses',
+        headquarters: 'Ember Hall',
       },
     }),
   ],
   lore: [
     seedEntry({
-      id: 'lore-sunstones',
+      id: 'lore-waystones',
       kind: 'lore',
-      name: 'Sunstones',
+      name: 'Waystones',
       summary:
-        'Amber relics that store oathlight and fracture when their bearer breaks a sworn vow.',
-      tags: ['magic', 'relics', 'oaths'],
+        'Carved trail markers that record distance, direction, and warnings from earlier travelers.',
+      tags: ['navigation', 'markers', 'travel'],
       updatedAt: '2026-05-22T08:10:00.000Z',
       fields: {
-        category: 'Magic artifact',
-        source: 'Temple inventories and duelist accounts',
+        category: 'Travel custom',
+        source: 'Survey manuals and field reports',
         implications:
-          'A cracked sunstone can prove betrayal, but forged cracks are becoming common.',
+          'A missing or altered waystone can turn a safe route into a serious hazard.',
       },
     }),
     seedEntry({
-      id: 'lore-dragon-tithe',
+      id: 'lore-tide-calendar',
       kind: 'lore',
-      name: 'The Dragon Tithe',
+      name: 'The Tide Calendar',
       summary:
-        'An abandoned treaty that once exchanged mountain passage for tribute paid in worked silver.',
-      tags: ['treaty', 'dragons', 'silver'],
+        'A seasonal planning system used to schedule departures around storms, tides, and inland thaw.',
+      tags: ['calendar', 'travel', 'weather'],
       updatedAt: '2026-05-18T16:05:00.000Z',
       fields: {
-        category: 'Political custom',
-        source: 'Ashmantle inscriptions',
+        category: 'Navigation practice',
+        source: 'Harbor records and ship logs',
         implications:
-          'Reopening the gate may require a legal heir to the old tribute contract.',
+          'Expeditions that ignore the calendar risk arriving after supplies or safe roads disappear.',
       },
     }),
   ],
   timeline: [
     seedEntry({
-      id: 'timeline-gate-sealed',
+      id: 'timeline-first-survey',
       kind: 'timeline',
-      name: 'Ashmantle Gate Sealed',
+      name: 'First Northern Survey',
       summary:
-        'The basalt doors were closed after three provinces refused the final silver tithe.',
-      tags: ['Ashmantle', 'dragons', 'trade'],
+        'A small crew charted the first reliable route between the harbor and the inland highlands.',
+      tags: ['survey', 'routes', 'travel'],
       updatedAt: '2026-05-19T12:00:00.000Z',
       fields: {
-        order: '412',
-        dateLabel: 'Year 412 of the Fifth Compact',
-        era: 'Late Compact Era',
+        order: '10',
+        dateLabel: 'Year 10 of the Harbor Charter',
+        era: 'Survey Era',
         consequences:
-          'Eastern trade moved to sea routes, enriching Greyharbor and isolating the high valleys.',
+          'The route made inland expeditions possible and gave map licenses real value.',
       },
     }),
     seedEntry({
-      id: 'timeline-registry-founded',
+      id: 'timeline-harbor-accord',
       kind: 'timeline',
-      name: 'Lantern Registry Founded',
+      name: 'Harbor Accord Signed',
       summary:
-        'Signal houses were standardized after the winter when twelve border villages vanished from maps.',
-      tags: ['Lantern Registry', 'borderlands', 'maps'],
+        'Guild officers, shipwrights, and patrons agreed on shared map fees and expedition rules.',
+      tags: ['harbor', 'guild', 'charter'],
       updatedAt: '2026-05-16T09:25:00.000Z',
       fields: {
-        order: '318',
-        dateLabel: 'Winter of Blank Roads',
-        era: 'Border Reckoning',
+        order: '4',
+        dateLabel: 'Year 4 of the Harbor Charter',
+        era: 'Charter Era',
         consequences:
-          'Archivists gained unusual political protection in exchange for route accountability.',
+          'The accord made Northwatch Harbor the official starting point for licensed surveys.',
       },
     }),
   ],
@@ -271,56 +312,56 @@ export const seedCodex: WorldCodex = {
 
 export const seedRelationships: readonly WorldRelationship[] = [
   {
-    id: 'relationship-sera-lantern-registry',
-    sourceEntryId: 'character-sera-vall',
-    targetEntryId: 'faction-lantern-registry',
+    id: 'relationship-mira-cartographers-guild',
+    sourceEntryId: 'character-mira-rowan',
+    targetEntryId: 'faction-cartographers-guild',
     type: 'member of',
     directional: true,
-    note: 'Sera maintains border ledgers and witness records for the Registry.',
+    note: 'Mira files verified route notes through the guild archive.',
     status: 'canon',
     createdAt: SEED_CREATED_AT,
     updatedAt: '2026-06-01T09:00:00.000Z',
   },
   {
-    id: 'relationship-registry-founded-by-event',
-    sourceEntryId: 'timeline-registry-founded',
-    targetEntryId: 'faction-lantern-registry',
+    id: 'relationship-accord-cartographers-guild',
+    sourceEntryId: 'timeline-harbor-accord',
+    targetEntryId: 'faction-cartographers-guild',
     type: 'founded',
     directional: true,
-    note: 'The Winter of Blank Roads created the political mandate for the Registry.',
+    note: 'The accord formalized guild authority over licensed route maps.',
     status: 'canon',
     createdAt: SEED_CREATED_AT,
     updatedAt: '2026-05-26T15:45:00.000Z',
   },
   {
-    id: 'relationship-gate-dragon-tithe',
-    sourceEntryId: 'timeline-gate-sealed',
-    targetEntryId: 'lore-dragon-tithe',
+    id: 'relationship-first-survey-waystones',
+    sourceEntryId: 'timeline-first-survey',
+    targetEntryId: 'lore-waystones',
     type: 'caused by',
     directional: true,
-    note: 'The refusal of the final silver tithe led directly to the gate sealing.',
+    note: 'The first survey depended on marked waystones to keep the return route intact.',
     status: 'canon',
     createdAt: SEED_CREATED_AT,
     updatedAt: '2026-05-19T12:00:00.000Z',
   },
   {
-    id: 'relationship-kael-sunstones',
-    sourceEntryId: 'character-kael-orrin',
-    targetEntryId: 'lore-sunstones',
-    type: 'carries',
+    id: 'relationship-tomas-tide-calendar',
+    sourceEntryId: 'character-tomas-quill',
+    targetEntryId: 'lore-tide-calendar',
+    type: 'references',
     directional: true,
-    note: 'Kael carries a cracked sunstone that may prove a broken oath.',
+    note: 'Tomas uses the calendar to decide when supplies can move inland.',
     status: 'draft',
     createdAt: SEED_CREATED_AT,
     updatedAt: '2026-05-29T13:30:00.000Z',
   },
   {
-    id: 'relationship-ashmantle-dragon-tithe',
-    sourceEntryId: 'place-ashmantle-gate',
-    targetEntryId: 'lore-dragon-tithe',
+    id: 'relationship-glassroot-waystones',
+    sourceEntryId: 'place-glassroot-forest',
+    targetEntryId: 'lore-waystones',
     type: 'references',
     directional: true,
-    note: 'Ashmantle inscriptions preserve fragments of the tribute contract.',
+    note: 'Waystones are the only reliable markers through the forest routes.',
     status: 'draft',
     createdAt: SEED_CREATED_AT,
     updatedAt: '2026-05-24T18:00:00.000Z',
@@ -354,9 +395,11 @@ export function createSeedCodex(): WorldCodex {
 export function createSeedWorld(): WorldWorkspace {
   return {
     id: SEED_WORLD_ID,
-    name: 'Valgaron',
-    summary: 'The default Valgaron drafting workspace.',
-    defaultEra: 'Fifth Compact',
+    name: 'Sample Atlas',
+    summary: 'A neutral starter workspace for testing worldbuilding workflows.',
+    defaultEra: 'Harbor Charter',
+    status: 'active',
+    planetaryWorlds: clonePlanetaryWorlds(seedPlanetaryWorlds),
     entryTypes: worldSections.map((section) => ({ ...section })),
     codex: createSeedCodex(),
     relationships: cloneRelationships(seedRelationships),

@@ -1,9 +1,12 @@
 import { describe, expect, it } from '@jest/globals';
 import {
   filterTimelineEvents,
+  getTimelineDiagnostics,
   getTimelineEras,
+  getTimelineHighlights,
   getTimelineInvolvedEntryIds,
   getTimelineOrderValue,
+  getTimelineOrderUpdates,
   groupTimelineEventsByEra,
   sortTimelineEvents,
 } from './codexTimeline';
@@ -63,6 +66,32 @@ describe('codexTimeline', () => {
     ]);
   });
 
+  it('returns order updates for moving events earlier or later', () => {
+    const first = timelineEvent('first', 'First', '10', 'Era');
+    const second = timelineEvent('second', 'Second', '20', 'Era');
+    const third = timelineEvent('third', 'Third', '', 'Era');
+
+    expect(
+      getTimelineOrderUpdates([first, second, third], 'second', 'earlier').map(
+        (event) => [event.id, event.fields.order]
+      )
+    ).toEqual([
+      ['second', '10'],
+      ['first', '20'],
+    ]);
+    expect(
+      getTimelineOrderUpdates([first, second, third], 'second', 'later').map(
+        (event) => [event.id, event.fields.order]
+      )
+    ).toEqual([
+      ['second', '30'],
+      ['third', '20'],
+    ]);
+    expect(
+      getTimelineOrderUpdates([first, second], 'first', 'earlier')
+    ).toEqual([]);
+  });
+
   it('returns sorted eras from a timeline list', () => {
     expect(
       getTimelineEras([
@@ -78,18 +107,66 @@ describe('codexTimeline', () => {
 
     expect(
       getTimelineInvolvedEntryIds(events[0], world.relationships)
-    ).toContain('lore-dragon-tithe');
+    ).toContain('lore-waystones');
     expect(
       filterTimelineEvents(
         events,
         {
-          era: 'Late Compact Era',
-          tag: 'dragons',
+          era: 'Survey Era',
+          tag: 'survey',
           status: 'draft',
-          involvedEntryId: 'lore-dragon-tithe',
+          involvedEntryId: 'lore-waystones',
         },
         world.relationships
       ).map((event) => event.id)
-    ).toEqual(['timeline-gate-sealed']);
+    ).toEqual(['timeline-first-survey']);
+  });
+
+  it('reports timeline ordering and relationship diagnostics', () => {
+    const duplicateA = timelineEvent('duplicate-a', 'Duplicate A', '10', 'Era');
+    const duplicateB = timelineEvent('duplicate-b', 'Duplicate B', '10', 'Era');
+    const unordered = timelineEvent('unordered', 'Unordered', '', 'Era');
+
+    expect(
+      getTimelineDiagnostics(
+        [duplicateA, duplicateB, unordered],
+        [
+          {
+            id: 'relationship-timeline',
+            sourceEntryId: 'duplicate-a',
+            targetEntryId: 'character-mira-rowan',
+            type: 'references',
+            directional: true,
+            note: '',
+            status: 'draft',
+            createdAt: '2026-01-01T00:00:00.000Z',
+            updatedAt: '2026-01-01T00:00:00.000Z',
+          },
+        ]
+      )
+    ).toMatchObject({
+      unorderedEvents: [{ id: 'unordered' }],
+      duplicateOrderGroups: [
+        {
+          order: 10,
+          events: [{ id: 'duplicate-a' }, { id: 'duplicate-b' }],
+        },
+      ],
+      unlinkedEvents: [{ id: 'duplicate-b' }, { id: 'unordered' }],
+    });
+  });
+
+  it('returns sorted non-archived timeline highlights', () => {
+    const early = timelineEvent('early', 'Early', '1', 'Era');
+    const archived = {
+      ...timelineEvent('archived', 'Archived', '2', 'Era'),
+      status: 'archived' as const,
+    };
+    const later = timelineEvent('later', 'Later', '3', 'Era');
+
+    expect(getTimelineHighlights([later, archived, early])).toEqual([
+      early,
+      later,
+    ]);
   });
 });

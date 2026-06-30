@@ -12,6 +12,8 @@ export type WorldEntryStatus =
   | 'deprecated'
   | 'archived';
 
+export type WorldWorkspaceStatus = 'active' | 'archived';
+
 /** Shared fields every worldbuilding record needs for listing and editing. */
 export type WorldEntryBase = {
   id: string;
@@ -27,7 +29,7 @@ export type WorldEntryBase = {
   fields: Record<string, string>;
 };
 
-/** A person, creature, or major named figure in Valgaron. */
+/** A person, creature, or major named figure in a workspace. */
 export type CharacterEntry = WorldEntryBase;
 
 /** A location, region, settlement, landmark, or realm. */
@@ -83,11 +85,27 @@ export type WorldRelationship = {
   updatedAt: string;
 };
 
+export type InFictionWorld = {
+  id: string;
+  name: string;
+  summary: string;
+  classification: string;
+  climate: string;
+  dominantTerrain: string;
+  notes: string;
+  tags: string[];
+  status: WorldEntryStatus;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type WorldWorkspace = {
   id: string;
   name: string;
   summary: string;
   defaultEra: string;
+  status: WorldWorkspaceStatus;
+  planetaryWorlds: InFictionWorld[];
   entryTypes: WorldSectionConfig[];
   codex: WorldCodex;
   relationships: WorldRelationship[];
@@ -100,6 +118,33 @@ export type WorldDocument = {
   activeWorldId: string;
   worlds: WorldWorkspace[];
   savedAt: string;
+};
+
+export type RecoverySnapshotReason =
+  | 'import'
+  | 'reset'
+  | 'permanent-delete'
+  | 'relationship-delete'
+  | 'restore'
+  | 'workspace-delete'
+  | 'planetary-world-delete'
+  | 'entry-type-delete';
+
+export type RecoverySnapshot = {
+  id: string;
+  reason: RecoverySnapshotReason;
+  createdAt: string;
+  document: WorldDocument;
+};
+
+export type RecoverySnapshotSummary = {
+  id: string;
+  reason: RecoverySnapshotReason;
+  createdAt: string;
+  activeWorldName: string;
+  worldCount: number;
+  entryCount: number;
+  relationshipCount: number;
 };
 
 /** Simple option shape used by retained MUI-based reusable controls. */

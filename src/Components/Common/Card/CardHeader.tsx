@@ -8,7 +8,12 @@ type CardHeaderProps = {
   subheader?: string;
 };
 
-function VWorldBuilderCardHeader({ title, avatar, action, subheader }: CardHeaderProps) {
+function VWorldBuilderCardHeader({
+  title,
+  avatar,
+  action,
+  subheader,
+}: CardHeaderProps) {
   return (
     <CardHeader
       title={title}

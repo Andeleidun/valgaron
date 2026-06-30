@@ -1,6 +1,8 @@
 import CheckBoxOutlinedIcon from '@mui/icons-material/CheckBoxOutlined';
 import CheckBoxOutlineBlankIcon from '@mui/icons-material/CheckBoxOutlineBlank';
-import ToggleButton, { type ToggleButtonProps } from '@mui/material/ToggleButton';
+import ToggleButton, {
+  type ToggleButtonProps,
+} from '@mui/material/ToggleButton';
 import { Text, Box } from '../';
 import './Button.css';
 

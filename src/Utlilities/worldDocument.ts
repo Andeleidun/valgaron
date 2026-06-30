@@ -1,4 +1,5 @@
 import type {
+  InFictionWorld,
   WorldCodex,
   WorldDocument,
   WorldEntry,
@@ -6,6 +7,7 @@ import type {
   WorldRelationship,
   WorldSectionConfig,
   WorldWorkspace,
+  WorldWorkspaceStatus,
 } from '../types';
 import { createSeedWorldDocument, worldSections } from './seedCodex';
 
@@ -19,6 +21,10 @@ const VALID_ENTRY_STATUSES: readonly WorldEntryStatus[] = [
   'canon',
   'needs-review',
   'deprecated',
+  'archived',
+];
+const VALID_WORKSPACE_STATUSES: readonly WorldWorkspaceStatus[] = [
+  'active',
   'archived',
 ];
 
@@ -88,6 +94,16 @@ function readEntryStatus(
   const value = readString(record, key);
   return VALID_ENTRY_STATUSES.includes(value as WorldEntryStatus)
     ? (value as WorldEntryStatus)
+    : null;
+}
+
+function readWorkspaceStatus(
+  record: Record<string, unknown>,
+  key: string
+): WorldWorkspaceStatus | null {
+  const value = readString(record, key);
+  return VALID_WORKSPACE_STATUSES.includes(value as WorldWorkspaceStatus)
+    ? (value as WorldWorkspaceStatus)
     : null;
 }
 
@@ -317,6 +333,66 @@ function parseRelationships(value: unknown): WorldRelationship[] | null {
   );
 }
 
+function parsePlanetaryWorld(value: unknown): InFictionWorld | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+  const id = readString(value, 'id');
+  const name = readString(value, 'name');
+  const summary = readString(value, 'summary');
+  const classification = readString(value, 'classification');
+  const climate = readString(value, 'climate');
+  const dominantTerrain = readString(value, 'dominantTerrain');
+  const notes = readString(value, 'notes') ?? '';
+  const tags = readTags(value);
+  const status = readEntryStatus(value, 'status') ?? 'draft';
+  const createdAt = readDateString(value, 'createdAt');
+  const updatedAt = readDateString(value, 'updatedAt');
+  if (
+    !id ||
+    !name ||
+    summary === null ||
+    classification === null ||
+    climate === null ||
+    dominantTerrain === null ||
+    !tags ||
+    !createdAt ||
+    !updatedAt
+  ) {
+    return null;
+  }
+  return {
+    id,
+    name,
+    summary,
+    classification,
+    climate,
+    dominantTerrain,
+    notes,
+    tags,
+    status,
+    createdAt,
+    updatedAt,
+  };
+}
+
+function parsePlanetaryWorlds(value: unknown): InFictionWorld[] | null {
+  if (value === undefined) {
+    return [];
+  }
+  if (!Array.isArray(value)) {
+    return null;
+  }
+  const planetaryWorlds = value.map(parsePlanetaryWorld);
+  if (planetaryWorlds.some((planetaryWorld) => planetaryWorld === null)) {
+    return null;
+  }
+  return planetaryWorlds.filter(
+    (planetaryWorld): planetaryWorld is InFictionWorld =>
+      planetaryWorld !== null
+  );
+}
+
 function parseWorld(value: unknown): WorldWorkspace | null {
   if (!isRecord(value)) {
     return null;
@@ -325,6 +401,8 @@ function parseWorld(value: unknown): WorldWorkspace | null {
   const name = readString(value, 'name');
   const summary = readString(value, 'summary');
   const defaultEra = readString(value, 'defaultEra');
+  const status = readWorkspaceStatus(value, 'status') ?? 'active';
+  const planetaryWorlds = parsePlanetaryWorlds(value.planetaryWorlds);
   const createdAt = readDateString(value, 'createdAt');
   const updatedAt = readDateString(value, 'updatedAt');
   const entryTypesValue = value.entryTypes;
@@ -346,6 +424,7 @@ function parseWorld(value: unknown): WorldWorkspace | null {
     !name ||
     summary === null ||
     defaultEra === null ||
+    !planetaryWorlds ||
     !codex ||
     !createdAt ||
     !updatedAt ||
@@ -359,6 +438,8 @@ function parseWorld(value: unknown): WorldWorkspace | null {
     name,
     summary,
     defaultEra,
+    status,
+    planetaryWorlds,
     entryTypes: parsedEntryTypes,
     codex,
     relationships,
@@ -374,9 +455,11 @@ function migrateLegacyCodex(codex: WorldCodex): WorldDocument {
     worlds: [
       {
         id: DEFAULT_WORLD_ID,
-        name: 'Valgaron',
-        summary: 'Migrated Valgaron drafting workspace.',
-        defaultEra: 'Fifth Compact',
+        name: 'Migrated Workspace',
+        summary: 'Workspace migrated from the earlier local codex format.',
+        defaultEra: 'Imported Era',
+        status: 'active',
+        planetaryWorlds: [],
         entryTypes: worldSections.map((section) => ({ ...section })),
         codex,
         relationships: [],

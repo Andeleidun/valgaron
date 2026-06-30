@@ -37,6 +37,13 @@ export type RelationshipFilters = {
   entryId: string;
 };
 
+export type RelationshipGraphFilters = {
+  sectionId: string;
+  status: WorldEntryStatus | '';
+  tag: string;
+  type: string;
+};
+
 export type RelationshipWithEntries = WorldRelationship & {
   sourceEntry: WorldEntry | null;
   targetEntry: WorldEntry | null;
@@ -45,8 +52,10 @@ export type RelationshipWithEntries = WorldRelationship & {
 export type RelationshipGraphNode = {
   id: string;
   name: string;
+  sectionId: string;
   sectionTitle: string;
   status: WorldEntryStatus;
+  tags: string[];
 };
 
 export type RelationshipGraphEdge = {
@@ -61,6 +70,24 @@ export type RelationshipGraph = {
   nodes: RelationshipGraphNode[];
   edges: RelationshipGraphEdge[];
 };
+
+export type BrokenRelationship = RelationshipWithEntries & {
+  missingSource: boolean;
+  missingTarget: boolean;
+};
+
+export type OrphanedEntry = RelationshipGraphNode;
+
+function getEntryIndex(
+  codex: WorldCodex,
+  sections: readonly WorldSectionConfig[]
+): Map<string, WorldEntry> {
+  return new Map(
+    sections.flatMap((section) =>
+      getEntries(codex, section.id).map((entry) => [entry.id, entry] as const)
+    )
+  );
+}
 
 /** Create a blank relationship draft for the relationship editor. */
 export function createEmptyRelationshipDraft(): RelationshipDraft {
@@ -83,8 +110,10 @@ export function getRelationshipEntries(
     getEntries(codex, section.id).map((entry) => ({
       id: entry.id,
       name: entry.name,
+      sectionId: section.id,
       sectionTitle: section.title,
       status: entry.status,
+      tags: [...entry.tags],
     }))
   );
 }
@@ -95,15 +124,7 @@ export function findEntryById(
   sections: readonly WorldSectionConfig[],
   entryId: string
 ): WorldEntry | null {
-  for (const section of sections) {
-    const foundEntry = getEntries(codex, section.id).find(
-      (entry) => entry.id === entryId
-    );
-    if (foundEntry) {
-      return foundEntry;
-    }
-  }
-  return null;
+  return getEntryIndex(codex, sections).get(entryId) ?? null;
 }
 
 function makeRelationshipId(type: string): string {
@@ -191,6 +212,44 @@ export function filterRelationships(
   });
 }
 
+export function getBrokenRelationships(
+  relationships: readonly WorldRelationship[],
+  codex: WorldCodex,
+  sections: readonly WorldSectionConfig[]
+): BrokenRelationship[] {
+  const entryIndex = getEntryIndex(codex, sections);
+  return relationships
+    .map((relationship) => {
+      const sourceEntry = entryIndex.get(relationship.sourceEntryId) ?? null;
+      const targetEntry = entryIndex.get(relationship.targetEntryId) ?? null;
+      return {
+        ...relationship,
+        sourceEntry,
+        targetEntry,
+        missingSource: !sourceEntry,
+        missingTarget: !targetEntry,
+      };
+    })
+    .filter(
+      (relationship) => relationship.missingSource || relationship.missingTarget
+    );
+}
+
+export function getOrphanedEntries(
+  relationships: readonly WorldRelationship[],
+  codex: WorldCodex,
+  sections: readonly WorldSectionConfig[]
+): OrphanedEntry[] {
+  const entries = getRelationshipEntries(codex, sections);
+  const connectedEntryIds = new Set(
+    relationships.flatMap((relationship) => [
+      relationship.sourceEntryId,
+      relationship.targetEntryId,
+    ])
+  );
+  return entries.filter((entry) => !connectedEntryIds.has(entry.id));
+}
+
 /** Return all relationships attached to an entry, preserving source/target data. */
 export function getEntryRelationships(
   relationships: readonly WorldRelationship[],
@@ -198,6 +257,7 @@ export function getEntryRelationships(
   sections: readonly WorldSectionConfig[],
   entryId: string
 ): RelationshipWithEntries[] {
+  const entryIndex = getEntryIndex(codex, sections);
   return relationships
     .filter(
       (relationship) =>
@@ -206,8 +266,8 @@ export function getEntryRelationships(
     )
     .map((relationship) => ({
       ...relationship,
-      sourceEntry: findEntryById(codex, sections, relationship.sourceEntryId),
-      targetEntry: findEntryById(codex, sections, relationship.targetEntryId),
+      sourceEntry: entryIndex.get(relationship.sourceEntryId) ?? null,
+      targetEntry: entryIndex.get(relationship.targetEntryId) ?? null,
     }));
 }
 
@@ -215,13 +275,27 @@ export function getEntryRelationships(
 export function getRelationshipGraph(
   relationships: readonly WorldRelationship[],
   codex: WorldCodex,
-  sections: readonly WorldSectionConfig[]
+  sections: readonly WorldSectionConfig[],
+  filters: RelationshipGraphFilters = {
+    sectionId: '',
+    status: '',
+    tag: '',
+    type: '',
+  }
 ): RelationshipGraph {
   const entryNodes = getRelationshipEntries(codex, sections);
-  const entryIds = new Set(entryNodes.map((node) => node.id));
+  const filteredEntryNodes = entryNodes.filter((node) => {
+    const matchesSection =
+      !filters.sectionId || node.sectionId === filters.sectionId;
+    const matchesStatus = !filters.status || node.status === filters.status;
+    const matchesTag = !filters.tag || node.tags.includes(filters.tag);
+    return matchesSection && matchesStatus && matchesTag;
+  });
+  const entryIds = new Set(filteredEntryNodes.map((node) => node.id));
   const edges = relationships
     .filter(
       (relationship) =>
+        (!filters.type || relationship.type === filters.type) &&
         entryIds.has(relationship.sourceEntryId) &&
         entryIds.has(relationship.targetEntryId)
     )
@@ -236,7 +310,7 @@ export function getRelationshipGraph(
     edges.flatMap((edge) => [edge.sourceId, edge.targetId])
   );
   return {
-    nodes: entryNodes.filter((node) => connectedIds.has(node.id)),
+    nodes: filteredEntryNodes.filter((node) => connectedIds.has(node.id)),
     edges,
   };
 }

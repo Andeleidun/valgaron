@@ -4,6 +4,7 @@ import React from 'react';
  * Arguments exposed to fallback render functions.
  */
 type ErrorBoundaryFallbackProps = {
+  error: Error | null;
   resetErrorBoundary: () => void;
 };
 
@@ -23,6 +24,7 @@ type ErrorBoundaryProps = {
  * Internal error state for the boundary.
  */
 type ErrorBoundaryState = {
+  error: Error | null;
   hasError: boolean;
 };
 
@@ -34,14 +36,18 @@ export class ErrorBoundary extends React.Component<
   ErrorBoundaryState
 > {
   state: ErrorBoundaryState = {
+    error: null,
     hasError: false,
   };
 
   /**
    * Update state to render the fallback UI on error.
    */
-  static getDerivedStateFromError(): ErrorBoundaryState {
-    return { hasError: true };
+  static getDerivedStateFromError(error: unknown): ErrorBoundaryState {
+    return {
+      error: error instanceof Error ? error : new Error('Unknown render error'),
+      hasError: true,
+    };
   }
 
   /**
@@ -61,7 +67,7 @@ export class ErrorBoundary extends React.Component<
    */
   resetErrorBoundary = (): void => {
     this.props.onReset?.();
-    this.setState({ hasError: false });
+    this.setState({ error: null, hasError: false });
   };
 
   /**
@@ -71,6 +77,7 @@ export class ErrorBoundary extends React.Component<
     if (this.state.hasError) {
       return typeof this.props.fallback === 'function'
         ? this.props.fallback({
+            error: this.state.error,
             resetErrorBoundary: this.resetErrorBoundary,
           })
         : this.props.fallback;

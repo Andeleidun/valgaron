@@ -3,8 +3,8 @@ import { downloadTextFile, slugFilename } from './fileDownloads';
 
 describe('fileDownloads', () => {
   it('creates conservative filenames from display names', () => {
-    expect(slugFilename(' Valgaron: Fifth Compact! ')).toBe(
-      'valgaron-fifth-compact'
+    expect(slugFilename(' Sample Atlas: Charter Era! ')).toBe(
+      'sample-atlas-charter-era'
     );
     expect(slugFilename('***')).toBe('world');
   });

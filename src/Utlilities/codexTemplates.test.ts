@@ -30,7 +30,7 @@ describe('codex templates and completeness helpers', () => {
       tags: [],
       fields: {
         role: '',
-        home: 'Greyharbor Annex',
+        home: 'Harbor District',
         affiliation: '',
         statusNote: '',
       },
@@ -61,6 +61,6 @@ describe('codex templates and completeness helpers', () => {
       getIncompleteEntries([archivedIncomplete, incomplete], worldSections).map(
         (result) => result.entry.id
       )
-    ).toEqual(['character-sera-vall']);
+    ).toEqual(['character-mira-rowan']);
   });
 });
