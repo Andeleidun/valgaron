@@ -3,12 +3,12 @@ import type { SxProps, Theme } from '@mui/material/styles';
 /**
  * Shared data attribute used by readonly-aware form controls.
  */
-export const READ_ONLY_DATA_ATTRIBUTE = 'data-who-readonly';
+export const READ_ONLY_DATA_ATTRIBUTE = 'data-vwb-readonly';
 
 /**
  * Shared class name used to target readonly-aware controls.
  */
-export const READ_ONLY_CONTROL_CLASS = 'who-readonly-control';
+export const READ_ONLY_CONTROL_CLASS = 'vwb-readonly-control';
 
 /**
  * Shared readonly style tokens for form controls.

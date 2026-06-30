@@ -1,73 +1,38 @@
-# React + TypeScript + Vite
+# VWorldBuilder
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+VWorldBuilder is the local browser prototype for the Valgaron World Codex. It is an English-only worldbuilding workspace for drafting and organizing characters, places, factions, lore notes, and timeline events.
 
-Currently, two official plugins are available:
+## Current Slice
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- World overview with section totals and recently updated entries.
+- Codex sections for Characters, Places, Factions, Lore, and Timeline.
+- Create and edit entries with required names, optional summaries, comma-separated tags, and section-specific fields.
+- Search within each codex section and narrow entries by tag.
+- Local seed data for Valgaron.
+- Browser `localStorage` persistence under `valgaron.worldCodex.v1`.
+- Reset action that restores the seed codex in local storage.
 
-## React Compiler
+This phase has no accounts, authentication, backend sync, collaboration, sharing, moderation, social discovery, messaging, or native/mobile parity target.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Scripts
 
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm run dev
+npm test
+npm run typecheck
+npx vite build
+npx eslint .
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+`npm test` runs the focused Jest suite for codex utilities and local storage behavior. `npm run typecheck` runs TypeScript project-reference checking with `tsc -b --noEmit`. `npm run build` runs TypeScript build mode and Vite together. Vite may warn or fail on Node versions below its supported range; upgrade Node before treating that as an application code failure.
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+## Local Data
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+The app loads seed data when no saved codex exists or when saved data cannot be parsed as the expected codex shape. All edits remain in the current browser profile unless exported or migrated by future work.
+
+## Prototype Standards
+
+- Keep UI copy hardcoded in English.
+- Prefer simple typed React state and small utilities.
+- Keep the first screen usable as the codex, not a landing page.
+- Preserve ordinary accessibility expectations for forms, navigation, focus states, and responsive layout.

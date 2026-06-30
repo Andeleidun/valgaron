@@ -9,7 +9,7 @@ import type { AutocompleteProps } from '@mui/material/Autocomplete';
 import type { TextFieldProps } from '@mui/material/TextField';
 import { styled } from '@mui/material/styles';
 import { Box } from '../';
-import { renderValue } from '../../../Utlilities';
+import { renderTextValue } from '../../../Utlilities';
 import type { StringOrOptionType, OptionType } from '../../../types';
 import {
   READ_ONLY_STYLE_TOKENS,
@@ -25,7 +25,7 @@ export type AutocompleteOptionsType = {
 };
 
 /**
- * Autocomplete value shape supported by WhoAutocomplete.
+ * Autocomplete value shape supported by VWorldBuilderAutocomplete.
  */
 type AutocompleteValueType =
   | string
@@ -35,7 +35,7 @@ type AutocompleteValueType =
   | undefined;
 
 /**
- * Normalized selection payload emitted by WhoAutocomplete.
+ * Normalized selection payload emitted by VWorldBuilderAutocomplete.
  */
 export type AutocompleteSelectionType =
   | AutocompleteOptionsType
@@ -52,8 +52,7 @@ const isObjectValue = (value: unknown): value is Record<string, unknown> =>
  * Resolve a stable comparison key for option equality checks.
  */
 const getOptionComparisonKey = (
-  option: AutocompleteOptionsType | string,
-  language: string
+  option: AutocompleteOptionsType | string
 ): string => {
   if (typeof option === 'string') {
     return option.trim().toLowerCase();
@@ -63,7 +62,7 @@ const getOptionComparisonKey = (
   if (optionValue.length > 0) {
     return optionValue.toLowerCase();
   }
-  return renderValue(language, option.label).trim().toLowerCase();
+  return renderTextValue(option.label).trim().toLowerCase();
 };
 
 /**
@@ -71,7 +70,6 @@ const getOptionComparisonKey = (
  */
 const normalizeAutocompleteOption = (
   option: AutocompleteOptionsType | string,
-  language: string,
   valueLabelMap: Map<string, string>
 ): AutocompleteOptionsType => {
   if (typeof option === 'string') {
@@ -85,15 +83,15 @@ const normalizeAutocompleteOption = (
       ? option.value
       : typeof option.inputValue === 'string'
       ? option.inputValue
-      : renderValue(language, option.label);
-  const normalizedLabel = resolveOptionLabel(language, option, valueLabelMap);
+      : renderTextValue(option.label);
+  const normalizedLabel = resolveOptionLabel(option, valueLabelMap);
   return {
     value: normalizedValue,
     label: normalizedLabel || normalizedValue,
   };
 };
 
-export type WhoAutocompleteProps<T> = Partial<
+export type VWorldBuilderAutocompleteProps<T> = Partial<
   AutocompleteProps<T, boolean | undefined, undefined, boolean | undefined>
 > & {
   handleChange: (
@@ -102,7 +100,6 @@ export type WhoAutocompleteProps<T> = Partial<
     dataSet?: string
   ) => void;
   options: AutocompleteOptionsType[] | OptionType[];
-  language: string;
   label?: StringOrOptionType;
   name?: string;
   inline?: boolean;
@@ -117,14 +114,13 @@ export type WhoAutocompleteProps<T> = Partial<
  * Resolve an option label with fallbacks.
  */
 const resolveOptionLabel = (
-  language: string,
   option: AutocompleteOptionsType | string,
   valueLabelMap: Map<string, string>
 ): string => {
   if (typeof option === 'string') {
     return valueLabelMap.get(option) ?? option.trim();
   }
-  const rendered = renderValue(language, option.label).trim();
+  const rendered = renderTextValue(option.label).trim();
   if (rendered.length > 0) return rendered;
   if (option.inputValue && option.inputValue.trim().length > 0) {
     return option.inputValue.trim();
@@ -139,12 +135,11 @@ const resolveOptionLabel = (
  * Normalize and filter tag labels for rendering.
  */
 const getTagLabels = (
-  language: string,
   values: Array<AutocompleteOptionsType | string>,
   valueLabelMap: Map<string, string>
 ): string[] =>
   values
-    .map((option) => resolveOptionLabel(language, option, valueLabelMap))
+    .map((option) => resolveOptionLabel(option, valueLabelMap))
     .filter((label) => label.length > 0);
 
 const StyledChip = styled(Chip)(({ theme }) => ({
@@ -182,7 +177,7 @@ const StyledTextField = styled(TextField)(({ theme }) => ({
   },
 }));
 
-export const WhoAutocomplete = ({
+export const VWorldBuilderAutocomplete = ({
   options: passedOptions,
   inline = false,
   value,
@@ -192,12 +187,11 @@ export const WhoAutocomplete = ({
   freeSolo = true,
   multiple = false,
   addLabel = '',
-  language,
   InputProps,
   error = false,
   helperText,
   ...props
-}: WhoAutocompleteProps<AutocompleteOptionsType>) => {
+}: VWorldBuilderAutocompleteProps<AutocompleteOptionsType>) => {
   const isReadOnly = Boolean(
     props.readOnly || props.disabled || InputProps?.readOnly
   );
@@ -210,12 +204,12 @@ export const WhoAutocomplete = ({
         const value =
           typeof option.value === 'string' ? option.value.trim() : '';
         if (!value) return null;
-        const label = renderValue(language, option.label).trim();
+        const label = renderTextValue(option.label).trim();
         return [value, label || value] as const;
       })
       .filter((pair): pair is readonly [string, string] => Boolean(pair));
     return new Map(pairs);
-  }, [passedOptions, language]);
+  }, [passedOptions]);
   const filter = createFilterOptions<AutocompleteOptionsType>();
   const normalizedValue = useMemo((): AutocompleteValueType => {
     if (multiple) {
@@ -240,22 +234,19 @@ export const WhoAutocomplete = ({
     nextValues.forEach((currentValue) => {
       const normalizedValue = normalizeAutocompleteOption(
         currentValue,
-        language,
         valueLabelMap
       );
       const alreadyPresent = newOptions.some(
         (option) =>
-          getOptionComparisonKey(
-            option as AutocompleteOptionsType | string,
-            language
-          ) === getOptionComparisonKey(normalizedValue, language)
+          getOptionComparisonKey(option as AutocompleteOptionsType | string) ===
+          getOptionComparisonKey(normalizedValue)
       );
       if (!alreadyPresent) {
         newOptions.push(normalizedValue);
       }
     });
     setUseOptions(newOptions);
-  }, [language, passedOptions, value, valueLabelMap]);
+  }, [passedOptions, value, valueLabelMap]);
 
   return (
     <Box
@@ -273,7 +264,7 @@ export const WhoAutocomplete = ({
             handleChange(
               name,
               newValue.map((valueItem) =>
-                normalizeAutocompleteOption(valueItem, language, valueLabelMap)
+                normalizeAutocompleteOption(valueItem, valueLabelMap)
               )
             );
             return;
@@ -281,7 +272,7 @@ export const WhoAutocomplete = ({
           if (typeof newValue === 'string') {
             handleChange(
               name,
-              normalizeAutocompleteOption(newValue, language, valueLabelMap)
+              normalizeAutocompleteOption(newValue, valueLabelMap)
             );
           } else if (
             isObjectValue(newValue) &&
@@ -290,20 +281,20 @@ export const WhoAutocomplete = ({
             // Create a new value from the user input
             handleChange(
               name,
-              normalizeAutocompleteOption(newValue, language, valueLabelMap)
+              normalizeAutocompleteOption(newValue, valueLabelMap)
             );
           } else {
             handleChange(
               name,
               newValue
-                ? normalizeAutocompleteOption(newValue, language, valueLabelMap)
+                ? normalizeAutocompleteOption(newValue, valueLabelMap)
                 : null
             );
           }
         }}
         isOptionEqualToValue={(option, compareValue) =>
-          getOptionComparisonKey(option, language) ===
-          getOptionComparisonKey(compareValue, language)
+          getOptionComparisonKey(option) ===
+          getOptionComparisonKey(compareValue)
         }
         filterOptions={(options, params) => {
           const filtered = filter(options, params);
@@ -314,7 +305,7 @@ export const WhoAutocomplete = ({
             (option) => inputValue === option.label
           );
           if (inputValue !== '' && !isExisting) {
-            const addPrefix = renderValue(language, addLabel).trim();
+            const addPrefix = renderTextValue(addLabel).trim();
             filtered.push({
               value: inputValue,
               label: inputValue,
@@ -330,33 +321,33 @@ export const WhoAutocomplete = ({
         getOptionLabel={(option) => {
           // Value selected with enter, right from the input
           if (typeof option === 'string') {
-            return resolveOptionLabel(language, option, valueLabelMap);
+            return resolveOptionLabel(option, valueLabelMap);
           }
           // Add "xxx" option created dynamically
           if (option.inputValue) {
             return option.inputValue;
           }
           // Regular option
-          return resolveOptionLabel(language, option, valueLabelMap);
+          return resolveOptionLabel(option, valueLabelMap);
         }}
         renderOption={(props, option) => (
           <li {...props} key={option.value}>
             {option.temporaryLabel
               ? option.temporaryLabel
-              : resolveOptionLabel(language, option, valueLabelMap)}
+              : resolveOptionLabel(option, valueLabelMap)}
           </li>
         )}
         renderInput={(params) => (
           <StyledTextField
             {...params}
             className={isReadOnly ? READ_ONLY_CONTROL_CLASS : undefined}
-            label={renderValue(language, label)}
+            label={renderTextValue(label)}
             variant="outlined"
             error={error}
             helperText={helperText}
             inputProps={{
               ...params.inputProps,
-              'aria-label': renderValue(language, label),
+              'aria-label': renderTextValue(label),
             }}
             InputProps={{
               ...params.InputProps,
@@ -369,19 +360,17 @@ export const WhoAutocomplete = ({
           value: Array<AutocompleteOptionsType | string>,
           getTagProps
         ) =>
-          getTagLabels(language, value, valueLabelMap).map(
-            (label, index: number) => {
-              const { key, ...tagProps } = getTagProps({ index });
-              return (
-                <StyledChip
-                  key={key}
-                  variant="outlined"
-                  label={label}
-                  {...tagProps}
-                />
-              );
-            }
-          )
+          getTagLabels(value, valueLabelMap).map((label, index: number) => {
+            const { key, ...tagProps } = getTagProps({ index });
+            return (
+              <StyledChip
+                key={key}
+                variant="outlined"
+                label={label}
+                {...tagProps}
+              />
+            );
+          })
         }
         limitTags={3}
         freeSolo={freeSolo}

@@ -2,18 +2,10 @@ import { Box } from './Box/Box';
 import {
   Button,
   ToggleButton,
-  ButtonProps,
-  ToggleButtonProps,
+  type ButtonProps,
+  type ToggleButtonProps,
 } from './Button/';
-import {
-  Card,
-  CardActions,
-  CardHeader,
-  CardMedia,
-  CardContent,
-  PeopleCard,
-  GroupCard,
-} from './Card';
+import { Card, CardActions, CardHeader, CardMedia, CardContent } from './Card';
 import {
   Autocomplete,
   Checkbox,
@@ -25,7 +17,6 @@ import {
 } from './Input';
 import Collapse from './Collapse/Collapse';
 import Container from './Container/Container';
-import AuthLayout from './AuthLayout';
 import EmptyState from './EmptyState';
 import { ErrorBoundary } from './ErrorBoundary/ErrorBoundary';
 import ErrorState from './ErrorState';
@@ -53,7 +44,6 @@ export {
   Checkbox,
   CheckboxGroup,
   Collapse,
-  AuthLayout,
   Container,
   EmptyState,
   ErrorBoundary,
@@ -66,8 +56,6 @@ export {
   Input,
   List,
   ListItem,
-  PeopleCard,
-  GroupCard,
   RadioGroup,
   SaveStatus,
   Select,

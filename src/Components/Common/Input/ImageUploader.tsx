@@ -3,7 +3,7 @@ import { Box, Button, Grid, GridItem, Input, Text } from '..';
 import { formatTemplate } from '../../../Utlilities';
 
 /**
- * Translation-driven strings for the reusable image uploader.
+ * English strings for the reusable image uploader.
  */
 export type ImageUploaderStringsType = {
   invalidFileTypeMessage: string;
@@ -53,7 +53,7 @@ const ImageUploader = ({
   maxFiles = 6,
   maxFileSizeBytes = 5 * 1024 * 1024,
   accept = 'image/*',
-  id = 'profile-image-uploader',
+  id = 'world-image-uploader',
   strings,
   previewRenderer,
 }: ImageUploaderProps) => {

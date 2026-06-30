@@ -1,7 +1,7 @@
-import { ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import Card from '@mui/material/Card';
-import { SxProps } from '@mui/material/styles';
-import './Card.scss';
+import type { SxProps } from '@mui/material/styles';
+import './Card.css';
 
 type CardProps = {
   children: ReactNode;
@@ -10,12 +10,17 @@ type CardProps = {
   sx?: SxProps;
 };
 
-function WhoCard({ children, className = '', id, sx = {} }: CardProps) {
+function VWorldBuilderCard({
+  children,
+  className = '',
+  id,
+  sx = {},
+}: CardProps) {
   return (
-    <Card id={id} className={className + ' who-card fade-in'} sx={sx}>
+    <Card id={id} className={`vwb-card fade-in ${className}`.trim()} sx={sx}>
       {children}
     </Card>
   );
 }
 
-export default WhoCard;
+export default VWorldBuilderCard;

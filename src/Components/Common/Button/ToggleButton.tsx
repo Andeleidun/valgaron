@@ -1,13 +1,13 @@
 import CheckBoxOutlinedIcon from '@mui/icons-material/CheckBoxOutlined';
 import CheckBoxOutlineBlankIcon from '@mui/icons-material/CheckBoxOutlineBlank';
-import ToggleButton, { ToggleButtonProps } from '@mui/material/ToggleButton';
+import ToggleButton, { type ToggleButtonProps } from '@mui/material/ToggleButton';
 import { Text, Box } from '../';
 import './Button.css';
 
 /**
  * Shared props for the app's labeled toggle button.
  */
-export type WhoToggleButtonProps = ToggleButtonProps & {
+export type VWorldBuilderToggleButtonProps = ToggleButtonProps & {
   label: string;
   iconEnabled?: boolean;
 };
@@ -15,7 +15,7 @@ export type WhoToggleButtonProps = ToggleButtonProps & {
 /**
  * Render a labeled toggle button with optional checkbox-style state icons.
  */
-export function WhoToggleButton({
+export function VWorldBuilderToggleButton({
   value,
   label,
   id,
@@ -25,7 +25,7 @@ export function WhoToggleButton({
   iconEnabled = true,
   sx = {},
   selected,
-}: WhoToggleButtonProps) {
+}: VWorldBuilderToggleButtonProps) {
   const isSelected = selected ?? Boolean(value);
 
   return (

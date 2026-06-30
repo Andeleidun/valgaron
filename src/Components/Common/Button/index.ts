@@ -1,7 +1,10 @@
-import { WhoButton as Button, WhoButtonProps as ButtonProps } from './Button';
 import {
-  WhoToggleButton as ToggleButton,
-  WhoToggleButtonProps as ToggleButtonProps,
+  VWorldBuilderButton as Button,
+  type VWorldBuilderButtonProps as ButtonProps,
+} from './Button';
+import {
+  VWorldBuilderToggleButton as ToggleButton,
+  type VWorldBuilderToggleButtonProps as ToggleButtonProps,
 } from './ToggleButton';
 
 export { Button, ToggleButton };

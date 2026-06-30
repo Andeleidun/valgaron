@@ -1,12 +1,12 @@
-import { WhoAutocomplete as Autocomplete } from './Autocomplete';
+import { VWorldBuilderAutocomplete as Autocomplete } from './Autocomplete';
 import {
-  WhoCheckbox as Checkbox,
-  WhoCheckboxGroup as CheckboxGroup,
+  VWorldBuilderCheckbox as Checkbox,
+  VWorldBuilderCheckboxGroup as CheckboxGroup,
 } from './Checkbox';
 import { TextInput as Input } from './Input';
 import ImageUploader from './ImageUploader';
-import { WhoRadioGroup as RadioGroup } from './Radio';
-import { WhoSelect as Select } from './Select';
+import { VWorldBuilderRadioGroup as RadioGroup } from './Radio';
+import { VWorldBuilderSelect as Select } from './Select';
 
 export {
   Autocomplete,

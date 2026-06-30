@@ -6,19 +6,16 @@ import FormHelperText from '@mui/material/FormHelperText';
 import Select from '@mui/material/Select';
 import type { SelectProps } from '@mui/material/Select';
 import { styled } from '@mui/material/styles';
-import { renderValue } from '../../../Utlilities';
-import type { StringOrOptionType, OptionType } from '../../../types';
 import {
   READ_ONLY_STYLE_TOKENS,
   READ_ONLY_CONTROL_CLASS,
   READ_ONLY_DATA_ATTRIBUTE,
 } from './readOnlyStyles';
 
-type WhoSelectProps = SelectProps & {
-  options: OptionType[];
-  language: string;
+type VWorldBuilderSelectProps = SelectProps & {
+  options: string[];
   inline?: boolean;
-  label: StringOrOptionType;
+  label: string;
   helperText?: string;
 };
 
@@ -64,9 +61,8 @@ const StyledInputLabel = styled(InputLabel)(({ theme }) => ({
 /**
  * Render a themed Select input.
  */
-export const WhoSelect = ({
+export const VWorldBuilderSelect = ({
   label,
-  language,
   value,
   onChange,
   options,
@@ -74,14 +70,14 @@ export const WhoSelect = ({
   helperText,
   error = false,
   ...props
-}: WhoSelectProps) => {
+}: VWorldBuilderSelectProps) => {
   const isReadOnly = Boolean(props.disabled || props.inputProps?.readOnly);
-  const labelText = renderValue(language, label);
+  const labelText = label;
   const baseId =
     props.id ??
     props.name ??
     labelText.toLowerCase().replace(/\s+/g, '-') ??
-    'who-select';
+    'vwb-select';
   const labelId = `${baseId}-label`;
   return (
     <Box
@@ -111,8 +107,8 @@ export const WhoSelect = ({
           variant="outlined"
         >
           {options.map((option, index) => (
-            <MenuItem key={index} value={option.value}>
-              {renderValue(language, option.label)}
+            <MenuItem key={index} value={option}>
+              {option}
             </MenuItem>
           ))}
         </StyledSelect>

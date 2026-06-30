@@ -1,6 +1,6 @@
-import { ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import Stack from '@mui/material/Stack';
-import { SxProps } from '@mui/material/styles';
+import type { SxProps } from '@mui/material/styles';
 
 type StackProps = {
   children: ReactNode;
@@ -10,7 +10,7 @@ type StackProps = {
   spacing?: number;
 };
 
-function WhoStack({
+function VWorldBuilderStack({
   children,
   className = '',
   sx = {},
@@ -29,4 +29,4 @@ function WhoStack({
   );
 }
 
-export default WhoStack;
+export default VWorldBuilderStack;

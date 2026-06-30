@@ -1,6 +1,6 @@
-import { ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import List from '@mui/material/List';
-import { SxProps } from '@mui/material/styles';
+import type { SxProps } from '@mui/material/styles';
 
 type ListProps = {
   children: ReactNode;
@@ -10,7 +10,7 @@ type ListProps = {
   sx?: SxProps;
 };
 
-function WhoList({
+function VWorldBuilderList({
   children,
   className = '',
   component = 'ul',
@@ -29,4 +29,4 @@ function WhoList({
   );
 }
 
-export default WhoList;
+export default VWorldBuilderList;
