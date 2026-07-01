@@ -295,6 +295,14 @@
   margin-bottom: 12px;
 }
 
+.vwb-entry-filter-panel {
+  border: 1px solid var(--vwb-border);
+  border-radius: 8px;
+  background: var(--vwb-surface);
+  padding: 14px;
+  box-shadow: var(--vwb-shadow);
+}
+
 .vwb-search-results {
   margin-top: 12px;
 }

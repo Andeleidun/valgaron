@@ -231,7 +231,7 @@ export function SectionPage({
           </div>
         </div>
         <div
-          className="vwb-filter-panel"
+          className="vwb-filter-panel vwb-entry-filter-panel"
           aria-label={`${section.title} filters`}
         >
           <label className="vwb-search-field">
