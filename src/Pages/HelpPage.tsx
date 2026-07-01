@@ -20,6 +20,7 @@ const workflowSections = [
   {
     title: 'Protect local work',
     items: [
+      'Use the header Save button to write current session changes to localStorage.',
       'Download JSON backups regularly; active-workspace JSON is focused and full-document JSON includes every local workspace.',
       'Recovery snapshots help undo destructive local actions in the same browser profile only.',
       'Export before clearing browser data, switching browsers, using private browsing, or changing devices.',
@@ -76,9 +77,10 @@ export function HelpPage() {
           </div>
         </div>
         <p>
-          The app saves to this browser profile with localStorage. It has no
-          account, cloud sync, hosted database, telemetry, collaboration, or
-          remote backup. JSON export is the backup you control.
+          The header Save button writes current progress to this browser profile
+          with localStorage. The app has no account, cloud sync, hosted
+          database, telemetry, collaboration, or remote backup. JSON export is
+          the backup you control.
         </p>
         <dl className="vwb-detail-list">
           <div>

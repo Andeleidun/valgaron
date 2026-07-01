@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import {
   BrowserRouter,
+  Link,
   Navigate,
   NavLink,
   Route,
@@ -10,6 +11,13 @@ import './App.css';
 import { ResetConfirmationDialog } from './Components/Codex/CodexEntryViews';
 import { ErrorBoundary } from './Components/Common/ErrorBoundary/ErrorBoundary';
 import { RuntimeErrorFallback } from './Components/Common/RuntimeErrorFallback';
+import {
+  exportWorldToMarkdown,
+  serializeActiveWorldBackup,
+  serializeWorldDocumentBackup,
+} from './Utlilities/codexDataPortability';
+import { downloadTextFile, slugFilename } from './Utlilities/fileDownloads';
+import { useBeforeUnloadWarning } from './Utlilities/unsavedChanges';
 import { useWorldDocumentState } from './Utlilities/useWorldDocumentState';
 import { DataPage } from './Pages/DataPage';
 import { HelpPage } from './Pages/HelpPage';
@@ -21,9 +29,29 @@ import { WorkspacesPage } from './Pages/WorkspacesPage';
 const routerBaseName =
   import.meta.env.BASE_URL === '/' ? undefined : import.meta.env.BASE_URL;
 const appBasePath = import.meta.env.BASE_URL;
+const headerDataMenuId = 'vwb-header-data-menu';
+
+function saveButtonText(
+  state: 'saved' | 'unsaved' | 'dirty' | 'failed' | 'paused'
+) {
+  switch (state) {
+    case 'unsaved':
+      return 'Save';
+    case 'dirty':
+      return 'Save';
+    case 'failed':
+      return 'Retry Save';
+    case 'paused':
+      return 'Save';
+    case 'saved':
+      return 'Saved';
+  }
+}
 
 function AppShell() {
   const [isResetPending, setIsResetPending] = useState(false);
+  const [isDataMenuOpen, setIsDataMenuOpen] = useState(false);
+  const [dataMenuMessage, setDataMenuMessage] = useState('');
   const {
     activeWorld,
     archivePlanetaryWorld,
@@ -47,6 +75,8 @@ function AppShell() {
     removeRelationship,
     restoreSnapshot,
     resetToSeed,
+    hasUnsavedDocumentChanges,
+    saveCurrentDocument,
     savePlanetaryWorld,
     saveEntry,
     saveRelationship,
@@ -60,6 +90,21 @@ function AppShell() {
     resetToSeed();
     setIsResetPending(false);
   };
+  const downloadHeaderExport = (
+    filename: string,
+    text: string,
+    successLabel: string
+  ) => {
+    const didDownload = downloadTextFile(filename, text);
+    setDataMenuMessage(
+      didDownload
+        ? `${successLabel} downloaded.`
+        : 'Download is unavailable in this runtime; open Data for copyable exports.'
+    );
+    setIsDataMenuOpen(false);
+  };
+  const filenameBase = slugFilename(activeWorld.name);
+  useBeforeUnloadWarning(hasUnsavedDocumentChanges);
 
   return (
     <BrowserRouter basename={routerBaseName}>
@@ -130,27 +175,96 @@ function AppShell() {
               Help
             </NavLink>
           </nav>
-          <span
+          <button
             className={`vwb-save-status ${
               saveStatus.state === 'failed' || saveStatus.state === 'paused'
                 ? 'is-danger'
+                : saveStatus.state === 'dirty' || saveStatus.state === 'unsaved'
+                ? 'is-dirty'
                 : ''
             }`}
-            role="status"
-          >
-            {saveStatus.state === 'saved'
-              ? 'Saved'
-              : saveStatus.state === 'paused'
-              ? 'Save Paused'
-              : 'Save Failed'}
-          </span>
-          <button
-            className="vwb-secondary-button"
             type="button"
-            onClick={() => setIsResetPending(true)}
+            onClick={saveCurrentDocument}
+            aria-label="Save current progress to localStorage"
+            aria-live="polite"
           >
-            Reset Starter Data
+            {saveButtonText(saveStatus.state)}
           </button>
+          <div
+            className="vwb-header-menu"
+            onKeyDown={(event) => {
+              if (event.key === 'Escape') {
+                setIsDataMenuOpen(false);
+              }
+            }}
+          >
+            <button
+              className="vwb-secondary-button"
+              type="button"
+              aria-controls={isDataMenuOpen ? headerDataMenuId : undefined}
+              aria-expanded={isDataMenuOpen}
+              onClick={() =>
+                setIsDataMenuOpen((currentIsOpen) => !currentIsOpen)
+              }
+            >
+              Data Menu
+            </button>
+            {isDataMenuOpen ? (
+              <div
+                className="vwb-header-menu-list"
+                id={headerDataMenuId}
+                aria-label="Data actions"
+              >
+                <button
+                  type="button"
+                  onClick={() =>
+                    downloadHeaderExport(
+                      `${filenameBase}.json`,
+                      serializeActiveWorldBackup(document),
+                      'Active workspace JSON'
+                    )
+                  }
+                >
+                  Download Active JSON
+                </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    downloadHeaderExport(
+                      'valgaron-all-workspaces.json',
+                      serializeWorldDocumentBackup(document),
+                      'All workspaces JSON'
+                    )
+                  }
+                >
+                  Download All JSON
+                </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    downloadHeaderExport(
+                      `${filenameBase}.md`,
+                      exportWorldToMarkdown(activeWorld),
+                      'Markdown export'
+                    )
+                  }
+                >
+                  Download Markdown
+                </button>
+                <Link
+                  to="/data#import-json-backup"
+                  onClick={() => setIsDataMenuOpen(false)}
+                >
+                  Import JSON Backup
+                </Link>
+              </div>
+            ) : null}
+            {dataMenuMessage ? (
+              <span className="vwb-screen-reader-only" role="status">
+                {dataMenuMessage}
+              </span>
+            ) : null}
+          </div>
         </header>
 
         <ErrorBoundary

@@ -37,15 +37,11 @@ export function confirmDiscardUnsavedChanges(isDirty: boolean): boolean {
 }
 
 export function useUnsavedChangesWarning(isDirty: boolean): void {
+  useBeforeUnloadWarning(isDirty);
   useEffect(() => {
     if (!isDirty || typeof window === 'undefined') {
       return undefined;
     }
-    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
-      event.preventDefault();
-      event.returnValue = UNSAVED_CHANGES_MESSAGE;
-      return UNSAVED_CHANGES_MESSAGE;
-    };
     const handleDocumentClick = (event: MouseEvent) => {
       if (
         event.defaultPrevented ||
@@ -74,11 +70,26 @@ export function useUnsavedChangesWarning(isDirty: boolean): void {
         event.stopPropagation();
       }
     };
-    window.addEventListener('beforeunload', handleBeforeUnload);
     document.addEventListener('click', handleDocumentClick, true);
     return () => {
-      window.removeEventListener('beforeunload', handleBeforeUnload);
       document.removeEventListener('click', handleDocumentClick, true);
+    };
+  }, [isDirty]);
+}
+
+export function useBeforeUnloadWarning(isDirty: boolean): void {
+  useEffect(() => {
+    if (!isDirty || typeof window === 'undefined') {
+      return undefined;
+    }
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = UNSAVED_CHANGES_MESSAGE;
+      return UNSAVED_CHANGES_MESSAGE;
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
     };
   }, [isDirty]);
 }

@@ -55,9 +55,9 @@ export function Overview({
       <section className="vwb-hero" aria-labelledby="overview-title">
         <div>
           <p className="vwb-kicker">{worldName} Workspace</p>
-          <h1 id="overview-title">
+          <h2 id="overview-title">
             Draft the world where the story can breathe.
-          </h1>
+          </h2>
         </div>
         <p>
           Capture the people, places, powers, lore, and turning points that make
@@ -68,9 +68,9 @@ export function Overview({
       <section className="vwb-local-data-notice" aria-label="Local data notice">
         <strong>Local browser data.</strong>
         <span>
-          Your work is saved in this browser profile. Export JSON backups
-          regularly, especially before clearing browser data or changing
-          devices.
+          Use the header Save button to write current progress to this browser
+          profile. Export JSON backups regularly, especially before clearing
+          browser data or changing devices.
         </span>
       </section>
 

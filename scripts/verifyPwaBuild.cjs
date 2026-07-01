@@ -31,6 +31,7 @@ const manifest = JSON.parse(
   readFileSync(join(distDir, 'manifest.webmanifest'), 'utf8')
 );
 const serviceWorker = readFileSync(join(distDir, 'sw.js'), 'utf8');
+const expectedThemeColor = '#111312';
 
 assert(
   indexHtml.includes('rel="manifest"') &&
@@ -42,6 +43,10 @@ assert(
   'index.html does not include a theme-color meta tag.'
 );
 assert(
+  indexHtml.includes(`name="theme-color" content="${expectedThemeColor}"`),
+  'index.html theme-color must match the app dark theme.'
+);
+assert(
   fallbackHtml === indexHtml,
   'dist/404.html must match dist/index.html for GitHub Pages route fallback.'
 );
@@ -49,6 +54,11 @@ assert(manifest.name === 'Valgaron World Codex', 'Manifest name is incorrect.');
 assert(
   manifest.display === 'standalone',
   'Manifest display mode must be standalone.'
+);
+assert(
+  manifest.theme_color === expectedThemeColor &&
+    manifest.background_color === expectedThemeColor,
+  'Manifest theme and background colors must match the app dark theme.'
 );
 assert(
   Array.isArray(manifest.icons) && manifest.icons.length >= 3,

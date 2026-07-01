@@ -22,18 +22,18 @@ Valgaron World Codex is a local browser tool for drafting and organizing fiction
 - Relationship diagnostics for broken references and orphaned records, repair/delete actions for broken links, graph filters, custom relationship type input, and selectable graph nodes.
 - Timeline diagnostics, highlight cards, stable table view, and earlier/later order controls for chronology work.
 - Data route for active-workspace JSON export, full-document JSON export, Markdown reference export, validated JSON import preview, and reset-to-seed confirmation.
-- Header save status shows whether the latest local browser save attempt succeeded.
+- Header Save writes the current session state to browser localStorage on demand.
 - Route-level runtime recovery screen with retry, Data-page access, reload, and local diagnostics when a render failure is caught.
 - Local diagnostics export on the Data route with app version, schema version, route, browser, storage state, recovery state, and document counts without world content by default.
 - Neutral starter sample data.
-- Browser `localStorage` persistence under `valgaron.worldDocument.v2`, with migration support for the earlier `valgaron.worldCodex.v1` shape.
+- Manual browser `localStorage` persistence under `valgaron.worldDocument.v2`, with migration support for the earlier `valgaron.worldCodex.v1` shape.
 - Versioned multi-workspace document storage with active project/universe workspace switching in the UI.
 - Separate in-fiction world/planet records inside each project/universe workspace.
 - Custom entry type creation in the active workspace, with new custom sections added to navigation.
-- Unsaved-change warnings for entry, relationship, import, and workspace management forms.
+- Unsaved-change warnings for entry, relationship, import, workspace management forms, and unsaved document edits before browser reload or close.
 - Markdown notes preview, overview quick-create links, copy-name, and duplicate-as-template entry actions.
 - In-app Help route for workflow, backup, offline, diagnostics, support, and release-limit guidance.
-- Reset action that restores the neutral starter codex in local storage.
+- Reset action that loads the neutral starter codex for review before manual Save.
 
 This phase has no accounts, authentication, backend sync, collaboration, sharing, moderation, social discovery, messaging, or native/mobile parity target.
 
@@ -59,7 +59,7 @@ npm run check:release
 
 ## Local Data
 
-The app loads neutral starter data when no saved world document exists or when saved data cannot be parsed as a known document shape. Legacy codex data is migrated into the current versioned world document shape. When saved data is unreadable or invalid, the Data route shows the recovery status and local storage issues instead of silently hiding the fallback. All edits remain in the current browser profile unless exported by the user.
+The app loads neutral starter data when no saved world document exists or when saved data cannot be parsed as a known document shape. Legacy codex data is migrated into the current versioned world document shape. When saved data is unreadable or invalid, the Data route shows the recovery status and local storage issues instead of silently hiding the fallback. Edits remain in the current browser session until the header Save button writes them to localStorage, and all local data remains in the current browser profile unless exported by the user.
 
 Deleting an entry also removes relationships attached to that entry so local graph views do not keep broken links. Archiving an entry keeps it addressable by existing relationships. Active-workspace JSON export produces a focused backup for the current project/universe workspace. Full-document JSON export produces a backup containing every local workspace, in-fiction world/planet record, custom entry type, entry, and relationship. Both JSON backup shapes include export metadata and can be pasted back into the import preview.
 

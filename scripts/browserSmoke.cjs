@@ -46,7 +46,13 @@ const routeChecks = [
   },
   {
     path: '/data',
-    expectedText: ['Data', 'Active workspace JSON', 'Full document JSON'],
+    expectedText: [
+      'Data',
+      'Manual local save',
+      'Active workspace JSON',
+      'Full document JSON',
+      'Import JSON backup',
+    ],
   },
   {
     path: '/workspaces',

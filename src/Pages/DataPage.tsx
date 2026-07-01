@@ -1,4 +1,4 @@
-import { useMemo, useState, type ChangeEvent } from 'react';
+import { useEffect, useMemo, useState, type ChangeEvent } from 'react';
 import {
   exportWorldToMarkdown,
   parseWorldImport,
@@ -91,6 +91,17 @@ export function DataPage({
     () => exportWorldToMarkdown(activeWorld),
     [activeWorld]
   );
+  useEffect(() => {
+    if (
+      typeof window === 'undefined' ||
+      window.location.hash !== '#import-json-backup'
+    ) {
+      return;
+    }
+    const importSection = window.document.getElementById('import-json-backup');
+    importSection?.scrollIntoView({ block: 'start' });
+    importSection?.focus({ preventScroll: true });
+  }, []);
   const diagnosticsText = useMemo(() => {
     const recentMessages: LocalDiagnosticMessage[] = [
       {
@@ -114,7 +125,7 @@ export function DataPage({
         level: 'warning',
         source: 'storage-save',
         message:
-          'The initial save was paused after storage recovery to avoid overwriting unreadable local data.',
+          'Local storage recovery loaded starter data. Use the Save button only after exporting anything you may need.',
         occurredAt: saveStatus.savedAt,
       });
     }
@@ -154,6 +165,30 @@ export function DataPage({
     saveStatus,
   ]);
   const filenameBase = slugFilename(activeWorld.name);
+  const saveStatusLabel =
+    saveStatus.state === 'saved'
+      ? 'Saved'
+      : saveStatus.state === 'paused'
+      ? 'Save Paused'
+      : saveStatus.state === 'unsaved'
+      ? 'Needs Save'
+      : saveStatus.state === 'dirty'
+      ? 'Unsaved'
+      : 'Save Failed';
+  const saveStatusDescription =
+    saveStatus.state === 'paused'
+      ? `Manual save paused after local storage recovery: ${formatUpdatedAt(
+          saveStatus.savedAt
+        )}.`
+      : saveStatus.state === 'unsaved'
+      ? `This document is loaded in the session but has not been saved to current localStorage yet. Last document timestamp: ${formatUpdatedAt(
+          saveStatus.savedAt
+        )}.`
+      : saveStatus.state === 'dirty'
+      ? `Unsaved session changes. Last localStorage save: ${formatUpdatedAt(
+          saveStatus.savedAt
+        )}.`
+      : `Last save attempt: ${formatUpdatedAt(saveStatus.savedAt)}.`;
 
   const downloadExport = (
     key: 'activeJson' | 'allJson' | 'md',
@@ -244,34 +279,30 @@ export function DataPage({
         <div className="vwb-section-heading">
           <div>
             <p className="vwb-kicker">Storage status</p>
-            <h2 id="save-status-title">Local browser save</h2>
+            <h2 id="save-status-title">Manual local save</h2>
           </div>
           <span
             className={`vwb-status-pill ${
               saveStatus.state === 'failed' || saveStatus.state === 'paused'
                 ? 'is-danger'
+                : saveStatus.state === 'dirty' || saveStatus.state === 'unsaved'
+                ? 'is-dirty'
                 : ''
             }`}
           >
-            {saveStatus.state === 'saved'
-              ? 'Saved'
-              : saveStatus.state === 'paused'
-              ? 'Save Paused'
-              : 'Save Failed'}
+            {saveStatusLabel}
           </span>
         </div>
         <p>
-          {saveStatus.state === 'paused'
-            ? `Initial save paused: ${formatUpdatedAt(saveStatus.savedAt)}.`
-            : `Last save attempt: ${formatUpdatedAt(saveStatus.savedAt)}.`}{' '}
-          Data stays in this browser profile only. Export JSON backups before
-          clearing browser data, switching browsers, or changing devices.
+          {saveStatusDescription} Edits stay in this session until you use the
+          header Save button. Export JSON backups before clearing browser data,
+          switching browsers, or changing devices.
         </p>
         {saveStatus.state === 'paused' ? (
           <p className="vwb-inline-status is-danger" role="status">
             The app loaded starter data because saved local data could not be
-            used. The first save was paused to avoid overwriting the unreadable
-            saved value. Export JSON before making risky changes.
+            used. Export JSON before saving if you need to preserve a recovered
+            or unreadable local value.
           </p>
         ) : null}
         <p>
@@ -433,7 +464,12 @@ export function DataPage({
         ) : null}
       </section>
 
-      <section className="vwb-panel" aria-labelledby="import-title">
+      <section
+        className="vwb-panel"
+        id="import-json-backup"
+        tabIndex={-1}
+        aria-labelledby="import-title"
+      >
         <div className="vwb-section-heading">
           <div>
             <p className="vwb-kicker">Validated import</p>

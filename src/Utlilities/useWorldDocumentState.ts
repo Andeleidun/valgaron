@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
 import type {
   RecoverySnapshot,
   RecoverySnapshotReason,
@@ -49,7 +49,7 @@ import {
 import { getActiveWorld, updateActiveWorld } from './worldDocument';
 
 export type WorldDocumentSaveStatus = {
-  state: 'saved' | 'failed' | 'paused';
+  state: 'saved' | 'unsaved' | 'dirty' | 'failed' | 'paused';
   savedAt: string;
 };
 
@@ -67,8 +67,10 @@ export type WorldDocumentState = {
   codex: WorldCodex;
   relationships: readonly WorldRelationship[];
   saveStatus: WorldDocumentSaveStatus;
+  hasUnsavedDocumentChanges: boolean;
   recoverySnapshots: readonly RecoverySnapshotSummary[];
   recoverySnapshotStatus: RecoverySnapshotStatus;
+  saveCurrentDocument: () => void;
   saveEntry: (entry: WorldEntry) => void;
   archiveEntry: (entry: WorldEntry, archived: boolean) => void;
   permanentlyDeleteEntry: (entry: WorldEntry) => void;
@@ -97,9 +99,6 @@ export type WorldDocumentState = {
 /** Owns browser document persistence and active-workspace mutation wiring. */
 export function useWorldDocumentState(): WorldDocumentState {
   const [initialLoadResult] = useState(() => loadWorldDocumentWithStatus());
-  const shouldSkipInitialSave = useRef(
-    shouldPauseInitialSaveAfterLoad(initialLoadResult.status)
-  );
   const [document, setDocument] = useState<WorldDocument>(
     () => initialLoadResult.document
   );
@@ -107,9 +106,11 @@ export function useWorldDocumentState(): WorldDocumentState {
     () => initialLoadResult.status
   );
   const [saveStatus, setSaveStatus] = useState<WorldDocumentSaveStatus>(() => ({
-    state: 'saved',
+    state: getInitialSaveStateAfterLoad(initialLoadResult.status),
     savedAt: document.savedAt,
   }));
+  const [hasUnsavedDocumentChanges, setHasUnsavedDocumentChanges] =
+    useState(false);
   const [snapshots, setSnapshots] = useState<RecoverySnapshot[]>(() =>
     loadRecoverySnapshots()
   );
@@ -128,21 +129,36 @@ export function useWorldDocumentState(): WorldDocumentState {
     [snapshots]
   );
 
-  useEffect(() => {
-    if (shouldSkipInitialSave.current) {
-      shouldSkipInitialSave.current = false;
-      setSaveStatus({
-        state: 'paused',
-        savedAt: new Date().toISOString(),
-      });
-      return;
+  const markUnsaved = () => {
+    setHasUnsavedDocumentChanges(true);
+    setSaveStatus((currentStatus) => ({
+      state: 'dirty',
+      savedAt: currentStatus.savedAt,
+    }));
+  };
+
+  const setUnsavedDocument = (
+    updateDocument: (currentDocument: WorldDocument) => WorldDocument
+  ) => {
+    setDocument((currentDocument) => {
+      return applyUnsavedDocumentUpdate(currentDocument, updateDocument);
+    });
+    markUnsaved();
+  };
+
+  const saveCurrentDocument = () => {
+    const savedAt = new Date().toISOString();
+    const savedDocument = createManualSaveDocument(document, savedAt);
+    const didSave = saveWorldDocument(savedDocument);
+    if (didSave) {
+      setDocument(savedDocument);
+      setHasUnsavedDocumentChanges(false);
     }
-    const didSave = saveWorldDocument(document);
     setSaveStatus({
       state: didSave ? 'saved' : 'failed',
-      savedAt: new Date().toISOString(),
+      savedAt,
     });
-  }, [document]);
+  };
 
   const captureSnapshot = (
     currentDocument: WorldDocument,
@@ -160,7 +176,7 @@ export function useWorldDocumentState(): WorldDocumentState {
   };
 
   const saveEntry = (entry: WorldEntry) => {
-    setDocument((currentDocument) =>
+    setUnsavedDocument((currentDocument) =>
       updateActiveWorld(currentDocument, (world) => ({
         ...world,
         codex: applyEntry(world.codex, entry, world.entryTypes),
@@ -170,7 +186,7 @@ export function useWorldDocumentState(): WorldDocumentState {
   };
 
   const archiveEntry = (entry: WorldEntry, archived: boolean) => {
-    setDocument((currentDocument) =>
+    setUnsavedDocument((currentDocument) =>
       updateActiveWorld(currentDocument, (world) => ({
         ...world,
         codex: setEntryArchived(world.codex, entry, archived, world.entryTypes),
@@ -181,8 +197,8 @@ export function useWorldDocumentState(): WorldDocumentState {
 
   const permanentlyDeleteEntry = (entry: WorldEntry) => {
     captureSnapshot(document, 'permanent-delete');
-    setDocument(
-      updateActiveWorld(document, (world) => ({
+    setUnsavedDocument((currentDocument) =>
+      updateActiveWorld(currentDocument, (world) => ({
         ...world,
         codex: deleteEntry(world.codex, entry, world.entryTypes),
         relationships: deleteRelationshipsForEntry(
@@ -195,7 +211,7 @@ export function useWorldDocumentState(): WorldDocumentState {
   };
 
   const saveRelationship = (relationship: WorldRelationship) => {
-    setDocument((currentDocument) =>
+    setUnsavedDocument((currentDocument) =>
       updateActiveWorld(currentDocument, (world) => ({
         ...world,
         relationships: upsertRelationship(world.relationships, relationship),
@@ -206,8 +222,8 @@ export function useWorldDocumentState(): WorldDocumentState {
 
   const removeRelationship = (relationshipId: string) => {
     captureSnapshot(document, 'relationship-delete');
-    setDocument(
-      updateActiveWorld(document, (world) => ({
+    setUnsavedDocument((currentDocument) =>
+      updateActiveWorld(currentDocument, (world) => ({
         ...world,
         relationships: deleteRelationship(world.relationships, relationshipId),
         updatedAt: new Date().toISOString(),
@@ -220,11 +236,12 @@ export function useWorldDocumentState(): WorldDocumentState {
     setLoadStatus({
       state: 'loaded',
       source: 'seed',
-      message: 'Starter data was loaded by reset.',
+      message:
+        'Starter data was loaded by reset. Use Save to write it to localStorage.',
       issues: [],
       checkedAt: new Date().toISOString(),
     });
-    setDocument(resetWorldDocumentStorage());
+    setUnsavedDocument(() => resetWorldDocumentStorage());
   };
 
   const importDocument = (nextDocument: WorldDocument) => {
@@ -232,14 +249,12 @@ export function useWorldDocumentState(): WorldDocumentState {
     setLoadStatus({
       state: 'loaded',
       source: 'current',
-      message: 'Imported backup is now the active local document.',
+      message:
+        'Imported backup is loaded in this session. Use Save to write it to localStorage.',
       issues: [],
       checkedAt: new Date().toISOString(),
     });
-    setDocument({
-      ...nextDocument,
-      savedAt: new Date().toISOString(),
-    });
+    setUnsavedDocument(() => nextDocument);
   };
 
   const restoreSnapshot = (snapshotId: string) => {
@@ -256,14 +271,12 @@ export function useWorldDocumentState(): WorldDocumentState {
     setLoadStatus({
       state: 'loaded',
       source: 'current',
-      message: 'Recovery snapshot is now the active local document.',
+      message:
+        'Recovery snapshot is loaded in this session. Use Save to write it to localStorage.',
       issues: [],
       checkedAt: new Date().toISOString(),
     });
-    setDocument({
-      ...snapshot.document,
-      savedAt: new Date().toISOString(),
-    });
+    setUnsavedDocument(() => snapshot.document);
     setRecoverySnapshotStatus({
       state: 'restored',
       message: `Restored ${
@@ -284,43 +297,47 @@ export function useWorldDocumentState(): WorldDocumentState {
   };
 
   const createWorkspaceFromDraft = (draft: WorkspaceDraft) => {
-    setDocument((currentDocument) => createWorkspace(currentDocument, draft));
+    setUnsavedDocument((currentDocument) =>
+      createWorkspace(currentDocument, draft)
+    );
   };
 
   const updateWorkspace = (workspaceId: string, draft: WorkspaceDraft) => {
-    setDocument((currentDocument) =>
+    setUnsavedDocument((currentDocument) =>
       updateWorkspaceMetadata(currentDocument, workspaceId, draft)
     );
   };
 
   const switchWorkspace = (workspaceId: string) => {
-    setDocument((currentDocument) =>
+    setUnsavedDocument((currentDocument) =>
       setActiveWorkspace(currentDocument, workspaceId)
     );
   };
 
   const archiveWorkspace = (workspaceId: string, archived: boolean) => {
-    setDocument((currentDocument) =>
+    setUnsavedDocument((currentDocument) =>
       setWorkspaceArchived(currentDocument, workspaceId, archived)
     );
   };
 
   const duplicateWorkspaceFromId = (workspaceId: string) => {
-    setDocument((currentDocument) =>
+    setUnsavedDocument((currentDocument) =>
       duplicateWorkspace(currentDocument, workspaceId)
     );
   };
 
   const permanentlyDeleteWorkspace = (workspaceId: string) => {
     captureSnapshot(document, 'workspace-delete');
-    setDocument(deleteWorkspace(document, workspaceId));
+    setUnsavedDocument((currentDocument) =>
+      deleteWorkspace(currentDocument, workspaceId)
+    );
   };
 
   const savePlanetaryWorld = (
     draft: PlanetaryWorldDraft,
     existingPlanetaryWorld?: InFictionWorld
   ) => {
-    setDocument((currentDocument) =>
+    setUnsavedDocument((currentDocument) =>
       updateActiveWorkspace(currentDocument, (workspace) =>
         upsertPlanetaryWorld(workspace, draft, existingPlanetaryWorld)
       )
@@ -331,7 +348,7 @@ export function useWorldDocumentState(): WorldDocumentState {
     planetaryWorldId: string,
     archived: boolean
   ) => {
-    setDocument((currentDocument) =>
+    setUnsavedDocument((currentDocument) =>
       updateActiveWorkspace(currentDocument, (workspace) =>
         setPlanetaryWorldArchived(workspace, planetaryWorldId, archived)
       )
@@ -340,15 +357,15 @@ export function useWorldDocumentState(): WorldDocumentState {
 
   const permanentlyDeletePlanetaryWorld = (planetaryWorldId: string) => {
     captureSnapshot(document, 'planetary-world-delete');
-    setDocument(
-      updateActiveWorkspace(document, (workspace) =>
+    setUnsavedDocument((currentDocument) =>
+      updateActiveWorkspace(currentDocument, (workspace) =>
         deletePlanetaryWorld(workspace, planetaryWorldId)
       )
     );
   };
 
   const createEntryType = (draft: EntryTypeDraft) => {
-    setDocument((currentDocument) =>
+    setUnsavedDocument((currentDocument) =>
       updateActiveWorkspace(currentDocument, (workspace) =>
         createCustomEntryType(workspace, draft)
       )
@@ -357,8 +374,8 @@ export function useWorldDocumentState(): WorldDocumentState {
 
   const permanentlyDeleteEntryType = (sectionId: string) => {
     captureSnapshot(document, 'entry-type-delete');
-    setDocument(
-      updateActiveWorkspace(document, (workspace) =>
+    setUnsavedDocument((currentDocument) =>
+      updateActiveWorkspace(currentDocument, (workspace) =>
         deleteCustomEntryType(workspace, sectionId)
       )
     );
@@ -372,8 +389,10 @@ export function useWorldDocumentState(): WorldDocumentState {
     codex,
     relationships,
     saveStatus,
+    hasUnsavedDocumentChanges,
     recoverySnapshots,
     recoverySnapshotStatus,
+    saveCurrentDocument,
     saveEntry,
     archiveEntry,
     permanentlyDeleteEntry,
@@ -406,4 +425,33 @@ export function shouldPauseInitialSaveAfterLoad(
     status.source === 'seed' &&
     status.issues.length > 0
   );
+}
+
+export function getInitialSaveStateAfterLoad(
+  status: WorldDocumentLoadStatus
+): WorldDocumentSaveStatus['state'] {
+  if (shouldPauseInitialSaveAfterLoad(status)) {
+    return 'paused';
+  }
+  return status.source === 'current' ? 'saved' : 'unsaved';
+}
+
+export function applyUnsavedDocumentUpdate(
+  currentDocument: WorldDocument,
+  updateDocument: (currentDocument: WorldDocument) => WorldDocument
+): WorldDocument {
+  return {
+    ...updateDocument(currentDocument),
+    savedAt: currentDocument.savedAt,
+  };
+}
+
+export function createManualSaveDocument(
+  document: WorldDocument,
+  savedAt: string
+): WorldDocument {
+  return {
+    ...document,
+    savedAt,
+  };
 }
