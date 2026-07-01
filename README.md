@@ -57,6 +57,23 @@ npm run check:release
 
 `npm test` runs the focused Jest suite for codex utilities and local storage behavior. `npm run typecheck` runs TypeScript project-reference checking with `tsc -b --noEmit`. `npm run build` runs TypeScript build mode and Vite together. `npm run build:pages` also prepares the GitHub Pages route fallback. `npm run check:metadata` verifies that in-app version metadata matches `package.json`. `npm run check:performance` runs the large-world performance smoke test against a synthetic 2,500-entry, 5,000-relationship workspace. `npm run check:pwa` validates the built manifest, service worker, install icons, metadata, and Pages fallback. `npm run check` runs format checking, lint, typecheck, metadata consistency, Jest, and production build. `npm run check:browser` starts a temporary local Vite server, checks key route text through a headless Chromium browser, and writes responsive screenshots under `.tmp/browser-smoke`. `npm run check:release` runs the core gate, PWA artifact gate, and browser smoke gate. The browser smoke gate expects Chrome, Edge, or Chromium; set `VWB_BROWSER_PATH` if the browser is installed in a custom location. Vite may warn or fail on Node versions below its supported range; upgrade Node before treating that as an application code failure.
 
+## GitHub Pages
+
+This repository is configured to publish through GitHub Pages at:
+
+```text
+https://andeleidun.github.io/valgaron/
+```
+
+The deployment workflow is `.github/workflows/pages.yml`. It runs on pushes to
+`main` and manual workflow dispatch, builds with `VITE_BASE_PATH=/valgaron/`,
+prepares the `404.html` fallback for React Router routes, verifies the PWA
+artifact, and deploys the `dist` directory with GitHub's Pages Actions.
+
+In GitHub repository settings, set **Pages > Build and deployment > Source** to
+**GitHub Actions**. The next push to `main` or manual run of **Deploy GitHub
+Pages** will publish the site.
+
 ## Local Data
 
 The app loads neutral starter data when no saved world document exists or when saved data cannot be parsed as a known document shape. Legacy codex data is migrated into the current versioned world document shape. When saved data is unreadable or invalid, the Data route shows the recovery status and local storage issues instead of silently hiding the fallback. Edits remain in the current browser session until the header Save button writes them to localStorage, and all local data remains in the current browser profile unless exported by the user.

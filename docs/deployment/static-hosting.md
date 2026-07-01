@@ -6,6 +6,16 @@ Valgaron World Codex is published as a static GitHub Pages app. It has no backen
 
 The deployment workflow lives at `.github/workflows/pages.yml`.
 
+The configured project Pages URL is:
+
+```text
+https://andeleidun.github.io/valgaron/
+```
+
+In GitHub repository settings, use **Pages > Build and deployment > Source:
+GitHub Actions**. The workflow handles the Pages artifact; do not configure the
+repository to publish from a branch directory.
+
 It runs on pushes to `main` and manual `workflow_dispatch`, installs dependencies with `npm ci`, builds with:
 
 ```bash
@@ -58,7 +68,8 @@ After a Pages deployment:
 2. Refresh a nested route such as `/characters` and verify the app shell still loads.
 3. In Chrome, confirm the manifest is detected and the app is installable.
 4. In Firefox and Chrome, verify the app still loads after one online visit when the network is disabled.
-5. Create a small test entry, refresh, and confirm it remains saved in that browser profile.
+5. Create a small test entry, use the header Save button, refresh, and confirm
+   it remains saved in that browser profile.
 6. Export active-workspace JSON and confirm the downloaded file can be imported
    in a clean profile.
 7. Export full-document JSON and confirm all workspaces import in a clean
