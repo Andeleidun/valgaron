@@ -1,0 +1,12 @@
+.collapse-container {
+  display: grid;
+  gap: 8px;
+}
+
+.collapse {
+  color: var(--vwb-text);
+}
+
+.expand-button {
+  justify-self: start;
+}

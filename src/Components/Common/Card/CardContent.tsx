@@ -1,4 +1,4 @@
-import { ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import CardContent from '@mui/material/CardContent';
 
 type CardContentProps = {
@@ -7,7 +7,7 @@ type CardContentProps = {
   className?: string;
 };
 
-function WhoCardContent({
+function VWorldBuilderCardContent({
   children,
   className = 'card-content',
   maxWidth = '100%',
@@ -19,4 +19,4 @@ function WhoCardContent({
   );
 }
 
-export default WhoCardContent;
+export default VWorldBuilderCardContent;

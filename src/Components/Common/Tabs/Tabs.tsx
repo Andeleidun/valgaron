@@ -1,10 +1,14 @@
-import type { SyntheticEvent } from 'react';
-import type { PanelsType } from '../../../types';
+import type { ReactNode, SyntheticEvent } from 'react';
 import Tabs from '@mui/material/Tabs';
 import Tab from '@mui/material/Tab';
 import type { SxProps } from '@mui/material/styles';
 import { Box } from '../';
 import TabPanel from './TabPanel';
+
+type TabPanelConfig = {
+  title: string;
+  panel: ReactNode;
+};
 
 /**
  * Build the accessibility attributes for a tab and its paired panel.
@@ -16,8 +20,8 @@ function a11yProps(index: number, title: string) {
   };
 }
 
-type WhoTabsProps = {
-  panels: PanelsType;
+type VWorldBuilderTabsProps = {
+  panels: TabPanelConfig[];
   title: string;
   ariaLabel?: string;
   tabIndex: number;
@@ -29,7 +33,7 @@ type WhoTabsProps = {
 /**
  * Shared tab strip used across routed and in-page workspaces.
  */
-function WhoTabs({
+function VWorldBuilderTabs({
   panels,
   title,
   ariaLabel,
@@ -37,7 +41,7 @@ function WhoTabs({
   sx = {},
   setTabIndex,
   renderPanels = true,
-}: WhoTabsProps) {
+}: VWorldBuilderTabsProps) {
   const panelCount = panels.length;
   const useDistributedLayout = panelCount >= 2 && panelCount <= 4;
   const handleChange = (_event: SyntheticEvent, newTabIndex: number) => {
@@ -53,8 +57,8 @@ function WhoTabs({
           aria-label={
             ariaLabel || panels.map((panel) => panel.title).join(', ')
           }
-          className={`${title}-tab-container who-tab-container ${
-            useDistributedLayout ? 'who-tab-container--distributed' : ''
+          className={`${title}-tab-container vwb-tab-container ${
+            useDistributedLayout ? 'vwb-tab-container--distributed' : ''
           }`}
           variant={useDistributedLayout ? 'fullWidth' : 'scrollable'}
           scrollButtons={useDistributedLayout ? false : 'auto'}
@@ -64,7 +68,7 @@ function WhoTabs({
           {panels?.map((panel, index) => (
             <Tab
               label={`${panel.title}`}
-              className={`${title}-tab who-tab ${
+              className={`${title}-tab vwb-tab ${
                 tabIndex === index ? 'active' : ''
               }`}
               {...a11yProps(index, title)}
@@ -101,4 +105,4 @@ function WhoTabs({
   );
 }
 
-export default WhoTabs;
+export default VWorldBuilderTabs;

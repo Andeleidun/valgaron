@@ -1,5 +1,5 @@
-import { ReactNode } from 'react';
-import { SxProps } from '@mui/material/styles';
+import type { ReactNode } from 'react';
+import type { SxProps } from '@mui/material/styles';
 import { Box } from '../';
 
 interface TabPanelProps {

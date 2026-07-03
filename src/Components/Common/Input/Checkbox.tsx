@@ -2,14 +2,8 @@ import React, { useState } from 'react';
 import { Checkbox, FormControlLabel, IconButton } from '@mui/material/';
 import type { CheckboxProps } from '@mui/material/Checkbox';
 import { styled } from '@mui/material/styles';
-import { Star, StarOutline, Add } from '@mui/icons-material';
+import { Add } from '@mui/icons-material';
 import { Grid, GridItem, Input } from '../';
-import { renderValue } from '../../../Utlilities';
-import type {
-  StringOrOptionType,
-  StringsOrOptionsType,
-  OptionType,
-} from '../../../types';
 import {
   getReadOnlyChoiceSx,
   READ_ONLY_CONTROL_CLASS,
@@ -21,30 +15,24 @@ import {
  */
 type CheckboxChangeNameType = string | string[];
 
-type WhoCheckboxProps = CheckboxProps & {
+type VWorldBuilderCheckboxProps = CheckboxProps & {
   handleChange: (
     name: CheckboxChangeNameType,
-    value: OptionType | string,
+    value: string,
     dataSet?: string
   ) => void;
-  starred?: boolean;
-  starName?: string;
   inline?: boolean;
-  value: StringOrOptionType;
-  language: string;
+  value: string;
   dataSet?: string;
-  starAriaLabel?: string;
 };
 
-type WhoCheckboxGroupProps = WhoCheckboxProps & {
-  options: OptionType[];
-  label: StringOrOptionType;
-  checkedState?: StringsOrOptionsType;
-  starredState?: StringsOrOptionsType;
+type VWorldBuilderCheckboxGroupProps = VWorldBuilderCheckboxProps & {
+  options: string[];
+  label: string;
+  checkedState?: string[];
   trailingInput?: boolean;
   optionsName?: string;
-  addLabel?: StringOrOptionType;
-  starAriaLabel?: string;
+  addLabel?: string;
   error?: boolean;
   helperText?: string;
 };
@@ -65,61 +53,30 @@ const StyledLegend = styled('legend')(({ theme }) => ({
   marginBottom: '5px',
 }));
 
-const starStyles = {
-  justifyContent: 'center',
-  alignItems: 'center',
-};
-
-/**
- * Normalize checkbox values into the supported handler payload shape.
- */
-const normalizeCheckboxValue = (
-  value: StringOrOptionType,
-  language: string
-): OptionType | string => {
-  if (typeof value === 'string') {
-    return value;
-  }
-  if ('value' in value && typeof value.value === 'string') {
-    return {
-      value: value.value,
-      label: renderValue(language, value.label),
-    };
-  }
-  return renderValue(language, value);
-};
-
-export const WhoCheckbox = ({
+export const VWorldBuilderCheckbox = ({
   value,
   checked,
   handleChange,
-  starName,
-  starred,
-  language,
   dataSet,
-  starAriaLabel,
   ...props
-}: WhoCheckboxProps) => {
+}: VWorldBuilderCheckboxProps) => {
   const isReadOnly = Boolean(props.disabled || props.inputProps?.readOnly);
-  const normalizedValue = normalizeCheckboxValue(value, language);
   return (
     <Grid
       className={`no-space ${isReadOnly ? READ_ONLY_CONTROL_CLASS : ''}`.trim()}
       {...(isReadOnly ? { [READ_ONLY_DATA_ATTRIBUTE]: 'true' } : {})}
     >
-      <GridItem container xs={starName ? 11 : 12}>
+      <GridItem container xs={12}>
         <StyledLabel
           sx={getReadOnlyChoiceSx(isReadOnly)}
-          label={renderValue(language, value)}
+          label={value}
           control={
             <StyledCheckbox
-              onChange={(e) =>
-                handleChange(e.target.name, normalizedValue, dataSet)
-              }
+              onChange={(e) => handleChange(e.target.name, value, dataSet)}
               inputProps={{
-                'aria-label': renderValue(language, value),
+                'aria-label': value,
               }}
-              value={typeof value === 'string' ? value : value.value}
+              value={value}
               checked={checked}
               sx={getReadOnlyChoiceSx(isReadOnly)}
               {...props}
@@ -127,45 +84,26 @@ export const WhoCheckbox = ({
           }
         />
       </GridItem>
-      {checked && starName && (
-        <GridItem container xs={1} sx={starStyles}>
-          <IconButton
-            aria-label={starAriaLabel}
-            onClick={() => handleChange(starName, normalizedValue, dataSet)}
-            sx={getReadOnlyChoiceSx(isReadOnly)}
-          >
-            {starred ? (
-              <Star sx={{ color: 'text.primary' }} />
-            ) : (
-              <StarOutline sx={{ color: 'text.secondary' }} />
-            )}
-          </IconButton>
-        </GridItem>
-      )}
     </Grid>
   );
 };
 
-export const WhoCheckboxGroup = ({
+export const VWorldBuilderCheckboxGroup = ({
   label,
   options,
   inline,
   id,
-  starName,
   trailingInput,
   handleChange,
   checkedState = [],
-  starredState = [],
   name = '',
   optionsName = '',
   addLabel = '',
-  language,
   dataSet,
-  starAriaLabel,
   error,
   helperText,
   ...props
-}: WhoCheckboxGroupProps) => {
+}: VWorldBuilderCheckboxGroupProps) => {
   void error;
   void helperText;
   const [inputValue, setInputValue] = useState('');
@@ -188,7 +126,7 @@ export const WhoCheckboxGroup = ({
       {...(props.disabled ? { [READ_ONLY_DATA_ATTRIBUTE]: 'true' } : {})}
     >
       <GridItem container xs={12}>
-        <StyledLegend>{renderValue(language, label)}</StyledLegend>
+        <StyledLegend>{label}</StyledLegend>
       </GridItem>
       {options.map((option, index) => {
         const useOption =
@@ -203,42 +141,20 @@ export const WhoCheckboxGroup = ({
           checkedState?.some((c) =>
             typeof c === 'string'
               ? c.toLocaleLowerCase() === useOption.value.toLocaleLowerCase() ||
-                c.toLocaleLowerCase() ===
-                  renderValue(language, useOption).toLocaleLowerCase()
-              : c.value.toLocaleLowerCase() ===
-                  useOption.value.toLocaleLowerCase() ||
-                (typeof c.label === typeof useOption &&
-                  renderValue(language, c.label).toLocaleLowerCase() ===
-                    renderValue(language, useOption).toLocaleLowerCase())
+                c.toLocaleLowerCase() === useOption.label.toLocaleLowerCase()
+              : useOption.value.toLocaleLowerCase()
           );
-        const isStarred =
-          Array.isArray(starredState) &&
-          starredState?.some((c) =>
-            typeof c === 'string'
-              ? c.toLocaleLowerCase() === useOption.value.toLocaleLowerCase() ||
-                c.toLocaleLowerCase() ===
-                  renderValue(language, useOption).toLocaleLowerCase()
-              : c.value.toLocaleLowerCase() ===
-                  useOption.value.toLocaleLowerCase() ||
-                renderValue(language, c.label).toLocaleLowerCase() ===
-                  renderValue(language, useOption).toLocaleLowerCase()
-          );
-        if (props.disabled && !isChecked && !isStarred) {
+        if (props.disabled && !isChecked) {
           return null;
         }
         return (
           <GridItem container xs={12} key={index}>
-            <WhoCheckbox
+            <VWorldBuilderCheckbox
               checked={isChecked}
-              starred={isStarred}
-              starName={starName}
               id={`${id}-${useOption.value}`}
               handleChange={handleChange}
               name={name}
               {...props}
-              value={useOption}
-              language={language}
-              starAriaLabel={starAriaLabel}
             />
           </GridItem>
         );
@@ -252,8 +168,8 @@ export const WhoCheckboxGroup = ({
                   inline
                   value={inputValue}
                   handleChange={(e) => setInputValue(e.target.value)}
-                  placeholder={renderValue(language, addLabel)}
-                  aria-label={renderValue(language, addLabel)}
+                  placeholder={addLabel}
+                  aria-label={addLabel}
                   onKeyDown={handleKeyDown}
                 />
               }
@@ -261,11 +177,8 @@ export const WhoCheckboxGroup = ({
               control={<StyledCheckbox checked={!!inputValue} />}
             />
           </GridItem>
-          <GridItem container xs={1} sx={starStyles}>
-            <IconButton
-              aria-label={renderValue(language, addLabel)}
-              onClick={handleAdd}
-            >
+          <GridItem container xs={1}>
+            <IconButton aria-label={addLabel} onClick={handleAdd}>
               <Add sx={{ color: 'text.primary' }} />
             </IconButton>
           </GridItem>

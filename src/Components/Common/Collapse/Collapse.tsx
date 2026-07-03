@@ -1,12 +1,13 @@
 import { useId, useState } from 'react';
-import Collapse, { CollapseProps } from '@mui/material/Collapse';
+import Collapse from '@mui/material/Collapse';
+import type { CollapseProps } from '@mui/material/Collapse';
 import { KeyboardArrowUp, KeyboardArrowDown } from '@mui/icons-material';
 import { Box } from '../Box/Box';
 import { Button } from '../Button';
 import type { ButtonProps } from '../Button';
-import './Collapse.scss';
+import './Collapse.css';
 
-type WhoCollapseProps = CollapseProps & {
+type VWorldBuilderCollapseProps = CollapseProps & {
   initialExpand?: boolean;
   buttonProps?: ButtonProps;
   buttonLabel?: string;
@@ -15,7 +16,7 @@ type WhoCollapseProps = CollapseProps & {
 /**
  * Renders collapsible content with an accessible toggle button.
  */
-function WhoCollapse({
+function VWorldBuilderCollapse({
   children,
   component = 'div',
   className = 'collapse',
@@ -25,9 +26,9 @@ function WhoCollapse({
   buttonProps,
   buttonLabel,
   ...props
-}: WhoCollapseProps) {
+}: VWorldBuilderCollapseProps) {
   const collapseId = useId();
-  const contentId = props.id ?? `who-collapse-content-${collapseId}`;
+  const contentId = props.id ?? `vwb-collapse-content-${collapseId}`;
   const resolvedButtonLabel =
     buttonLabel ?? (typeof title === 'string' ? title : '');
   const [expand, setExpand] = useState(initialExpand);
@@ -35,7 +36,7 @@ function WhoCollapse({
   /**
    * Toggle collapse visibility.
    */
-  const toggleExpandState = () => setExpand(!expand);
+  const toggleExpandState = () => setExpand((currentValue) => !currentValue);
 
   return (
     <Box className="collapse-container">
@@ -65,4 +66,4 @@ function WhoCollapse({
   );
 }
 
-export default WhoCollapse;
+export default VWorldBuilderCollapse;

@@ -23,7 +23,7 @@ const ErrorState = ({
   onAction,
 }: ErrorStateProps) => {
   return (
-    <Container className="who-error-state" role="alert">
+    <Container className="vwb-error-state" role="alert">
       <Stack spacing={2}>
         <Heading>{title}</Heading>
         <Text>{message}</Text>

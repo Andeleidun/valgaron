@@ -23,7 +23,7 @@ const EmptyState = ({
   onAction,
 }: EmptyStateProps) => {
   return (
-    <Container className="who-empty-state">
+    <Container className="vwb-empty-state">
       <Stack spacing={2}>
         <Heading>{title}</Heading>
         <Text>{message}</Text>

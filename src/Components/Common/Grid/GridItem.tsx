@@ -1,4 +1,4 @@
-import { ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import Grid2 from '@mui/material/Unstable_Grid2';
 import type { Grid2Props } from '@mui/material/Unstable_Grid2';
 
@@ -8,7 +8,7 @@ type GridItemsProps = Grid2Props & {
   noPadding?: boolean;
 };
 
-export function WhoGridItem({
+export function VWorldBuilderGridItem({
   children,
   xs = 6,
   component = 'div',
@@ -33,4 +33,4 @@ export function WhoGridItem({
   );
 }
 
-export default WhoGridItem;
+export default VWorldBuilderGridItem;

@@ -1,4 +1,4 @@
-import { WhoGrid as Grid } from './Grid';
-import { WhoGridItem as GridItem } from './GridItem';
+import { VWorldBuilderGrid as Grid } from './Grid';
+import { VWorldBuilderGridItem as GridItem } from './GridItem';
 
 export { Grid, GridItem };

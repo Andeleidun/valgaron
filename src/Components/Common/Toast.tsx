@@ -16,7 +16,7 @@ type ToastProps = {
  */
 const Toast = ({ message, closeLabel, onClose }: ToastProps) => {
   return (
-    <Box className="who-toast" role="status">
+    <Box className="vwb-toast" role="status">
       <Text>{message}</Text>
       <Button onClick={onClose}>{closeLabel}</Button>
     </Box>

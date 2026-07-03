@@ -6,7 +6,7 @@ type GridProps = Grid2Props & {
   noPadding?: boolean;
 };
 
-export function WhoGrid({
+export function VWorldBuilderGrid({
   children,
   spacing = 1,
   component = 'div',

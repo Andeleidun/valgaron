@@ -1,0 +1,845 @@
+import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import type {
+  InFictionWorld,
+  WorldDocument,
+  WorldSectionConfig,
+  WorldWorkspace,
+} from '../types';
+import { formatUpdatedAt, getEntries } from '../Utlilities/codexEntries';
+import {
+  confirmDiscardUnsavedChanges,
+  hasUnsavedChanges,
+  useUnsavedChangesWarning,
+} from '../Utlilities/unsavedChanges';
+import { useDialogFocus } from '../Utlilities/dialogFocus';
+import type {
+  EntryTypeDraft,
+  PlanetaryWorldDraft,
+  WorkspaceDraft,
+} from '../Utlilities/workspaceManagement';
+
+type PendingDelete =
+  | { type: 'workspace'; id: string; name: string }
+  | { type: 'planetary-world'; id: string; name: string }
+  | { type: 'entry-type'; id: string; name: string };
+
+function workspaceDraftFrom(workspace?: WorldWorkspace): WorkspaceDraft {
+  return {
+    name: workspace?.name ?? '',
+    summary: workspace?.summary ?? '',
+    defaultEra: workspace?.defaultEra ?? '',
+  };
+}
+
+function planetaryWorldDraftFrom(
+  planetaryWorld?: InFictionWorld
+): PlanetaryWorldDraft {
+  return {
+    name: planetaryWorld?.name ?? '',
+    summary: planetaryWorld?.summary ?? '',
+    classification: planetaryWorld?.classification ?? '',
+    climate: planetaryWorld?.climate ?? '',
+    dominantTerrain: planetaryWorld?.dominantTerrain ?? '',
+    notes: planetaryWorld?.notes ?? '',
+    tags: planetaryWorld?.tags.join(', ') ?? '',
+  };
+}
+
+function emptyEntryTypeDraft(): EntryTypeDraft {
+  return {
+    title: '',
+    singularTitle: '',
+    description: '',
+    fields: '',
+  };
+}
+
+function getSectionEntryCount(
+  workspace: WorldWorkspace,
+  section: WorldSectionConfig
+) {
+  return getEntries(workspace.codex, section.id).length;
+}
+
+function ConfirmDeleteDialog({
+  pendingDelete,
+  onCancel,
+  onConfirm,
+}: {
+  pendingDelete: PendingDelete;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  const dialogRef = useDialogFocus<HTMLElement>(true, onCancel);
+  const description =
+    pendingDelete.type === 'workspace'
+      ? 'This permanently removes the project/universe workspace and all records inside it.'
+      : pendingDelete.type === 'planetary-world'
+      ? 'This permanently removes the in-fiction world or planet record from this workspace.'
+      : 'This permanently removes the custom entry type and all entries in that type.';
+
+  return (
+    <div className="vwb-dialog-backdrop" role="presentation">
+      <section
+        aria-labelledby="workspace-delete-title"
+        aria-describedby="workspace-delete-description"
+        className="vwb-dialog"
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        tabIndex={-1}
+      >
+        <p className="vwb-kicker">Permanent delete</p>
+        <h2 id="workspace-delete-title">Delete {pendingDelete.name}?</h2>
+        <p id="workspace-delete-description">
+          {description} A recovery snapshot is saved first when possible.
+        </p>
+        <div className="vwb-form-actions">
+          <button
+            className="vwb-secondary-button"
+            type="button"
+            onClick={onCancel}
+          >
+            Cancel
+          </button>
+          <button
+            className="vwb-primary-button vwb-danger-confirm-button"
+            type="button"
+            onClick={onConfirm}
+          >
+            Delete Permanently
+          </button>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+export function WorkspacesPage({
+  activeWorld,
+  document,
+  onArchivePlanetaryWorld,
+  onArchiveWorkspace,
+  onCreateEntryType,
+  onCreateWorkspace,
+  onDeleteEntryType,
+  onDeletePlanetaryWorld,
+  onDeleteWorkspace,
+  onDuplicateWorkspace,
+  onSavePlanetaryWorld,
+  onSwitchWorkspace,
+  onUpdateWorkspace,
+}: {
+  activeWorld: WorldWorkspace;
+  document: WorldDocument;
+  onArchivePlanetaryWorld: (
+    planetaryWorldId: string,
+    archived: boolean
+  ) => void;
+  onArchiveWorkspace: (workspaceId: string, archived: boolean) => void;
+  onCreateEntryType: (draft: EntryTypeDraft) => void;
+  onCreateWorkspace: (draft: WorkspaceDraft) => void;
+  onDeleteEntryType: (sectionId: string) => void;
+  onDeletePlanetaryWorld: (planetaryWorldId: string) => void;
+  onDeleteWorkspace: (workspaceId: string) => void;
+  onDuplicateWorkspace: (workspaceId: string) => void;
+  onSavePlanetaryWorld: (
+    draft: PlanetaryWorldDraft,
+    existingPlanetaryWorld?: InFictionWorld
+  ) => void;
+  onSwitchWorkspace: (workspaceId: string) => void;
+  onUpdateWorkspace: (workspaceId: string, draft: WorkspaceDraft) => void;
+}) {
+  const [selectedWorkspaceId, setSelectedWorkspaceId] = useState(
+    activeWorld.id
+  );
+  const [workspaceDraft, setWorkspaceDraft] = useState<WorkspaceDraft>(() =>
+    workspaceDraftFrom(activeWorld)
+  );
+  const [workspaceError, setWorkspaceError] = useState('');
+  const [selectedPlanetaryWorldId, setSelectedPlanetaryWorldId] = useState('');
+  const [planetaryWorldDraft, setPlanetaryWorldDraft] =
+    useState<PlanetaryWorldDraft>(() => planetaryWorldDraftFrom());
+  const [planetaryWorldError, setPlanetaryWorldError] = useState('');
+  const [entryTypeDraft, setEntryTypeDraft] = useState<EntryTypeDraft>({
+    ...emptyEntryTypeDraft(),
+  });
+  const [entryTypeError, setEntryTypeError] = useState('');
+  const [pendingDelete, setPendingDelete] = useState<PendingDelete | null>(
+    null
+  );
+
+  const selectedWorkspace = useMemo(
+    () =>
+      document.worlds.find((workspace) => workspace.id === selectedWorkspaceId),
+    [document.worlds, selectedWorkspaceId]
+  );
+  const selectedPlanetaryWorld = activeWorld.planetaryWorlds.find(
+    (planetaryWorld) => planetaryWorld.id === selectedPlanetaryWorldId
+  );
+  const customEntryTypes = activeWorld.entryTypes.filter(
+    (section) => section.custom
+  );
+  const workspaceBaselineDraft = workspaceDraftFrom(selectedWorkspace);
+  const planetaryWorldBaselineDraft = planetaryWorldDraftFrom(
+    selectedPlanetaryWorld
+  );
+  const entryTypeBaselineDraft = emptyEntryTypeDraft();
+  const isWorkspaceDraftDirty = hasUnsavedChanges(
+    workspaceBaselineDraft,
+    workspaceDraft
+  );
+  const isPlanetaryWorldDraftDirty = hasUnsavedChanges(
+    planetaryWorldBaselineDraft,
+    planetaryWorldDraft
+  );
+  const isEntryTypeDraftDirty = hasUnsavedChanges(
+    entryTypeBaselineDraft,
+    entryTypeDraft
+  );
+  const hasDirtyDraft =
+    isWorkspaceDraftDirty ||
+    isPlanetaryWorldDraftDirty ||
+    isEntryTypeDraftDirty;
+
+  useUnsavedChangesWarning(hasDirtyDraft);
+
+  useEffect(() => {
+    setSelectedWorkspaceId(activeWorld.id);
+    setWorkspaceDraft(workspaceDraftFrom(activeWorld));
+  }, [activeWorld]);
+
+  useEffect(() => {
+    setWorkspaceDraft(workspaceDraftFrom(selectedWorkspace));
+    setWorkspaceError('');
+  }, [selectedWorkspace]);
+
+  useEffect(() => {
+    setPlanetaryWorldDraft(planetaryWorldDraftFrom(selectedPlanetaryWorld));
+    setPlanetaryWorldError('');
+  }, [selectedPlanetaryWorld]);
+
+  const submitWorkspace = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!workspaceDraft.name.trim()) {
+      setWorkspaceError('Workspace name is required.');
+      return;
+    }
+    if (selectedWorkspace) {
+      onUpdateWorkspace(selectedWorkspace.id, workspaceDraft);
+    } else {
+      onCreateWorkspace(workspaceDraft);
+    }
+    setWorkspaceError('');
+  };
+
+  const submitPlanetaryWorld = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!planetaryWorldDraft.name.trim()) {
+      setPlanetaryWorldError('In-fiction world or planet name is required.');
+      return;
+    }
+    onSavePlanetaryWorld(planetaryWorldDraft, selectedPlanetaryWorld);
+    setSelectedPlanetaryWorldId('');
+    setPlanetaryWorldDraft(planetaryWorldDraftFrom());
+    setPlanetaryWorldError('');
+  };
+
+  const submitEntryType = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!entryTypeDraft.title.trim() || !entryTypeDraft.singularTitle.trim()) {
+      setEntryTypeError('Title and singular title are required.');
+      return;
+    }
+    onCreateEntryType(entryTypeDraft);
+    setEntryTypeDraft({
+      ...emptyEntryTypeDraft(),
+    });
+    setEntryTypeError('');
+  };
+
+  const discardIfAllowed = (action: () => void) => {
+    if (confirmDiscardUnsavedChanges(hasDirtyDraft)) {
+      action();
+    }
+  };
+
+  const confirmDelete = () => {
+    if (!pendingDelete) {
+      return;
+    }
+    if (pendingDelete.type === 'workspace') {
+      onDeleteWorkspace(pendingDelete.id);
+    }
+    if (pendingDelete.type === 'planetary-world') {
+      onDeletePlanetaryWorld(pendingDelete.id);
+      setSelectedPlanetaryWorldId('');
+    }
+    if (pendingDelete.type === 'entry-type') {
+      onDeleteEntryType(pendingDelete.id);
+    }
+    setPendingDelete(null);
+  };
+
+  return (
+    <main
+      className="vwb-main vwb-workspace-layout"
+      id="main-content"
+      tabIndex={-1}
+    >
+      <section className="vwb-hero" aria-labelledby="workspaces-title">
+        <div>
+          <p className="vwb-kicker">Project and universe management</p>
+          <h1 id="workspaces-title">Workspaces</h1>
+        </div>
+        <p>
+          Manage project/universe workspaces separately from the in-fiction
+          worlds and planets inside the active workspace.
+        </p>
+      </section>
+
+      <section className="vwb-panel" aria-labelledby="workspace-manager-title">
+        <div className="vwb-section-heading">
+          <div>
+            <p className="vwb-kicker">
+              {document.worlds.length} project workspace
+              {document.worlds.length === 1 ? '' : 's'}
+            </p>
+            <h2 id="workspace-manager-title">Project/universe workspaces</h2>
+          </div>
+          <button
+            className="vwb-secondary-button"
+            type="button"
+            onClick={() =>
+              discardIfAllowed(() => {
+                setSelectedWorkspaceId('');
+                setWorkspaceDraft(workspaceDraftFrom());
+              })
+            }
+          >
+            New Workspace
+          </button>
+        </div>
+        <div className="vwb-management-grid">
+          <div className="vwb-entry-list">
+            {document.worlds.map((workspace) => (
+              <article
+                className={`vwb-entry-card ${
+                  workspace.id === activeWorld.id ? 'is-selected' : ''
+                }`}
+                key={workspace.id}
+              >
+                <div className="vwb-entry-card-header">
+                  <div>
+                    <p className="vwb-entry-kind">
+                      {workspace.status === 'archived'
+                        ? 'Archived workspace'
+                        : 'Project/universe workspace'}
+                    </p>
+                    <h3>{workspace.name}</h3>
+                  </div>
+                  {workspace.id === activeWorld.id ? (
+                    <span className="vwb-status-pill">Active</span>
+                  ) : null}
+                </div>
+                <p>{workspace.summary || 'No summary yet.'}</p>
+                <small>Updated {formatUpdatedAt(workspace.updatedAt)}</small>
+                <div className="vwb-form-actions">
+                  <button
+                    className="vwb-secondary-button"
+                    type="button"
+                    onClick={() =>
+                      discardIfAllowed(() =>
+                        setSelectedWorkspaceId(workspace.id)
+                      )
+                    }
+                  >
+                    Edit
+                  </button>
+                  {workspace.status !== 'archived' &&
+                  workspace.id !== activeWorld.id ? (
+                    <button
+                      className="vwb-primary-button"
+                      type="button"
+                      onClick={() =>
+                        discardIfAllowed(() => onSwitchWorkspace(workspace.id))
+                      }
+                    >
+                      Switch
+                    </button>
+                  ) : null}
+                </div>
+              </article>
+            ))}
+          </div>
+          <form className="vwb-form" onSubmit={submitWorkspace}>
+            <div className="vwb-section-heading">
+              <div>
+                <p className="vwb-kicker">
+                  {selectedWorkspace ? 'Edit workspace' : 'New workspace'}
+                </p>
+                <h3>
+                  {selectedWorkspace
+                    ? selectedWorkspace.name
+                    : 'Create project/universe'}
+                </h3>
+              </div>
+              {isWorkspaceDraftDirty ? (
+                <span className="vwb-status-pill">Unsaved</span>
+              ) : null}
+            </div>
+            <label>
+              Workspace name
+              <input
+                value={workspaceDraft.name}
+                onChange={(event) =>
+                  setWorkspaceDraft({
+                    ...workspaceDraft,
+                    name: event.target.value,
+                  })
+                }
+              />
+            </label>
+            <label>
+              Summary
+              <textarea
+                rows={4}
+                value={workspaceDraft.summary}
+                onChange={(event) =>
+                  setWorkspaceDraft({
+                    ...workspaceDraft,
+                    summary: event.target.value,
+                  })
+                }
+              />
+            </label>
+            <label>
+              Default era
+              <input
+                value={workspaceDraft.defaultEra}
+                onChange={(event) =>
+                  setWorkspaceDraft({
+                    ...workspaceDraft,
+                    defaultEra: event.target.value,
+                  })
+                }
+              />
+            </label>
+            {workspaceError ? (
+              <p className="vwb-form-error">{workspaceError}</p>
+            ) : null}
+            <div className="vwb-form-actions">
+              <button className="vwb-primary-button" type="submit">
+                {selectedWorkspace ? 'Save Workspace' : 'Create Workspace'}
+              </button>
+              {selectedWorkspace ? (
+                <>
+                  <button
+                    className="vwb-secondary-button"
+                    type="button"
+                    onClick={() =>
+                      discardIfAllowed(() =>
+                        onDuplicateWorkspace(selectedWorkspace.id)
+                      )
+                    }
+                  >
+                    Duplicate
+                  </button>
+                  <button
+                    className="vwb-secondary-button"
+                    type="button"
+                    onClick={() =>
+                      discardIfAllowed(() =>
+                        onArchiveWorkspace(
+                          selectedWorkspace.id,
+                          selectedWorkspace.status !== 'archived'
+                        )
+                      )
+                    }
+                  >
+                    {selectedWorkspace.status === 'archived'
+                      ? 'Restore'
+                      : 'Archive'}
+                  </button>
+                  <button
+                    className="vwb-secondary-button vwb-danger-button"
+                    type="button"
+                    disabled={document.worlds.length <= 1}
+                    onClick={() =>
+                      discardIfAllowed(() =>
+                        setPendingDelete({
+                          type: 'workspace',
+                          id: selectedWorkspace.id,
+                          name: selectedWorkspace.name,
+                        })
+                      )
+                    }
+                  >
+                    Delete Permanently
+                  </button>
+                </>
+              ) : null}
+            </div>
+          </form>
+        </div>
+      </section>
+
+      <section className="vwb-panel" aria-labelledby="planetary-worlds-title">
+        <div className="vwb-section-heading">
+          <div>
+            <p className="vwb-kicker">
+              {activeWorld.planetaryWorlds.length} in-fiction world
+              {activeWorld.planetaryWorlds.length === 1 ? '' : 's'}
+            </p>
+            <h2 id="planetary-worlds-title">In-fiction worlds and planets</h2>
+          </div>
+          <button
+            className="vwb-secondary-button"
+            type="button"
+            onClick={() =>
+              discardIfAllowed(() => setSelectedPlanetaryWorldId(''))
+            }
+          >
+            New World/Planet
+          </button>
+        </div>
+        <div className="vwb-management-grid">
+          <div className="vwb-entry-list">
+            {activeWorld.planetaryWorlds.length > 0 ? (
+              activeWorld.planetaryWorlds.map((planetaryWorld) => (
+                <article className="vwb-entry-card" key={planetaryWorld.id}>
+                  <div className="vwb-entry-card-header">
+                    <div>
+                      <p className="vwb-entry-kind">
+                        {planetaryWorld.classification || 'In-fiction world'}
+                      </p>
+                      <h3>{planetaryWorld.name}</h3>
+                    </div>
+                    <span className="vwb-status-pill">
+                      {planetaryWorld.status}
+                    </span>
+                  </div>
+                  <p>{planetaryWorld.summary || 'No summary yet.'}</p>
+                  <small>
+                    {planetaryWorld.climate || 'No climate'} -{' '}
+                    {planetaryWorld.dominantTerrain || 'No terrain'}
+                  </small>
+                  <div className="vwb-form-actions">
+                    <button
+                      className="vwb-secondary-button"
+                      type="button"
+                      onClick={() =>
+                        discardIfAllowed(() =>
+                          setSelectedPlanetaryWorldId(planetaryWorld.id)
+                        )
+                      }
+                    >
+                      Edit
+                    </button>
+                  </div>
+                </article>
+              ))
+            ) : (
+              <div className="vwb-empty-results" role="status">
+                <strong>No in-fiction worlds or planets yet.</strong>
+                <p>Add planets, moons, realms, or nested worlds here.</p>
+              </div>
+            )}
+          </div>
+          <form className="vwb-form" onSubmit={submitPlanetaryWorld}>
+            <div className="vwb-section-heading">
+              <div>
+                <p className="vwb-kicker">
+                  {selectedPlanetaryWorld
+                    ? 'Edit in-fiction world'
+                    : 'New in-fiction world'}
+                </p>
+                <h3>
+                  {selectedPlanetaryWorld
+                    ? selectedPlanetaryWorld.name
+                    : 'Create world/planet'}
+                </h3>
+              </div>
+              {isPlanetaryWorldDraftDirty ? (
+                <span className="vwb-status-pill">Unsaved</span>
+              ) : null}
+            </div>
+            <div className="vwb-form-grid">
+              <label>
+                Name
+                <input
+                  value={planetaryWorldDraft.name}
+                  onChange={(event) =>
+                    setPlanetaryWorldDraft({
+                      ...planetaryWorldDraft,
+                      name: event.target.value,
+                    })
+                  }
+                />
+              </label>
+              <label>
+                Classification
+                <input
+                  value={planetaryWorldDraft.classification}
+                  onChange={(event) =>
+                    setPlanetaryWorldDraft({
+                      ...planetaryWorldDraft,
+                      classification: event.target.value,
+                    })
+                  }
+                  placeholder="Planet, moon, realm, demiplane"
+                />
+              </label>
+              <label>
+                Climate
+                <input
+                  value={planetaryWorldDraft.climate}
+                  onChange={(event) =>
+                    setPlanetaryWorldDraft({
+                      ...planetaryWorldDraft,
+                      climate: event.target.value,
+                    })
+                  }
+                />
+              </label>
+              <label>
+                Dominant terrain
+                <input
+                  value={planetaryWorldDraft.dominantTerrain}
+                  onChange={(event) =>
+                    setPlanetaryWorldDraft({
+                      ...planetaryWorldDraft,
+                      dominantTerrain: event.target.value,
+                    })
+                  }
+                />
+              </label>
+            </div>
+            <label>
+              Summary
+              <textarea
+                rows={4}
+                value={planetaryWorldDraft.summary}
+                onChange={(event) =>
+                  setPlanetaryWorldDraft({
+                    ...planetaryWorldDraft,
+                    summary: event.target.value,
+                  })
+                }
+              />
+            </label>
+            <label>
+              Notes
+              <textarea
+                rows={5}
+                value={planetaryWorldDraft.notes}
+                onChange={(event) =>
+                  setPlanetaryWorldDraft({
+                    ...planetaryWorldDraft,
+                    notes: event.target.value,
+                  })
+                }
+              />
+            </label>
+            <label>
+              Tags
+              <input
+                value={planetaryWorldDraft.tags}
+                onChange={(event) =>
+                  setPlanetaryWorldDraft({
+                    ...planetaryWorldDraft,
+                    tags: event.target.value,
+                  })
+                }
+                placeholder="planet, moon, magic"
+              />
+            </label>
+            {planetaryWorldError ? (
+              <p className="vwb-form-error">{planetaryWorldError}</p>
+            ) : null}
+            <div className="vwb-form-actions">
+              <button className="vwb-primary-button" type="submit">
+                {selectedPlanetaryWorld
+                  ? 'Save World/Planet'
+                  : 'Create World/Planet'}
+              </button>
+              {selectedPlanetaryWorld ? (
+                <>
+                  <button
+                    className="vwb-secondary-button"
+                    type="button"
+                    onClick={() =>
+                      discardIfAllowed(() =>
+                        onArchivePlanetaryWorld(
+                          selectedPlanetaryWorld.id,
+                          selectedPlanetaryWorld.status !== 'archived'
+                        )
+                      )
+                    }
+                  >
+                    {selectedPlanetaryWorld.status === 'archived'
+                      ? 'Restore'
+                      : 'Archive'}
+                  </button>
+                  <button
+                    className="vwb-secondary-button vwb-danger-button"
+                    type="button"
+                    onClick={() =>
+                      discardIfAllowed(() =>
+                        setPendingDelete({
+                          type: 'planetary-world',
+                          id: selectedPlanetaryWorld.id,
+                          name: selectedPlanetaryWorld.name,
+                        })
+                      )
+                    }
+                  >
+                    Delete Permanently
+                  </button>
+                </>
+              ) : null}
+            </div>
+          </form>
+        </div>
+      </section>
+
+      <section className="vwb-panel" aria-labelledby="custom-types-title">
+        <div className="vwb-section-heading">
+          <div>
+            <p className="vwb-kicker">{customEntryTypes.length} custom types</p>
+            <h2 id="custom-types-title">Custom entry types</h2>
+          </div>
+        </div>
+        <div className="vwb-management-grid">
+          <div className="vwb-entry-list">
+            {customEntryTypes.length > 0 ? (
+              customEntryTypes.map((section) => (
+                <article className="vwb-entry-card" key={section.id}>
+                  <div className="vwb-entry-card-header">
+                    <div>
+                      <p className="vwb-entry-kind">Custom codex section</p>
+                      <h3>{section.title}</h3>
+                    </div>
+                    <span className="vwb-status-pill">
+                      {getSectionEntryCount(activeWorld, section)} entries
+                    </span>
+                  </div>
+                  <p>{section.description || 'No description yet.'}</p>
+                  <small>
+                    Fields:{' '}
+                    {section.detailFields
+                      .map((field) => field.label)
+                      .join(', ')}
+                  </small>
+                  <div className="vwb-form-actions">
+                    <button
+                      className="vwb-secondary-button vwb-danger-button"
+                      type="button"
+                      onClick={() =>
+                        discardIfAllowed(() =>
+                          setPendingDelete({
+                            type: 'entry-type',
+                            id: section.id,
+                            name: section.title,
+                          })
+                        )
+                      }
+                    >
+                      Delete Type
+                    </button>
+                  </div>
+                </article>
+              ))
+            ) : (
+              <div className="vwb-empty-results" role="status">
+                <strong>No custom entry types yet.</strong>
+                <p>Create one when the built-in sections are not enough.</p>
+              </div>
+            )}
+          </div>
+          <form className="vwb-form" onSubmit={submitEntryType}>
+            <div className="vwb-section-heading">
+              <div>
+                <p className="vwb-kicker">New custom section</p>
+                <h3>Create entry type</h3>
+              </div>
+              {isEntryTypeDraftDirty ? (
+                <span className="vwb-status-pill">Unsaved</span>
+              ) : null}
+            </div>
+            <div className="vwb-form-grid">
+              <label>
+                Section title
+                <input
+                  value={entryTypeDraft.title}
+                  onChange={(event) =>
+                    setEntryTypeDraft({
+                      ...entryTypeDraft,
+                      title: event.target.value,
+                    })
+                  }
+                  placeholder="Artifacts"
+                />
+              </label>
+              <label>
+                Singular title
+                <input
+                  value={entryTypeDraft.singularTitle}
+                  onChange={(event) =>
+                    setEntryTypeDraft({
+                      ...entryTypeDraft,
+                      singularTitle: event.target.value,
+                    })
+                  }
+                  placeholder="Artifact"
+                />
+              </label>
+            </div>
+            <label>
+              Description
+              <textarea
+                rows={3}
+                value={entryTypeDraft.description}
+                onChange={(event) =>
+                  setEntryTypeDraft({
+                    ...entryTypeDraft,
+                    description: event.target.value,
+                  })
+                }
+              />
+            </label>
+            <label>
+              Detail fields
+              <input
+                value={entryTypeDraft.fields}
+                onChange={(event) =>
+                  setEntryTypeDraft({
+                    ...entryTypeDraft,
+                    fields: event.target.value,
+                  })
+                }
+                placeholder="Origin, Power, Current holder"
+              />
+            </label>
+            {entryTypeError ? (
+              <p className="vwb-form-error">{entryTypeError}</p>
+            ) : null}
+            <div className="vwb-form-actions">
+              <button className="vwb-primary-button" type="submit">
+                Create Entry Type
+              </button>
+            </div>
+          </form>
+        </div>
+      </section>
+
+      {pendingDelete ? (
+        <ConfirmDeleteDialog
+          pendingDelete={pendingDelete}
+          onCancel={() => setPendingDelete(null)}
+          onConfirm={confirmDelete}
+        />
+      ) : null}
+    </main>
+  );
+}

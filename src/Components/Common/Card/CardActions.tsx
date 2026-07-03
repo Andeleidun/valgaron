@@ -1,4 +1,4 @@
-import { ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import CardActions from '@mui/material/CardActions';
 
 type CardActionsProps = {
@@ -7,7 +7,7 @@ type CardActionsProps = {
   className?: string;
 };
 
-function WhoCardActions({
+function VWorldBuilderCardActions({
   children,
   className = 'card-actions',
   disableSpacing = false,
@@ -19,4 +19,4 @@ function WhoCardActions({
   );
 }
 
-export default WhoCardActions;
+export default VWorldBuilderCardActions;

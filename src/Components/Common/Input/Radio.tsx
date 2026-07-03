@@ -3,21 +3,18 @@ import { Radio, RadioGroup, FormLabel, FormControlLabel } from '@mui/material';
 import type { RadioGroupProps } from '@mui/material/';
 import { styled } from '@mui/material/styles';
 import { Grid, GridItem, Input } from '../';
-import { renderValue } from '../../../Utlilities';
-import type { StringOrOptionType, OptionType } from '../../../types';
 import {
   getReadOnlyChoiceSx,
   READ_ONLY_CONTROL_CLASS,
   READ_ONLY_DATA_ATTRIBUTE,
 } from './readOnlyStyles';
 
-type WhoRadioGroupProps = RadioGroupProps & {
-  options: OptionType[];
-  label: StringOrOptionType;
+type VWorldBuilderRadioGroupProps = RadioGroupProps & {
+  options: string[];
+  label: string;
   trailingInput?: boolean;
-  trailingInputLabel?: StringOrOptionType;
+  trailingInputLabel?: string;
   inline?: boolean;
-  language: string;
   disabled?: boolean;
   readOnly?: boolean;
 };
@@ -37,16 +34,15 @@ const StyledControlLabel = styled(FormControlLabel)(({ theme }) => ({
   color: theme.palette.text.primary,
 }));
 
-export const WhoRadioGroup = ({
+export const VWorldBuilderRadioGroup = ({
   label,
-  language,
   options,
   trailingInput,
   trailingInputLabel = '',
   value,
   inline,
   ...props
-}: WhoRadioGroupProps) => {
+}: VWorldBuilderRadioGroupProps) => {
   const isReadOnly = Boolean(props.disabled || props.readOnly);
   const [inputValue, setInputValue] = useState('');
   useEffect(() => {
@@ -65,15 +61,15 @@ export const WhoRadioGroup = ({
     >
       <GridItem container xs={12}>
         <StyledLabel id={label + '-label'} sx={getReadOnlyChoiceSx(isReadOnly)}>
-          {renderValue(language, label)}
+          {label}
         </StyledLabel>
       </GridItem>
       <RadioGroup aria-labelledby={label + '-label'} value={value} {...props}>
         {options.map((option, index) => (
           <GridItem container xs={12} key={index}>
             <StyledControlLabel
-              label={renderValue(language, option.label)}
-              value={option.value}
+              label={option}
+              value={option}
               control={
                 <StyledRadio
                   sx={getReadOnlyChoiceSx(isReadOnly)}
@@ -93,8 +89,8 @@ export const WhoRadioGroup = ({
                   inline
                   value={inputValue}
                   handleChange={(e) => setInputValue(e.target.value)}
-                  placeholder={renderValue(language, trailingInputLabel)}
-                  aria-label={renderValue(language, trailingInputLabel)}
+                  placeholder={trailingInputLabel}
+                  aria-label={trailingInputLabel}
                   disabled={isReadOnly}
                 />
               }

@@ -1,4 +1,4 @@
-import { ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import CardHeader from '@mui/material/CardHeader';
 
 type CardHeaderProps = {
@@ -8,7 +8,12 @@ type CardHeaderProps = {
   subheader?: string;
 };
 
-function WhoCardHeader({ title, avatar, action, subheader }: CardHeaderProps) {
+function VWorldBuilderCardHeader({
+  title,
+  avatar,
+  action,
+  subheader,
+}: CardHeaderProps) {
   return (
     <CardHeader
       title={title}
@@ -19,4 +24,4 @@ function WhoCardHeader({ title, avatar, action, subheader }: CardHeaderProps) {
   );
 }
 
-export default WhoCardHeader;
+export default VWorldBuilderCardHeader;

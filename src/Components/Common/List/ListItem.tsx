@@ -1,6 +1,6 @@
-import { ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import ListItem from '@mui/material/ListItem';
-import { SxProps } from '@mui/material/styles';
+import type { SxProps } from '@mui/material/styles';
 
 type ListItemProps = {
   children: ReactNode;
@@ -10,7 +10,7 @@ type ListItemProps = {
   sx?: SxProps;
 };
 
-function WhoListItem({
+function VWorldBuilderListItem({
   children,
   className = '',
   component = 'li',
@@ -29,4 +29,4 @@ function WhoListItem({
   );
 }
 
-export default WhoListItem;
+export default VWorldBuilderListItem;

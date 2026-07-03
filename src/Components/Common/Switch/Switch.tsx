@@ -1,6 +1,6 @@
 import Switch from '@mui/material/Switch';
 import { Text, Box } from '../';
-import { SxProps } from '@mui/material/styles';
+import type { SxProps } from '@mui/material/styles';
 import './Switch.css';
 
 type SwitchProps = {
@@ -15,7 +15,7 @@ type SwitchProps = {
   size?: 'small' | 'medium';
 };
 
-function WhoSwitch({
+function VWorldBuilderSwitch({
   checked,
   label,
   id,
@@ -44,4 +44,4 @@ function WhoSwitch({
   );
 }
 
-export default WhoSwitch;
+export default VWorldBuilderSwitch;

@@ -12,6 +12,8 @@ functions/coverage
 
 # production
 build
+dist
+dist-ssr
 apps/home/dist
 functions/lib
 
@@ -24,6 +26,7 @@ vendor/expo-metro-config/**
 .env.development.local
 .env.test.local
 .env.production.local
+.tmp
 .firebase-evidence
 
 # logs

@@ -7,9 +7,8 @@ import React, {
 } from 'react';
 import { Box } from './Box/Box';
 import Toast from './Toast';
-import fetchTranslations from '../../Utlilities/translations';
 
-const defaultDismissLabel = fetchTranslations().common.dismiss?.en ?? '';
+const defaultDismissLabel = 'Dismiss';
 
 /**
  * Single toast item metadata.
@@ -64,7 +63,7 @@ const ToastProvider = ({
   return (
     <ToastContext.Provider value={value}>
       {children}
-      <Box className="who-toast-container" aria-live="polite">
+      <Box className="vwb-toast-container" aria-live="polite">
         {toasts.map((toast) => (
           <Toast
             key={toast.id}

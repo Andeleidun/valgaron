@@ -2,7 +2,7 @@ import Container from '@mui/material/Container';
 import type { ContainerProps } from '@mui/material/Container';
 import './Container.css';
 
-type WhoContainerProps = ContainerProps & {
+type VWorldBuilderContainerProps = ContainerProps & {
   component?: 'div' | 'main' | 'section' | 'nav' | 'header';
   ariaLabelledBy?: string;
 };
@@ -10,7 +10,7 @@ type WhoContainerProps = ContainerProps & {
 /**
  * Wrapper around MUI Container that standardizes layout styles.
  */
-function WhoContainer({
+function VWorldBuilderContainer({
   children,
   fixed,
   className = '',
@@ -18,7 +18,7 @@ function WhoContainer({
   ariaLabelledBy,
   sx = {},
   ...props
-}: WhoContainerProps) {
+}: VWorldBuilderContainerProps) {
   const ariaProps = ariaLabelledBy ? { 'aria-labelledby': ariaLabelledBy } : {};
 
   return (
@@ -35,4 +35,4 @@ function WhoContainer({
   );
 }
 
-export default WhoContainer;
+export default VWorldBuilderContainer;

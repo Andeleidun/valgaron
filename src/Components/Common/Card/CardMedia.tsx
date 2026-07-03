@@ -8,7 +8,7 @@ type CardMediaProps = {
   alt: string;
 };
 
-function WhoCardMedia({
+function VWorldBuilderCardMedia({
   src,
   alt,
   component = 'img',
@@ -26,4 +26,4 @@ function WhoCardMedia({
   );
 }
 
-export default WhoCardMedia;
+export default VWorldBuilderCardMedia;

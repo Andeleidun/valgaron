@@ -1,0 +1,77 @@
+# Static Hosting And PWA Deployment
+
+Valgaron World Codex is published as a static GitHub Pages app. It has no backend, no telemetry, no account system, and no cloud data storage. User worlds remain in the current browser profile through `localStorage`, so downloaded JSON exports remain the portable backup path.
+
+## GitHub Pages
+
+The deployment workflow lives at `.github/workflows/pages.yml`.
+
+The configured project Pages URL is:
+
+```text
+https://andeleidun.github.io/valgaron/
+```
+
+In GitHub repository settings, use **Pages > Build and deployment > Source:
+GitHub Actions**. The workflow handles the Pages artifact; do not configure the
+repository to publish from a branch directory.
+
+It runs on pushes to `main` and manual `workflow_dispatch`, installs dependencies with `npm ci`, builds with:
+
+```bash
+VITE_BASE_PATH=/${{ github.event.repository.name }}/ npm run build:pages
+```
+
+`build:pages` runs the normal production build and then copies `dist/index.html` to `dist/404.html`. The copied fallback lets GitHub Pages serve the React app shell for direct route refreshes such as `/valgaron/characters`.
+
+For a custom domain or user/organization root site, set `VITE_BASE_PATH=/` in the Pages workflow.
+
+## PWA Cache Strategy
+
+The service worker is intentionally conservative:
+
+- Navigation requests use network-first caching so updated `index.html` is preferred when the user is online.
+- Versioned cache names are deleted on activation to avoid keeping stale app shells after schema or data-shape changes.
+- Same-origin scripts, styles, images, and the manifest use stale-while-revalidate for offline repeat visits.
+- The app registers the service worker only in production builds.
+
+The app must not promise cloud durability. Offline support means the app shell can load without a network after installation or a previous production visit; it does not protect against browser-profile deletion.
+
+## Security Headers
+
+GitHub Pages does not support custom HTTP response headers for project pages, so
+the published Pages build cannot enforce custom CSP, Permissions Policy,
+Referrer Policy, or `X-Content-Type-Options` headers from this repository.
+
+If Valgaron is later deployed on a host that supports custom headers, use the
+starting policy in `docs/security-privacy.md` and test the production build
+before publishing. Do not add a strict CSP meta tag to `index.html` unless the
+Vite dev server, production build, service worker, manifest, and GitHub Pages
+fallback have all been verified with that policy.
+
+## Local Verification
+
+Run:
+
+```bash
+npm run check:pwa
+npm run check:release
+```
+
+`check:pwa` verifies the built manifest, service worker, install icons, metadata, and GitHub Pages fallback. `check:release` runs the full local release gate, including browser smoke screenshots.
+
+## Deployment Smoke Checklist
+
+After a Pages deployment:
+
+1. Open the deployed root URL and verify the Overview route loads.
+2. Refresh a nested route such as `/characters` and verify the app shell still loads.
+3. In Chrome, confirm the manifest is detected and the app is installable.
+4. In Firefox and Chrome, verify the app still loads after one online visit when the network is disabled.
+5. Create a small test entry, use the header Save button, refresh, and confirm
+   it remains saved in that browser profile.
+6. Export active-workspace JSON and confirm the downloaded file can be imported
+   in a clean profile.
+7. Export full-document JSON and confirm all workspaces import in a clean
+   profile.
+8. Publish release notes only after the deployed URL passes the smoke checklist.

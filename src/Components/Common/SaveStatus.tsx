@@ -29,7 +29,7 @@ type SaveStatusProps = {
 };
 
 /**
- * Render save progress and outcomes for profile form submissions.
+ * Render save progress and outcomes for reusable forms.
  */
 const SaveStatus = ({
   status,

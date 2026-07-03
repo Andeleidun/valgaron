@@ -141,7 +141,7 @@ function ImageView({
     return (
       <div
         ref={backdropRef}
-        className="who-image-view-backdrop who-image-view-backdrop--empty"
+        className="vwb-image-view-backdrop vwb-image-view-backdrop--empty"
         role="dialog"
         aria-modal="true"
         aria-label={label}
@@ -150,20 +150,20 @@ function ImageView({
         tabIndex={-1}
       >
         <div
-          className="who-image-view-content who-image-view-content--empty"
+          className="vwb-image-view-content vwb-image-view-content--empty"
           onClick={stopPropagation}
         >
           <p
             id={captionId}
-            className="who-image-view-caption"
+            className="vwb-image-view-caption"
             aria-live="polite"
           >
             {labels.unavailable}
           </p>
-          <div className="who-image-view-controls who-image-view-controls--single">
+          <div className="vwb-image-view-controls vwb-image-view-controls--single">
             <button
               type="button"
-              className="who-image-view-close-button"
+              className="vwb-image-view-close-button"
               aria-label={labels.close}
               onClick={onClose}
             >
@@ -183,7 +183,7 @@ function ImageView({
   return (
     <div
       ref={backdropRef}
-      className="who-image-view-backdrop"
+      className="vwb-image-view-backdrop"
       role="dialog"
       aria-modal="true"
       aria-label={label}
@@ -191,25 +191,25 @@ function ImageView({
       onClick={handleBackdropClick}
       tabIndex={-1}
     >
-      <div className="who-image-view-content" onClick={stopPropagation}>
-        <div className="who-image-view-frame">
+      <div className="vwb-image-view-content" onClick={stopPropagation}>
+        <div className="vwb-image-view-frame">
           <img
             src={currentImage.src}
             alt={displayAlt}
-            className="who-image-view-image"
+            className="vwb-image-view-image"
           />
         </div>
-        <p id={captionId} className="who-image-view-caption" aria-live="polite">
+        <p id={captionId} className="vwb-image-view-caption" aria-live="polite">
           {displayCaption}
         </p>
-        <div className="who-image-view-footer">
-          <div className="who-image-view-counter" aria-live="polite">
+        <div className="vwb-image-view-footer">
+          <div className="vwb-image-view-counter" aria-live="polite">
             {positionLabel}
           </div>
-          <div className="who-image-view-controls">
+          <div className="vwb-image-view-controls">
             <button
               type="button"
-              className="who-image-view-nav-button"
+              className="vwb-image-view-nav-button"
               onClick={handlePrevious}
               aria-label={labels.previous}
             >
@@ -217,7 +217,7 @@ function ImageView({
             </button>
             <button
               type="button"
-              className="who-image-view-close-button"
+              className="vwb-image-view-close-button"
               onClick={onClose}
               aria-label={labels.close}
             >
@@ -225,7 +225,7 @@ function ImageView({
             </button>
             <button
               type="button"
-              className="who-image-view-nav-button"
+              className="vwb-image-view-nav-button"
               onClick={handleNext}
               aria-label={labels.next}
             >
