@@ -10,15 +10,19 @@ import {
   applyMobileEntrySectionTemplate,
   getLocalDeviceStatusText,
   getMobileDataStorageStatus,
+  getMobileBrokenRelationshipList,
   getMobileEntryRelationshipSummary,
   getMobileEntryList,
+  getMobileOrphanedRelationshipEntries,
   getMobileOverviewEntryHighlights,
   getMobileOverviewSummary,
   getMobileOverviewSearchResults,
   getMobileRelationshipEntryPickerItems,
+  getMobileRelationshipGraphView,
   getMobileRecoverySnapshotText,
   getMobileRelationshipHealthSummary,
   getMobileRelationshipList,
+  getMobileTimelineBrowseView,
   getMobileTimelineSummary,
   getMobileWorkspaceActionState,
   mobileEntrySortOptions,
@@ -317,6 +321,47 @@ describe('mobile codex view models', () => {
     });
   });
 
+  it('exposes relationship graph, broken-link, and orphan data for mobile repair workflows', () => {
+    const world = getActiveWorld(createSeedWorldDocument());
+    const brokenWorld = {
+      ...world,
+      relationships: [
+        {
+          ...world.relationships[0],
+          id: 'relationship-broken-source',
+          sourceEntryId: 'missing-character',
+        },
+        ...world.relationships,
+      ],
+    };
+    const graph = getMobileRelationshipGraphView(world, {
+      sectionId: '',
+      status: '',
+      tag: '',
+      type: 'member of',
+    });
+
+    expect(graph.nodes.map((node) => node.name)).toContain('Mira Rowan');
+    expect(graph.edges).toEqual([
+      expect.objectContaining({
+        label: 'member of',
+        sourceName: 'Mira Rowan',
+        targetName: 'The Cartographers Guild',
+      }),
+    ]);
+    expect(getMobileBrokenRelationshipList(brokenWorld)).toEqual([
+      expect.objectContaining({
+        id: 'relationship-broken-source',
+        missingSource: true,
+        missingTarget: false,
+        sourceName: 'missing-character',
+      }),
+    ]);
+    expect(
+      getMobileOrphanedRelationshipEntries(world).map((entry) => entry.name)
+    ).toEqual(['Northwatch Harbor', 'The Ember Court']);
+  });
+
   it('keeps workspace actions aligned with core workspace rules', () => {
     const world = getActiveWorld(createSeedWorldDocument());
 
@@ -370,6 +415,129 @@ describe('mobile codex view models', () => {
       duplicateOrderCount: 0,
       unlinkedCount: 0,
     });
+  });
+
+  it('groups and filters timeline browsing with shared relationship involvement rules', () => {
+    const world = getActiveWorld(createSeedWorldDocument());
+    const browse = getMobileTimelineBrowseView(world, {
+      era: '',
+      involvedEntryId: 'faction-cartographers-guild',
+      status: '',
+      tag: '',
+    });
+
+    expect(browse.eras).toEqual(['Charter Era', 'Survey Era']);
+    expect(browse.involvedEntries.map((entry) => entry.name)).toContain(
+      'The Cartographers Guild'
+    );
+    expect(browse.groups).toEqual([
+      {
+        era: 'Charter Era',
+        events: [
+          expect.objectContaining({
+            name: 'Harbor Accord Signed',
+            dateLabel: 'Year 4 of the Harbor Charter',
+            involvedEntryNames: ['The Cartographers Guild'],
+          }),
+        ],
+      },
+    ]);
+    expect(browse.unorderedNames).toEqual([]);
+    expect(browse.duplicateOrderLabels).toEqual([]);
+    expect(browse.unlinkedNames).toEqual([]);
+  });
+
+  it('keeps mobile timeline browsing aligned with section search and archive visibility', () => {
+    const world = getActiveWorld(createSeedWorldDocument());
+    const archivedWorld = {
+      ...world,
+      codex: {
+        ...world.codex,
+        timeline: world.codex.timeline.map((event) =>
+          event.id === 'timeline-harbor-accord'
+            ? {
+                ...event,
+                status: 'archived' as const,
+              }
+            : event.id === 'timeline-first-survey'
+            ? {
+                ...event,
+                fields: {
+                  ...event.fields,
+                  order: '',
+                },
+              }
+            : event
+        ),
+      },
+    };
+
+    expect(
+      getMobileTimelineBrowseView(world, {
+        era: '',
+        involvedEntryId: '',
+        query: 'harbor accord',
+        status: '',
+        tag: '',
+      }).groups.flatMap((group) => group.events.map((event) => event.name))
+    ).toEqual(['Harbor Accord Signed']);
+    expect(
+      getMobileTimelineBrowseView(archivedWorld, {
+        era: '',
+        involvedEntryId: '',
+        query: 'harbor accord',
+        status: '',
+        tag: '',
+      }).groups
+    ).toEqual([]);
+    expect(
+      getMobileTimelineBrowseView(archivedWorld, {
+        era: '',
+        involvedEntryId: '',
+        query: 'harbor accord',
+        status: '',
+        tag: '',
+      }).unorderedNames
+    ).toEqual([]);
+    expect(
+      getMobileTimelineBrowseView(archivedWorld, {
+        era: '',
+        involvedEntryId: '',
+        query: 'harbor accord',
+        status: '',
+        tag: '',
+      }).involvedEntries
+    ).toEqual([]);
+    expect(
+      getMobileTimelineBrowseView(archivedWorld, {
+        era: '',
+        involvedEntryId: '',
+        query: 'harbor accord',
+        showArchived: true,
+        status: '',
+        tag: '',
+      }).groups.flatMap((group) => group.events.map((event) => event.name))
+    ).toEqual(['Harbor Accord Signed']);
+    expect(
+      getMobileTimelineBrowseView(archivedWorld, {
+        era: '',
+        involvedEntryId: '',
+        query: 'harbor accord',
+        showArchived: true,
+        status: '',
+        tag: '',
+      }).unorderedNames
+    ).toEqual([]);
+    expect(
+      getMobileTimelineBrowseView(archivedWorld, {
+        era: '',
+        involvedEntryId: '',
+        query: 'harbor accord',
+        showArchived: true,
+        status: '',
+        tag: '',
+      }).involvedEntries.map((entry) => entry.name)
+    ).toEqual(['The Cartographers Guild']);
   });
 
   it('creates compact entry drafts', () => {
@@ -431,37 +599,30 @@ describe('mobile codex view models', () => {
         source: 'saved',
       },
       saveMessage: 'Saved to this device.',
+      recoverySnapshotCount: 3,
     });
 
     expect(status.loadLine).toContain('Load state: saved');
     expect(status.saveLine).toBe('Device save: Saved to this device.');
+    expect(status.recoveryLine).toContain('3 snapshots saved');
     expect(status.recoveryLine).toContain('before import');
     expect(JSON.stringify(status)).not.toContain('Sample Atlas');
     expect(JSON.stringify(status)).not.toContain('Mira Rowan');
   });
 
   it('formats recovery snapshot summaries with action context', () => {
-    expect(
-      getMobileRecoverySnapshotText({
-        id: 'snapshot-reset-test',
-        reason: 'reset',
-        createdAt: '2026-06-01T09:00:00.000Z',
-        activeWorldName: 'Sample Atlas',
-        worldCount: 1,
-        entryCount: 10,
-        relationshipCount: 5,
-      })
-    ).toContain('before reset');
-    expect(
-      getMobileRecoverySnapshotText({
-        id: 'snapshot-reset-test',
-        reason: 'reset',
-        createdAt: '2026-06-01T09:00:00.000Z',
-        activeWorldName: 'Sample Atlas',
-        worldCount: 1,
-        entryCount: 10,
-        relationshipCount: 5,
-      })
-    ).toContain('Jun 1, 2026');
+    const text = getMobileRecoverySnapshotText({
+      id: 'snapshot-reset-test',
+      reason: 'reset',
+      createdAt: '2026-06-01T09:00:00.000Z',
+      activeWorldName: 'Sample Atlas',
+      worldCount: 1,
+      entryCount: 10,
+      relationshipCount: 5,
+    });
+
+    expect(text).toContain('before reset');
+    expect(text).toContain('Jun 1, 2026');
+    expect(text).not.toContain('Latest');
   });
 });

@@ -29,9 +29,9 @@ describe('mobile feedback tone', () => {
     expect(getMobileFeedbackTone('Imported backup on this device.')).toBe(
       'success'
     );
-    expect(getMobileFeedbackTone('Deleted the latest recovery snapshot.')).toBe(
-      'success'
-    );
+    expect(
+      getMobileFeedbackTone('Deleted the selected recovery snapshot.')
+    ).toBe('success');
     expect(getMobileFeedbackTone('Saved entry on this device.')).toBe(
       'success'
     );

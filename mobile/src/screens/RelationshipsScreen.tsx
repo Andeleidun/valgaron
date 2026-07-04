@@ -4,12 +4,15 @@ import { Text, View, StyleSheet } from 'react-native';
 import {
   draftFromRelationship,
   getCodexEntriesRoute,
+  getCodexHelpRoute,
   getCodexScreenIntro,
   getEntryStatusLabel,
   getRelationshipEntries,
   hasUnsavedChanges,
   relationshipTypeOptions,
+  worldEntryStatusOptions,
   type RelationshipDraft,
+  type WorldEntryStatus,
 } from '@valgaron/core';
 import {
   valgaronColors,
@@ -21,7 +24,10 @@ import { useMobileCodex } from '../state/MobileCodexContext';
 import { getMobileRouteHref } from '../navigation/mobileRoutes';
 import { getMobileRouteParam } from '../navigation/mobileRouteParams';
 import {
+  getMobileBrokenRelationshipList,
+  getMobileOrphanedRelationshipEntries,
   getMobileRelationshipEntryPickerItems,
+  getMobileRelationshipGraphView,
   getMobileRelationshipHealthSummary,
   getMobileRelationshipList,
 } from '../state/mobileCodexViewModels';
@@ -38,6 +44,10 @@ import {
 } from './screenPrimitives';
 import { confirmMobileDestructiveAction } from './mobileConfirm';
 import { confirmMobileDiscardUnsavedChanges } from './mobileUnsavedChanges';
+
+const MOBILE_PICKER_RESULT_LIMIT = 24;
+const MOBILE_RELATIONSHIP_RESULT_LIMIT = 40;
+const MOBILE_ORPHAN_SUMMARY_LIMIT = 12;
 
 export function RelationshipsScreen() {
   const controller = useMobileCodex();
@@ -63,14 +73,37 @@ export function RelationshipsScreen() {
   const [entryFilter, setEntryFilter] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
   const [relationshipQuery, setRelationshipQuery] = useState('');
+  const [graphSectionFilter, setGraphSectionFilter] = useState('');
+  const [graphStatusFilter, setGraphStatusFilter] = useState<
+    WorldEntryStatus | ''
+  >('');
+  const [graphTagFilter, setGraphTagFilter] = useState('');
+  const [graphTypeFilter, setGraphTypeFilter] = useState('');
+  const [graphNodeQuery, setGraphNodeQuery] = useState('');
+  const [selectedGraphNodeId, setSelectedGraphNodeId] = useState<string | null>(
+    null
+  );
   const entries = getMobileRelationshipEntryPickerItems(
     controller.activeWorld,
     entryQuery
+  );
+  const displayedEntries = entries.slice(0, MOBILE_PICKER_RESULT_LIMIT);
+  const hiddenEntryCount = Math.max(
+    0,
+    entries.length - displayedEntries.length
   );
   const relationshipItems = getMobileRelationshipList(
     controller.activeWorld,
     relationshipQuery,
     { entryId: entryFilter, type: typeFilter }
+  );
+  const displayedRelationshipItems = relationshipItems.slice(
+    0,
+    MOBILE_RELATIONSHIP_RESULT_LIMIT
+  );
+  const hiddenRelationshipCount = Math.max(
+    0,
+    relationshipItems.length - displayedRelationshipItems.length
   );
   const relationshipEntries = useMemo(
     () =>
@@ -94,6 +127,12 @@ export function RelationshipsScreen() {
   const relationshipHealth = getMobileRelationshipHealthSummary(
     controller.activeWorld
   );
+  const brokenRelationships = getMobileBrokenRelationshipList(
+    controller.activeWorld
+  );
+  const orphanedEntries = getMobileOrphanedRelationshipEntries(
+    controller.activeWorld
+  );
   const availableRelationshipTypes = useMemo(
     () =>
       Array.from(
@@ -104,6 +143,67 @@ export function RelationshipsScreen() {
         )
       ).sort((first, second) => first.localeCompare(second)),
     [controller.activeWorld.relationships]
+  );
+  const availableGraphTags = useMemo(
+    () =>
+      Array.from(new Set(relationshipEntries.flatMap((entry) => entry.tags)))
+        .filter(Boolean)
+        .sort((first, second) => first.localeCompare(second)),
+    [relationshipEntries]
+  );
+  const graphView = getMobileRelationshipGraphView(controller.activeWorld, {
+    sectionId: graphSectionFilter,
+    status: graphStatusFilter,
+    tag: graphTagFilter,
+    type: graphTypeFilter,
+  });
+  const normalizedGraphNodeQuery = graphNodeQuery.trim().toLowerCase();
+  const matchingGraphNodes = normalizedGraphNodeQuery
+    ? graphView.nodes.filter((node) =>
+        [
+          node.id,
+          node.name,
+          node.sectionId,
+          node.sectionTitle,
+          node.status,
+          ...node.tags,
+        ].some((value) =>
+          value.toLowerCase().includes(normalizedGraphNodeQuery)
+        )
+      )
+    : graphView.nodes;
+  const displayedGraphNodes = matchingGraphNodes.slice(
+    0,
+    MOBILE_PICKER_RESULT_LIMIT
+  );
+  const hiddenGraphNodeCount = Math.max(
+    0,
+    matchingGraphNodes.length - displayedGraphNodes.length
+  );
+  const selectedGraphNode = selectedGraphNodeId
+    ? matchingGraphNodes.find((node) => node.id === selectedGraphNodeId) ?? null
+    : null;
+  const selectedGraphEdges = selectedGraphNode
+    ? graphView.edges.filter(
+        (edge) =>
+          edge.sourceId === selectedGraphNode.id ||
+          edge.targetId === selectedGraphNode.id
+      )
+    : [];
+  const hasGraphFilters = Boolean(
+    graphSectionFilter ||
+      graphStatusFilter ||
+      graphTagFilter ||
+      graphTypeFilter ||
+      graphNodeQuery
+  );
+  const visibleOrphanedEntries = orphanedEntries.slice(
+    0,
+    MOBILE_ORPHAN_SUMMARY_LIMIT
+  );
+  const hiddenOrphanedEntryCount = Math.max(
+    0,
+    orphanedEntries.length - visibleOrphanedEntries.length
   );
   const editingRelationship = editingRelationshipId
     ? controller.activeWorld.relationships.find(
@@ -210,6 +310,19 @@ export function RelationshipsScreen() {
     });
   }
 
+  function repairRelationship(relationshipId: string) {
+    editRelationship(relationshipId);
+  }
+
+  function clearGraphFilters() {
+    setGraphSectionFilter('');
+    setGraphStatusFilter('');
+    setGraphTagFilter('');
+    setGraphTypeFilter('');
+    setGraphNodeQuery('');
+    setSelectedGraphNodeId(null);
+  }
+
   function deleteRelationship(relationshipId: string) {
     confirmMobileDiscardUnsavedChanges(
       editingRelationshipId === relationshipId && isDraftDirty,
@@ -254,10 +367,246 @@ export function RelationshipsScreen() {
       <ScreenHeader title={intro.title} detail={intro.detail} />
 
       <SectionBlock title="Relationship Health">
+        <ButtonRow>
+          <ActionButton
+            label="Relationship Help"
+            onPress={() =>
+              confirmMobileDiscardUnsavedChanges(isDraftDirty, () =>
+                router.push({
+                  ...getMobileRouteHref(getCodexHelpRoute('relationships')),
+                })
+              )
+            }
+          />
+        </ButtonRow>
         <MutedText>
           Broken references: {relationshipHealth.brokenRelationshipCount}.
           Orphaned records: {relationshipHealth.orphanedEntryCount}.
         </MutedText>
+        <MutedText>
+          Graph view: {graphView.nodes.length} connected records and{' '}
+          {graphView.edges.length} visible links.
+        </MutedText>
+      </SectionBlock>
+
+      <SectionBlock title="Repair Broken Links">
+        {brokenRelationships.length > 0 ? (
+          brokenRelationships.map((relationship) => (
+            <View key={relationship.id} style={styles.relationshipRow}>
+              <Text style={styles.entryTitle}>{relationship.type}</Text>
+              <MutedText>
+                {relationship.missingSource ? 'Missing source: ' : 'Source: '}
+                {relationship.sourceName}
+              </MutedText>
+              <MutedText>
+                {relationship.missingTarget ? 'Missing target: ' : 'Target: '}
+                {relationship.targetName}
+              </MutedText>
+              <ButtonRow>
+                <ActionButton
+                  accessibilityLabel={`Repair ${relationship.type} relationship`}
+                  label="Repair"
+                  tone="accent"
+                  onPress={() => repairRelationship(relationship.id)}
+                />
+                <ActionButton
+                  accessibilityHint="Deletes this broken relationship after confirmation."
+                  accessibilityLabel={`Delete broken ${relationship.type} relationship`}
+                  label="Delete"
+                  tone="danger"
+                  onPress={() => deleteRelationship(relationship.id)}
+                />
+              </ButtonRow>
+            </View>
+          ))
+        ) : (
+          <MutedText>No broken relationships.</MutedText>
+        )}
+        {orphanedEntries.length > 0 ? (
+          <MutedText>
+            Orphaned records:{' '}
+            {visibleOrphanedEntries.map((entry) => entry.name).join(', ')}
+            {hiddenOrphanedEntryCount > 0
+              ? `, and ${hiddenOrphanedEntryCount} more`
+              : ''}
+            .
+          </MutedText>
+        ) : (
+          <MutedText>Every relationship-capable record is connected.</MutedText>
+        )}
+      </SectionBlock>
+
+      <SectionBlock title="Graph Browser">
+        <Field
+          autoCapitalize="none"
+          autoCorrect={false}
+          label="Search graph records"
+          value={graphNodeQuery}
+          onChangeText={setGraphNodeQuery}
+          placeholder="Name, section, tag, status, or id"
+        />
+        <ButtonRow>
+          <ActionButton
+            label="Any Section"
+            selected={graphSectionFilter === ''}
+            tone={graphSectionFilter === '' ? 'accent' : 'neutral'}
+            onPress={() => setGraphSectionFilter('')}
+          />
+          {controller.sections.map((item) => (
+            <ActionButton
+              key={item.id}
+              label={item.title}
+              selected={graphSectionFilter === item.id}
+              tone={graphSectionFilter === item.id ? 'accent' : 'neutral'}
+              onPress={() =>
+                setGraphSectionFilter((current) =>
+                  current === item.id ? '' : item.id
+                )
+              }
+            />
+          ))}
+        </ButtonRow>
+        <ButtonRow>
+          <ActionButton
+            label="Any Status"
+            selected={graphStatusFilter === ''}
+            tone={graphStatusFilter === '' ? 'accent' : 'neutral'}
+            onPress={() => setGraphStatusFilter('')}
+          />
+          {worldEntryStatusOptions.map((option) => (
+            <ActionButton
+              key={option.value}
+              label={option.label}
+              selected={graphStatusFilter === option.value}
+              tone={graphStatusFilter === option.value ? 'accent' : 'neutral'}
+              onPress={() =>
+                setGraphStatusFilter((current) =>
+                  current === option.value ? '' : option.value
+                )
+              }
+            />
+          ))}
+        </ButtonRow>
+        {availableRelationshipTypes.length > 0 ? (
+          <ButtonRow>
+            <ActionButton
+              label="Any Link"
+              selected={graphTypeFilter === ''}
+              tone={graphTypeFilter === '' ? 'accent' : 'neutral'}
+              onPress={() => setGraphTypeFilter('')}
+            />
+            {availableRelationshipTypes.map((type) => (
+              <ActionButton
+                key={type}
+                label={type}
+                selected={graphTypeFilter === type}
+                tone={graphTypeFilter === type ? 'accent' : 'neutral'}
+                onPress={() =>
+                  setGraphTypeFilter((current) =>
+                    current === type ? '' : type
+                  )
+                }
+              />
+            ))}
+          </ButtonRow>
+        ) : null}
+        {availableGraphTags.length > 0 ? (
+          <ButtonRow>
+            <ActionButton
+              label="All Tags"
+              selected={graphTagFilter === ''}
+              tone={graphTagFilter === '' ? 'accent' : 'neutral'}
+              onPress={() => setGraphTagFilter('')}
+            />
+            {availableGraphTags.map((tag) => (
+              <ActionButton
+                key={tag}
+                label={tag}
+                selected={graphTagFilter === tag}
+                tone={graphTagFilter === tag ? 'accent' : 'neutral'}
+                onPress={() =>
+                  setGraphTagFilter((current) => (current === tag ? '' : tag))
+                }
+              />
+            ))}
+          </ButtonRow>
+        ) : null}
+        {hasGraphFilters ? (
+          <ButtonRow>
+            <ActionButton
+              label="Clear Graph Filters"
+              onPress={clearGraphFilters}
+            />
+          </ButtonRow>
+        ) : null}
+        {graphView.nodes.length > 0 ? (
+          <>
+            <MutedText>
+              Showing {matchingGraphNodes.length} of {graphView.nodes.length}{' '}
+              connected records.
+            </MutedText>
+            {displayedGraphNodes.length > 0 ? (
+              <ButtonRow>
+                {displayedGraphNodes.map((node) => (
+                  <ActionButton
+                    key={node.id}
+                    label={node.name}
+                    selected={selectedGraphNodeId === node.id}
+                    tone={
+                      selectedGraphNodeId === node.id ? 'accent' : 'neutral'
+                    }
+                    onPress={() =>
+                      setSelectedGraphNodeId((current) =>
+                        current === node.id ? null : node.id
+                      )
+                    }
+                  />
+                ))}
+              </ButtonRow>
+            ) : (
+              <MutedText>No graph records match this search.</MutedText>
+            )}
+            {hiddenGraphNodeCount > 0 ? (
+              <MutedText>
+                Refine graph search to show {hiddenGraphNodeCount} more record
+                {hiddenGraphNodeCount === 1 ? '' : 's'}.
+              </MutedText>
+            ) : null}
+            {selectedGraphNode ? (
+              <View style={styles.relationshipRow}>
+                <Text style={styles.entryTitle}>{selectedGraphNode.name}</Text>
+                <MutedText>
+                  {selectedGraphNode.sectionTitle} -{' '}
+                  {getEntryStatusLabel(selectedGraphNode.status)}
+                </MutedText>
+                {selectedGraphEdges.map((edge) => (
+                  <MutedText key={edge.id}>
+                    {edge.sourceName} {edge.directionLabel} {edge.targetName} -{' '}
+                    {edge.label}
+                  </MutedText>
+                ))}
+                <ButtonRow>
+                  <ActionButton
+                    label="Open Entry"
+                    onPress={() =>
+                      openEntry({
+                        entryId: selectedGraphNode.id,
+                        name: selectedGraphNode.name,
+                        sectionId: selectedGraphNode.sectionId,
+                      })
+                    }
+                  />
+                  <ActionButton
+                    label="Filter List"
+                    onPress={() => setEntryFilter(selectedGraphNode.id)}
+                  />
+                </ButtonRow>
+              </View>
+            ) : null}
+          </>
+        ) : (
+          <MutedText>No connected graph records match these filters.</MutedText>
+        )}
       </SectionBlock>
 
       <SectionBlock title="Entry Pickers">
@@ -270,42 +619,54 @@ export function RelationshipsScreen() {
           placeholder="Name, section, tag, or id"
         />
         {entries.length > 0 ? (
-          entries.map((entry) => (
-            <View key={entry.id} style={styles.entryPickerRow}>
-              <View style={styles.entryText}>
-                <Text style={styles.entryTitle}>{entry.name}</Text>
-                <MutedText>
-                  {entry.sectionTitle} - {entry.id}
-                </MutedText>
+          <>
+            {displayedEntries.map((entry) => (
+              <View key={entry.id} style={styles.entryPickerRow}>
+                <View style={styles.entryText}>
+                  <Text style={styles.entryTitle}>{entry.name}</Text>
+                  <MutedText>
+                    {entry.sectionTitle} - {entry.id}
+                  </MutedText>
+                </View>
+                <ButtonRow>
+                  <ActionButton
+                    accessibilityLabel={`Use ${entry.name} as relationship source`}
+                    label="Source"
+                    selected={draft.sourceEntryId === entry.id}
+                    tone={
+                      draft.sourceEntryId === entry.id ? 'accent' : 'neutral'
+                    }
+                    onPress={() =>
+                      setDraft((current) => ({
+                        ...current,
+                        sourceEntryId: entry.id,
+                      }))
+                    }
+                  />
+                  <ActionButton
+                    accessibilityLabel={`Use ${entry.name} as relationship target`}
+                    label="Target"
+                    selected={draft.targetEntryId === entry.id}
+                    tone={
+                      draft.targetEntryId === entry.id ? 'accent' : 'neutral'
+                    }
+                    onPress={() =>
+                      setDraft((current) => ({
+                        ...current,
+                        targetEntryId: entry.id,
+                      }))
+                    }
+                  />
+                </ButtonRow>
               </View>
-              <ButtonRow>
-                <ActionButton
-                  accessibilityLabel={`Use ${entry.name} as relationship source`}
-                  label="Source"
-                  selected={draft.sourceEntryId === entry.id}
-                  tone={draft.sourceEntryId === entry.id ? 'accent' : 'neutral'}
-                  onPress={() =>
-                    setDraft((current) => ({
-                      ...current,
-                      sourceEntryId: entry.id,
-                    }))
-                  }
-                />
-                <ActionButton
-                  accessibilityLabel={`Use ${entry.name} as relationship target`}
-                  label="Target"
-                  selected={draft.targetEntryId === entry.id}
-                  tone={draft.targetEntryId === entry.id ? 'accent' : 'neutral'}
-                  onPress={() =>
-                    setDraft((current) => ({
-                      ...current,
-                      targetEntryId: entry.id,
-                    }))
-                  }
-                />
-              </ButtonRow>
-            </View>
-          ))
+            ))}
+            {hiddenEntryCount > 0 ? (
+              <MutedText>
+                Refine entry search to show {hiddenEntryCount} more record
+                {hiddenEntryCount === 1 ? '' : 's'}.
+              </MutedText>
+            ) : null}
+          </>
         ) : (
           <MutedText>No entries match this picker search.</MutedText>
         )}
@@ -494,57 +855,68 @@ export function RelationshipsScreen() {
           </ButtonRow>
         ) : null}
         {relationshipItems.length > 0 ? (
-          relationshipItems.map((relationship) => (
-            <View key={relationship.id} style={styles.relationshipRow}>
-              <Text style={styles.entryTitle}>{relationship.type}</Text>
+          <>
+            {displayedRelationshipItems.map((relationship) => (
+              <View key={relationship.id} style={styles.relationshipRow}>
+                <Text style={styles.entryTitle}>{relationship.type}</Text>
+                <MutedText>
+                  {relationship.sourceName} {relationship.directionLabel}{' '}
+                  {relationship.targetName}
+                </MutedText>
+                <MutedText>
+                  {getEntryStatusLabel(relationship.status)}
+                </MutedText>
+                {relationship.note ? (
+                  <MutedText>{relationship.note}</MutedText>
+                ) : null}
+                <ButtonRow>
+                  <ActionButton
+                    accessibilityLabel={`Open source entry ${relationship.sourceName}`}
+                    label="Open Source"
+                    disabled={!relationship.sourceSectionId}
+                    onPress={() =>
+                      openEntry({
+                        entryId: relationship.sourceEntryId,
+                        name: relationship.sourceName,
+                        sectionId: relationship.sourceSectionId,
+                      })
+                    }
+                  />
+                  <ActionButton
+                    accessibilityLabel={`Open target entry ${relationship.targetName}`}
+                    label="Open Target"
+                    disabled={!relationship.targetSectionId}
+                    onPress={() =>
+                      openEntry({
+                        entryId: relationship.targetEntryId,
+                        name: relationship.targetName,
+                        sectionId: relationship.targetSectionId,
+                      })
+                    }
+                  />
+                  <ActionButton
+                    accessibilityLabel={`Edit ${relationship.type} relationship between ${relationship.sourceName} and ${relationship.targetName}`}
+                    label="Edit"
+                    onPress={() => editRelationship(relationship.id)}
+                  />
+                  <ActionButton
+                    accessibilityHint="Deletes this relationship after confirmation."
+                    accessibilityLabel={`Delete ${relationship.type} relationship between ${relationship.sourceName} and ${relationship.targetName}`}
+                    label="Delete"
+                    tone="danger"
+                    onPress={() => deleteRelationship(relationship.id)}
+                  />
+                </ButtonRow>
+              </View>
+            ))}
+            {hiddenRelationshipCount > 0 ? (
               <MutedText>
-                {relationship.sourceName} {relationship.directionLabel}{' '}
-                {relationship.targetName}
+                Refine relationship search or filters to show{' '}
+                {hiddenRelationshipCount} more link
+                {hiddenRelationshipCount === 1 ? '' : 's'}.
               </MutedText>
-              <MutedText>{getEntryStatusLabel(relationship.status)}</MutedText>
-              {relationship.note ? (
-                <MutedText>{relationship.note}</MutedText>
-              ) : null}
-              <ButtonRow>
-                <ActionButton
-                  accessibilityLabel={`Open source entry ${relationship.sourceName}`}
-                  label="Open Source"
-                  disabled={!relationship.sourceSectionId}
-                  onPress={() =>
-                    openEntry({
-                      entryId: relationship.sourceEntryId,
-                      name: relationship.sourceName,
-                      sectionId: relationship.sourceSectionId,
-                    })
-                  }
-                />
-                <ActionButton
-                  accessibilityLabel={`Open target entry ${relationship.targetName}`}
-                  label="Open Target"
-                  disabled={!relationship.targetSectionId}
-                  onPress={() =>
-                    openEntry({
-                      entryId: relationship.targetEntryId,
-                      name: relationship.targetName,
-                      sectionId: relationship.targetSectionId,
-                    })
-                  }
-                />
-                <ActionButton
-                  accessibilityLabel={`Edit ${relationship.type} relationship between ${relationship.sourceName} and ${relationship.targetName}`}
-                  label="Edit"
-                  onPress={() => editRelationship(relationship.id)}
-                />
-                <ActionButton
-                  accessibilityHint="Deletes this relationship after confirmation."
-                  accessibilityLabel={`Delete ${relationship.type} relationship between ${relationship.sourceName} and ${relationship.targetName}`}
-                  label="Delete"
-                  tone="danger"
-                  onPress={() => deleteRelationship(relationship.id)}
-                />
-              </ButtonRow>
-            </View>
-          ))
+            ) : null}
+          </>
         ) : (
           <MutedText>
             {relationshipQuery.trim() || typeFilter || entryFilter

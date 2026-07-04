@@ -19,11 +19,11 @@ Valgaron World Codex is a local-first tool for drafting and organizing fiction o
 - Rule-based section templates and completeness prompts for underdeveloped records.
 - Typed relationships between entries, including source, target, type, status, direction, and notes.
 - Relationship panels on entry detail views, plus a Relationships route for add, edit, delete, filter, and graph-style browsing.
-- Relationship diagnostics for broken references and orphaned records, repair/delete actions for broken links, graph filters, custom relationship type input, and selectable graph nodes.
-- Timeline diagnostics, highlight cards, stable table view, and earlier/later order controls for chronology work.
+- Relationship diagnostics for broken references and orphaned records, repair/delete actions for broken links, graph filters, graph record search, custom relationship type input, and selectable graph nodes.
+- Timeline diagnostics, highlight cards, stable table view, era and involved-entry browsing filters, and earlier/later order controls for chronology work.
 - Web Data route and mobile Data tab for active-workspace JSON export, full-document JSON export, Markdown reference export, diagnostics, validated JSON import preview, and reset-to-seed confirmation.
 - Header Save writes the current session state to browser localStorage on demand.
-- Expo mobile companion with local device storage, shared codex schema, overview, entry editing, relationships, workspaces, data import/export, and recovery snapshots.
+- Expo mobile companion with local device storage, shared codex schema, overview, entry editing, timeline browsing, relationship repair and graph search, workspaces, data import/export, recovery snapshot history, and Help guidance.
 - Runtime recovery screens with retry and Data access when a web or mobile render failure is caught.
 - Local diagnostics export on the Data route or tab with app version, schema version, storage target, recovery state, platform runtime context, and document counts without world content by default.
 - Neutral starter sample data.
@@ -33,7 +33,7 @@ Valgaron World Codex is a local-first tool for drafting and organizing fiction o
 - Custom entry type creation in the active workspace, with new custom sections added to navigation.
 - Unsaved-change warnings for entry, relationship, import, workspace management forms, and unsaved document edits before browser reload or close.
 - Markdown notes preview, overview quick-create links, copy-name, and duplicate-as-template entry actions.
-- In-app Help route for workflow, backup, offline, diagnostics, support, and release-limit guidance.
+- In-app Help route for workflow, backup, offline, diagnostics, support, and release-limit guidance, with focused Help links from entry, timeline, relationship, workspace, and data workflows.
 - Reset action that loads the neutral starter codex for review before manual Save.
 
 This phase has no accounts, authentication, backend sync, collaboration, sharing, moderation, social discovery, messaging, or high-rigor native parity program.
@@ -85,7 +85,7 @@ The app loads neutral starter data when no saved world document exists or when s
 
 Deleting an entry also removes relationships attached to that entry so local graph views do not keep broken links. Archiving an entry keeps it addressable by existing relationships. Active-workspace JSON export produces a focused backup for the current project/universe workspace. Full-document JSON export produces a backup containing every local workspace, in-fiction world/planet record, custom entry type, entry, and relationship. Both JSON backup shapes include export metadata and can be pasted back into the import preview.
 
-Local storage is not a cloud backup. Export JSON backups regularly, especially before clearing browser data, switching browsers, or changing devices. The app also keeps local recovery snapshots before import, reset, permanent entry delete, relationship delete, and snapshot restore actions; those snapshots stay in the same browser profile or device storage area and are not a replacement for downloaded JSON backups.
+Local storage is not a cloud backup. Export JSON backups regularly, especially before clearing browser data, switching browsers, or changing devices. The app also keeps local recovery snapshots before import, reset, permanent entry delete, relationship delete, workspace delete, in-fiction world/planet delete, custom entry type delete, and selected recovery snapshot restore actions; those snapshots stay in the same browser profile or device storage area and are not a replacement for downloaded JSON backups.
 
 Diagnostics are local-only JSON reports for debugging storage or rendering failures. They include counts, status messages, app/schema version, storage target, recovery state, and platform runtime context such as web route/browser or mobile device-save state where available. They intentionally exclude workspace names, entry names, summaries, notes, tags, relationship notes, and ids by default. Use `docs/qa/runtime-recovery.md` for manual corrupt-storage, failed-write, import-rejection, and render-recovery checks.
 

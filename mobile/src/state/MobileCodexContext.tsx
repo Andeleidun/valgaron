@@ -61,8 +61,8 @@ import {
 import { asyncStorageAdapter } from '../storage/asyncStorageAdapter';
 import {
   createMobileRecoverySnapshot,
-  deleteMobileRecoverySnapshot,
-  loadMobileRecoverySnapshot,
+  deleteMobileRecoverySnapshotById,
+  loadMobileRecoverySnapshots,
   loadMobileWorldDocument,
   parseMobileWorldImport,
   saveMobileRecoverySnapshot,
@@ -88,6 +88,7 @@ type MobileCodexState = {
   formMessage: string;
   importResult: MobileImportResult | null;
   lastRecoverySnapshot: MobileRecoverySnapshot | null;
+  recoverySnapshots: readonly MobileRecoverySnapshot[];
 };
 
 export type MobileCodexController = MobileCodexState & {
@@ -129,8 +130,8 @@ export type MobileCodexController = MobileCodexState & {
   createEntryType: (draft: EntryTypeDraft) => boolean;
   permanentlyDeleteEntryType: (sectionId: string) => void;
   importDocumentText: (text: string) => void;
-  restoreLastRecoverySnapshot: () => void;
-  deleteLastRecoverySnapshot: () => void;
+  restoreRecoverySnapshot: (snapshotId: string) => void;
+  deleteRecoverySnapshot: (snapshotId: string) => void;
   resetToSeed: () => void;
 };
 
@@ -151,14 +152,15 @@ export function MobileCodexProvider({ children }: { children: ReactNode }) {
     formMessage: '',
     importResult: null,
     lastRecoverySnapshot: null,
+    recoverySnapshots: [],
   }));
 
   useEffect(() => {
     let mounted = true;
     async function loadDocument() {
-      const [loadResult, recoverySnapshot] = await Promise.all([
+      const [loadResult, recoverySnapshots] = await Promise.all([
         loadMobileWorldDocument(asyncStorageAdapter),
-        loadMobileRecoverySnapshot(asyncStorageAdapter),
+        loadMobileRecoverySnapshots(asyncStorageAdapter),
       ]);
       if (!mounted) {
         return;
@@ -169,7 +171,8 @@ export function MobileCodexProvider({ children }: { children: ReactNode }) {
         loadStatus: loadResult.status,
         isLoading: false,
         saveMessage: loadResult.status.message,
-        lastRecoverySnapshot: recoverySnapshot,
+        lastRecoverySnapshot: recoverySnapshots[0] ?? null,
+        recoverySnapshots,
       }));
     }
     void loadDocument();
@@ -195,14 +198,27 @@ export function MobileCodexProvider({ children }: { children: ReactNode }) {
               if (didSave) {
                 return;
               }
-              setState((latest) =>
-                latest.lastRecoverySnapshot?.id === snapshot.id
-                  ? {
-                      ...latest,
-                      formMessage: mobileRecoverySnapshotSaveFailedMessage,
-                    }
-                  : latest
-              );
+              setState((latest) => {
+                const nextRecoverySnapshots = latest.recoverySnapshots.filter(
+                  (item) => item.id !== snapshot.id
+                );
+                const snapshotWasVisible =
+                  nextRecoverySnapshots.length !==
+                    latest.recoverySnapshots.length ||
+                  latest.lastRecoverySnapshot?.id === snapshot.id;
+                if (!snapshotWasVisible) {
+                  return latest;
+                }
+                return {
+                  ...latest,
+                  formMessage: mobileRecoverySnapshotSaveFailedMessage,
+                  lastRecoverySnapshot:
+                    latest.lastRecoverySnapshot?.id === snapshot.id
+                      ? nextRecoverySnapshots[0] ?? null
+                      : latest.lastRecoverySnapshot,
+                  recoverySnapshots: nextRecoverySnapshots,
+                };
+              });
             }
           );
         }
@@ -231,6 +247,14 @@ export function MobileCodexProvider({ children }: { children: ReactNode }) {
           saveMessage: localPersistenceCopy.deviceSaving,
           formMessage: getMobileCommitPendingMessage(savedFormMessage),
           lastRecoverySnapshot: snapshot ?? current.lastRecoverySnapshot,
+          recoverySnapshots: snapshot
+            ? [
+                snapshot,
+                ...current.recoverySnapshots.filter(
+                  (item) => item.id !== snapshot.id
+                ),
+              ].slice(0, 8)
+            : current.recoverySnapshots,
         };
       });
     },
@@ -509,8 +533,11 @@ export function MobileCodexProvider({ children }: { children: ReactNode }) {
           getMobileDataActionResultMessage('import-document')
         );
       },
-      restoreLastRecoverySnapshot() {
-        if (!state.lastRecoverySnapshot) {
+      restoreRecoverySnapshot(snapshotId) {
+        const snapshot =
+          state.recoverySnapshots.find((item) => item.id === snapshotId) ??
+          null;
+        if (!snapshot) {
           setState((current) => ({
             ...current,
             formMessage: 'No recovery snapshot is available on this device.',
@@ -518,26 +545,34 @@ export function MobileCodexProvider({ children }: { children: ReactNode }) {
           return;
         }
         commitDocument(
-          () => state.lastRecoverySnapshot?.document ?? state.document,
+          () => snapshot.document,
           'restore',
           getMobileDataActionResultMessage('restore-snapshot')
         );
         setState((current) => ({ ...current, importResult: null }));
       },
-      deleteLastRecoverySnapshot() {
-        void deleteMobileRecoverySnapshot(asyncStorageAdapter).then(
-          (didDelete) => {
-            setState((current) => ({
-              ...current,
-              formMessage: didDelete
-                ? 'Deleted the latest recovery snapshot from this device.'
-                : 'Could not delete the latest recovery snapshot from this device.',
-              lastRecoverySnapshot: didDelete
-                ? null
-                : current.lastRecoverySnapshot,
-            }));
-          }
-        );
+      deleteRecoverySnapshot(snapshotId) {
+        void deleteMobileRecoverySnapshotById(
+          asyncStorageAdapter,
+          snapshotId
+        ).then((didDelete) => {
+          setState((current) => ({
+            ...current,
+            formMessage: didDelete
+              ? 'Deleted the recovery snapshot from this device.'
+              : 'Could not delete the recovery snapshot from this device.',
+            recoverySnapshots: didDelete
+              ? current.recoverySnapshots.filter(
+                  (snapshot) => snapshot.id !== snapshotId
+                )
+              : current.recoverySnapshots,
+            lastRecoverySnapshot: didDelete
+              ? current.recoverySnapshots.find(
+                  (snapshot) => snapshot.id !== snapshotId
+                ) ?? null
+              : current.lastRecoverySnapshot,
+          }));
+        });
       },
       resetToSeed() {
         commitDocument(

@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
+import { NavLink } from 'react-router-dom';
 import {
   type EntryTypeDraft,
   formatDraftValidationErrors,
   formatDestructiveActionTitle,
   formatUpdatedAt,
+  getCodexHelpRoute,
   getCodexScreenIntro,
   getDestructiveActionCopy,
   getEntries,
@@ -314,6 +316,17 @@ export function WorkspacesPage({
           <h1 id="workspaces-title">{intro.title}</h1>
         </div>
         <p>{intro.detail}</p>
+        <NavLink
+          className="vwb-secondary-button"
+          to={getCodexHelpRoute('workspaces')}
+          onClick={(event) => {
+            if (!confirmDiscardUnsavedChanges(hasDirtyDraft)) {
+              event.preventDefault();
+            }
+          }}
+        >
+          Workspace Help
+        </NavLink>
       </section>
 
       <section className="vwb-panel" aria-labelledby="workspace-manager-title">

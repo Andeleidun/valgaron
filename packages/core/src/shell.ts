@@ -107,6 +107,7 @@ export const mobilePrimaryRouteOrder = [
   'relationships',
   'workspaces',
   'data',
+  'help',
 ] as const satisfies readonly CodexShellRouteId[];
 
 export const localPersistenceCopy = {

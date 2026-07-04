@@ -3,9 +3,12 @@ import { createSeedWorldDocument } from '@valgaron/core';
 import { createMemoryStringStorage } from '@valgaron/platform';
 import {
   MOBILE_RECOVERY_SNAPSHOT_STORAGE_KEY,
+  MOBILE_RECOVERY_SNAPSHOTS_STORAGE_KEY,
   createMobileRecoverySnapshot,
   deleteMobileRecoverySnapshot,
+  deleteMobileRecoverySnapshotById,
   loadMobileRecoverySnapshot,
+  loadMobileRecoverySnapshots,
   loadMobileWorldDocument,
   parseMobileWorldImport,
   saveMobileRecoverySnapshot,
@@ -71,24 +74,64 @@ describe('mobile storage', () => {
     });
   });
 
-  it('stores one recovery snapshot before destructive mobile actions', async () => {
+  it('stores recovery snapshot history before destructive mobile actions', async () => {
     const storage = createMemoryStringStorage();
     const document = createSeedWorldDocument();
-    const snapshot = createMobileRecoverySnapshot(document, 'permanent-delete');
+    const firstSnapshot = {
+      ...createMobileRecoverySnapshot(document, 'permanent-delete'),
+      createdAt: '2026-06-01T09:00:00.000Z',
+      id: 'mobile-snapshot-permanent-delete-20260601090000000',
+    };
+    const secondSnapshot = {
+      ...createMobileRecoverySnapshot(document, 'relationship-delete'),
+      createdAt: '2026-06-02T09:00:00.000Z',
+      id: 'mobile-snapshot-relationship-delete-20260602090000000',
+    };
 
-    await expect(saveMobileRecoverySnapshot(storage, snapshot)).resolves.toBe(
-      true
-    );
-    expect(storage.snapshot()[MOBILE_RECOVERY_SNAPSHOT_STORAGE_KEY]).toContain(
+    await expect(
+      saveMobileRecoverySnapshot(storage, firstSnapshot)
+    ).resolves.toBe(true);
+    await expect(
+      saveMobileRecoverySnapshot(storage, secondSnapshot)
+    ).resolves.toBe(true);
+    expect(storage.snapshot()[MOBILE_RECOVERY_SNAPSHOTS_STORAGE_KEY]).toContain(
       'permanent-delete'
     );
+    expect(
+      storage.snapshot()[MOBILE_RECOVERY_SNAPSHOT_STORAGE_KEY]
+    ).toBeUndefined();
+    await expect(loadMobileRecoverySnapshots(storage)).resolves.toEqual([
+      secondSnapshot,
+      expect.objectContaining({
+        id: expect.stringContaining('mobile-snapshot-permanent-delete'),
+        reason: 'permanent-delete',
+        document,
+      }),
+    ]);
     await expect(loadMobileRecoverySnapshot(storage)).resolves.toMatchObject({
-      id: expect.stringContaining('mobile-snapshot-permanent-delete'),
-      reason: 'permanent-delete',
+      id: 'mobile-snapshot-relationship-delete-20260602090000000',
+      reason: 'relationship-delete',
       document,
+    });
+    await expect(
+      deleteMobileRecoverySnapshotById(storage, secondSnapshot.id)
+    ).resolves.toBe(true);
+    await expect(
+      deleteMobileRecoverySnapshotById(storage, secondSnapshot.id)
+    ).resolves.toBe(false);
+    await expect(loadMobileRecoverySnapshot(storage)).resolves.toMatchObject({
+      reason: 'permanent-delete',
     });
     await expect(deleteMobileRecoverySnapshot(storage)).resolves.toBe(true);
     await expect(loadMobileRecoverySnapshot(storage)).resolves.toBeNull();
+  });
+
+  it('creates distinct recovery snapshot ids for rapid repeated actions', () => {
+    const document = createSeedWorldDocument();
+    const firstSnapshot = createMobileRecoverySnapshot(document, 'reset');
+    const secondSnapshot = createMobileRecoverySnapshot(document, 'reset');
+
+    expect(firstSnapshot.id).not.toBe(secondSnapshot.id);
   });
 
   it('loads legacy mobile entry-delete snapshots as permanent delete snapshots', async () => {
@@ -107,5 +150,12 @@ describe('mobile storage', () => {
       reason: 'permanent-delete',
       document,
     });
+    await expect(loadMobileRecoverySnapshots(storage)).resolves.toEqual([
+      expect.objectContaining({
+        id: 'mobile-snapshot-entry-delete-legacy',
+        reason: 'permanent-delete',
+        document,
+      }),
+    ]);
   });
 });

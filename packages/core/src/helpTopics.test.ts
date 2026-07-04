@@ -3,8 +3,11 @@ import {
   codexDataHelpDetails,
   codexDataHelpSummary,
   codexDataHelpTopics,
+  codexHelpFocusTopics,
   codexReleaseLimitsHelp,
   codexWorkflowHelpTopics,
+  getCodexHelpFocus,
+  getCodexHelpRoute,
 } from './helpTopics';
 
 describe('help topics', () => {
@@ -45,5 +48,24 @@ describe('help topics', () => {
   it('does not list native mobile as out of scope while mobile is in this workspace', () => {
     expect(codexReleaseLimitsHelp).not.toMatch(/native mobile apps/i);
     expect(codexReleaseLimitsHelp).toContain('cloud sync');
+  });
+
+  it('provides routeable focused help topics for contextual web and mobile links', () => {
+    expect(codexHelpFocusTopics.map((topic) => topic.id)).toEqual([
+      'start',
+      'entries',
+      'relationships',
+      'timeline',
+      'workspaces',
+      'data',
+      'support',
+      'limits',
+    ]);
+    expect(getCodexHelpFocus('timeline')?.title).toBe('Timeline');
+    expect(getCodexHelpFocus('unknown')).toBeNull();
+    expect(getCodexHelpRoute()).toBe('/help');
+    expect(getCodexHelpRoute('relationships')).toBe(
+      '/help?topic=relationships'
+    );
   });
 });

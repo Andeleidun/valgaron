@@ -1,10 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Navigate, useParams, useSearchParams } from 'react-router-dom';
+import {
+  NavLink,
+  Navigate,
+  useParams,
+  useSearchParams,
+} from 'react-router-dom';
 import {
   draftFromEntry,
   duplicateEntry,
   filterSectionEntries,
   filterTimelineEvents,
+  getCodexHelpRoute,
   getEntries,
   getRelationshipEntries,
   getSectionById,
@@ -254,6 +260,9 @@ export function SectionPage({
   };
   const hasOnlyArchivedEntries =
     entries.length > 0 && archivedEntryCount === entries.length;
+  const sectionHelpRoute = getCodexHelpRoute(
+    section.id === 'timeline' ? 'timeline' : 'entries'
+  );
 
   const selectEntry = (entryId: string) => {
     if (
@@ -278,6 +287,17 @@ export function SectionPage({
         <p className="vwb-kicker">Codex section</p>
         <h1 id={`${section.id}-title`}>{section.title}</h1>
         <p>{section.description}</p>
+        <NavLink
+          className="vwb-secondary-button"
+          to={sectionHelpRoute}
+          onClick={(event) => {
+            if (!confirmDiscardUnsavedChanges(isEntryFormDirty)) {
+              event.preventDefault();
+            }
+          }}
+        >
+          {section.id === 'timeline' ? 'Timeline Help' : 'Entry Help'}
+        </NavLink>
       </section>
 
       {section.id === 'timeline' ? (

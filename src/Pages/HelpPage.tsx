@@ -1,4 +1,5 @@
 import { APP_NAME, APP_VERSION } from '../Utlilities/appMetadata';
+import { useSearchParams } from 'react-router-dom';
 import {
   codexDataHelpDetails,
   codexDataHelpSummary,
@@ -7,11 +8,15 @@ import {
   codexReleaseLimitsHelp,
   codexSupportHelp,
   codexWorkflowHelpTopics,
+  getCodexHelpFocus,
   getCodexScreenIntro,
 } from '@valgaron/core';
 
 export function HelpPage() {
   const intro = getCodexScreenIntro('help');
+  const [searchParams] = useSearchParams();
+  const focusedTopic = getCodexHelpFocus(searchParams.get('topic'));
+
   return (
     <main className="vwb-main vwb-help-layout" id="main-content" tabIndex={-1}>
       <section className="vwb-panel vwb-section-intro">
@@ -21,6 +26,18 @@ export function HelpPage() {
           {intro.detail} Version {APP_VERSION}.
         </p>
       </section>
+
+      {focusedTopic ? (
+        <section className="vwb-panel" aria-labelledby="help-focused-title">
+          <div className="vwb-section-heading">
+            <div>
+              <p className="vwb-kicker">Focused help</p>
+              <h2 id="help-focused-title">{focusedTopic.title}</h2>
+            </div>
+          </div>
+          <p>{focusedTopic.detail}</p>
+        </section>
+      ) : null}
 
       <section className="vwb-panel" aria-labelledby="help-start-title">
         <div className="vwb-section-heading">

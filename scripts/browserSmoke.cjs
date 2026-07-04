@@ -73,6 +73,14 @@ const routeChecks = [
       'Report problems without world content',
     ],
   },
+  {
+    path: '/help?topic=timeline',
+    expectedText: [
+      'Focused help',
+      'Timeline',
+      'Use explicit order, eras, involved-record filters',
+    ],
+  },
 ];
 
 const screenshotChecks = [

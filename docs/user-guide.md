@@ -19,13 +19,19 @@ companion.
 
 1. Start on Overview to scan recent work, pinned records, incomplete records,
    and section totals.
-2. Create or edit records in the section pages.
-3. Use Relationships to connect entries and inspect graph-style context.
-4. Use Timeline to review chronology and adjust event order.
-5. Use Workspaces when switching projects, managing in-fiction worlds/planets,
-   or adding custom entry types.
+2. Create or edit records in the section pages or mobile Entries tab.
+3. Use Relationships or the mobile Links tab to connect entries, repair broken
+   links, and inspect graph-style context.
+4. Use Timeline, or the mobile timeline browser inside Entries, to review
+   chronology and adjust event order.
+5. Use Workspaces, or the mobile Worlds tab, when switching projects, managing
+   in-fiction worlds/planets, or adding custom entry types.
 6. Use Data regularly to download active-workspace or full-document JSON
    backups.
+
+Use contextual Help links in entry, timeline, relationship, workspace, and data
+workflows when you need focused guidance without leaving the current product
+surface.
 
 ## Local Data And Backups
 
@@ -60,9 +66,10 @@ current local document matters.
 ## Recovery Snapshots
 
 Recovery snapshots are local restore points created before destructive actions
-when possible. They are useful for undoing local mistakes in the same browser
-profile or device storage area, but they are not portable and can be lost with
-local storage data.
+when possible. The Data route or tab lists available snapshots so you can
+restore or delete the intended snapshot. They are useful for undoing local
+mistakes in the same browser profile or device storage area, but they are not
+portable and can be lost with local storage data.
 
 Keep downloaded JSON backups for work that cannot be lost.
 
@@ -81,6 +88,10 @@ debugging storage or rendering problems. Diagnostics include app version, schema
 version, route or storage status where available, recovery status, and counts.
 They omit world names, entry names, notes, summaries, tags, relationship notes,
 and ids by default.
+
+Use Help in the web app or mobile Help tab for local-device behavior, backups,
+diagnostics, support, and release limits. Focused Help links open the relevant
+topic for entries, timelines, relationships, workspaces, or data.
 
 Do not share JSON backups unless you intentionally want to share world content.
 

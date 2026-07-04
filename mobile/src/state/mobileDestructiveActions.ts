@@ -24,7 +24,7 @@ export const mobileDataActionResultMessages: Record<
   'reset-document':
     'Starter data is open on this device. A recovery snapshot was saved first.',
   'restore-snapshot':
-    'Restored the latest recovery snapshot. The previous document was saved as a new recovery snapshot first.',
+    'Restored the selected recovery snapshot. The previous document was saved as a new recovery snapshot first.',
 };
 
 export const mobileRecoverySnapshotSaveFailedMessage =

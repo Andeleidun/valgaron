@@ -13,7 +13,7 @@ export const mobileRuntimeRecoveryCopy: MobileRuntimeRecoveryCopy = {
   retryLabel: 'Retry View',
   dataLabel: 'Open Data',
   backupHint:
-    'Use Data to export JSON, restore the latest recovery snapshot, import a backup, or reset to starter data.',
+    'Use Data to export JSON, restore a recovery snapshot, import a backup, or reset to starter data.',
 };
 
 export function getMobileRuntimeRecoveryCopy(): MobileRuntimeRecoveryCopy {

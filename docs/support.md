@@ -43,7 +43,8 @@ relationship notes, and private creative material.
 If saved data appears missing:
 
 1. Do not reset starter data.
-2. Check Data for recovery snapshots.
+2. Check Data for recovery snapshots and restore or delete only the intended
+   selected snapshot.
 3. Export the current full-document JSON state, even if it appears wrong.
 4. Check whether the browser profile, device, or private browsing session
    changed.

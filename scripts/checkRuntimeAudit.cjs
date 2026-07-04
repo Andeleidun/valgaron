@@ -39,18 +39,13 @@ function isKnownExpoCliFinding([name, vulnerability]) {
   );
 }
 
-const npmExecPath = process.env.npm_execpath;
 const npmAuditArgs = ['audit', '--omit=dev', '--json'];
-const auditCommand = npmExecPath
-  ? process.execPath
-  : process.platform === 'win32'
-  ? process.env.ComSpec || 'cmd.exe'
-  : 'npm';
-const auditArgs = npmExecPath
-  ? [npmExecPath, ...npmAuditArgs]
-  : process.platform === 'win32'
-  ? ['/d', '/s', '/c', `npm ${npmAuditArgs.join(' ')}`]
-  : npmAuditArgs;
+const auditCommand =
+  process.platform === 'win32' ? process.env.ComSpec || 'cmd.exe' : 'npm';
+const auditArgs =
+  process.platform === 'win32'
+    ? ['/d', '/s', '/c', `npm ${npmAuditArgs.join(' ')}`]
+    : npmAuditArgs;
 const result = spawnSync(auditCommand, auditArgs, {
   encoding: 'utf8',
 });

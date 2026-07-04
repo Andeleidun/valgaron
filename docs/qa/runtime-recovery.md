@@ -51,7 +51,7 @@ routing, or recovery UI.
 2. Open that tab in the Expo app.
 3. Confirm the recovery screen appears with Retry View and Open Data.
 4. Confirm Open Data switches to the Data tab, where JSON export, diagnostics,
-   import, reset, and latest-snapshot restore remain available.
+   import, reset, and selected recovery snapshot restore remain available.
 5. Confirm the recovery screen does not show raw error details or world content.
 6. Remove the temporary throw and confirm Retry View restores normal app
    rendering.

@@ -1,4 +1,18 @@
-import { localPersistenceCopy } from './shell';
+import {
+  codexShellRoutes,
+  formatCodexRouteSearch,
+  localPersistenceCopy,
+} from './shell';
+
+export type CodexHelpFocusId =
+  | 'start'
+  | 'entries'
+  | 'relationships'
+  | 'timeline'
+  | 'workspaces'
+  | 'data'
+  | 'support'
+  | 'limits';
 
 export type CodexHelpTopic = {
   title: string;
@@ -9,6 +23,63 @@ export type CodexHelpDetail = {
   term: string;
   detail: string;
 };
+
+export type CodexHelpFocus = {
+  id: CodexHelpFocusId;
+  title: string;
+  detail: string;
+};
+
+export const codexHelpFocusTopics: readonly CodexHelpFocus[] = [
+  {
+    id: 'start',
+    title: 'Start with one workspace',
+    detail:
+      'Use the starter workspace as a reference, then rename, duplicate, or create a project workspace before drafting real setting records.',
+  },
+  {
+    id: 'entries',
+    title: 'Entries',
+    detail:
+      'Create, search, edit, archive, duplicate, and delete codex records from the Entries workflow.',
+  },
+  {
+    id: 'relationships',
+    title: 'Relationships',
+    detail:
+      'Use links to connect records, repair broken references, inspect graph context, and keep world logic navigable.',
+  },
+  {
+    id: 'timeline',
+    title: 'Timeline',
+    detail:
+      'Use explicit order, eras, involved-record filters, and relationship links to browse chronology without forcing exact dates.',
+  },
+  {
+    id: 'workspaces',
+    title: 'Workspaces',
+    detail:
+      'Keep project or universe workspaces separate from in-fiction worlds, planets, and custom entry types.',
+  },
+  {
+    id: 'data',
+    title: 'Backups and recovery',
+    detail:
+      'Use JSON export as the portable backup, import only validated backups, and treat recovery snapshots as local undo points.',
+  },
+  {
+    id: 'support',
+    title: 'Support',
+    detail:
+      'Use diagnostics for storage or rendering reports without including world names, notes, summaries, tags, relationship notes, or ids.',
+  },
+  {
+    id: 'limits',
+    title: 'Release limits',
+    detail:
+      'This local prototype intentionally excludes accounts, remote sync, collaboration, publishing, AI generation, payments, and localization.',
+  },
+];
 
 export const codexWorkflowHelpTopics: readonly CodexHelpTopic[] = [
   {
@@ -100,3 +171,13 @@ export const codexPrivacyHelp =
 
 export const codexReleaseLimitsHelp =
   'This release does not include accounts, cloud sync, collaboration, sharing, publishing, AI generation, payments, or localization. Keep downloaded JSON backups as the portable copy of work you cannot afford to lose.';
+
+export function getCodexHelpFocus(
+  value: string | null | undefined
+): CodexHelpFocus | null {
+  return codexHelpFocusTopics.find((topic) => topic.id === value) ?? null;
+}
+
+export function getCodexHelpRoute(topic?: CodexHelpFocusId): string {
+  return `${codexShellRoutes.help.path}${formatCodexRouteSearch({ topic })}`;
+}

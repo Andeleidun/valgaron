@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { NavLink, useSearchParams } from 'react-router-dom';
 import {
   createEmptyRelationshipDraft,
   draftFromRelationship,
   filterRelationships,
   formatDestructiveActionTitle,
   formatDraftValidationErrors,
+  getCodexHelpRoute,
   getBrokenRelationships,
   getCodexScreenIntro,
   getDestructiveActionCopy,
@@ -371,6 +372,17 @@ export function RelationshipsPage({
         <p className="vwb-kicker">{intro.kicker}</p>
         <h1>{intro.title}</h1>
         <p>{intro.detail}</p>
+        <NavLink
+          className="vwb-secondary-button"
+          to={getCodexHelpRoute('relationships')}
+          onClick={(event) => {
+            if (!confirmDiscardUnsavedChanges(isDraftDirty)) {
+              event.preventDefault();
+            }
+          }}
+        >
+          Relationship Help
+        </NavLink>
       </section>
 
       <section

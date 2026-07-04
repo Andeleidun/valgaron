@@ -7,13 +7,14 @@ import {
 
 export type MobileTabId = Extract<
   CodexShellRouteId,
-  'overview' | 'entries' | 'relationships' | 'workspaces' | 'data'
+  'overview' | 'entries' | 'relationships' | 'workspaces' | 'data' | 'help'
 >;
 
 export type MobileTabIconName =
   | 'book-open'
   | 'database'
   | 'git-branch'
+  | 'help-circle'
   | 'home'
   | 'layers';
 
@@ -23,11 +24,22 @@ const mobileTabIconNames: Record<MobileTabId, MobileTabIconName> = {
   relationships: 'git-branch',
   workspaces: 'layers',
   data: 'database',
+  help: 'help-circle',
+};
+
+const mobileTabLabels: Record<MobileTabId, string> = {
+  overview: 'Home',
+  entries: 'Entries',
+  relationships: 'Links',
+  workspaces: 'Worlds',
+  data: 'Data',
+  help: 'Help',
 };
 
 export type MobileTabRoute = {
   id: MobileTabId;
   title: string;
+  tabLabel: string;
   href: string;
   iconName: MobileTabIconName;
   screenName: 'index' | Exclude<MobileTabId, 'overview'>;
@@ -38,6 +50,7 @@ export const mobileTabRoutes: readonly MobileTabRoute[] = getCodexShellRoutes(
 ).map((route) => ({
   id: route.id as MobileTabId,
   title: route.title,
+  tabLabel: mobileTabLabels[route.id as MobileTabId],
   href: route.path === '/entries' ? '/entries' : route.path,
   iconName: mobileTabIconNames[route.id as MobileTabId],
   screenName:

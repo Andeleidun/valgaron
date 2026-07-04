@@ -18,12 +18,20 @@ import {
   getEntryRelationships,
   getEntries,
   filterRelationships,
+  findEntryById,
+  getBrokenRelationships,
   getRelationshipEntries,
+  getRelationshipGraph,
   getRelationshipHealthSummary,
+  getOrphanedEntries,
   getRecoverySnapshotReasonPhrase,
   getSearchableEntries,
+  getTimelineEras,
   getTimelineDiagnostics,
   getTimelineHighlights,
+  groupTimelineEventsByEra,
+  filterTimelineEvents,
+  getTimelineInvolvedEntryIds,
   getWorkspaceActionState,
   getWorkspaceOverviewEntryHighlights,
   sortEntries,
@@ -31,6 +39,8 @@ import {
   searchEntries,
   type EntryDraft,
   type EntrySortKey,
+  type RelationshipGraphFilters,
+  type TimelineFilters,
 } from '@valgaron/core';
 import type {
   MobileDocumentLoadStatus,
@@ -89,11 +99,39 @@ export type MobileRelationshipHealthSummary = {
   orphanedEntryCount: number;
 };
 
+export type MobileRelationshipGraphEdge = {
+  id: string;
+  label: string;
+  sourceName: string;
+  sourceId: string;
+  targetName: string;
+  targetId: string;
+  directionLabel: '->' | '<->';
+};
+
+export type MobileRelationshipGraphView = {
+  nodes: RelationshipGraphNode[];
+  edges: MobileRelationshipGraphEdge[];
+};
+
+export type MobileBrokenRelationshipItem = {
+  id: string;
+  type: string;
+  sourceEntryId: string;
+  sourceName: string;
+  targetEntryId: string;
+  targetName: string;
+  missingSource: boolean;
+  missingTarget: boolean;
+};
+
 export type MobileEntryListFilters = {
   showArchived?: boolean;
   sortKey?: MobileEntrySortKey;
   status?: WorldEntryStatus | '';
   activeTag?: string;
+  timelineEra?: string;
+  timelineInvolvedEntryId?: string;
 };
 
 export type MobileEntrySortKey = EntrySortKey | 'timeline-order';
@@ -119,6 +157,8 @@ export type MobileRelationshipListFilters = {
   type?: string;
 };
 
+export type MobileRelationshipGraphFilters = RelationshipGraphFilters;
+
 export type MobileWorkspaceActionState = WorkspaceActionState;
 
 export type MobileTimelineSummary = {
@@ -126,6 +166,37 @@ export type MobileTimelineSummary = {
   unorderedCount: number;
   duplicateOrderCount: number;
   unlinkedCount: number;
+};
+
+export type MobileTimelineEventItem = {
+  id: string;
+  name: string;
+  summary: string;
+  status: WorldEntryStatus;
+  tags: readonly string[];
+  dateLabel: string;
+  era: string;
+  order: string;
+  involvedEntryNames: readonly string[];
+};
+
+export type MobileTimelineEraGroup = {
+  era: string;
+  events: MobileTimelineEventItem[];
+};
+
+export type MobileTimelineBrowseView = {
+  eras: readonly string[];
+  involvedEntries: readonly RelationshipGraphNode[];
+  groups: readonly MobileTimelineEraGroup[];
+  unorderedNames: readonly string[];
+  duplicateOrderLabels: readonly string[];
+  unlinkedNames: readonly string[];
+};
+
+export type MobileTimelineBrowseFilters = TimelineFilters & {
+  query?: string;
+  showArchived?: boolean;
 };
 
 export type MobileDataStorageStatus = {
@@ -190,6 +261,8 @@ export function getMobileEntryList(
     sortKey = section.id === 'timeline' ? 'timeline-order' : 'updated-desc',
     status = '',
     activeTag = '',
+    timelineEra = '',
+    timelineInvolvedEntryId = '',
   } = filters;
   const sectionEntries = getEntries(world.codex, section.id);
   const entries =
@@ -205,11 +278,24 @@ export function getMobileEntryList(
           sectionTitle: section.title,
           sectionPath: `/${section.id}`,
         }));
+  const timelineFilteredEntries =
+    section.id === 'timeline'
+      ? filterTimelineEvents(
+          entries,
+          {
+            era: timelineEra,
+            involvedEntryId: timelineInvolvedEntryId,
+            status,
+            tag: activeTag,
+          },
+          world.relationships
+        )
+      : entries;
   const orderedEntries =
     section.id === 'timeline' && sortKey === 'timeline-order'
-      ? sortTimelineEvents(entries)
+      ? sortTimelineEvents(timelineFilteredEntries)
       : sortEntries(
-          entries,
+          timelineFilteredEntries,
           sortKey === 'timeline-order' ? 'updated-desc' : sortKey
         );
   return orderedEntries
@@ -340,6 +426,56 @@ export function getMobileRelationshipHealthSummary(
   );
 }
 
+export function getMobileBrokenRelationshipList(
+  world: WorldWorkspace
+): MobileBrokenRelationshipItem[] {
+  return getBrokenRelationships(
+    world.relationships,
+    world.codex,
+    world.entryTypes
+  ).map((relationship) => ({
+    id: relationship.id,
+    type: relationship.type,
+    sourceEntryId: relationship.sourceEntryId,
+    sourceName: relationship.sourceEntry?.name ?? relationship.sourceEntryId,
+    targetEntryId: relationship.targetEntryId,
+    targetName: relationship.targetEntry?.name ?? relationship.targetEntryId,
+    missingSource: relationship.missingSource,
+    missingTarget: relationship.missingTarget,
+  }));
+}
+
+export function getMobileOrphanedRelationshipEntries(
+  world: WorldWorkspace
+): RelationshipGraphNode[] {
+  return getOrphanedEntries(world.relationships, world.codex, world.entryTypes);
+}
+
+export function getMobileRelationshipGraphView(
+  world: WorldWorkspace,
+  filters: MobileRelationshipGraphFilters
+): MobileRelationshipGraphView {
+  const graph = getRelationshipGraph(
+    world.relationships,
+    world.codex,
+    world.entryTypes,
+    filters
+  );
+  const nodeById = new Map(graph.nodes.map((node) => [node.id, node]));
+  return {
+    nodes: graph.nodes,
+    edges: graph.edges.map((edge) => ({
+      id: edge.id,
+      label: edge.label,
+      sourceId: edge.sourceId,
+      sourceName: nodeById.get(edge.sourceId)?.name ?? edge.sourceId,
+      targetId: edge.targetId,
+      targetName: nodeById.get(edge.targetId)?.name ?? edge.targetId,
+      directionLabel: edge.directional ? '->' : '<->',
+    })),
+  };
+}
+
 export function getMobileWorkspaceActionState({
   activeWorkspaceId,
   activeWorkspaceCount,
@@ -374,6 +510,106 @@ export function getMobileTimelineSummary(
     unorderedCount: diagnostics.unorderedEvents.length,
     duplicateOrderCount: diagnostics.duplicateOrderGroups.length,
     unlinkedCount: diagnostics.unlinkedEvents.length,
+  };
+}
+
+function toMobileTimelineEventItem(
+  world: WorldWorkspace,
+  event: WorldEntry
+): MobileTimelineEventItem {
+  const involvedEntryNames = getTimelineInvolvedEntryIds(
+    event,
+    world.relationships
+  ).map((entryId) => {
+    const entry = findEntryById(world.codex, world.entryTypes, entryId);
+    return entry?.name ?? entryId;
+  });
+  return {
+    id: event.id,
+    name: event.name,
+    summary: event.summary,
+    status: event.status,
+    tags: event.tags,
+    dateLabel: event.fields.dateLabel ?? '',
+    era: event.fields.era ?? '',
+    order: event.fields.order ?? '',
+    involvedEntryNames,
+  };
+}
+
+export function getMobileTimelineBrowseView(
+  world: WorldWorkspace,
+  filters: MobileTimelineBrowseFilters
+): MobileTimelineBrowseView {
+  const timelineEvents = getEntries(world.codex, 'timeline');
+  const normalizedQuery = filters.query?.trim() ?? '';
+  const queriedEvents =
+    normalizedQuery.length > 0
+      ? searchEntries(
+          getSearchableEntries(world.codex, world.entryTypes),
+          world.entryTypes,
+          normalizedQuery
+        ).filter((entry) => entry.sectionId === 'timeline')
+      : timelineEvents;
+  const visibleEvents = queriedEvents.filter(
+    (event) =>
+      filters.showArchived ||
+      filters.status === 'archived' ||
+      event.status !== 'archived'
+  );
+  const optionBaseEvents = filterTimelineEvents(
+    visibleEvents,
+    {
+      era: '',
+      involvedEntryId: '',
+      status: filters.status,
+      tag: filters.tag,
+    },
+    world.relationships
+  );
+  const involvedOptionBaseEvents = filterTimelineEvents(
+    visibleEvents,
+    {
+      era: filters.era,
+      involvedEntryId: '',
+      status: filters.status,
+      tag: filters.tag,
+    },
+    world.relationships
+  );
+  const involvedEntryIds = new Set(
+    involvedOptionBaseEvents.flatMap((event) =>
+      getTimelineInvolvedEntryIds(event, world.relationships)
+    )
+  );
+  const filteredEvents = filterTimelineEvents(
+    visibleEvents,
+    filters,
+    world.relationships
+  );
+  const diagnostics = getTimelineDiagnostics(
+    filteredEvents,
+    world.relationships
+  );
+
+  return {
+    eras: getTimelineEras(optionBaseEvents),
+    involvedEntries: getRelationshipEntries(
+      world.codex,
+      world.entryTypes
+    ).filter((entry) => involvedEntryIds.has(entry.id)),
+    groups: groupTimelineEventsByEra(filteredEvents).map((group) => ({
+      era: group.era,
+      events: group.events.map((event) =>
+        toMobileTimelineEventItem(world, event)
+      ),
+    })),
+    unorderedNames: diagnostics.unorderedEvents.map((event) => event.name),
+    duplicateOrderLabels: diagnostics.duplicateOrderGroups.map(
+      (group) =>
+        `${group.order}: ${group.events.map((event) => event.name).join(', ')}`
+    ),
+    unlinkedNames: diagnostics.unlinkedEvents.map((event) => event.name),
   };
 }
 
@@ -421,29 +657,35 @@ export function getLocalDeviceStatusText(savedAt: string): string {
 export function getMobileDataStorageStatus({
   lastRecoverySnapshot,
   loadStatus,
+  recoverySnapshotCount = lastRecoverySnapshot ? 1 : 0,
   saveMessage,
 }: {
   lastRecoverySnapshot: MobileRecoverySnapshot | null;
   loadStatus: MobileDocumentLoadStatus;
+  recoverySnapshotCount?: number;
   saveMessage: string;
 }): MobileDataStorageStatus {
+  const snapshotLabel =
+    recoverySnapshotCount === 1
+      ? '1 snapshot'
+      : `${recoverySnapshotCount} snapshots`;
   return {
     loadLine: `Load state: ${loadStatus.source}, checked ${formatUpdatedAt(
       loadStatus.checkedAt
     )}.`,
     saveLine: `Device save: ${saveMessage}`,
     recoveryLine: lastRecoverySnapshot
-      ? `Recovery snapshot: available ${getRecoverySnapshotReasonPhrase(
+      ? `Recovery snapshots: ${snapshotLabel} saved, latest ${getRecoverySnapshotReasonPhrase(
           lastRecoverySnapshot.reason
         )}, saved ${formatUpdatedAt(lastRecoverySnapshot.createdAt)}.`
-      : 'Recovery snapshot: none saved on this device.',
+      : 'Recovery snapshots: none saved on this device.',
   };
 }
 
 export function getMobileRecoverySnapshotText(
   summary: RecoverySnapshotSummary
 ): string {
-  return `Latest recovery snapshot ${getRecoverySnapshotReasonPhrase(
+  return `Recovery snapshot ${getRecoverySnapshotReasonPhrase(
     summary.reason
   )}: ${summary.activeWorldName}, ${summary.entryCount} entries, ${
     summary.relationshipCount

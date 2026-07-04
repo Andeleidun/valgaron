@@ -21,6 +21,10 @@ export const MOBILE_WORLD_DOCUMENT_STORAGE_KEY =
   'valgaron.mobile.worldDocument.v2';
 export const MOBILE_RECOVERY_SNAPSHOT_STORAGE_KEY =
   'valgaron.mobile.recoverySnapshot.v1';
+export const MOBILE_RECOVERY_SNAPSHOTS_STORAGE_KEY =
+  'valgaron.mobile.recoverySnapshots.v2';
+const MOBILE_RECOVERY_SNAPSHOT_LIMIT = 8;
+let mobileSnapshotIdSequence = 0;
 
 export type MobileDocumentLoadStatus = {
   source: 'saved' | 'seed' | 'recovered';
@@ -94,25 +98,77 @@ export async function saveMobileRecoverySnapshot(
   storage: AsyncStringStorageAdapter,
   snapshot: MobileRecoverySnapshot
 ): Promise<boolean> {
-  return saveJsonValue(storage, MOBILE_RECOVERY_SNAPSHOT_STORAGE_KEY, snapshot);
+  const snapshots = await loadMobileRecoverySnapshots(storage);
+  const nextSnapshots = [
+    snapshot,
+    ...snapshots.filter((item) => item.id !== snapshot.id),
+  ].slice(0, MOBILE_RECOVERY_SNAPSHOT_LIMIT);
+  const didSave = await saveJsonValue(
+    storage,
+    MOBILE_RECOVERY_SNAPSHOTS_STORAGE_KEY,
+    nextSnapshots
+  );
+  if (didSave) {
+    void storage.remove(MOBILE_RECOVERY_SNAPSHOT_STORAGE_KEY);
+  }
+  return didSave;
 }
 
 export async function loadMobileRecoverySnapshot(
   storage: AsyncStringStorageAdapter
 ): Promise<MobileRecoverySnapshot | null> {
+  return (await loadMobileRecoverySnapshots(storage))[0] ?? null;
+}
+
+export async function loadMobileRecoverySnapshots(
+  storage: AsyncStringStorageAdapter
+): Promise<MobileRecoverySnapshot[]> {
+  const loadedSnapshots = await loadJsonValue(
+    storage,
+    MOBILE_RECOVERY_SNAPSHOTS_STORAGE_KEY,
+    parseMobileRecoverySnapshots,
+    'Saved recovery snapshots are not valid Valgaron documents.'
+  );
+  if (loadedSnapshots.ok && loadedSnapshots.value) {
+    return loadedSnapshots.value;
+  }
   const loaded = await loadJsonValue(
     storage,
     MOBILE_RECOVERY_SNAPSHOT_STORAGE_KEY,
     parseMobileRecoverySnapshot,
     'Saved recovery snapshot is not a valid Valgaron document.'
   );
-  return loaded.ok ? loaded.value : null;
+  return loaded.ok && loaded.value ? [loaded.value] : [];
 }
 
 export async function deleteMobileRecoverySnapshot(
   storage: AsyncStringStorageAdapter
 ): Promise<boolean> {
-  return storage.remove(MOBILE_RECOVERY_SNAPSHOT_STORAGE_KEY);
+  const didDeleteList = await storage.remove(
+    MOBILE_RECOVERY_SNAPSHOTS_STORAGE_KEY
+  );
+  const didDeleteLegacy = await storage.remove(
+    MOBILE_RECOVERY_SNAPSHOT_STORAGE_KEY
+  );
+  return didDeleteList && didDeleteLegacy;
+}
+
+export async function deleteMobileRecoverySnapshotById(
+  storage: AsyncStringStorageAdapter,
+  snapshotId: string
+): Promise<boolean> {
+  const snapshots = await loadMobileRecoverySnapshots(storage);
+  if (!snapshots.some((snapshot) => snapshot.id === snapshotId)) {
+    return false;
+  }
+  const nextSnapshots = snapshots.filter(
+    (snapshot) => snapshot.id !== snapshotId
+  );
+  return saveJsonValue(
+    storage,
+    MOBILE_RECOVERY_SNAPSHOTS_STORAGE_KEY,
+    nextSnapshots
+  );
 }
 
 export type MobileImportResult = WorldImportResult;
@@ -158,6 +214,21 @@ function parseMobileRecoverySnapshot(
   };
 }
 
+function parseMobileRecoverySnapshots(
+  value: unknown
+): MobileRecoverySnapshot[] | null {
+  if (!Array.isArray(value)) {
+    return null;
+  }
+  const snapshots = value.map(parseMobileRecoverySnapshot);
+  if (snapshots.some((snapshot) => snapshot === null)) {
+    return null;
+  }
+  return snapshots
+    .filter((snapshot): snapshot is MobileRecoverySnapshot => snapshot !== null)
+    .sort((first, second) => second.createdAt.localeCompare(first.createdAt));
+}
+
 function normalizeMobileRecoverySnapshotReason(
   value: string
 ): MobileRecoverySnapshotReason | null {
@@ -171,5 +242,9 @@ function createMobileSnapshotId(
   reason: MobileRecoverySnapshotReason,
   createdAt: string
 ): string {
-  return `mobile-snapshot-${reason}-${createdAt.replace(/[^0-9]/g, '')}`;
+  mobileSnapshotIdSequence += 1;
+  return `mobile-snapshot-${reason}-${createdAt.replace(
+    /[^0-9]/g,
+    ''
+  )}-${mobileSnapshotIdSequence}`;
 }

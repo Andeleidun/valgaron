@@ -64,7 +64,7 @@ export const destructiveActionCopy: Record<
   'restore-snapshot': {
     title: 'Restore Recovery Snapshot',
     message:
-      'Replace the current local document with the latest recovery snapshot and save the current document as a new recovery snapshot first?',
+      'Replace the current local document with the selected recovery snapshot and save the current document as a new recovery snapshot first?',
     confirmLabel: 'Restore',
   },
   'delete-snapshot': {

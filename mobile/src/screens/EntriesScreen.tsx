@@ -10,6 +10,7 @@ import {
   draftFromEntry,
   formatUpdatedAt,
   getCodexEntriesRoute,
+  getCodexHelpRoute,
   getCodexRelationshipsRoute,
   getCodexScreenIntro,
   getEntries,
@@ -36,6 +37,7 @@ import {
   createMobileEntryTemplateDraft,
   getMobileEntryRelationshipSummary,
   getMobileEntryList,
+  getMobileTimelineBrowseView,
   getMobileTimelineSummary,
   mobileEntrySortOptions,
   type MobileEntrySortKey,
@@ -53,6 +55,22 @@ import {
 } from './screenPrimitives';
 import { confirmMobileDestructiveAction } from './mobileConfirm';
 import { confirmMobileDiscardUnsavedChanges } from './mobileUnsavedChanges';
+
+const MOBILE_ENTRY_RESULT_LIMIT = 50;
+const MOBILE_TIMELINE_GROUP_EVENT_LIMIT = 12;
+const MOBILE_TIMELINE_DIAGNOSTIC_LIMIT = 12;
+
+function formatLimitedList(
+  values: readonly string[],
+  separator = ', ',
+  limit = MOBILE_TIMELINE_DIAGNOSTIC_LIMIT
+): string {
+  const visibleValues = values.slice(0, limit);
+  const hiddenCount = Math.max(0, values.length - visibleValues.length);
+  return `${visibleValues.join(separator)}${
+    hiddenCount > 0 ? `${separator}and ${hiddenCount} more` : ''
+  }`;
+}
 
 export function EntriesScreen() {
   const controller = useMobileCodex();
@@ -85,6 +103,11 @@ export function EntriesScreen() {
   );
   const [statusFilter, setStatusFilter] = useState<WorldEntryStatus | ''>('');
   const [activeTag, setActiveTag] = useState('');
+  const [timelineEraFilter, setTimelineEraFilter] = useState('');
+  const [timelineInvolvedEntryFilter, setTimelineInvolvedEntryFilter] =
+    useState('');
+  const [timelineInvolvedEntryQuery, setTimelineInvolvedEntryQuery] =
+    useState('');
   const [selectedEntryId, setSelectedEntryId] = useState<string | null>(null);
   const [draft, setDraft] = useState<EntryDraft>(() =>
     createMobileEntryDraft(section)
@@ -96,6 +119,8 @@ export function EntriesScreen() {
         showArchived,
         sortKey,
         status: statusFilter,
+        timelineEra: timelineEraFilter,
+        timelineInvolvedEntryId: timelineInvolvedEntryFilter,
       }),
     [
       activeTag,
@@ -105,6 +130,8 @@ export function EntriesScreen() {
       showArchived,
       sortKey,
       statusFilter,
+      timelineEraFilter,
+      timelineInvolvedEntryFilter,
     ]
   );
   const availableTags = useMemo(
@@ -118,7 +145,74 @@ export function EntriesScreen() {
         : null,
     [controller.activeWorld, section.id]
   );
+  const timelineBrowse = useMemo(
+    () =>
+      section.id === 'timeline'
+        ? getMobileTimelineBrowseView(controller.activeWorld, {
+            era: timelineEraFilter,
+            involvedEntryId: timelineInvolvedEntryFilter,
+            query,
+            showArchived,
+            status: statusFilter,
+            tag: activeTag,
+          })
+        : null,
+    [
+      activeTag,
+      controller.activeWorld,
+      query,
+      section.id,
+      showArchived,
+      statusFilter,
+      timelineEraFilter,
+      timelineInvolvedEntryFilter,
+    ]
+  );
+  const timelineInvolvedEntryMatches = useMemo(() => {
+    const normalizedQuery = timelineInvolvedEntryQuery.trim().toLowerCase();
+    const involvedEntries = timelineBrowse?.involvedEntries ?? [];
+    if (!normalizedQuery) {
+      return involvedEntries;
+    }
+    return involvedEntries.filter((entry) =>
+      [
+        entry.id,
+        entry.name,
+        entry.sectionId,
+        entry.sectionTitle,
+        entry.status,
+        ...entry.tags,
+      ].some((value) => value.toLowerCase().includes(normalizedQuery))
+    );
+  }, [timelineBrowse, timelineInvolvedEntryQuery]);
+  const timelineInvolvedEntryOptions = timelineInvolvedEntryMatches.slice(
+    0,
+    24
+  );
+  const hiddenTimelineInvolvedEntryCount = Math.max(
+    0,
+    timelineInvolvedEntryMatches.length - timelineInvolvedEntryOptions.length
+  );
+  const displayedTimelineGroups = useMemo(
+    () =>
+      (timelineBrowse?.groups ?? []).map((group) => {
+        const events = group.events.slice(0, MOBILE_TIMELINE_GROUP_EVENT_LIMIT);
+        return {
+          ...group,
+          events,
+          hiddenEventCount: Math.max(0, group.events.length - events.length),
+        };
+      }),
+    [timelineBrowse]
+  );
   const sectionEntries = getEntries(controller.activeWorld.codex, section.id);
+  const displayedEntries = entries
+    .slice(0, MOBILE_ENTRY_RESULT_LIMIT)
+    .map((entry, index) => ({ entry, index }));
+  const hiddenEntryCount = Math.max(
+    0,
+    entries.length - displayedEntries.length
+  );
   const selectedEntry = selectedEntryId
     ? sectionEntries.find((entry) => entry.id === selectedEntryId) ?? null
     : null;
@@ -127,7 +221,18 @@ export function EntriesScreen() {
     (entry) => entry.status === 'archived'
   ).length;
   const hasEntryFilters = Boolean(
-    query || statusFilter || activeTag || showArchived
+    query ||
+      statusFilter ||
+      activeTag ||
+      showArchived ||
+      timelineEraFilter ||
+      timelineInvolvedEntryFilter ||
+      timelineInvolvedEntryQuery
+  );
+  const hasTimelineFilters = Boolean(
+    timelineEraFilter ||
+      timelineInvolvedEntryFilter ||
+      timelineInvolvedEntryQuery
   );
   const selectedEntryRelationships = useMemo(
     () =>
@@ -197,6 +302,9 @@ export function EntriesScreen() {
       if (sectionChanged) {
         setSectionId(nextSection.id);
         setActiveTag('');
+        setTimelineEraFilter('');
+        setTimelineInvolvedEntryFilter('');
+        setTimelineInvolvedEntryQuery('');
         setStatusFilter('');
         setShowArchived(false);
         setSortKey(
@@ -265,6 +373,9 @@ export function EntriesScreen() {
       setQuery('');
       setSelectedEntryId(null);
       setActiveTag('');
+      setTimelineEraFilter('');
+      setTimelineInvolvedEntryFilter('');
+      setTimelineInvolvedEntryQuery('');
       setStatusFilter('');
       setShowArchived(false);
       setSortKey(
@@ -468,13 +579,16 @@ export function EntriesScreen() {
             tone={showArchived ? 'accent' : 'neutral'}
             onPress={() => setShowArchived((current) => !current)}
           />
-          {query || statusFilter || activeTag || showArchived ? (
+          {hasEntryFilters ? (
             <ActionButton
               label="Clear Filters"
               onPress={() => {
                 setQuery('');
                 setStatusFilter('');
                 setActiveTag('');
+                setTimelineEraFilter('');
+                setTimelineInvolvedEntryFilter('');
+                setTimelineInvolvedEntryQuery('');
                 setShowArchived(false);
               }}
             />
@@ -483,7 +597,17 @@ export function EntriesScreen() {
       </SectionBlock>
 
       {timelineSummary ? (
-        <SectionBlock title="Timeline Health">
+        <SectionBlock title="Timeline Browser">
+          <ButtonRow>
+            <ActionButton
+              label="Timeline Help"
+              onPress={() =>
+                openExternalRoute(
+                  getMobileRouteHref(getCodexHelpRoute('timeline'))
+                )
+              }
+            />
+          </ButtonRow>
           <MutedText>
             Highlights:{' '}
             {timelineSummary.highlightNames.length > 0
@@ -495,51 +619,195 @@ export function EntriesScreen() {
             {timelineSummary.duplicateOrderCount}. Unlinked events:{' '}
             {timelineSummary.unlinkedCount}.
           </MutedText>
+          {timelineBrowse ? (
+            <>
+              {timelineBrowse.eras.length > 0 ? (
+                <ButtonRow>
+                  <ActionButton
+                    label="Any Era"
+                    selected={timelineEraFilter === ''}
+                    tone={timelineEraFilter === '' ? 'accent' : 'neutral'}
+                    onPress={() => setTimelineEraFilter('')}
+                  />
+                  {timelineBrowse.eras.map((era) => (
+                    <ActionButton
+                      key={era}
+                      label={era}
+                      selected={timelineEraFilter === era}
+                      tone={timelineEraFilter === era ? 'accent' : 'neutral'}
+                      onPress={() =>
+                        setTimelineEraFilter((current) =>
+                          current === era ? '' : era
+                        )
+                      }
+                    />
+                  ))}
+                </ButtonRow>
+              ) : null}
+              {timelineBrowse.involvedEntries.length > 0 ? (
+                <>
+                  <Field
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    label="Search involved filters"
+                    value={timelineInvolvedEntryQuery}
+                    onChangeText={setTimelineInvolvedEntryQuery}
+                    placeholder="Record name, section, tag, status, or id"
+                  />
+                  <ButtonRow>
+                    <ActionButton
+                      label="Any Involved"
+                      selected={timelineInvolvedEntryFilter === ''}
+                      tone={
+                        timelineInvolvedEntryFilter === ''
+                          ? 'accent'
+                          : 'neutral'
+                      }
+                      onPress={() => setTimelineInvolvedEntryFilter('')}
+                    />
+                    {timelineInvolvedEntryOptions.map((entry) => (
+                      <ActionButton
+                        key={entry.id}
+                        label={entry.name}
+                        selected={timelineInvolvedEntryFilter === entry.id}
+                        tone={
+                          timelineInvolvedEntryFilter === entry.id
+                            ? 'accent'
+                            : 'neutral'
+                        }
+                        onPress={() =>
+                          setTimelineInvolvedEntryFilter((current) =>
+                            current === entry.id ? '' : entry.id
+                          )
+                        }
+                      />
+                    ))}
+                  </ButtonRow>
+                  {hiddenTimelineInvolvedEntryCount > 0 ? (
+                    <MutedText>
+                      Refine involved search to show{' '}
+                      {hiddenTimelineInvolvedEntryCount} more record
+                      {hiddenTimelineInvolvedEntryCount === 1 ? '' : 's'}.
+                    </MutedText>
+                  ) : null}
+                  {timelineInvolvedEntryOptions.length === 0 ? (
+                    <MutedText>
+                      No involved records match this filter search.
+                    </MutedText>
+                  ) : null}
+                </>
+              ) : null}
+              {hasTimelineFilters ? (
+                <ButtonRow>
+                  <ActionButton
+                    label="Clear Timeline Filters"
+                    onPress={() => {
+                      setTimelineEraFilter('');
+                      setTimelineInvolvedEntryFilter('');
+                      setTimelineInvolvedEntryQuery('');
+                    }}
+                  />
+                </ButtonRow>
+              ) : null}
+              {displayedTimelineGroups.length > 0 ? (
+                displayedTimelineGroups.map((group) => (
+                  <View key={group.era} style={styles.entryRow}>
+                    <Text style={styles.entryTitle}>{group.era}</Text>
+                    {group.events.map((event) => (
+                      <MutedText key={event.id}>
+                        {event.order || 'No order'} -{' '}
+                        {event.dateLabel || 'No date'} - {event.name}
+                        {event.involvedEntryNames.length > 0
+                          ? ` (${event.involvedEntryNames.join(', ')})`
+                          : ''}
+                      </MutedText>
+                    ))}
+                    {group.hiddenEventCount > 0 ? (
+                      <MutedText>
+                        Refine timeline filters to show {group.hiddenEventCount}{' '}
+                        more event
+                        {group.hiddenEventCount === 1 ? '' : 's'} in this era.
+                      </MutedText>
+                    ) : null}
+                  </View>
+                ))
+              ) : (
+                <MutedText>No timeline events match these filters.</MutedText>
+              )}
+              {timelineBrowse.unorderedNames.length > 0 ? (
+                <MutedText>
+                  Needs order:{' '}
+                  {formatLimitedList(timelineBrowse.unorderedNames)}.
+                </MutedText>
+              ) : null}
+              {timelineBrowse.duplicateOrderLabels.length > 0 ? (
+                <MutedText>
+                  Duplicate orders:{' '}
+                  {formatLimitedList(timelineBrowse.duplicateOrderLabels, '; ')}
+                  .
+                </MutedText>
+              ) : null}
+              {timelineBrowse.unlinkedNames.length > 0 ? (
+                <MutedText>
+                  No involved records:{' '}
+                  {formatLimitedList(timelineBrowse.unlinkedNames)}.
+                </MutedText>
+              ) : null}
+            </>
+          ) : null}
         </SectionBlock>
       ) : null}
 
       <SectionBlock title={section.title}>
         {entries.length > 0 ? (
-          entries.map((entry, index) => (
-            <View key={entry.id} style={styles.entryRow}>
-              <View style={styles.entryText}>
-                <Text style={styles.entryTitle}>{entry.name}</Text>
-                <MutedText>
-                  {getEntryStatusLabel(entry.status)} -{' '}
-                  {entry.tags.join(', ') || 'No tags'}
-                </MutedText>
-                <MutedText>{entry.summary || 'No summary yet.'}</MutedText>
-                <MutedText>
-                  Updated {formatUpdatedAt(entry.updatedAt)}
-                </MutedText>
+          <>
+            {displayedEntries.map(({ entry, index }) => (
+              <View key={entry.id} style={styles.entryRow}>
+                <View style={styles.entryText}>
+                  <Text style={styles.entryTitle}>{entry.name}</Text>
+                  <MutedText>
+                    {getEntryStatusLabel(entry.status)} -{' '}
+                    {entry.tags.join(', ') || 'No tags'}
+                  </MutedText>
+                  <MutedText>{entry.summary || 'No summary yet.'}</MutedText>
+                  <MutedText>
+                    Updated {formatUpdatedAt(entry.updatedAt)}
+                  </MutedText>
+                </View>
+                <ActionButton
+                  accessibilityLabel={`Edit ${entry.name}`}
+                  label="Edit"
+                  onPress={() => chooseEntry(entry.id)}
+                />
+                {section.id === 'timeline' && entries.length > 1 ? (
+                  <ButtonRow>
+                    <ActionButton
+                      accessibilityLabel={`Move ${entry.name} earlier`}
+                      label="Earlier"
+                      disabled={index === 0}
+                      onPress={() =>
+                        controller.moveTimelineEvent(entry.id, 'earlier')
+                      }
+                    />
+                    <ActionButton
+                      accessibilityLabel={`Move ${entry.name} later`}
+                      label="Later"
+                      disabled={index === entries.length - 1}
+                      onPress={() =>
+                        controller.moveTimelineEvent(entry.id, 'later')
+                      }
+                    />
+                  </ButtonRow>
+                ) : null}
               </View>
-              <ActionButton
-                accessibilityLabel={`Edit ${entry.name}`}
-                label="Edit"
-                onPress={() => chooseEntry(entry.id)}
-              />
-              {section.id === 'timeline' && entries.length > 1 ? (
-                <ButtonRow>
-                  <ActionButton
-                    accessibilityLabel={`Move ${entry.name} earlier`}
-                    label="Earlier"
-                    disabled={index === 0}
-                    onPress={() =>
-                      controller.moveTimelineEvent(entry.id, 'earlier')
-                    }
-                  />
-                  <ActionButton
-                    accessibilityLabel={`Move ${entry.name} later`}
-                    label="Later"
-                    disabled={index === entries.length - 1}
-                    onPress={() =>
-                      controller.moveTimelineEvent(entry.id, 'later')
-                    }
-                  />
-                </ButtonRow>
-              ) : null}
-            </View>
-          ))
+            ))}
+            {hiddenEntryCount > 0 ? (
+              <MutedText>
+                Refine section search or filters to show {hiddenEntryCount} more
+                record{hiddenEntryCount === 1 ? '' : 's'}.
+              </MutedText>
+            ) : null}
+          </>
         ) : (
           <MutedText>
             {sectionEntryCount === 0

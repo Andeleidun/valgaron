@@ -24,7 +24,14 @@ describe('shell contracts', () => {
     ).toEqual(['Overview', 'Relationships', 'Data', 'Workspaces', 'Help']);
     expect(
       getCodexShellRoutes(mobilePrimaryRouteOrder).map((route) => route.title)
-    ).toEqual(['Overview', 'Entries', 'Relationships', 'Workspaces', 'Data']);
+    ).toEqual([
+      'Overview',
+      'Entries',
+      'Relationships',
+      'Workspaces',
+      'Data',
+      'Help',
+    ]);
     expect(getCodexShellRouteTitle('relationships')).toBe(
       codexShellRoutes.relationships.title
     );

@@ -1,4 +1,5 @@
 import { describe, expect, it } from '@jest/globals';
+import { getCodexHelpRoute } from '@valgaron/core';
 import {
   getMobileRouteHref,
   getMobileTabHref,
@@ -14,6 +15,7 @@ describe('mobile route model', () => {
       'relationships',
       'workspaces',
       'data',
+      'help',
     ]);
     expect(mobileTabRoutes.map((route) => route.screenName)).toEqual([
       'index',
@@ -21,6 +23,7 @@ describe('mobile route model', () => {
       'relationships',
       'workspaces',
       'data',
+      'help',
     ]);
     expect(mobileTabRoutes.map((route) => route.iconName)).toEqual([
       'home',
@@ -28,11 +31,21 @@ describe('mobile route model', () => {
       'git-branch',
       'layers',
       'database',
+      'help-circle',
+    ]);
+    expect(mobileTabRoutes.map((route) => route.tabLabel)).toEqual([
+      'Home',
+      'Entries',
+      'Links',
+      'Worlds',
+      'Data',
+      'Help',
     ]);
     expect(mobileTabRoutes.map((route) => route.title).join(' ')).not.toMatch(
       /messages|discover|profile|community/i
     );
     expect(getMobileTabHref('entries')).toBe('/entries');
+    expect(getMobileTabHref('help')).toBe('/help');
     expect(getMobileTabTitle('relationships')).toBe('Relationships');
   });
 
@@ -68,6 +81,12 @@ describe('mobile route model', () => {
       ).params
     ).toEqual({
       relationshipQuery: 'oath=broken & owed',
+    });
+    expect(getMobileRouteHref(getCodexHelpRoute('timeline'))).toEqual({
+      pathname: '/help',
+      params: {
+        topic: 'timeline',
+      },
     });
   });
 });

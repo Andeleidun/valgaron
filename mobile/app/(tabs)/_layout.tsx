@@ -12,7 +12,7 @@ export default function TabLayout() {
         tabBarHideOnKeyboard: true,
         tabBarInactiveTintColor: valgaronColors.muted,
         tabBarLabelStyle: {
-          fontSize: 12,
+          fontSize: 11,
           fontWeight: '700',
         },
         tabBarStyle: {
@@ -28,6 +28,7 @@ export default function TabLayout() {
           options={{
             title: route.title,
             tabBarAccessibilityLabel: `${route.title} tab`,
+            tabBarLabel: route.tabLabel,
             tabBarIcon: ({ color, size }) => (
               <Feather name={route.iconName} color={color} size={size} />
             ),

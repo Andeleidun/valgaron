@@ -259,6 +259,7 @@ const styles = StyleSheet.create({
   },
   button: {
     minHeight: 44,
+    maxWidth: '100%',
     borderColor: valgaronColors.border,
     borderRadius: valgaronRadius.md,
     borderWidth: 1,
@@ -281,6 +282,7 @@ const styles = StyleSheet.create({
   },
   buttonText: {
     color: valgaronColors.text,
+    flexShrink: 1,
     fontSize: valgaronTypography.sizes.sm,
     fontWeight: '700',
     textAlign: 'center',

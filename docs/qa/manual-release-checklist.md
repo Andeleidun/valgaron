@@ -62,12 +62,12 @@ codex area.
 ## Mobile Companion
 
 1. Open the Expo app locally.
-2. Confirm Overview, Entries, Relationships, Workspaces, and Data load.
+2. Confirm Overview, Entries, Relationships, Workspaces, Data, and Help load.
 3. Create and edit an entry, link it with a relationship, switch workspaces,
    and return to the edited entry.
 4. Export JSON from Data and confirm the text matches the selected export mode.
-5. Import valid JSON, reject invalid JSON, reset starter data, and restore the
-   latest recovery snapshot.
+5. Import valid JSON, reject invalid JSON, reset starter data, and restore a
+   selected recovery snapshot.
 6. Follow the mobile runtime recovery steps in
    `docs/qa/runtime-recovery.md` when route, shell, or recovery UI changes are
    part of the release.
@@ -104,7 +104,7 @@ codex area.
    app shell.
 5. Install the PWA where supported and confirm the app shell loads after going
    offline.
-6. Confirm offline messaging and documentation do not imply cloud backup.
+6. Confirm offline wording and documentation do not imply cloud backup.
 
 ## Documentation
 

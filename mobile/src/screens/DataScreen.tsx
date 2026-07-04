@@ -1,19 +1,18 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { Share } from 'react-native';
+import { router } from 'expo-router';
 import {
   codexDataHelpTopics,
   codexDataHelpSummary,
-  codexFirstUseHelp,
-  codexPrivacyHelp,
-  codexReleaseLimitsHelp,
-  codexWorkflowHelpTopics,
   formatUpdatedAt,
   getCodexExportOption,
+  getCodexHelpRoute,
   getCodexScreenIntro,
   getWorldDocumentDiagnostics,
-  summarizeRecoverySnapshot,
+  summarizeRecoverySnapshots,
 } from '@valgaron/core';
 import { useMobileCodex } from '../state/MobileCodexContext';
+import { getMobileRouteHref } from '../navigation/mobileRoutes';
 import {
   getMobileExportDraftState,
   getMobileExportSharePayload,
@@ -87,12 +86,13 @@ export function DataScreen() {
     () => getMobileImportReviewState(importText, importPreview),
     [importPreview, importText]
   );
-  const recoverySnapshotSummary = controller.lastRecoverySnapshot
-    ? summarizeRecoverySnapshot(controller.lastRecoverySnapshot)
-    : null;
+  const recoverySnapshotSummaries = summarizeRecoverySnapshots(
+    controller.recoverySnapshots
+  );
   const storageStatus = getMobileDataStorageStatus({
     lastRecoverySnapshot: controller.lastRecoverySnapshot,
     loadStatus: controller.loadStatus,
+    recoverySnapshotCount: controller.recoverySnapshots.length,
     saveMessage: controller.saveMessage,
   });
   const lastImportPreviewText = controller.importResult?.ok
@@ -172,6 +172,22 @@ export function DataScreen() {
   function clearTransientDataDrafts() {
     setImportText('');
     setShareMessage('');
+  }
+
+  function openDataHelp() {
+    confirmMobileDiscardUnsavedChanges(
+      hasImportText || exportDraftState.isEdited,
+      () =>
+        router.push({
+          ...getMobileRouteHref(getCodexHelpRoute('data')),
+        }),
+      undefined,
+      {
+        message:
+          'The pasted import text or edited export text may not be preserved after leaving Data.',
+        title: 'Open Help?',
+      }
+    );
   }
 
   function requestImport() {
@@ -327,38 +343,52 @@ export function DataScreen() {
         </ButtonRow>
       </SectionBlock>
 
+      <SectionBlock title="Recovery Snapshots">
+        <MutedText>
+          Recovery snapshots are saved before import, reset, selected snapshot
+          restore, and permanent deletes on this device.
+        </MutedText>
+        {recoverySnapshotSummaries.length > 0 ? (
+          <>
+            {recoverySnapshotSummaries.map((snapshot, index) => (
+              <Fragment key={snapshot.id}>
+                <MutedText>
+                  {index === 0 ? 'Latest: ' : 'Older: '}
+                  {getMobileRecoverySnapshotText(snapshot)}
+                </MutedText>
+                <ButtonRow>
+                  <ActionButton
+                    accessibilityHint="Restores this saved recovery snapshot after confirmation."
+                    label="Restore Snapshot"
+                    onPress={() =>
+                      replaceDocumentAfterConfirm('restore-snapshot', () =>
+                        controller.restoreRecoverySnapshot(snapshot.id)
+                      )
+                    }
+                  />
+                  <ActionButton
+                    accessibilityHint="Deletes this recovery snapshot after confirmation."
+                    label="Delete Snapshot"
+                    tone="danger"
+                    onPress={() =>
+                      confirmMobileDestructiveAction('delete-snapshot', () =>
+                        controller.deleteRecoverySnapshot(snapshot.id)
+                      )
+                    }
+                  />
+                </ButtonRow>
+              </Fragment>
+            ))}
+          </>
+        ) : (
+          <MutedText>No recovery snapshots are saved on this device.</MutedText>
+        )}
+      </SectionBlock>
+
       <SectionBlock title="Reset">
         <MutedText>
-          Reset loads the starter codex and stores one recovery snapshot first.
+          Reset loads the starter codex and stores a recovery snapshot first.
         </MutedText>
-        {controller.lastRecoverySnapshot ? (
-          <>
-            {recoverySnapshotSummary ? (
-              <MutedText>
-                {getMobileRecoverySnapshotText(recoverySnapshotSummary)}
-              </MutedText>
-            ) : null}
-            <ActionButton
-              accessibilityHint="Restores the latest saved recovery snapshot after confirmation."
-              label="Restore Latest Snapshot"
-              onPress={() =>
-                replaceDocumentAfterConfirm('restore-snapshot', () =>
-                  controller.restoreLastRecoverySnapshot()
-                )
-              }
-            />
-            <ActionButton
-              accessibilityHint="Deletes the latest saved recovery snapshot after confirmation."
-              label="Delete Latest Snapshot"
-              tone="danger"
-              onPress={() =>
-                confirmMobileDestructiveAction('delete-snapshot', () =>
-                  controller.deleteLastRecoverySnapshot()
-                )
-              }
-            />
-          </>
-        ) : null}
         <ActionButton
           accessibilityHint="Replaces the current document with starter data after confirmation."
           label="Reset To Starter"
@@ -373,20 +403,13 @@ export function DataScreen() {
       </SectionBlock>
 
       <SectionBlock title="Help">
-        <BodyText>{codexFirstUseHelp}</BodyText>
-        <MutedText>{codexDataHelpSummary}</MutedText>
-        {codexWorkflowHelpTopics.map((topic) => (
-          <MutedText key={topic.title}>
-            {topic.title}: {topic.items.join(' ')}
-          </MutedText>
-        ))}
+        <BodyText>{codexDataHelpSummary}</BodyText>
+        <ActionButton label="Open Help" onPress={openDataHelp} />
         {codexDataHelpTopics.map((topic) => (
           <MutedText key={topic.title}>
             {topic.title}: {topic.items.join(' ')}
           </MutedText>
         ))}
-        <MutedText>{codexPrivacyHelp}</MutedText>
-        <MutedText>{codexReleaseLimitsHelp}</MutedText>
       </SectionBlock>
     </ScreenScroll>
   );

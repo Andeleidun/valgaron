@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, type ChangeEvent } from 'react';
+import { NavLink } from 'react-router-dom';
 import {
   type DestructiveActionId,
   exportWorldToMarkdown,
@@ -7,6 +8,7 @@ import {
   formatWorldImportPreviewText,
   getCodexExportFilename,
   getCodexExportOption,
+  getCodexHelpRoute,
   getCodexScreenIntro,
   getDestructiveActionCopy,
   getRecoverySnapshotReasonTitle,
@@ -369,6 +371,17 @@ export function DataPage({
         <p className="vwb-kicker">{intro.kicker}</p>
         <h1>{intro.title}</h1>
         <p>{intro.detail}</p>
+        <NavLink
+          className="vwb-secondary-button"
+          to={getCodexHelpRoute('data')}
+          onClick={(event) => {
+            if (!confirmDiscardUnsavedChanges(isImportDirty)) {
+              event.preventDefault();
+            }
+          }}
+        >
+          Backup Help
+        </NavLink>
       </section>
 
       <section className="vwb-panel" aria-labelledby="save-status-title">
