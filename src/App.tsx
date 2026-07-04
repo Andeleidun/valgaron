@@ -109,6 +109,7 @@ function AppShell() {
     loadStatus,
     permanentlyDeleteEntryType,
     permanentlyDeleteEntry,
+    permanentlyDeletePlanetaryWorld,
     permanentlyDeleteWorkspace,
     recoverySnapshots,
     recoverySnapshotStatus,
@@ -119,11 +120,14 @@ function AppShell() {
     hasUnsavedDocumentChanges,
     saveCurrentDocument,
     saveEntry,
+    savePlanetaryWorld,
     saveRelationship,
     saveStatus,
     sections,
     switchWorkspace,
+    unlinkRelationship,
     updateWorkspace,
+    archivePlanetaryWorld,
   } = useWorldDocumentState();
 
   const confirmResetToSeed = () => {
@@ -320,7 +324,7 @@ function AppShell() {
               element={
                 <RelationshipsPage
                   codex={codex}
-                  onDeleteRelationship={removeRelationship}
+                  onDeleteRelationship={unlinkRelationship}
                   onSaveRelationship={saveRelationship}
                   relationships={relationships}
                   sections={sections}
@@ -353,12 +357,15 @@ function AppShell() {
                 <WorkspacesPage
                   activeWorld={activeWorld}
                   document={document}
+                  onArchivePlanetaryWorld={archivePlanetaryWorld}
                   onArchiveWorkspace={archiveWorkspace}
                   onCreateEntryType={createEntryType}
                   onCreateWorkspace={createWorkspace}
                   onDeleteEntryType={permanentlyDeleteEntryType}
+                  onDeletePlanetaryWorld={permanentlyDeletePlanetaryWorld}
                   onDeleteWorkspace={permanentlyDeleteWorkspace}
                   onDuplicateWorkspace={duplicateWorkspace}
+                  onSavePlanetaryWorld={savePlanetaryWorld}
                   onSwitchWorkspace={switchWorkspace}
                   onUpdateWorkspace={updateWorkspace}
                 />
@@ -376,7 +383,9 @@ function AppShell() {
                   codex={codex}
                   onArchiveEntry={archiveEntry}
                   onDeleteEntry={permanentlyDeleteEntry}
+                  onDeleteRelationship={removeRelationship}
                   onSaveEntry={saveEntry}
+                  onSaveRelationship={saveRelationship}
                   relationships={relationships}
                   sections={sections}
                 />

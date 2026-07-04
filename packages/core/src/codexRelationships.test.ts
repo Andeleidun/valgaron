@@ -9,9 +9,11 @@ import {
   getBrokenRelationships,
   getEntryRelationships,
   getOrphanedEntries,
+  getPlaceRelationshipGroups,
   getRelationshipHealthSummary,
   getRelationshipEntries,
   getRelationshipGraph,
+  relationshipTypeOptions,
   relationshipFromDraft,
   upsertRelationship,
 } from './codexRelationships';
@@ -40,6 +42,20 @@ describe('codexRelationships', () => {
       note: '',
       status: 'draft',
     });
+  });
+
+  it('includes place-tree relationship types in relationship suggestions', () => {
+    expect(relationshipTypeOptions).toEqual(
+      expect.arrayContaining([
+        'located in',
+        'contains',
+        'controlled by',
+        'claimed by',
+        'flows into',
+        'site of',
+        'referenced by',
+      ])
+    );
   });
 
   it('converts a draft into a saved relationship', () => {
@@ -171,6 +187,76 @@ describe('codexRelationships', () => {
         id: fixedRelationship.id,
         sourceEntry: { name: 'Mira Rowan' },
         targetEntry: { name: 'The Cartographers Guild' },
+      },
+    ]);
+  });
+
+  it('groups place relationships by place-tree semantics', () => {
+    const codex = createSeedCodex();
+    const harbor = codex.places[0];
+    const relationships: WorldRelationship[] = [
+      {
+        ...fixedRelationship,
+        id: 'relationship-harbor-country',
+        sourceEntryId: harbor.id,
+        targetEntryId: 'place-glassroot-forest',
+        type: 'located in',
+      },
+      {
+        ...fixedRelationship,
+        id: 'relationship-harbor-guild',
+        sourceEntryId: harbor.id,
+        targetEntryId: 'faction-cartographers-guild',
+        type: 'controlled by',
+      },
+      {
+        ...fixedRelationship,
+        id: 'relationship-guild-controls-harbor',
+        sourceEntryId: 'faction-cartographers-guild',
+        targetEntryId: harbor.id,
+        type: 'controls',
+      },
+      {
+        ...fixedRelationship,
+        id: 'relationship-calendar-harbor',
+        sourceEntryId: 'lore-tide-calendar',
+        targetEntryId: harbor.id,
+        type: 'references',
+      },
+      {
+        ...fixedRelationship,
+        id: 'relationship-custom',
+        sourceEntryId: harbor.id,
+        targetEntryId: 'character-mira-rowan',
+        type: 'favorite map room of',
+      },
+    ];
+
+    expect(
+      getPlaceRelationshipGroups(harbor, relationships, codex, worldSections)
+    ).toMatchObject([
+      {
+        id: 'location',
+        label: 'Location and parent places',
+        relationships: [{ id: 'relationship-harbor-country' }],
+      },
+      {
+        id: 'power',
+        label: 'Control and claims',
+        relationships: [
+          { id: 'relationship-harbor-guild' },
+          { id: 'relationship-guild-controls-harbor' },
+        ],
+      },
+      {
+        id: 'eventsLore',
+        label: 'Events and lore',
+        relationships: [{ id: 'relationship-calendar-harbor' }],
+      },
+      {
+        id: 'other',
+        label: 'Other links',
+        relationships: [{ id: 'relationship-custom' }],
       },
     ]);
   });

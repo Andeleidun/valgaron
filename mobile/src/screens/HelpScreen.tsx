@@ -3,6 +3,8 @@ import {
   codexDataHelpSummary,
   codexFirstUseHelp,
   codexHelpFocusTopics,
+  codexHelpSectionTitles,
+  codexOfflineHelp,
   codexPrivacyHelp,
   codexReleaseLimitsHelp,
   codexSupportHelp,
@@ -97,6 +99,10 @@ export function HelpScreen() {
             {item.term}: {item.detail}
           </MutedText>
         ))}
+      </SectionBlock>
+
+      <SectionBlock title={codexHelpSectionTitles.offline}>
+        <MutedText>{codexOfflineHelp}</MutedText>
       </SectionBlock>
 
       <SectionBlock title="Support">

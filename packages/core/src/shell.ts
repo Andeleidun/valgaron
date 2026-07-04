@@ -110,6 +110,15 @@ export const mobilePrimaryRouteOrder = [
   'help',
 ] as const satisfies readonly CodexShellRouteId[];
 
+export const mobileShellRouteLabels = {
+  overview: 'Home',
+  entries: codexShellRoutes.entries.title,
+  relationships: 'Links',
+  workspaces: 'Worlds',
+  data: codexShellRoutes.data.title,
+  help: codexShellRoutes.help.title,
+} as const satisfies Record<CodexShellRouteId, string>;
+
 export const localPersistenceCopy = {
   browserSaveTarget: 'localStorage',
   deviceSaveTarget: 'this device',
@@ -129,6 +138,10 @@ export function getCodexShellRoutes(
 
 export function getCodexShellRouteTitle(id: CodexShellRouteId): string {
   return codexShellRoutes[id].title;
+}
+
+export function getCodexMobileShellRouteLabel(id: CodexShellRouteId): string {
+  return mobileShellRouteLabels[id];
 }
 
 export function getCodexScreenIntro(id: CodexShellRouteId): CodexScreenIntro {

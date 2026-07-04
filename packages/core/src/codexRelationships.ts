@@ -7,22 +7,27 @@ import type {
 } from './types';
 import { getEntries } from './codexEntries';
 import { makeLocalIdSuffix } from './ids';
+import {
+  getPlaceCategoryFromFields,
+  getPlaceRelationshipGroupLabel,
+  placeRelationshipTypeOptions,
+  type PlaceRelationshipGroupId,
+} from './placeTaxonomy';
 
-export const relationshipTypeOptions: readonly string[] = [
+const baseRelationshipTypeOptions: readonly string[] = [
   'member of',
-  'located in',
-  'controls',
   'allied with',
   'opposed to',
-  'founded by',
-  'founded',
   'affected by',
   'caused',
   'caused by',
   'carries',
-  'references',
   'related to',
 ];
+
+export const relationshipTypeOptions: readonly string[] = Array.from(
+  new Set([...baseRelationshipTypeOptions, ...placeRelationshipTypeOptions])
+);
 
 export type RelationshipDraft = {
   sourceEntryId: string;
@@ -53,6 +58,12 @@ export type RelationshipGraphFilters = {
 export type RelationshipWithEntries = WorldRelationship & {
   sourceEntry: WorldEntry | null;
   targetEntry: WorldEntry | null;
+};
+
+export type PlaceRelationshipGroup = {
+  id: PlaceRelationshipGroupId;
+  label: string;
+  relationships: RelationshipWithEntries[];
 };
 
 export type RelationshipGraphNode = {
@@ -87,6 +98,82 @@ export type OrphanedEntry = RelationshipGraphNode;
 export type RelationshipHealthSummary = {
   brokenRelationshipCount: number;
   orphanedEntryCount: number;
+};
+
+const placeRelationshipGroupOrder: readonly PlaceRelationshipGroupId[] = [
+  'location',
+  'contents',
+  'power',
+  'routes',
+  'people',
+  'eventsLore',
+  'origins',
+  'other',
+];
+
+const placeRelationshipGroupRules: Record<
+  Exclude<PlaceRelationshipGroupId, 'other'>,
+  readonly {
+    type: string;
+    perspective: 'source' | 'target' | 'either';
+  }[]
+> = {
+  location: [
+    { type: 'located in', perspective: 'source' },
+    { type: 'part of', perspective: 'source' },
+    { type: 'capital of', perspective: 'source' },
+    { type: 'contains', perspective: 'target' },
+    { type: 'has part', perspective: 'target' },
+    { type: 'has capital', perspective: 'target' },
+  ],
+  contents: [
+    { type: 'contains', perspective: 'source' },
+    { type: 'has part', perspective: 'source' },
+    { type: 'has capital', perspective: 'source' },
+    { type: 'located in', perspective: 'target' },
+    { type: 'part of', perspective: 'target' },
+    { type: 'capital of', perspective: 'target' },
+  ],
+  power: [
+    { type: 'controls', perspective: 'either' },
+    { type: 'controlled by', perspective: 'source' },
+    { type: 'controlled by', perspective: 'target' },
+    { type: 'administers', perspective: 'either' },
+    { type: 'administered by', perspective: 'source' },
+    { type: 'administered by', perspective: 'target' },
+    { type: 'claimed by', perspective: 'either' },
+    { type: 'claims', perspective: 'either' },
+  ],
+  routes: [
+    { type: 'bordered by', perspective: 'either' },
+    { type: 'connected to', perspective: 'either' },
+    { type: 'route between', perspective: 'either' },
+    { type: 'flows through', perspective: 'either' },
+    { type: 'flows into', perspective: 'either' },
+    { type: 'receives flow from', perspective: 'either' },
+  ],
+  people: [
+    { type: 'home of', perspective: 'either' },
+    { type: 'home', perspective: 'either' },
+    { type: 'member of', perspective: 'target' },
+    { type: 'headquarters of', perspective: 'either' },
+    { type: 'headquarters', perspective: 'either' },
+  ],
+  eventsLore: [
+    { type: 'site of', perspective: 'either' },
+    { type: 'occurred at', perspective: 'either' },
+    { type: 'references', perspective: 'either' },
+    { type: 'referenced by', perspective: 'either' },
+    { type: 'affected by', perspective: 'either' },
+    { type: 'caused', perspective: 'either' },
+    { type: 'caused by', perspective: 'either' },
+  ],
+  origins: [
+    { type: 'founded by', perspective: 'either' },
+    { type: 'founded', perspective: 'either' },
+    { type: 'built by', perspective: 'either' },
+    { type: 'created by', perspective: 'either' },
+  ],
 };
 
 function getEntryIndex(
@@ -328,6 +415,78 @@ export function getEntryRelationships(
       sourceEntry: entryIndex.get(relationship.sourceEntryId) ?? null,
       targetEntry: entryIndex.get(relationship.targetEntryId) ?? null,
     }));
+}
+
+function normalizeRelationshipType(type: string): string {
+  return type.trim().toLowerCase();
+}
+
+function relationshipPerspective(
+  relationship: RelationshipWithEntries,
+  entryId: string
+): 'source' | 'target' {
+  return relationship.sourceEntryId === entryId ? 'source' : 'target';
+}
+
+function relationshipMatchesGroupRule(
+  relationship: RelationshipWithEntries,
+  entryId: string,
+  groupId: Exclude<PlaceRelationshipGroupId, 'other'>
+): boolean {
+  const normalizedType = normalizeRelationshipType(relationship.type);
+  const perspective = relationshipPerspective(relationship, entryId);
+  return placeRelationshipGroupRules[groupId].some(
+    (rule) =>
+      rule.type === normalizedType &&
+      (rule.perspective === 'either' || rule.perspective === perspective)
+  );
+}
+
+function getPlaceRelationshipGroupId(
+  relationship: RelationshipWithEntries,
+  entryId: string
+): PlaceRelationshipGroupId {
+  return (
+    placeRelationshipGroupOrder.find(
+      (groupId) =>
+        groupId !== 'other' &&
+        relationshipMatchesGroupRule(relationship, entryId, groupId)
+    ) ?? 'other'
+  );
+}
+
+/** Group an attached place relationship list into place-tree oriented sections. */
+export function getPlaceRelationshipGroups(
+  entry: WorldEntry,
+  relationships: readonly WorldRelationship[],
+  codex: WorldCodex,
+  sections: readonly WorldSectionConfig[]
+): PlaceRelationshipGroup[] {
+  if (entry.kind !== 'place') {
+    return [];
+  }
+  const category = getPlaceCategoryFromFields(entry.fields);
+  const attachedRelationships = getEntryRelationships(
+    relationships,
+    codex,
+    sections,
+    entry.id
+  );
+  const groupsById = new Map<
+    PlaceRelationshipGroupId,
+    RelationshipWithEntries[]
+  >(placeRelationshipGroupOrder.map((groupId) => [groupId, []]));
+  for (const relationship of attachedRelationships) {
+    const groupId = getPlaceRelationshipGroupId(relationship, entry.id);
+    groupsById.get(groupId)?.push(relationship);
+  }
+  return placeRelationshipGroupOrder
+    .map((groupId) => ({
+      id: groupId,
+      label: getPlaceRelationshipGroupLabel(category, groupId),
+      relationships: groupsById.get(groupId) ?? [],
+    }))
+    .filter((group) => group.relationships.length > 0);
 }
 
 /** Build graph nodes and edges for relationships that still point at saved entries. */

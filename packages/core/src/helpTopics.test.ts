@@ -4,6 +4,8 @@ import {
   codexDataHelpSummary,
   codexDataHelpTopics,
   codexHelpFocusTopics,
+  codexHelpSectionTitles,
+  codexOfflineHelp,
   codexReleaseLimitsHelp,
   codexWorkflowHelpTopics,
   getCodexHelpFocus,
@@ -43,6 +45,9 @@ describe('help topics', () => {
       'Reset',
       'Snapshots',
     ]);
+    expect(codexOfflineHelp).toContain('Offline use');
+    expect(codexOfflineHelp).toContain('does not protect data');
+    expect(codexHelpSectionTitles.offline).toBe('Installable app limits');
   });
 
   it('does not list native mobile as out of scope while mobile is in this workspace', () => {

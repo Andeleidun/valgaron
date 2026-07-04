@@ -1,19 +1,18 @@
 import type {
   CodexOverviewSummary,
   RelationshipGraphNode,
-  RecoverySnapshotSummary,
   WorldDocument,
   WorldEntry,
   WorldEntryStatus,
   WorldSectionConfig,
   WorldWorkspace,
-  WorkspaceActionState,
 } from '@valgaron/core';
 import {
   createEmptyDraft,
   createTemplateDraft,
   draftFromEntry,
-  formatUpdatedAt,
+  entrySortControlOptions,
+  getDraftDetailFields,
   getCodexOverviewSummary,
   getEntryRelationships,
   getEntries,
@@ -24,7 +23,7 @@ import {
   getRelationshipGraph,
   getRelationshipHealthSummary,
   getOrphanedEntries,
-  getRecoverySnapshotReasonPhrase,
+  getPlaceRelationshipGroups,
   getSearchableEntries,
   getTimelineEras,
   getTimelineDiagnostics,
@@ -32,20 +31,16 @@ import {
   groupTimelineEventsByEra,
   filterTimelineEvents,
   getTimelineInvolvedEntryIds,
-  getWorkspaceActionState,
   getWorkspaceOverviewEntryHighlights,
   sortEntries,
   sortTimelineEvents,
   searchEntries,
   type EntryDraft,
-  type EntrySortKey,
+  type EntrySortControlValue,
   type RelationshipGraphFilters,
+  type RelationshipWithEntries,
   type TimelineFilters,
 } from '@valgaron/core';
-import type {
-  MobileDocumentLoadStatus,
-  MobileRecoverySnapshot,
-} from '../storage/mobileStorage';
 
 export type MobileOverviewSummary = CodexOverviewSummary;
 
@@ -94,6 +89,12 @@ export type MobileEntryRelationshipItem = {
   note: string;
 };
 
+export type MobileEntryRelationshipGroup = {
+  id: string;
+  label: string;
+  relationships: MobileEntryRelationshipItem[];
+};
+
 export type MobileRelationshipHealthSummary = {
   brokenRelationshipCount: number;
   orphanedEntryCount: number;
@@ -130,11 +131,13 @@ export type MobileEntryListFilters = {
   sortKey?: MobileEntrySortKey;
   status?: WorldEntryStatus | '';
   activeTag?: string;
+  updatedWithinDays?: number | null;
+  now?: Date;
   timelineEra?: string;
   timelineInvolvedEntryId?: string;
 };
 
-export type MobileEntrySortKey = EntrySortKey | 'timeline-order';
+export type MobileEntrySortKey = EntrySortControlValue;
 
 export type MobileEntrySortOption = {
   key: MobileEntrySortKey;
@@ -142,13 +145,12 @@ export type MobileEntrySortOption = {
   timelineOnly?: boolean;
 };
 
-export const mobileEntrySortOptions: readonly MobileEntrySortOption[] = [
-  { key: 'updated-desc', label: 'Updated' },
-  { key: 'created-desc', label: 'Created' },
-  { key: 'name', label: 'Name' },
-  { key: 'status', label: 'Status' },
-  { key: 'timeline-order', label: 'Timeline', timelineOnly: true },
-];
+export const mobileEntrySortOptions: readonly MobileEntrySortOption[] =
+  entrySortControlOptions.map((option) => ({
+    key: option.value,
+    label: option.label,
+    timelineOnly: option.value === 'timeline-order' ? true : undefined,
+  }));
 
 export type MobileRelationshipEntryPickerItem = RelationshipGraphNode;
 
@@ -158,8 +160,6 @@ export type MobileRelationshipListFilters = {
 };
 
 export type MobileRelationshipGraphFilters = RelationshipGraphFilters;
-
-export type MobileWorkspaceActionState = WorkspaceActionState;
 
 export type MobileTimelineSummary = {
   highlightNames: string[];
@@ -197,12 +197,6 @@ export type MobileTimelineBrowseView = {
 export type MobileTimelineBrowseFilters = TimelineFilters & {
   query?: string;
   showArchived?: boolean;
-};
-
-export type MobileDataStorageStatus = {
-  loadLine: string;
-  saveLine: string;
-  recoveryLine: string;
 };
 
 export function getMobileOverviewSummary(
@@ -261,9 +255,14 @@ export function getMobileEntryList(
     sortKey = section.id === 'timeline' ? 'timeline-order' : 'updated-desc',
     status = '',
     activeTag = '',
+    updatedWithinDays = null,
+    now,
     timelineEra = '',
     timelineInvolvedEntryId = '',
   } = filters;
+  const updatedCutoff = updatedWithinDays
+    ? (now ?? new Date()).getTime() - updatedWithinDays * 24 * 60 * 60 * 1000
+    : null;
   const sectionEntries = getEntries(world.codex, section.id);
   const entries =
     query.trim().length > 0
@@ -305,6 +304,11 @@ export function getMobileEntryList(
     )
     .filter((entry) => !status || entry.status === status)
     .filter((entry) => !activeTag || entry.tags.includes(activeTag))
+    .filter(
+      (entry) =>
+        updatedCutoff === null ||
+        new Date(entry.updatedAt).getTime() >= updatedCutoff
+    )
     .map((entry) => ({
       id: entry.id,
       name: entry.name,
@@ -396,6 +400,58 @@ export function getMobileEntryRelationshipSummary(
   });
 }
 
+export function getMobileEntryRelationshipGroups(
+  world: WorldWorkspace,
+  entry: WorldEntry
+): MobileEntryRelationshipGroup[] {
+  const relationshipEntryById = new Map(
+    getRelationshipEntries(world.codex, world.entryTypes).map((item) => [
+      item.id,
+      item,
+    ])
+  );
+  const toMobileRelationshipItem = (
+    relationship: RelationshipWithEntries
+  ): MobileEntryRelationshipItem => {
+    const isSource = relationship.sourceEntryId === entry.id;
+    const relatedEntry = isSource
+      ? relationship.targetEntry
+      : relationship.sourceEntry;
+    const relatedEntryNode = relatedEntry
+      ? relationshipEntryById.get(relatedEntry.id) ?? null
+      : null;
+    return {
+      id: relationship.id,
+      type: relationship.type,
+      directionLabel: relationship.directional
+        ? isSource
+          ? 'To'
+          : 'From'
+        : 'Linked with',
+      relatedEntryId: relatedEntry?.id ?? '',
+      relatedEntryName: relatedEntry?.name ?? 'Missing entry',
+      relatedSectionId: relatedEntryNode?.sectionId ?? '',
+      note: relationship.note,
+    };
+  };
+  if (entry.kind !== 'place') {
+    const relationships = getMobileEntryRelationshipSummary(world, entry.id);
+    return relationships.length > 0
+      ? [{ id: 'linked-records', label: 'Linked records', relationships }]
+      : [];
+  }
+  return getPlaceRelationshipGroups(
+    entry,
+    world.relationships,
+    world.codex,
+    world.entryTypes
+  ).map((group) => ({
+    id: group.id,
+    label: group.label,
+    relationships: group.relationships.map(toMobileRelationshipItem),
+  }));
+}
+
 export function getMobileRelationshipEntryPickerItems(
   world: WorldWorkspace,
   query: string
@@ -474,25 +530,6 @@ export function getMobileRelationshipGraphView(
       directionLabel: edge.directional ? '->' : '<->',
     })),
   };
-}
-
-export function getMobileWorkspaceActionState({
-  activeWorkspaceId,
-  activeWorkspaceCount,
-  workspace,
-  workspaceCount,
-}: {
-  activeWorkspaceId: string;
-  activeWorkspaceCount: number;
-  workspace: WorldWorkspace;
-  workspaceCount: number;
-}): MobileWorkspaceActionState {
-  return getWorkspaceActionState({
-    activeWorkspaceId,
-    activeWorkspaceCount,
-    workspace,
-    workspaceCount,
-  });
 }
 
 export function getMobileTimelineSummary(
@@ -620,7 +657,7 @@ export function createMobileEntryDraft(
     ...createEmptyDraft(),
     tags: section.kind,
     details: Object.fromEntries(
-      section.detailFields.map((field) => [field.key, ''])
+      getDraftDetailFields(section).map((field) => [field.key, ''])
     ),
   };
 }
@@ -648,46 +685,4 @@ export function applyMobileEntrySectionTemplate(
     tags: draft.tags || template.tags,
     details: { ...template.details, ...draft.details },
   };
-}
-
-export function getLocalDeviceStatusText(savedAt: string): string {
-  return `Document timestamp on this device: ${formatUpdatedAt(savedAt)}`;
-}
-
-export function getMobileDataStorageStatus({
-  lastRecoverySnapshot,
-  loadStatus,
-  recoverySnapshotCount = lastRecoverySnapshot ? 1 : 0,
-  saveMessage,
-}: {
-  lastRecoverySnapshot: MobileRecoverySnapshot | null;
-  loadStatus: MobileDocumentLoadStatus;
-  recoverySnapshotCount?: number;
-  saveMessage: string;
-}): MobileDataStorageStatus {
-  const snapshotLabel =
-    recoverySnapshotCount === 1
-      ? '1 snapshot'
-      : `${recoverySnapshotCount} snapshots`;
-  return {
-    loadLine: `Load state: ${loadStatus.source}, checked ${formatUpdatedAt(
-      loadStatus.checkedAt
-    )}.`,
-    saveLine: `Device save: ${saveMessage}`,
-    recoveryLine: lastRecoverySnapshot
-      ? `Recovery snapshots: ${snapshotLabel} saved, latest ${getRecoverySnapshotReasonPhrase(
-          lastRecoverySnapshot.reason
-        )}, saved ${formatUpdatedAt(lastRecoverySnapshot.createdAt)}.`
-      : 'Recovery snapshots: none saved on this device.',
-  };
-}
-
-export function getMobileRecoverySnapshotText(
-  summary: RecoverySnapshotSummary
-): string {
-  return `Recovery snapshot ${getRecoverySnapshotReasonPhrase(
-    summary.reason
-  )}: ${summary.activeWorldName}, ${summary.entryCount} entries, ${
-    summary.relationshipCount
-  } relationships, saved ${formatUpdatedAt(summary.createdAt)}.`;
 }

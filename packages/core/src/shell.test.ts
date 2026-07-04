@@ -2,6 +2,7 @@ import { describe, expect, it } from '@jest/globals';
 import {
   codexShellRoutes,
   codexScreenIntros,
+  getCodexMobileShellRouteLabel,
   getCodexScreenIntro,
   getCodexEntriesRoute,
   getCodexRelationshipsRoute,
@@ -35,6 +36,9 @@ describe('shell contracts', () => {
     expect(getCodexShellRouteTitle('relationships')).toBe(
       codexShellRoutes.relationships.title
     );
+    expect(
+      mobilePrimaryRouteOrder.map((id) => getCodexMobileShellRouteLabel(id))
+    ).toEqual(['Home', 'Entries', 'Links', 'Worlds', 'Data', 'Help']);
     expect(getCodexScreenIntro('relationships')).toEqual(
       codexScreenIntros.relationships
     );

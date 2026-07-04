@@ -22,7 +22,7 @@ export function getMobileFeedbackTone(message: string): MobileFeedbackTone {
     return 'warning';
   }
   if (
-    /^(created|deleted|imported|opened|refreshed|restored|saved|starter data is open|updated)/i.test(
+    /^(copied|created|deleted|imported|opened|refreshed|restored|saved|starter data is open|updated)/i.test(
       normalized
     )
   ) {

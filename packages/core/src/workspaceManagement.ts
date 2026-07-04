@@ -15,6 +15,21 @@ export type WorkspaceDraft = {
   defaultEra: string;
 };
 
+export type WorkspaceDraftFieldKey = keyof WorkspaceDraft;
+
+export type WorkspaceDraftFieldDescriptor = {
+  key: WorkspaceDraftFieldKey;
+  label: string;
+  placeholder?: string;
+  multiline?: boolean;
+};
+
+export const workspaceDraftFields: readonly WorkspaceDraftFieldDescriptor[] = [
+  { key: 'name', label: 'Workspace name' },
+  { key: 'summary', label: 'Summary', multiline: true },
+  { key: 'defaultEra', label: 'Default era' },
+];
+
 export type PlanetaryWorldDraft = {
   name: string;
   summary: string;
@@ -25,12 +40,60 @@ export type PlanetaryWorldDraft = {
   tags: string;
 };
 
+export type PlanetaryWorldDraftFieldKey = keyof PlanetaryWorldDraft;
+
+export type PlanetaryWorldDraftFieldDescriptor = {
+  key: PlanetaryWorldDraftFieldKey;
+  label: string;
+  placeholder?: string;
+  multiline?: boolean;
+};
+
+export const planetaryWorldDraftFields: readonly PlanetaryWorldDraftFieldDescriptor[] =
+  [
+    { key: 'name', label: 'Name', placeholder: 'Aurelia' },
+    {
+      key: 'classification',
+      label: 'Classification',
+      placeholder: 'Planet, moon, realm',
+    },
+    { key: 'climate', label: 'Climate', placeholder: 'Temperate' },
+    {
+      key: 'dominantTerrain',
+      label: 'Dominant terrain',
+      placeholder: 'Sea cliffs, high forests',
+    },
+    { key: 'summary', label: 'Summary', multiline: true },
+    { key: 'notes', label: 'Notes', multiline: true },
+    { key: 'tags', label: 'Tags', placeholder: 'cosmology, frontier, ocean' },
+  ];
+
 export type EntryTypeDraft = {
   title: string;
   singularTitle: string;
   description: string;
   fields: string;
 };
+
+export type EntryTypeDraftFieldKey = keyof EntryTypeDraft;
+
+export type EntryTypeDraftFieldDescriptor = {
+  key: EntryTypeDraftFieldKey;
+  label: string;
+  placeholder?: string;
+  multiline?: boolean;
+};
+
+export const entryTypeDraftFields: readonly EntryTypeDraftFieldDescriptor[] = [
+  { key: 'title', label: 'Section title', placeholder: 'Artifacts' },
+  { key: 'singularTitle', label: 'Singular title', placeholder: 'Artifact' },
+  { key: 'description', label: 'Description', multiline: true },
+  {
+    key: 'fields',
+    label: 'Detail fields',
+    placeholder: 'Origin, Power, Current holder',
+  },
+];
 
 export type WorkspaceActionState = {
   switchLabel: 'Current' | 'Switch' | 'Archived';
@@ -115,6 +178,28 @@ export function parseTags(value: string): string[] {
     .filter(Boolean);
 }
 
+export function normalizeWorkspaceDraft(draft: WorkspaceDraft): WorkspaceDraft {
+  return {
+    name: draft.name.trim(),
+    summary: draft.summary.trim(),
+    defaultEra: draft.defaultEra.trim(),
+  };
+}
+
+export function normalizePlanetaryWorldDraft(
+  draft: PlanetaryWorldDraft
+): PlanetaryWorldDraft {
+  return {
+    name: draft.name.trim(),
+    summary: draft.summary.trim(),
+    classification: draft.classification.trim(),
+    climate: draft.climate.trim(),
+    dominantTerrain: draft.dominantTerrain.trim(),
+    notes: draft.notes.trim(),
+    tags: parseTags(draft.tags).join(', '),
+  };
+}
+
 export function planetaryWorldDraftFrom(
   planetaryWorld?: InFictionWorld
 ): PlanetaryWorldDraft {
@@ -148,15 +233,16 @@ export function createWorkspace(
   draft: WorkspaceDraft
 ): WorldDocument {
   const createdAt = nowIso();
+  const normalizedDraft = normalizeWorkspaceDraft(draft);
   const entryTypes = cloneEntryTypes(worldSections);
   const workspace: WorldWorkspace = {
     id: uniqueId(
-      `workspace-${draft.name}`,
+      `workspace-${normalizedDraft.name}`,
       document.worlds.map((world) => world.id)
     ),
-    name: draft.name.trim(),
-    summary: draft.summary.trim(),
-    defaultEra: draft.defaultEra.trim(),
+    name: normalizedDraft.name,
+    summary: normalizedDraft.summary,
+    defaultEra: normalizedDraft.defaultEra,
     status: 'active',
     planetaryWorlds: [],
     entryTypes,
@@ -179,15 +265,16 @@ export function updateWorkspaceMetadata(
   draft: WorkspaceDraft
 ): WorldDocument {
   const updatedAt = nowIso();
+  const normalizedDraft = normalizeWorkspaceDraft(draft);
   return {
     ...document,
     worlds: document.worlds.map((world) =>
       world.id === workspaceId
         ? {
             ...world,
-            name: draft.name.trim(),
-            summary: draft.summary.trim(),
-            defaultEra: draft.defaultEra.trim(),
+            name: normalizedDraft.name,
+            summary: normalizedDraft.summary,
+            defaultEra: normalizedDraft.defaultEra,
             updatedAt,
           }
         : world
@@ -318,20 +405,21 @@ export function upsertPlanetaryWorld(
   existingPlanetaryWorld?: InFictionWorld
 ): WorldWorkspace {
   const updatedAt = nowIso();
+  const normalizedDraft = normalizePlanetaryWorldDraft(draft);
   const planetaryWorld: InFictionWorld = {
     id:
       existingPlanetaryWorld?.id ??
       uniqueId(
-        `planetary-world-${draft.name}`,
+        `planetary-world-${normalizedDraft.name}`,
         workspace.planetaryWorlds.map((world) => world.id)
       ),
-    name: draft.name.trim(),
-    summary: draft.summary.trim(),
-    classification: draft.classification.trim(),
-    climate: draft.climate.trim(),
-    dominantTerrain: draft.dominantTerrain.trim(),
-    notes: draft.notes.trim(),
-    tags: parseTags(draft.tags),
+    name: normalizedDraft.name,
+    summary: normalizedDraft.summary,
+    classification: normalizedDraft.classification,
+    climate: normalizedDraft.climate,
+    dominantTerrain: normalizedDraft.dominantTerrain,
+    notes: normalizedDraft.notes,
+    tags: parseTags(normalizedDraft.tags),
     status: existingPlanetaryWorld?.status ?? 'draft',
     createdAt: existingPlanetaryWorld?.createdAt ?? updatedAt,
     updatedAt,

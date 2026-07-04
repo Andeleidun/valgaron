@@ -9,15 +9,20 @@ import {
   deletePlanetaryWorld,
   deleteWorkspace,
   duplicateWorkspace,
+  entryTypeDraftFields,
   getWorkspaceActionState,
   lastActiveWorkspaceArchiveMessage,
+  normalizePlanetaryWorldDraft,
+  normalizeWorkspaceDraft,
   planetaryWorldDraftFrom,
+  planetaryWorldDraftFields,
   setActiveWorkspace,
   setPlanetaryWorldArchived,
   setWorkspaceArchived,
   updateActiveWorkspace,
   updateWorkspaceMetadata,
   upsertPlanetaryWorld,
+  workspaceDraftFields,
 } from './workspaceManagement';
 import { getActiveWorld, parseWorldDocument } from './worldDocument';
 
@@ -152,6 +157,46 @@ describe('workspace management', () => {
     });
   });
 
+  it('describes every workspace and custom entry type draft field for shared forms', () => {
+    expect(workspaceDraftFields.map((field) => field.key)).toEqual([
+      'name',
+      'summary',
+      'defaultEra',
+    ]);
+    expect(
+      workspaceDraftFields.find((field) => field.key === 'summary')
+    ).toMatchObject({
+      label: 'Summary',
+      multiline: true,
+    });
+    expect(entryTypeDraftFields.map((field) => field.key)).toEqual([
+      'title',
+      'singularTitle',
+      'description',
+      'fields',
+    ]);
+    expect(entryTypeDraftFields.map((field) => field.label)).toEqual([
+      'Section title',
+      'Singular title',
+      'Description',
+      'Detail fields',
+    ]);
+  });
+
+  it('normalizes workspace drafts with the same trimming used by persistence', () => {
+    expect(
+      normalizeWorkspaceDraft({
+        name: '  Sea Atlas  ',
+        summary: '  Coastal campaign  ',
+        defaultEra: '  Tide Age  ',
+      })
+    ).toEqual({
+      name: 'Sea Atlas',
+      summary: 'Coastal campaign',
+      defaultEra: 'Tide Age',
+    });
+  });
+
   it('manages in-fiction worlds inside the active workspace', () => {
     const document = createSeedWorldDocument();
     const created = updateActiveWorkspace(document, (workspace) =>
@@ -225,6 +270,45 @@ describe('workspace management', () => {
       dominantTerrain: '',
       notes: '',
       tags: '',
+    });
+  });
+
+  it('describes every in-fiction world draft field for shared web and mobile forms', () => {
+    expect(planetaryWorldDraftFields.map((field) => field.key)).toEqual([
+      'name',
+      'classification',
+      'climate',
+      'dominantTerrain',
+      'summary',
+      'notes',
+      'tags',
+    ]);
+    expect(
+      planetaryWorldDraftFields
+        .filter((field) => field.multiline)
+        .map((field) => field.key)
+    ).toEqual(['summary', 'notes']);
+  });
+
+  it('normalizes in-fiction world drafts with persisted tag formatting', () => {
+    expect(
+      normalizePlanetaryWorldDraft({
+        name: '  Aurelia  ',
+        summary: '  Ocean world  ',
+        classification: '  Planet  ',
+        climate: '  Temperate  ',
+        dominantTerrain: '  Sea cliffs  ',
+        notes: '  Tide notes  ',
+        tags: ' ocean, , frontier , ',
+      })
+    ).toEqual({
+      name: 'Aurelia',
+      summary: 'Ocean world',
+      classification: 'Planet',
+      climate: 'Temperate',
+      dominantTerrain: 'Sea cliffs',
+      notes: 'Tide notes',
+      tags: 'ocean, frontier',
     });
   });
 

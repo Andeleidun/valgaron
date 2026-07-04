@@ -115,6 +115,7 @@ export type MobileCodexController = MobileCodexState & {
     existingRelationship?: WorldRelationship
   ) => boolean;
   removeRelationship: (relationshipId: string) => void;
+  unlinkRelationship: (relationshipId: string) => void;
   createWorkspace: (draft: WorkspaceDraft) => boolean;
   updateWorkspace: (workspaceId: string, draft: WorkspaceDraft) => boolean;
   switchWorkspace: (workspaceId: string) => void;
@@ -393,6 +394,18 @@ export function MobileCodexProvider({ children }: { children: ReactNode }) {
             : 'Saved relationship on this device.'
         );
         return true;
+      },
+      unlinkRelationship(relationshipId) {
+        commitDocument((currentDocument) =>
+          updateActiveWorld(currentDocument, (world) => ({
+            ...world,
+            relationships: deleteRelationship(
+              world.relationships,
+              relationshipId
+            ),
+            updatedAt: new Date().toISOString(),
+          }))
+        );
       },
       removeRelationship(relationshipId) {
         commitDocument(

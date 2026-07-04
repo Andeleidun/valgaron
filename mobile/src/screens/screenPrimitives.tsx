@@ -1,6 +1,7 @@
-import type { ReactNode } from 'react';
+import { useState, type ReactNode, type Ref } from 'react';
 import {
   KeyboardAvoidingView,
+  Modal,
   Platform,
   Pressable,
   ScrollView,
@@ -8,8 +9,10 @@ import {
   Text,
   TextInput,
   View,
+  type ViewProps,
   type TextInputProps,
 } from 'react-native';
+import type { ControlOption } from '@valgaron/core';
 import {
   valgaronColors,
   valgaronRadius,
@@ -37,12 +40,14 @@ export function ScreenHeader({
 export function SectionBlock({
   title,
   children,
+  onLayout,
 }: {
   title: string;
   children: ReactNode;
+  onLayout?: ViewProps['onLayout'];
 }) {
   return (
-    <View style={styles.section}>
+    <View style={styles.section} onLayout={onLayout}>
       <Text accessibilityRole="header" style={styles.sectionTitle}>
         {title}
       </Text>
@@ -86,6 +91,160 @@ export function Field({
         onChangeText={onChangeText}
       />
     </View>
+  );
+}
+
+export function SelectField<TValue extends string>({
+  accessibilityLabel,
+  label,
+  options,
+  searchable = false,
+  searchPlaceholder = 'Search choices',
+  value,
+  onValueChange,
+}: {
+  accessibilityLabel?: string;
+  label: string;
+  options: readonly ControlOption<TValue>[];
+  searchable?: boolean;
+  searchPlaceholder?: string;
+  value: TValue;
+  onValueChange: (value: TValue) => void;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const selectedOption = options.find((option) => option.value === value);
+  const normalizedSearchQuery = searchQuery.trim().toLowerCase();
+  const visibleOptions = normalizedSearchQuery
+    ? options.filter((option) =>
+        `${option.label} ${option.value}`
+          .toLowerCase()
+          .includes(normalizedSearchQuery)
+      )
+    : options;
+
+  function close() {
+    setIsOpen(false);
+    setSearchQuery('');
+  }
+
+  function selectValue(nextValue: TValue) {
+    onValueChange(nextValue);
+    close();
+  }
+
+  return (
+    <View style={styles.fieldGroup}>
+      <Text style={styles.label}>{label}</Text>
+      <Pressable
+        accessibilityHint="Opens a list of choices."
+        accessibilityLabel={accessibilityLabel ?? label}
+        accessibilityRole="button"
+        onPress={() => setIsOpen(true)}
+        style={({ pressed }) => [
+          styles.input,
+          styles.selectInput,
+          pressed ? styles.pressed : null,
+        ]}
+      >
+        <Text style={styles.selectValue}>
+          {selectedOption?.label ?? 'Select'}
+        </Text>
+      </Pressable>
+      <Modal
+        animationType="fade"
+        onRequestClose={close}
+        transparent
+        visible={isOpen}
+      >
+        <View style={styles.modalOverlay}>
+          <View
+            accessibilityLabel={label}
+            accessibilityRole="menu"
+            style={styles.modalCard}
+          >
+            <Text accessibilityRole="header" style={styles.modalTitle}>
+              {label}
+            </Text>
+            {searchable ? (
+              <TextInput
+                accessibilityLabel={`Search ${label}`}
+                autoCapitalize="none"
+                autoCorrect={false}
+                placeholder={searchPlaceholder}
+                placeholderTextColor={valgaronColors.muted}
+                style={styles.modalSearchInput}
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+              />
+            ) : null}
+            <ScrollView>
+              {visibleOptions.map((option) => {
+                const checked = option.value === value;
+                return (
+                  <Pressable
+                    accessibilityRole="radio"
+                    accessibilityState={{ checked }}
+                    key={option.value}
+                    onPress={() => selectValue(option.value)}
+                    style={({ pressed }) => [
+                      styles.modalOption,
+                      checked ? styles.modalOptionSelected : null,
+                      pressed ? styles.pressed : null,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.modalOptionText,
+                        checked ? styles.modalOptionTextSelected : null,
+                      ]}
+                    >
+                      {option.label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+              {visibleOptions.length === 0 ? (
+                <Text style={styles.modalEmptyText}>No choices match.</Text>
+              ) : null}
+            </ScrollView>
+            <ActionButton label="Cancel" onPress={close} />
+          </View>
+        </View>
+      </Modal>
+    </View>
+  );
+}
+
+export function CheckboxField({
+  accessibilityLabel,
+  checked,
+  label,
+  onChange,
+}: {
+  accessibilityLabel?: string;
+  checked: boolean;
+  label: string;
+  onChange: (checked: boolean) => void;
+}) {
+  return (
+    <Pressable
+      accessibilityLabel={accessibilityLabel ?? label}
+      accessibilityRole="checkbox"
+      accessibilityState={{ checked }}
+      onPress={() => onChange(!checked)}
+      style={({ pressed }) => [
+        styles.checkboxRow,
+        pressed ? styles.pressed : null,
+      ]}
+    >
+      <View
+        style={[styles.checkboxBox, checked ? styles.checkboxChecked : null]}
+      >
+        {checked ? <View style={styles.checkboxMark} /> : null}
+      </View>
+      <Text style={styles.checkboxLabel}>{label}</Text>
+    </Pressable>
   );
 }
 
@@ -175,13 +334,20 @@ export function BodyText({ children }: { children: ReactNode }) {
   return <Text style={styles.body}>{children}</Text>;
 }
 
-export function ScreenScroll({ children }: { children: ReactNode }) {
+export function ScreenScroll({
+  children,
+  scrollRef,
+}: {
+  children: ReactNode;
+  scrollRef?: Ref<ScrollView>;
+}) {
   return (
     <KeyboardAvoidingView
       style={screenStyles.screen}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <ScrollView
+        ref={scrollRef}
         style={screenStyles.screen}
         contentContainerStyle={screenStyles.content}
         contentInsetAdjustmentBehavior="automatic"
@@ -251,6 +417,102 @@ const styles = StyleSheet.create({
   },
   multilineInput: {
     minHeight: 96,
+  },
+  selectInput: {
+    justifyContent: 'center',
+  },
+  selectValue: {
+    color: valgaronColors.text,
+    fontSize: valgaronTypography.sizes.md,
+  },
+  checkboxRow: {
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    gap: valgaronSpacing.sm,
+    minHeight: 44,
+    paddingVertical: valgaronSpacing.xs,
+  },
+  checkboxBox: {
+    alignItems: 'center',
+    borderColor: valgaronColors.border,
+    borderRadius: valgaronRadius.sm,
+    borderWidth: 1,
+    height: 22,
+    justifyContent: 'center',
+    width: 22,
+  },
+  checkboxChecked: {
+    backgroundColor: valgaronColors.accent,
+    borderColor: valgaronColors.accent,
+  },
+  checkboxMark: {
+    backgroundColor: valgaronColors.primaryContrast,
+    borderRadius: 3,
+    height: 10,
+    width: 10,
+  },
+  checkboxLabel: {
+    color: valgaronColors.text,
+    flexShrink: 1,
+    fontSize: valgaronTypography.sizes.md,
+  },
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+    padding: valgaronSpacing.lg,
+    backgroundColor: 'rgba(15, 23, 42, 0.58)',
+  },
+  modalCard: {
+    maxHeight: '80%',
+    borderColor: valgaronColors.border,
+    borderRadius: valgaronRadius.md,
+    borderWidth: 1,
+    backgroundColor: valgaronColors.page,
+    gap: valgaronSpacing.md,
+    padding: valgaronSpacing.lg,
+  },
+  modalTitle: {
+    color: valgaronColors.heading,
+    fontSize: valgaronTypography.sizes.lg,
+    fontWeight: '700',
+  },
+  modalSearchInput: {
+    minHeight: 44,
+    borderColor: valgaronColors.border,
+    borderRadius: valgaronRadius.md,
+    borderWidth: 1,
+    backgroundColor: valgaronColors.field,
+    color: valgaronColors.text,
+    fontSize: valgaronTypography.sizes.md,
+    paddingHorizontal: valgaronSpacing.md,
+    paddingVertical: valgaronSpacing.sm,
+  },
+  modalEmptyText: {
+    color: valgaronColors.muted,
+    fontSize: valgaronTypography.sizes.sm,
+    lineHeight: 20,
+    paddingVertical: valgaronSpacing.md,
+  },
+  modalOption: {
+    borderColor: valgaronColors.border,
+    borderRadius: valgaronRadius.md,
+    borderWidth: 1,
+    marginBottom: valgaronSpacing.sm,
+    paddingHorizontal: valgaronSpacing.md,
+    paddingVertical: valgaronSpacing.sm,
+  },
+  modalOptionSelected: {
+    backgroundColor: valgaronColors.accent,
+    borderColor: valgaronColors.accent,
+  },
+  modalOptionText: {
+    color: valgaronColors.text,
+    fontSize: valgaronTypography.sizes.md,
+    fontWeight: '700',
+  },
+  modalOptionTextSelected: {
+    color: valgaronColors.primaryContrast,
   },
   buttonRow: {
     flexDirection: 'row',

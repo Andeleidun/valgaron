@@ -41,6 +41,13 @@ export type WorldDocumentDiagnosticsReport = {
   };
 };
 
+export type WorldDocumentDiagnosticsRuntime = Partial<
+  Omit<
+    WorldDocumentDiagnosticsReport['runtime'],
+    'generatedAt' | 'storageTarget'
+  >
+>;
+
 export const contentSafeDiagnosticOmittedFields = [
   'workspace names',
   'entry names',
@@ -104,12 +111,7 @@ export function createWorldDocumentDiagnosticsReport({
 }: {
   document: WorldDocument;
   generatedAt?: string;
-  runtime?: Partial<
-    Omit<
-      WorldDocumentDiagnosticsReport['runtime'],
-      'generatedAt' | 'storageTarget'
-    >
-  >;
+  runtime?: WorldDocumentDiagnosticsRuntime;
   storageTarget: string;
 }): WorldDocumentDiagnosticsReport {
   return {

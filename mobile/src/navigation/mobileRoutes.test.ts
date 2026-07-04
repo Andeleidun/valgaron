@@ -4,6 +4,7 @@ import {
   getMobileRouteHref,
   getMobileTabHref,
   getMobileTabTitle,
+  mobileRouteFocusParam,
   mobileTabRoutes,
 } from './mobileRoutes';
 
@@ -67,12 +68,15 @@ describe('mobile route model', () => {
     });
     expect(getMobileRouteHref('/data#import-json-backup')).toEqual({
       pathname: '/data',
-      params: {},
+      params: {
+        [mobileRouteFocusParam]: 'import-json-backup',
+      },
     });
     expect(getMobileRouteHref('/data?mode=full-json#export')).toEqual({
       pathname: '/data',
       params: {
         mode: 'full-json',
+        [mobileRouteFocusParam]: 'export',
       },
     });
     expect(

@@ -113,6 +113,13 @@ export function getCodexExportOption(mode: CodexExportMode): CodexExportOption {
   return codexExportOptions.find((option) => option.mode === mode)!;
 }
 
+export function isCodexExportMode(value: unknown): value is CodexExportMode {
+  return (
+    typeof value === 'string' &&
+    codexExportOptions.some((option) => option.mode === value)
+  );
+}
+
 export function getCodexExportFilename(
   mode: CodexExportMode,
   activeWorkspaceFilenameBase: string

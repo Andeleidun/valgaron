@@ -4,6 +4,8 @@ import {
   codexDataHelpDetails,
   codexDataHelpSummary,
   codexFirstUseHelp,
+  codexHelpSectionTitles,
+  codexOfflineHelp,
   codexPrivacyHelp,
   codexReleaseLimitsHelp,
   codexSupportHelp,
@@ -85,16 +87,10 @@ export function HelpPage() {
         <div className="vwb-section-heading">
           <div>
             <p className="vwb-kicker">Offline</p>
-            <h2 id="help-offline-title">Installable app limits</h2>
+            <h2 id="help-offline-title">{codexHelpSectionTitles.offline}</h2>
           </div>
         </div>
-        <p>
-          The published GitHub Pages build can be installed as a PWA after a
-          successful visit in a supported browser. Offline use means the app
-          shell can load without a network; it does not protect data from
-          browser-profile deletion, private browsing cleanup, device loss, or
-          storage quota failures.
-        </p>
+        <p>{codexOfflineHelp}</p>
       </section>
 
       <section className="vwb-panel" aria-labelledby="help-support-title">

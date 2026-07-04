@@ -10,13 +10,18 @@ import {
   getCodexExportOption,
   getCodexHelpRoute,
   getCodexScreenIntro,
+  getDataRecoverySnapshotModel,
+  getDataStorageStatusModel,
   getDestructiveActionCopy,
-  getRecoverySnapshotReasonTitle,
+  isCodexExportMode,
+  dataImportCopy,
+  dataResetCopy,
   localPersistenceCopy,
   parseWorldImport,
   serializeActiveWorldBackup,
   serializeWorldDocumentBackup,
   type WorldImportResult,
+  type CodexExportMode,
 } from '@valgaron/core';
 import { downloadTextFile, slugFilename } from '../Utlilities/fileDownloads';
 import {
@@ -47,6 +52,27 @@ type PendingSnapshotAction = {
   >;
   snapshotId: string;
 };
+
+const dataExportSectionIds = {
+  'active-json': 'active-json-export',
+  'full-json': 'full-json-export',
+  markdown: 'markdown-export',
+  diagnostics: 'diagnostics-export',
+} as const satisfies Record<CodexExportMode, string>;
+
+function getDataRouteFocusTargetId(): string {
+  if (typeof window === 'undefined') {
+    return '';
+  }
+  const hash = decodeURIComponent(window.location.hash.replace(/^#/, ''));
+  if (hash !== 'export') {
+    return hash;
+  }
+  const mode = new URLSearchParams(window.location.search).get('mode');
+  return isCodexExportMode(mode)
+    ? dataExportSectionIds[mode]
+    : dataExportSectionIds['active-json'];
+}
 
 function DataActionConfirmationDialog({
   actionId,
@@ -156,15 +182,13 @@ export function DataPage({
     [activeWorld]
   );
   useEffect(() => {
-    if (
-      typeof window === 'undefined' ||
-      window.location.hash !== '#import-json-backup'
-    ) {
+    const focusTargetId = getDataRouteFocusTargetId();
+    if (!focusTargetId) {
       return;
     }
-    const importSection = window.document.getElementById('import-json-backup');
-    importSection?.scrollIntoView({ block: 'start' });
-    importSection?.focus({ preventScroll: true });
+    const focusedSection = window.document.getElementById(focusTargetId);
+    focusedSection?.scrollIntoView({ block: 'start' });
+    focusedSection?.focus({ preventScroll: true });
   }, []);
   const diagnosticsText = useMemo(() => {
     const recentMessages: LocalDiagnosticMessage[] = [
@@ -233,6 +257,10 @@ export function DataPage({
   const fullJsonExportOption = getCodexExportOption('full-json');
   const markdownExportOption = getCodexExportOption('markdown');
   const diagnosticsExportOption = getCodexExportOption('diagnostics');
+  const recoverySnapshotModel = useMemo(
+    () => getDataRecoverySnapshotModel(recoverySnapshots),
+    [recoverySnapshots]
+  );
   const importPreviewText = importResult?.ok
     ? formatWorldImportPreviewText(importResult.preview)
     : null;
@@ -260,6 +288,16 @@ export function DataPage({
           localPersistenceCopy.browserSaveTarget
         } save: ${formatUpdatedAt(saveStatus.savedAt)}.`
       : `Last save attempt: ${formatUpdatedAt(saveStatus.savedAt)}.`;
+  const storageStatus = useMemo(
+    () =>
+      getDataStorageStatusModel({
+        loadStatus,
+        recoverySnapshots,
+        saveLineLabel: 'Manual save',
+        saveMessage: saveStatusDescription,
+      }),
+    [loadStatus, recoverySnapshots, saveStatusDescription]
+  );
 
   const downloadExport = (
     key: 'activeJson' | 'allJson' | 'md',
@@ -403,7 +441,7 @@ export function DataPage({
           </span>
         </div>
         <p>
-          {saveStatusDescription} Edits stay in this session until you use the
+          {storageStatus.saveLine} Edits stay in this session until you use the
           header Save button. Export JSON backups before clearing browser data,
           switching browsers, or changing devices.
         </p>
@@ -415,7 +453,7 @@ export function DataPage({
           </p>
         ) : null}
         <p>
-          Load status: {loadStatus.message}{' '}
+          {storageStatus.loadLine} {loadStatus.message}{' '}
           {loadStatus.issues.length > 0
             ? `${loadStatus.issues.length} local storage issue${
                 loadStatus.issues.length === 1 ? '' : 's'
@@ -430,13 +468,19 @@ export function DataPage({
           </ul>
         ) : null}
         <p>
-          Recovery snapshots are saved before import, reset, permanent entry
-          delete, relationship delete, and snapshot restore actions. Keep JSON
-          exports as your device-independent backup.
+          {storageStatus.recoveryLine} Recovery snapshots are saved before
+          import, reset, permanent entry delete, relationship delete, and
+          snapshot restore actions. Keep JSON exports as your device-independent
+          backup.
         </p>
       </section>
 
-      <section className="vwb-panel" aria-labelledby="diagnostics-title">
+      <section
+        className="vwb-panel"
+        id={dataExportSectionIds.diagnostics}
+        tabIndex={-1}
+        aria-labelledby="diagnostics-title"
+      >
         <div className="vwb-section-heading">
           <div>
             <p className="vwb-kicker">Local-only report</p>
@@ -465,7 +509,12 @@ export function DataPage({
         ) : null}
       </section>
 
-      <section className="vwb-panel" aria-labelledby="json-export-title">
+      <section
+        className="vwb-panel"
+        id={dataExportSectionIds['active-json']}
+        tabIndex={-1}
+        aria-labelledby="json-export-title"
+      >
         <div className="vwb-section-heading">
           <div>
             <p className="vwb-kicker">{activeJsonExportOption.kicker}</p>
@@ -500,7 +549,12 @@ export function DataPage({
         ) : null}
       </section>
 
-      <section className="vwb-panel" aria-labelledby="full-json-export-title">
+      <section
+        className="vwb-panel"
+        id={dataExportSectionIds['full-json']}
+        tabIndex={-1}
+        aria-labelledby="full-json-export-title"
+      >
         <div className="vwb-section-heading">
           <div>
             <p className="vwb-kicker">{fullJsonExportOption.kicker}</p>
@@ -535,7 +589,12 @@ export function DataPage({
         ) : null}
       </section>
 
-      <section className="vwb-panel" aria-labelledby="markdown-export-title">
+      <section
+        className="vwb-panel"
+        id={dataExportSectionIds.markdown}
+        tabIndex={-1}
+        aria-labelledby="markdown-export-title"
+      >
         <div className="vwb-section-heading">
           <div>
             <p className="vwb-kicker">{markdownExportOption.kicker}</p>
@@ -578,8 +637,8 @@ export function DataPage({
       >
         <div className="vwb-section-heading">
           <div>
-            <p className="vwb-kicker">Validated import</p>
-            <h2 id="import-title">Import JSON backup</h2>
+            <p className="vwb-kicker">{dataImportCopy.kicker}</p>
+            <h2 id="import-title">{dataImportCopy.title}</h2>
           </div>
           {isImportDirty ? (
             <span className="vwb-status-pill">Unsaved</span>
@@ -587,7 +646,7 @@ export function DataPage({
         </div>
         <div className="vwb-form">
           <label>
-            Choose JSON file
+            {dataImportCopy.fileLabel}
             <input
               accept="application/json,.json"
               type="file"
@@ -600,7 +659,7 @@ export function DataPage({
             </p>
           ) : null}
           <label>
-            Backup JSON
+            {dataImportCopy.textAreaLabel}
             <textarea
               rows={10}
               value={importText}
@@ -608,7 +667,7 @@ export function DataPage({
                 setImportText(event.target.value);
                 setImportResult(null);
               }}
-              placeholder="Paste a Valgaron World Codex JSON backup"
+              placeholder={dataImportCopy.placeholder}
             />
           </label>
           <div className="vwb-form-actions">
@@ -617,7 +676,7 @@ export function DataPage({
               type="button"
               onClick={previewImport}
             >
-              Preview Import
+              {dataImportCopy.previewLabel}
             </button>
             {importResult?.ok ? (
               <button
@@ -625,7 +684,7 @@ export function DataPage({
                 type="button"
                 onClick={applyImport}
               >
-                Import Backup
+                {dataImportCopy.importLabel}
               </button>
             ) : null}
           </div>
@@ -667,17 +726,11 @@ export function DataPage({
       <section className="vwb-panel" aria-labelledby="recovery-title">
         <div className="vwb-section-heading">
           <div>
-            <p className="vwb-kicker">
-              {recoverySnapshots.length} saved recovery point
-              {recoverySnapshots.length === 1 ? '' : 's'}
-            </p>
-            <h2 id="recovery-title">Recovery snapshots</h2>
+            <p className="vwb-kicker">{recoverySnapshotModel.countLabel}</p>
+            <h2 id="recovery-title">{recoverySnapshotModel.title}</h2>
           </div>
         </div>
-        <p>
-          Snapshots restore the local document state from before destructive
-          actions in this browser profile.
-        </p>
+        <p>{recoverySnapshotModel.description}</p>
         {recoverySnapshotStatus.message ? (
           <p
             className={`vwb-inline-status ${
@@ -688,22 +741,15 @@ export function DataPage({
             {recoverySnapshotStatus.message}
           </p>
         ) : null}
-        {recoverySnapshots.length > 0 ? (
+        {recoverySnapshotModel.rows.length > 0 ? (
           <div className="vwb-snapshot-list">
-            {recoverySnapshots.map((snapshot) => (
+            {recoverySnapshotModel.rows.map((snapshot) => (
               <article className="vwb-snapshot-row" key={snapshot.id}>
                 <div>
-                  <span className="vwb-entry-kind">
-                    {getRecoverySnapshotReasonTitle(snapshot.reason)}
-                  </span>
+                  <span className="vwb-entry-kind">{snapshot.reasonTitle}</span>
                   <strong>{snapshot.activeWorldName}</strong>
-                  <p>
-                    {snapshot.worldCount} world
-                    {snapshot.worldCount === 1 ? '' : 's'},{' '}
-                    {snapshot.entryCount} entries, {snapshot.relationshipCount}{' '}
-                    relationships
-                  </p>
-                  <small>{formatUpdatedAt(snapshot.createdAt)}</small>
+                  <p>{snapshot.countSummary}</p>
+                  <small>{snapshot.createdAtText}</small>
                 </div>
                 <div className="vwb-form-actions">
                   <button
@@ -718,7 +764,7 @@ export function DataPage({
                       )
                     }
                   >
-                    Restore
+                    {snapshot.restoreLabel}
                   </button>
                   <button
                     className="vwb-secondary-button vwb-danger-button"
@@ -732,7 +778,7 @@ export function DataPage({
                       )
                     }
                   >
-                    Delete Snapshot
+                    {snapshot.deleteLabel}
                   </button>
                 </div>
               </article>
@@ -740,11 +786,8 @@ export function DataPage({
           </div>
         ) : (
           <div className="vwb-empty-results" role="status">
-            <strong>No recovery snapshots yet.</strong>
-            <p>
-              A snapshot is created automatically before import, reset, and
-              delete actions.
-            </p>
+            <strong>{recoverySnapshotModel.emptyTitle}</strong>
+            <p>{recoverySnapshotModel.emptyDetail}</p>
           </div>
         )}
       </section>
@@ -752,8 +795,8 @@ export function DataPage({
       <section className="vwb-panel" aria-labelledby="reset-title">
         <div className="vwb-section-heading">
           <div>
-            <p className="vwb-kicker">Destructive action</p>
-            <h2 id="reset-title">Reset starter data</h2>
+            <p className="vwb-kicker">{dataResetCopy.kicker}</p>
+            <h2 id="reset-title">{dataResetCopy.title}</h2>
           </div>
           <button
             className="vwb-secondary-button vwb-danger-button"
@@ -762,13 +805,10 @@ export function DataPage({
               discardImportIfAllowed(() => onRequestReset(clearImportDraft))
             }
           >
-            Reset Starter Data
+            {dataResetCopy.actionLabel}
           </button>
         </div>
-        <p>
-          Reset replaces the current local world document with neutral starter
-          data. Export JSON first if you need a backup.
-        </p>
+        <p>{dataResetCopy.description}</p>
       </section>
     </main>
   );

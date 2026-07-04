@@ -12,7 +12,12 @@ Run this checklist before publishing a public GitHub Pages release.
    issue from the release gate.
 6. Rerun `npm run check:audit` only when investigating dependency findings from
    the release gate.
-7. Run `git diff --check`.
+7. Run the route-intent tests when shell routes, query params, hashes, tabs, or
+   focused workflows change:
+   `npx jest packages/core/src/routeIntents.test.ts mobile/src/navigation/mobileRoutes.test.ts --runInBand`.
+8. Run `git diff --check`.
+9. Review `docs/qa/web-mobile-parity-checklist.md` and update the parity debt
+   ledger for any intentional web/mobile mismatch in this release.
 
 ## Browser Matrix
 
@@ -71,6 +76,9 @@ codex area.
 6. Follow the mobile runtime recovery steps in
    `docs/qa/runtime-recovery.md` when route, shell, or recovery UI changes are
    part of the release.
+7. Complete the standard workflow in
+   `docs/qa/web-mobile-parity-checklist.md` when entry, relationship,
+   workspace, Data, import/export, or shared model behavior changes.
 
 ## Data And Recovery
 

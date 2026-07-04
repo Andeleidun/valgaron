@@ -30,6 +30,10 @@ export type CodexHelpFocus = {
   detail: string;
 };
 
+export const codexHelpSectionTitles = {
+  offline: 'Installable app limits',
+} as const;
+
 export const codexHelpFocusTopics: readonly CodexHelpFocus[] = [
   {
     id: 'start',
@@ -165,6 +169,9 @@ export const codexDataHelpDetails: readonly CodexHelpDetail[] = [
 
 export const codexSupportHelp =
   'Use Data > Diagnostics when reporting a storage or rendering problem. Diagnostics include app version, schema version, storage target, recovery status, counts, and web route/browser or mobile device-save state where available. They omit world names, entry names, notes, summaries, tags, relationship notes, and ids by default.';
+
+export const codexOfflineHelp =
+  'The published GitHub Pages build can be installed as a PWA after a successful visit in a supported browser. Offline use means the app shell can load without a network; it does not protect data from browser-profile deletion, private browsing cleanup, device loss, or storage quota failures.';
 
 export const codexPrivacyHelp =
   'Valgaron does not send analytics, usage events, backups, diagnostics, or world content to a server. Maintainers cannot recover local data unless you choose to share a backup or diagnostic report.';

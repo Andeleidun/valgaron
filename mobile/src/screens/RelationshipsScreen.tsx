@@ -9,8 +9,14 @@ import {
   getEntryStatusLabel,
   getRelationshipEntries,
   hasUnsavedChanges,
+  relationshipDirectionalControl,
+  relationshipDraftStatusControl,
+  relationshipGraphStatusFilterControl,
+  relationshipGraphTypeFilterControl,
+  relationshipListTypeFilterControl,
+  relationshipSourceControl,
+  relationshipTargetControl,
   relationshipTypeOptions,
-  worldEntryStatusOptions,
   type RelationshipDraft,
   type WorldEntryStatus,
 } from '@valgaron/core';
@@ -35,11 +41,13 @@ import { getMobileFeedbackTone } from '../state/mobileFeedback';
 import {
   ActionButton,
   ButtonRow,
+  CheckboxField,
   Field,
   MutedText,
   ScreenHeader,
   ScreenScroll,
   SectionBlock,
+  SelectField,
   StatusText,
 } from './screenPrimitives';
 import { confirmMobileDestructiveAction } from './mobileConfirm';
@@ -113,6 +121,16 @@ export function RelationshipsScreen() {
       ),
     [controller.activeWorld.codex, controller.activeWorld.entryTypes]
   );
+  const relationshipEntryOptions = useMemo(
+    () => [
+      { value: '', label: 'Choose entry' },
+      ...relationshipEntries.map((entry) => ({
+        value: entry.id,
+        label: `${entry.name} (${entry.sectionTitle})`,
+      })),
+    ],
+    [relationshipEntries]
+  );
   const selectedEntryFilter = entryFilter
     ? relationshipEntries.find((entry) => entry.id === entryFilter) ?? null
     : null;
@@ -143,6 +161,16 @@ export function RelationshipsScreen() {
         )
       ).sort((first, second) => first.localeCompare(second)),
     [controller.activeWorld.relationships]
+  );
+  const relationshipTypeFilterOptions = useMemo(
+    () => [
+      { value: '', label: 'Any type' },
+      ...availableRelationshipTypes.map((type) => ({
+        value: type,
+        label: type,
+      })),
+    ],
+    [availableRelationshipTypes]
   );
   const availableGraphTags = useMemo(
     () =>
@@ -466,49 +494,25 @@ export function RelationshipsScreen() {
             />
           ))}
         </ButtonRow>
-        <ButtonRow>
-          <ActionButton
-            label="Any Status"
-            selected={graphStatusFilter === ''}
-            tone={graphStatusFilter === '' ? 'accent' : 'neutral'}
-            onPress={() => setGraphStatusFilter('')}
-          />
-          {worldEntryStatusOptions.map((option) => (
-            <ActionButton
-              key={option.value}
-              label={option.label}
-              selected={graphStatusFilter === option.value}
-              tone={graphStatusFilter === option.value ? 'accent' : 'neutral'}
-              onPress={() =>
-                setGraphStatusFilter((current) =>
-                  current === option.value ? '' : option.value
-                )
-              }
-            />
-          ))}
-        </ButtonRow>
+        <SelectField
+          accessibilityLabel={
+            relationshipGraphStatusFilterControl.accessibilityLabel
+          }
+          label={relationshipGraphStatusFilterControl.label}
+          options={relationshipGraphStatusFilterControl.options}
+          value={graphStatusFilter}
+          onValueChange={setGraphStatusFilter}
+        />
         {availableRelationshipTypes.length > 0 ? (
-          <ButtonRow>
-            <ActionButton
-              label="Any Link"
-              selected={graphTypeFilter === ''}
-              tone={graphTypeFilter === '' ? 'accent' : 'neutral'}
-              onPress={() => setGraphTypeFilter('')}
-            />
-            {availableRelationshipTypes.map((type) => (
-              <ActionButton
-                key={type}
-                label={type}
-                selected={graphTypeFilter === type}
-                tone={graphTypeFilter === type ? 'accent' : 'neutral'}
-                onPress={() =>
-                  setGraphTypeFilter((current) =>
-                    current === type ? '' : type
-                  )
-                }
-              />
-            ))}
-          </ButtonRow>
+          <SelectField
+            accessibilityLabel={
+              relationshipGraphTypeFilterControl.accessibilityLabel
+            }
+            label={relationshipGraphTypeFilterControl.label}
+            options={relationshipTypeFilterOptions}
+            value={graphTypeFilter}
+            onValueChange={setGraphTypeFilter}
+          />
         ) : null}
         {availableGraphTags.length > 0 ? (
           <ButtonRow>
@@ -693,12 +697,14 @@ export function RelationshipsScreen() {
           </StatusText>
         ) : (
           <>
-            <Field
-              autoCapitalize="none"
-              autoCorrect={false}
-              label="Source entry id"
+            <SelectField
+              accessibilityLabel={relationshipSourceControl.accessibilityLabel}
+              label={relationshipSourceControl.label}
+              options={relationshipEntryOptions}
+              searchable
+              searchPlaceholder="Search entries"
               value={draft.sourceEntryId}
-              onChangeText={(value) =>
+              onValueChange={(value) =>
                 setDraft((current) => ({ ...current, sourceEntryId: value }))
               }
             />
@@ -710,12 +716,14 @@ export function RelationshipsScreen() {
                   : 'Missing entry'}
               </MutedText>
             ) : null}
-            <Field
-              autoCapitalize="none"
-              autoCorrect={false}
-              label="Target entry id"
+            <SelectField
+              accessibilityLabel={relationshipTargetControl.accessibilityLabel}
+              label={relationshipTargetControl.label}
+              options={relationshipEntryOptions}
+              searchable
+              searchPlaceholder="Search entries"
               value={draft.targetEntryId}
-              onChangeText={(value) =>
+              onValueChange={(value) =>
                 setDraft((current) => ({ ...current, targetEntryId: value }))
               }
             />
@@ -753,29 +761,34 @@ export function RelationshipsScreen() {
                 setDraft((current) => ({ ...current, note: value }))
               }
             />
+            <CheckboxField
+              accessibilityLabel={
+                relationshipDirectionalControl.accessibilityLabel
+              }
+              checked={draft.directional}
+              label={relationshipDirectionalControl.label}
+              onChange={(checked) =>
+                setDraft((current) => ({
+                  ...current,
+                  directional: checked,
+                }))
+              }
+            />
+            <SelectField
+              accessibilityLabel={
+                relationshipDraftStatusControl.accessibilityLabel
+              }
+              label={relationshipDraftStatusControl.label}
+              options={relationshipDraftStatusControl.options}
+              value={draft.status}
+              onValueChange={(value) =>
+                setDraft((current) => ({
+                  ...current,
+                  status: value,
+                }))
+              }
+            />
             <ButtonRow>
-              <ActionButton
-                label={draft.directional ? 'Directional' : 'Mutual'}
-                selected={draft.directional}
-                tone={draft.directional ? 'accent' : 'neutral'}
-                onPress={() =>
-                  setDraft((current) => ({
-                    ...current,
-                    directional: !current.directional,
-                  }))
-                }
-              />
-              <ActionButton
-                label={draft.status === 'canon' ? 'Canon' : 'Draft'}
-                selected={draft.status === 'canon'}
-                tone={draft.status === 'canon' ? 'accent' : 'neutral'}
-                onPress={() =>
-                  setDraft((current) => ({
-                    ...current,
-                    status: current.status === 'canon' ? 'draft' : 'canon',
-                  }))
-                }
-              />
               <ActionButton
                 label="Save Relationship"
                 tone="accent"
@@ -805,25 +818,15 @@ export function RelationshipsScreen() {
           placeholder="Entry, type, note, or id"
         />
         {availableRelationshipTypes.length > 0 ? (
-          <ButtonRow>
-            <ActionButton
-              label="Any Type"
-              selected={typeFilter === ''}
-              tone={typeFilter === '' ? 'accent' : 'neutral'}
-              onPress={() => setTypeFilter('')}
-            />
-            {availableRelationshipTypes.map((type) => (
-              <ActionButton
-                key={type}
-                label={type}
-                selected={typeFilter === type}
-                tone={typeFilter === type ? 'accent' : 'neutral'}
-                onPress={() =>
-                  setTypeFilter((current) => (current === type ? '' : type))
-                }
-              />
-            ))}
-          </ButtonRow>
+          <SelectField
+            accessibilityLabel={
+              relationshipListTypeFilterControl.accessibilityLabel
+            }
+            label={relationshipListTypeFilterControl.label}
+            options={relationshipTypeFilterOptions}
+            value={typeFilter}
+            onValueChange={setTypeFilter}
+          />
         ) : null}
         {entryFilter ? (
           <MutedText>

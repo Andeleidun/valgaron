@@ -1,0 +1,3776 @@
+{
+  "schemaVersion": 1,
+  "purpose": "Planning artifact for Valgaron place category relationships, category-specific fields, and linkable cross-entry fields.",
+  "scope": {
+    "entryKind": "place",
+    "sourceCategorySet": "Current supportedPlaceCategoryOptions in packages/core/src/placeTaxonomy.ts",
+    "nonPlaceLinkTargets": ["character", "faction", "lore", "timeline"],
+    "notes": [
+      "Fields marked link should become relationship-backed selectors rather than plain text when the editor supports typed fields.",
+      "Cardinality is editorial guidance, not a database constraint for the current local prototype."
+    ]
+  },
+  "relationshipTypes": [
+    {
+      "id": "located_in",
+      "label": "located in",
+      "directional": true,
+      "inverseLabel": "contains",
+      "sourceKinds": ["place"],
+      "targetKinds": ["place"],
+      "description": "Spatial containment or administrative inclusion."
+    },
+    {
+      "id": "contains",
+      "label": "contains",
+      "directional": true,
+      "inverseLabel": "located in",
+      "sourceKinds": ["place"],
+      "targetKinds": ["place"],
+      "description": "Explicit outbound collection of child places for editor convenience."
+    },
+    {
+      "id": "capital_of",
+      "label": "capital of",
+      "directional": true,
+      "inverseLabel": "has capital",
+      "sourceKinds": ["place"],
+      "targetKinds": ["place"],
+      "description": "A city, town, castle, fortress, or seat serving as a capital for a polity."
+    },
+    {
+      "id": "administers",
+      "label": "administers",
+      "directional": true,
+      "inverseLabel": "administered by",
+      "sourceKinds": ["place", "faction"],
+      "targetKinds": ["place"],
+      "description": "Governmental, institutional, or practical control."
+    },
+    {
+      "id": "controlled_by",
+      "label": "controlled by",
+      "directional": true,
+      "inverseLabel": "controls",
+      "sourceKinds": ["place"],
+      "targetKinds": ["faction", "character"],
+      "description": "Current political, military, religious, or personal control."
+    },
+    {
+      "id": "claimed_by",
+      "label": "claimed by",
+      "directional": true,
+      "inverseLabel": "claims",
+      "sourceKinds": ["place"],
+      "targetKinds": ["faction", "character", "place"],
+      "description": "Disputed or symbolic ownership, sovereignty, or inheritance."
+    },
+    {
+      "id": "bordered_by",
+      "label": "bordered by",
+      "directional": false,
+      "inverseLabel": "bordered by",
+      "sourceKinds": ["place"],
+      "targetKinds": ["place"],
+      "description": "Adjacency, shared border, coastline, or physical edge."
+    },
+    {
+      "id": "connected_to",
+      "label": "connected to",
+      "directional": false,
+      "inverseLabel": "connected to",
+      "sourceKinds": ["place"],
+      "targetKinds": ["place"],
+      "description": "Travel, trade, river, road, pass, gate, or transit connection."
+    },
+    {
+      "id": "route_between",
+      "label": "route between",
+      "directional": false,
+      "inverseLabel": "route between",
+      "sourceKinds": ["place"],
+      "targetKinds": ["place"],
+      "description": "A road, pass, river, sea lane, or space lane that links endpoints."
+    },
+    {
+      "id": "flows_through",
+      "label": "flows through",
+      "directional": true,
+      "inverseLabel": "has watercourse",
+      "sourceKinds": ["place"],
+      "targetKinds": ["place"],
+      "description": "Hydrological path through regions, settlements, or terrain."
+    },
+    {
+      "id": "flows_into",
+      "label": "flows into",
+      "directional": true,
+      "inverseLabel": "receives flow from",
+      "sourceKinds": ["place"],
+      "targetKinds": ["place"],
+      "description": "River, channel, tide, lava, glacier, or magical current destination."
+    },
+    {
+      "id": "part_of",
+      "label": "part of",
+      "directional": true,
+      "inverseLabel": "has part",
+      "sourceKinds": ["place"],
+      "targetKinds": ["place"],
+      "description": "Component relationship when strict containment is too strong."
+    },
+    {
+      "id": "site_of",
+      "label": "site of",
+      "directional": true,
+      "inverseLabel": "occurred at",
+      "sourceKinds": ["place"],
+      "targetKinds": ["timeline", "lore"],
+      "description": "Events, legends, rituals, discoveries, disasters, or origin myths tied to a place."
+    },
+    {
+      "id": "home_of",
+      "label": "home of",
+      "directional": true,
+      "inverseLabel": "home",
+      "sourceKinds": ["place"],
+      "targetKinds": ["character", "faction"],
+      "description": "Residence, homeland, headquarters, nesting ground, or cultural base."
+    },
+    {
+      "id": "founded_by",
+      "label": "founded by",
+      "directional": true,
+      "inverseLabel": "founded",
+      "sourceKinds": ["place"],
+      "targetKinds": ["character", "faction", "place", "timeline"],
+      "description": "Founder, founding culture, parent colony, or founding event."
+    },
+    {
+      "id": "uses_lore",
+      "label": "references",
+      "directional": true,
+      "inverseLabel": "referenced by",
+      "sourceKinds": ["place"],
+      "targetKinds": ["lore"],
+      "description": "Place-specific magic, customs, hazards, artifacts, faith, law, ecology, or technology."
+    }
+  ],
+  "fieldCatalog": {
+    "name": {
+      "label": "Name",
+      "valueType": "string",
+      "description": "Canonical display name."
+    },
+    "alternateNames": {
+      "label": "Alternate names",
+      "valueType": "stringList",
+      "description": "Exonyms, historical names, nicknames, translations, or faction-specific names."
+    },
+    "category": {
+      "label": "Place category",
+      "valueType": "enum",
+      "description": "One of the supported place categories."
+    },
+    "summary": {
+      "label": "Summary",
+      "valueType": "markdown",
+      "description": "Short editor-facing overview."
+    },
+    "status": {
+      "label": "Draft status",
+      "valueType": "enum",
+      "description": "Draft, canon, needs review, deprecated, or archived."
+    },
+    "tags": {
+      "label": "Tags",
+      "valueType": "stringList",
+      "description": "Search and filtering terms."
+    },
+    "parentPlace": {
+      "label": "Located in",
+      "valueType": "link",
+      "targetEntryKinds": ["place"],
+      "relationshipType": "located_in",
+      "cardinality": "zeroOrOne",
+      "description": "Immediate containing place."
+    },
+    "childPlaces": {
+      "label": "Contains",
+      "valueType": "linkList",
+      "targetEntryKinds": ["place"],
+      "relationshipType": "contains",
+      "cardinality": "zeroOrMany",
+      "description": "Important directly contained places."
+    },
+    "capital": {
+      "label": "Capital",
+      "valueType": "link",
+      "targetEntryKinds": ["place"],
+      "targetCategories": ["Capital", "City", "Town", "Fortress", "Castle"],
+      "relationshipType": "has capital",
+      "cardinality": "zeroOrOne",
+      "description": "Primary seat of government."
+    },
+    "settlements": {
+      "label": "Settlements",
+      "valueType": "linkList",
+      "targetEntryKinds": ["place"],
+      "targetCategories": [
+        "Capital",
+        "City",
+        "Town",
+        "Village",
+        "Hamlet",
+        "Harbor",
+        "Port"
+      ],
+      "relationshipType": "contains",
+      "cardinality": "zeroOrMany",
+      "description": "Named inhabited places within this place."
+    },
+    "regions": {
+      "label": "Regions",
+      "valueType": "linkList",
+      "targetEntryKinds": ["place"],
+      "targetCategories": [
+        "Continent",
+        "Country",
+        "Province",
+        "Region",
+        "Kingdom",
+        "Forest",
+        "Desert",
+        "Swamp",
+        "Wetland",
+        "Plains",
+        "Steppe",
+        "Tundra",
+        "Mountain range",
+        "Valley",
+        "Plateau",
+        "Coast"
+      ],
+      "relationshipType": "contains",
+      "cardinality": "zeroOrMany",
+      "description": "Major subdivisions or named areas."
+    },
+    "neighbors": {
+      "label": "Neighbors or borders",
+      "valueType": "linkList",
+      "targetEntryKinds": ["place"],
+      "relationshipType": "bordered_by",
+      "cardinality": "zeroOrMany",
+      "description": "Adjacent places, shared borders, nearby astronomical bodies, or neighboring realms."
+    },
+    "routeConnections": {
+      "label": "Connected routes",
+      "valueType": "linkList",
+      "targetEntryKinds": ["place"],
+      "targetCategories": [
+        "Road",
+        "Pass",
+        "River",
+        "Sea",
+        "Ocean",
+        "Bay",
+        "Gulf",
+        "Coast",
+        "Harbor",
+        "Port",
+        "Space station",
+        "Asteroid belt"
+      ],
+      "relationshipType": "connected_to",
+      "cardinality": "zeroOrMany",
+      "description": "Roads, passes, waterways, sea lanes, or space routes that connect this place to others."
+    },
+    "tradePartners": {
+      "label": "Trade partners",
+      "valueType": "linkList",
+      "targetEntryKinds": ["place", "faction"],
+      "relationshipType": "connected_to",
+      "cardinality": "zeroOrMany",
+      "description": "Places or factions with active exchange."
+    },
+    "controllingPowers": {
+      "label": "Controlled by",
+      "valueType": "linkList",
+      "targetEntryKinds": ["faction", "character", "place"],
+      "relationshipType": "controlled_by",
+      "cardinality": "zeroOrMany",
+      "description": "Current powers able to govern, police, tax, occupy, or restrict the place."
+    },
+    "claimants": {
+      "label": "Claimed by",
+      "valueType": "linkList",
+      "targetEntryKinds": ["faction", "character", "place"],
+      "relationshipType": "claimed_by",
+      "cardinality": "zeroOrMany",
+      "description": "Competing claims, inherited rights, occupation claims, or disputed sovereignty."
+    },
+    "inhabitants": {
+      "label": "Inhabitants",
+      "valueType": "linkList",
+      "targetEntryKinds": ["character", "faction"],
+      "relationshipType": "home_of",
+      "cardinality": "zeroOrMany",
+      "description": "Notable residents, species, cultures, or population groups modeled as entries."
+    },
+    "founders": {
+      "label": "Founded by",
+      "valueType": "linkList",
+      "targetEntryKinds": ["character", "faction", "place", "timeline"],
+      "relationshipType": "founded_by",
+      "cardinality": "zeroOrMany",
+      "description": "Founders, source colony, founding event, or patron power."
+    },
+    "notableEvents": {
+      "label": "Notable events",
+      "valueType": "linkList",
+      "targetEntryKinds": ["timeline"],
+      "relationshipType": "site_of",
+      "cardinality": "zeroOrMany",
+      "description": "Timeline events that happened here or materially changed the place."
+    },
+    "relatedLore": {
+      "label": "Related lore",
+      "valueType": "linkList",
+      "targetEntryKinds": ["lore"],
+      "relationshipType": "uses_lore",
+      "cardinality": "zeroOrMany",
+      "description": "Magic, laws, customs, myths, ecology, artifacts, technologies, or hazards tied to this place."
+    },
+    "scale": {
+      "label": "Scale",
+      "valueType": "string",
+      "description": "Useful size descriptor such as global, regional, local, orbital, or extradimensional."
+    },
+    "area": {
+      "label": "Area",
+      "valueType": "string",
+      "description": "Approximate area or footprint when useful."
+    },
+    "population": {
+      "label": "Population",
+      "valueType": "string",
+      "description": "Approximate population, occupancy, seasonal population, or unknown status."
+    },
+    "demographics": {
+      "label": "Demographics",
+      "valueType": "markdown",
+      "description": "Cultures, species, classes, languages, migration, and social divisions."
+    },
+    "government": {
+      "label": "Government",
+      "valueType": "markdown",
+      "description": "Administrative structure, law, succession, offices, and authority model."
+    },
+    "economy": {
+      "label": "Economy",
+      "valueType": "markdown",
+      "description": "Production, trade, resources, labor systems, taxes, or scarcity."
+    },
+    "defenses": {
+      "label": "Defenses",
+      "valueType": "markdown",
+      "description": "Walls, fleets, garrisons, fortifications, terrain advantages, wards, or patrols."
+    },
+    "infrastructure": {
+      "label": "Infrastructure",
+      "valueType": "markdown",
+      "description": "Roads, bridges, docks, water, sanitation, housing, communication, gates, or orbital systems."
+    },
+    "districts": {
+      "label": "Districts or local areas",
+      "valueType": "linkList",
+      "targetEntryKinds": ["place"],
+      "targetCategories": [
+        "Region",
+        "Harbor",
+        "Port",
+        "Temple",
+        "Castle",
+        "Fortress",
+        "Road",
+        "Ruin",
+        "Mine"
+      ],
+      "relationshipType": "contains",
+      "cardinality": "zeroOrMany",
+      "description": "Named districts, wards, enclaves, complexes, or local subareas."
+    },
+    "climate": {
+      "label": "Climate",
+      "valueType": "string",
+      "description": "Climate, weather pattern, atmosphere, or environmental feel."
+    },
+    "terrain": {
+      "label": "Terrain",
+      "valueType": "markdown",
+      "description": "Physical shape, geology, ecology, visibility, footing, and travel conditions."
+    },
+    "resources": {
+      "label": "Resources",
+      "valueType": "markdown",
+      "description": "Natural resources, strategic assets, magical sources, food, water, minerals, or salvage."
+    },
+    "hazards": {
+      "label": "Hazards",
+      "valueType": "markdown",
+      "description": "Natural, political, magical, technological, or social dangers."
+    },
+    "access": {
+      "label": "Access",
+      "valueType": "markdown",
+      "description": "How entry, transit, landing, docking, crossing, or passage works."
+    },
+    "travelTime": {
+      "label": "Travel time",
+      "valueType": "string",
+      "description": "Typical time to cross, reach, orbit, sail, or traverse."
+    },
+    "strategicValue": {
+      "label": "Strategic value",
+      "valueType": "markdown",
+      "description": "Military, political, economic, magical, navigational, or story value."
+    },
+    "history": {
+      "label": "History",
+      "valueType": "markdown",
+      "description": "Origin, major eras, collapses, discoveries, renovations, disasters, and changes in control."
+    },
+    "currentTension": {
+      "label": "Current tension",
+      "valueType": "markdown",
+      "description": "Active conflict, scarcity, mystery, dispute, pressure, or instability."
+    },
+    "secrets": {
+      "label": "Secrets",
+      "valueType": "markdown",
+      "description": "Hidden truth, contradiction, buried threat, false history, or story reveal."
+    },
+    "sensoryDetails": {
+      "label": "Sensory details",
+      "valueType": "markdown",
+      "description": "Sights, sounds, smells, textures, weather, light, and first-impression details."
+    },
+    "landmarks": {
+      "label": "Landmarks",
+      "valueType": "linkList",
+      "targetEntryKinds": ["place"],
+      "targetCategories": [
+        "Temple",
+        "Ruin",
+        "Fortress",
+        "Castle",
+        "Mountain",
+        "Volcano",
+        "Glacier",
+        "Lake",
+        "River",
+        "Cave",
+        "Mine",
+        "Space station"
+      ],
+      "relationshipType": "contains",
+      "cardinality": "zeroOrMany",
+      "description": "Important named landmarks located in this place."
+    },
+    "waters": {
+      "label": "Waters",
+      "valueType": "linkList",
+      "targetEntryKinds": ["place"],
+      "targetCategories": [
+        "River",
+        "Lake",
+        "Ocean",
+        "Sea",
+        "Bay",
+        "Gulf",
+        "Coast"
+      ],
+      "relationshipType": "contains",
+      "cardinality": "zeroOrMany",
+      "description": "Named water bodies related to this place."
+    },
+    "source": {
+      "label": "Source or origin",
+      "valueType": "link",
+      "targetEntryKinds": ["place", "lore", "timeline"],
+      "relationshipType": "part_of",
+      "cardinality": "zeroOrOne",
+      "description": "Origin place, parent phenomenon, source event, spring, crater, gate, or myth."
+    },
+    "mouth": {
+      "label": "Mouth or terminus",
+      "valueType": "link",
+      "targetEntryKinds": ["place"],
+      "relationshipType": "flows_into",
+      "cardinality": "zeroOrOne",
+      "description": "Where a flow, path, or route ends."
+    },
+    "tributaries": {
+      "label": "Tributaries or feeders",
+      "valueType": "linkList",
+      "targetEntryKinds": ["place"],
+      "targetCategories": [
+        "River",
+        "Lake",
+        "Glacier",
+        "Swamp",
+        "Wetland",
+        "Mountain",
+        "Volcano"
+      ],
+      "relationshipType": "flows_into",
+      "cardinality": "zeroOrMany",
+      "description": "Inputs feeding a river, lake, sea, bay, glacier, magical current, or system."
+    },
+    "floraFauna": {
+      "label": "Flora and fauna",
+      "valueType": "markdown",
+      "description": "Plants, animals, monsters, crops, fungal life, or engineered organisms."
+    },
+    "magicOrTechnology": {
+      "label": "Magic or technology",
+      "valueType": "markdown",
+      "description": "Local supernatural rules, machinery, infrastructure, anomalies, or limits."
+    },
+    "condition": {
+      "label": "Condition",
+      "valueType": "string",
+      "description": "Ruined, inhabited, contested, sealed, operational, abandoned, sacred, unstable, or other state."
+    },
+    "builders": {
+      "label": "Built by",
+      "valueType": "linkList",
+      "targetEntryKinds": ["character", "faction", "place", "timeline"],
+      "relationshipType": "founded_by",
+      "cardinality": "zeroOrMany",
+      "description": "Builders, engineers, original culture, patron, or construction event."
+    },
+    "function": {
+      "label": "Function",
+      "valueType": "markdown",
+      "description": "Purpose in daily life, war, faith, transit, production, communication, research, or ritual."
+    }
+  },
+  "commonFieldProfiles": {
+    "basePlace": [
+      "name",
+      "alternateNames",
+      "category",
+      "summary",
+      "status",
+      "tags",
+      "parentPlace",
+      "childPlaces",
+      "neighbors",
+      "notableEvents",
+      "relatedLore",
+      "history",
+      "currentTension",
+      "secrets"
+    ],
+    "politicalPlace": [
+      "capital",
+      "settlements",
+      "regions",
+      "controllingPowers",
+      "claimants",
+      "inhabitants",
+      "founders",
+      "population",
+      "demographics",
+      "government",
+      "economy",
+      "defenses",
+      "infrastructure",
+      "tradePartners"
+    ],
+    "settlementPlace": [
+      "parentPlace",
+      "districts",
+      "routeConnections",
+      "controllingPowers",
+      "claimants",
+      "inhabitants",
+      "founders",
+      "population",
+      "demographics",
+      "government",
+      "economy",
+      "defenses",
+      "infrastructure",
+      "landmarks"
+    ],
+    "naturalPlace": [
+      "parentPlace",
+      "regions",
+      "neighbors",
+      "routeConnections",
+      "climate",
+      "terrain",
+      "resources",
+      "hazards",
+      "access",
+      "travelTime",
+      "floraFauna",
+      "waters",
+      "landmarks"
+    ],
+    "waterPlace": [
+      "parentPlace",
+      "neighbors",
+      "routeConnections",
+      "climate",
+      "terrain",
+      "resources",
+      "hazards",
+      "access",
+      "source",
+      "mouth",
+      "tributaries",
+      "waters",
+      "settlements"
+    ],
+    "builtPlace": [
+      "parentPlace",
+      "routeConnections",
+      "controllingPowers",
+      "claimants",
+      "inhabitants",
+      "builders",
+      "function",
+      "condition",
+      "defenses",
+      "infrastructure",
+      "landmarks",
+      "access"
+    ],
+    "routePlace": [
+      "parentPlace",
+      "routeConnections",
+      "controllingPowers",
+      "hazards",
+      "access",
+      "travelTime",
+      "strategicValue",
+      "source",
+      "mouth",
+      "settlements",
+      "landmarks"
+    ],
+    "cosmicPlace": [
+      "parentPlace",
+      "childPlaces",
+      "neighbors",
+      "routeConnections",
+      "controllingPowers",
+      "claimants",
+      "inhabitants",
+      "scale",
+      "climate",
+      "terrain",
+      "resources",
+      "hazards",
+      "access",
+      "magicOrTechnology"
+    ],
+    "otherworldlyPlace": [
+      "parentPlace",
+      "childPlaces",
+      "neighbors",
+      "routeConnections",
+      "controllingPowers",
+      "claimants",
+      "inhabitants",
+      "scale",
+      "climate",
+      "terrain",
+      "hazards",
+      "access",
+      "magicOrTechnology",
+      "relatedLore"
+    ]
+  },
+  "tree": [
+    {
+      "id": "world",
+      "label": "World",
+      "category": "World",
+      "parentId": null,
+      "summary": "The broadest playable or narratively relevant setting container.",
+      "fieldProfiles": ["basePlace", "cosmicPlace", "politicalPlace"],
+      "primaryParentCategories": [],
+      "typicalChildCategories": [
+        "Planet",
+        "Moon",
+        "Continent",
+        "Ocean",
+        "Sea",
+        "Country",
+        "Region",
+        "Realm",
+        "Plane",
+        "Dimension"
+      ],
+      "importantLinks": [
+        {
+          "field": "childPlaces",
+          "targetCategories": [
+            "Planet",
+            "Moon",
+            "Continent",
+            "Ocean",
+            "Sea",
+            "Country",
+            "Region",
+            "Realm",
+            "Plane",
+            "Dimension"
+          ]
+        },
+        {
+          "field": "controllingPowers",
+          "targetEntryKinds": ["faction", "character"]
+        },
+        { "field": "relatedLore", "targetEntryKinds": ["lore"] }
+      ],
+      "notes": "Use for a campaign world, known world, hollow world, or setting-scale map even when it is not a planet."
+    },
+    {
+      "id": "astronomical_space",
+      "label": "Astronomical Space",
+      "category": null,
+      "parentId": "world",
+      "summary": "Stellar and interstellar containers.",
+      "fieldProfiles": ["basePlace", "cosmicPlace"],
+      "primaryParentCategories": ["World", "Dimension", "Plane"],
+      "typicalChildCategories": [
+        "Galaxy",
+        "Nebula",
+        "Solar system",
+        "Star",
+        "Planet",
+        "Moon",
+        "Asteroid belt",
+        "Space station"
+      ],
+      "importantLinks": [
+        {
+          "field": "childPlaces",
+          "targetCategories": [
+            "Galaxy",
+            "Nebula",
+            "Solar system",
+            "Star",
+            "Planet",
+            "Moon",
+            "Asteroid belt",
+            "Space station"
+          ]
+        },
+        {
+          "field": "routeConnections",
+          "targetCategories": ["Space station", "Asteroid belt"]
+        }
+      ],
+      "notes": "Grouping node used to keep the tree readable; it is not currently a selectable place category."
+    },
+    {
+      "id": "galaxy",
+      "label": "Galaxy",
+      "category": "Galaxy",
+      "parentId": "astronomical_space",
+      "summary": "A massive stellar collection and top-level space geography container.",
+      "fieldProfiles": ["basePlace", "cosmicPlace"],
+      "primaryParentCategories": ["World", "Dimension", "Plane"],
+      "typicalChildCategories": [
+        "Nebula",
+        "Solar system",
+        "Star",
+        "Planet",
+        "Asteroid belt",
+        "Space station"
+      ],
+      "importantLinks": [
+        {
+          "field": "childPlaces",
+          "targetCategories": [
+            "Nebula",
+            "Solar system",
+            "Star",
+            "Planet",
+            "Asteroid belt",
+            "Space station"
+          ]
+        },
+        { "field": "tradePartners", "targetEntryKinds": ["place", "faction"] }
+      ],
+      "notes": "Track political sectors as Region entries if they matter more than astronomical detail."
+    },
+    {
+      "id": "nebula",
+      "label": "Nebula",
+      "category": "Nebula",
+      "parentId": "astronomical_space",
+      "summary": "A cloud, stellar nursery, hazard zone, veil, or magical space phenomenon.",
+      "fieldProfiles": ["basePlace", "cosmicPlace", "naturalPlace"],
+      "primaryParentCategories": [
+        "Galaxy",
+        "Solar system",
+        "World",
+        "Dimension"
+      ],
+      "typicalChildCategories": [
+        "Star",
+        "Planet",
+        "Asteroid belt",
+        "Space station",
+        "Region"
+      ],
+      "importantLinks": [
+        { "field": "hazards", "targetEntryKinds": [] },
+        {
+          "field": "routeConnections",
+          "targetCategories": ["Space station", "Asteroid belt"]
+        },
+        { "field": "relatedLore", "targetEntryKinds": ["lore"] }
+      ],
+      "notes": "Useful for navigation hazards, concealment, rare resources, or divine/cosmic phenomena."
+    },
+    {
+      "id": "solar_system",
+      "label": "Solar system",
+      "category": "Solar system",
+      "parentId": "astronomical_space",
+      "summary": "A star system containing stars, planets, moons, belts, stations, and routes.",
+      "fieldProfiles": ["basePlace", "cosmicPlace"],
+      "primaryParentCategories": ["Galaxy", "Nebula", "World"],
+      "typicalChildCategories": [
+        "Star",
+        "Planet",
+        "Moon",
+        "Asteroid belt",
+        "Space station"
+      ],
+      "importantLinks": [
+        {
+          "field": "childPlaces",
+          "targetCategories": [
+            "Star",
+            "Planet",
+            "Moon",
+            "Asteroid belt",
+            "Space station"
+          ]
+        },
+        {
+          "field": "routeConnections",
+          "targetCategories": ["Space station", "Asteroid belt"]
+        }
+      ],
+      "notes": "Can also model a magical system orbiting a divine object rather than a scientific star."
+    },
+    {
+      "id": "star",
+      "label": "Star",
+      "category": "Star",
+      "parentId": "solar_system",
+      "summary": "A stellar body, sun, dead star, divine flame, or anchor of a system.",
+      "fieldProfiles": ["basePlace", "cosmicPlace"],
+      "primaryParentCategories": ["Solar system", "Galaxy", "Nebula"],
+      "typicalChildCategories": ["Planet", "Asteroid belt", "Space station"],
+      "importantLinks": [
+        {
+          "field": "childPlaces",
+          "targetCategories": ["Planet", "Asteroid belt", "Space station"]
+        },
+        { "field": "relatedLore", "targetEntryKinds": ["lore"] }
+      ],
+      "notes": "Fields should capture spectral, divine, magical, or navigational significance as appropriate."
+    },
+    {
+      "id": "planet",
+      "label": "Planet",
+      "category": "Planet",
+      "parentId": "solar_system",
+      "summary": "A planetary body that can contain continents, oceans, countries, moons, and settlements.",
+      "fieldProfiles": ["basePlace", "cosmicPlace", "politicalPlace"],
+      "primaryParentCategories": ["Solar system", "Star", "World"],
+      "typicalChildCategories": [
+        "Moon",
+        "Continent",
+        "Ocean",
+        "Sea",
+        "Country",
+        "Region",
+        "Realm",
+        "Space station"
+      ],
+      "importantLinks": [
+        {
+          "field": "regions",
+          "targetCategories": [
+            "Continent",
+            "Ocean",
+            "Sea",
+            "Country",
+            "Region",
+            "Realm"
+          ]
+        },
+        {
+          "field": "neighbors",
+          "targetCategories": [
+            "Moon",
+            "Planet",
+            "Asteroid belt",
+            "Space station"
+          ]
+        },
+        {
+          "field": "controllingPowers",
+          "targetEntryKinds": ["faction", "character"]
+        }
+      ],
+      "notes": "Use World when the exact planetary model is not relevant; use Planet when astronomical relationships matter."
+    },
+    {
+      "id": "moon",
+      "label": "Moon",
+      "category": "Moon",
+      "parentId": "planet",
+      "summary": "A natural or artificial satellite, inhabited moon, divine mirror, or tide driver.",
+      "fieldProfiles": ["basePlace", "cosmicPlace", "naturalPlace"],
+      "primaryParentCategories": ["Planet", "Solar system", "World"],
+      "typicalChildCategories": [
+        "Region",
+        "Mountain",
+        "Crater",
+        "Sea",
+        "Space station"
+      ],
+      "importantLinks": [
+        { "field": "parentPlace", "targetCategories": ["Planet"] },
+        { "field": "relatedLore", "targetEntryKinds": ["lore"] },
+        {
+          "field": "settlements",
+          "targetCategories": ["City", "Town", "Space station"]
+        }
+      ],
+      "notes": "There is no crater category yet; model major craters as Region, Canyon, Valley, or Ruin entries."
+    },
+    {
+      "id": "asteroid_belt",
+      "label": "Asteroid belt",
+      "category": "Asteroid belt",
+      "parentId": "solar_system",
+      "summary": "A belt, debris field, mining zone, ring, or hazardous orbital region.",
+      "fieldProfiles": ["basePlace", "cosmicPlace", "naturalPlace"],
+      "primaryParentCategories": ["Solar system", "Planet", "Galaxy", "Nebula"],
+      "typicalChildCategories": ["Mine", "Space station", "Region", "Ruin"],
+      "importantLinks": [
+        { "field": "resources", "targetEntryKinds": [] },
+        {
+          "field": "settlements",
+          "targetCategories": ["Space station", "Mine"]
+        },
+        { "field": "hazards", "targetEntryKinds": [] }
+      ],
+      "notes": "Can also stand in for planetary rings if ring detail matters."
+    },
+    {
+      "id": "space_station",
+      "label": "Space station",
+      "category": "Space station",
+      "parentId": "solar_system",
+      "summary": "An orbital, deep-space, or extraplanar constructed habitat or facility.",
+      "fieldProfiles": [
+        "basePlace",
+        "builtPlace",
+        "settlementPlace",
+        "cosmicPlace"
+      ],
+      "primaryParentCategories": [
+        "Planet",
+        "Moon",
+        "Solar system",
+        "Asteroid belt",
+        "Galaxy",
+        "Dimension"
+      ],
+      "typicalChildCategories": [
+        "Region",
+        "Port",
+        "Temple",
+        "Fortress",
+        "Mine",
+        "Ruin"
+      ],
+      "importantLinks": [
+        {
+          "field": "routeConnections",
+          "targetCategories": [
+            "Planet",
+            "Moon",
+            "Asteroid belt",
+            "Space station"
+          ]
+        },
+        {
+          "field": "controllingPowers",
+          "targetEntryKinds": ["faction", "character"]
+        },
+        { "field": "inhabitants", "targetEntryKinds": ["character", "faction"] }
+      ],
+      "notes": "Treat docking rings or internal wards as Port or Region entries when needed."
+    },
+    {
+      "id": "otherworldly_geography",
+      "label": "Otherworldly Geography",
+      "category": null,
+      "parentId": "world",
+      "summary": "Nonstandard cosmological containers used for fantasy realms and planes.",
+      "fieldProfiles": ["basePlace", "otherworldlyPlace"],
+      "primaryParentCategories": ["World", "Planet", "Dimension"],
+      "typicalChildCategories": [
+        "Realm",
+        "Plane",
+        "Dimension",
+        "Region",
+        "Kingdom",
+        "Temple",
+        "Ruin"
+      ],
+      "importantLinks": [
+        {
+          "field": "childPlaces",
+          "targetCategories": [
+            "Realm",
+            "Plane",
+            "Dimension",
+            "Region",
+            "Kingdom",
+            "Temple",
+            "Ruin"
+          ]
+        },
+        { "field": "relatedLore", "targetEntryKinds": ["lore"] }
+      ],
+      "notes": "Grouping node used to separate cosmology from political geography."
+    },
+    {
+      "id": "dimension",
+      "label": "Dimension",
+      "category": "Dimension",
+      "parentId": "otherworldly_geography",
+      "summary": "A broad alternate reality, cosmological layer, dream-space, or metaphysical container.",
+      "fieldProfiles": ["basePlace", "otherworldlyPlace", "politicalPlace"],
+      "primaryParentCategories": ["World", "Plane"],
+      "typicalChildCategories": [
+        "Plane",
+        "Realm",
+        "World",
+        "Galaxy",
+        "Region",
+        "Kingdom",
+        "Temple",
+        "Ruin"
+      ],
+      "importantLinks": [
+        {
+          "field": "childPlaces",
+          "targetCategories": [
+            "Plane",
+            "Realm",
+            "World",
+            "Galaxy",
+            "Region",
+            "Kingdom"
+          ]
+        },
+        { "field": "access", "targetEntryKinds": [] },
+        { "field": "relatedLore", "targetEntryKinds": ["lore"] }
+      ],
+      "notes": "Use access fields for gates, rituals, technologies, or conditions required to enter."
+    },
+    {
+      "id": "plane",
+      "label": "Plane",
+      "category": "Plane",
+      "parentId": "otherworldly_geography",
+      "summary": "A metaphysical layer, elemental plane, afterlife region, or divine jurisdiction.",
+      "fieldProfiles": ["basePlace", "otherworldlyPlace", "politicalPlace"],
+      "primaryParentCategories": ["Dimension", "World", "Realm"],
+      "typicalChildCategories": [
+        "Realm",
+        "Region",
+        "Kingdom",
+        "Temple",
+        "Ruin",
+        "City"
+      ],
+      "importantLinks": [
+        {
+          "field": "childPlaces",
+          "targetCategories": [
+            "Realm",
+            "Region",
+            "Kingdom",
+            "Temple",
+            "Ruin",
+            "City"
+          ]
+        },
+        {
+          "field": "controllingPowers",
+          "targetEntryKinds": ["faction", "character"]
+        },
+        { "field": "relatedLore", "targetEntryKinds": ["lore"] }
+      ],
+      "notes": "Use for rule-bearing cosmological spaces whose physics or magic differs from the material world."
+    },
+    {
+      "id": "realm",
+      "label": "Realm",
+      "category": "Realm",
+      "parentId": "otherworldly_geography",
+      "summary": "A sovereign, magical, mythic, or culturally bounded domain that may not fit ordinary geography.",
+      "fieldProfiles": ["basePlace", "otherworldlyPlace", "politicalPlace"],
+      "primaryParentCategories": [
+        "World",
+        "Plane",
+        "Dimension",
+        "Region",
+        "Country"
+      ],
+      "typicalChildCategories": [
+        "Kingdom",
+        "Country",
+        "Region",
+        "City",
+        "Temple",
+        "Ruin",
+        "Forest",
+        "Mountain"
+      ],
+      "importantLinks": [
+        {
+          "field": "capital",
+          "targetCategories": ["Capital", "City", "Castle", "Temple"]
+        },
+        {
+          "field": "controllingPowers",
+          "targetEntryKinds": ["faction", "character"]
+        },
+        {
+          "field": "claimants",
+          "targetEntryKinds": ["faction", "character", "place"]
+        }
+      ],
+      "notes": "Good for fae courts, divine lands, cursed domains, or politically fuzzy fantasy territories."
+    },
+    {
+      "id": "terrestrial_macro_geography",
+      "label": "Terrestrial Macro Geography",
+      "category": null,
+      "parentId": "planet",
+      "summary": "Large land, water, and political containers on a world or planet.",
+      "fieldProfiles": ["basePlace", "naturalPlace"],
+      "primaryParentCategories": ["World", "Planet", "Moon"],
+      "typicalChildCategories": [
+        "Continent",
+        "Ocean",
+        "Sea",
+        "Country",
+        "Province",
+        "Region",
+        "Kingdom"
+      ],
+      "importantLinks": [
+        {
+          "field": "regions",
+          "targetCategories": [
+            "Continent",
+            "Ocean",
+            "Sea",
+            "Country",
+            "Province",
+            "Region",
+            "Kingdom"
+          ]
+        }
+      ],
+      "notes": "Grouping node; not selectable in the current category list."
+    },
+    {
+      "id": "continent",
+      "label": "Continent",
+      "category": "Continent",
+      "parentId": "terrestrial_macro_geography",
+      "summary": "A major landmass containing countries, regions, biomes, mountain systems, waters, and settlements.",
+      "fieldProfiles": ["basePlace", "naturalPlace", "politicalPlace"],
+      "primaryParentCategories": ["Planet", "World", "Moon"],
+      "typicalChildCategories": [
+        "Country",
+        "Kingdom",
+        "Province",
+        "Region",
+        "Mountain range",
+        "River",
+        "Lake",
+        "Forest",
+        "Desert",
+        "Plains",
+        "Coast",
+        "City"
+      ],
+      "importantLinks": [
+        {
+          "field": "regions",
+          "targetCategories": [
+            "Country",
+            "Kingdom",
+            "Province",
+            "Region",
+            "Mountain range",
+            "Forest",
+            "Desert",
+            "Plains",
+            "Coast"
+          ]
+        },
+        {
+          "field": "waters",
+          "targetCategories": ["River", "Lake", "Sea", "Coast", "Bay", "Gulf"]
+        },
+        {
+          "field": "settlements",
+          "targetCategories": ["Capital", "City", "Town"]
+        }
+      ],
+      "notes": "Political links are optional unless the continent is treated as a governed unit."
+    },
+    {
+      "id": "political_administrative_places",
+      "label": "Political and Administrative Places",
+      "category": null,
+      "parentId": "terrestrial_macro_geography",
+      "summary": "Governed territories and named administrative divisions.",
+      "fieldProfiles": ["basePlace", "politicalPlace"],
+      "primaryParentCategories": ["World", "Planet", "Continent", "Realm"],
+      "typicalChildCategories": [
+        "Country",
+        "Kingdom",
+        "Province",
+        "Region",
+        "Capital",
+        "City",
+        "Town",
+        "Village",
+        "Hamlet"
+      ],
+      "importantLinks": [
+        {
+          "field": "capital",
+          "targetCategories": ["Capital", "City", "Town", "Castle", "Fortress"]
+        },
+        {
+          "field": "controllingPowers",
+          "targetEntryKinds": ["faction", "character"]
+        },
+        {
+          "field": "settlements",
+          "targetCategories": ["Capital", "City", "Town", "Village", "Hamlet"]
+        }
+      ],
+      "notes": "Grouping node; use to reason about fields shared by country, province, region, and kingdom."
+    },
+    {
+      "id": "country",
+      "label": "Country",
+      "category": "Country",
+      "parentId": "political_administrative_places",
+      "summary": "A sovereign or recognized polity with territory, government, people, borders, and settlements.",
+      "fieldProfiles": ["basePlace", "politicalPlace", "naturalPlace"],
+      "primaryParentCategories": ["Continent", "World", "Planet", "Realm"],
+      "typicalChildCategories": [
+        "Province",
+        "Region",
+        "Capital",
+        "City",
+        "Town",
+        "Village",
+        "Fortress",
+        "Castle",
+        "Road",
+        "River"
+      ],
+      "importantLinks": [
+        {
+          "field": "capital",
+          "targetCategories": ["Capital", "City", "Town", "Fortress", "Castle"]
+        },
+        {
+          "field": "settlements",
+          "targetCategories": ["Capital", "City", "Town", "Village", "Hamlet"]
+        },
+        {
+          "field": "neighbors",
+          "targetCategories": ["Country", "Kingdom", "Region", "Sea", "Ocean"]
+        },
+        {
+          "field": "controllingPowers",
+          "targetEntryKinds": ["faction", "character"]
+        },
+        {
+          "field": "claimants",
+          "targetEntryKinds": ["faction", "character", "place"]
+        }
+      ],
+      "notes": "Country editors should directly expose linked cities, provinces, borders, ruling factions, claimants, founding events, and major lore."
+    },
+    {
+      "id": "kingdom",
+      "label": "Kingdom",
+      "category": "Kingdom",
+      "parentId": "political_administrative_places",
+      "summary": "A monarchy, royal domain, successor state, or crown-claimed territory.",
+      "fieldProfiles": ["basePlace", "politicalPlace", "naturalPlace"],
+      "primaryParentCategories": ["Continent", "Country", "Realm", "World"],
+      "typicalChildCategories": [
+        "Province",
+        "Region",
+        "Capital",
+        "City",
+        "Town",
+        "Village",
+        "Castle",
+        "Fortress",
+        "Temple"
+      ],
+      "importantLinks": [
+        {
+          "field": "capital",
+          "targetCategories": ["Capital", "City", "Castle", "Fortress"]
+        },
+        {
+          "field": "controllingPowers",
+          "targetEntryKinds": ["faction", "character"]
+        },
+        {
+          "field": "claimants",
+          "targetEntryKinds": ["faction", "character", "place"]
+        },
+        {
+          "field": "founders",
+          "targetEntryKinds": ["character", "faction", "timeline"]
+        }
+      ],
+      "notes": "Prefer Kingdom over Country when succession, dynasty, court politics, or crown legitimacy is central."
+    },
+    {
+      "id": "province",
+      "label": "Province",
+      "category": "Province",
+      "parentId": "political_administrative_places",
+      "summary": "An administrative subdivision governed under a larger polity.",
+      "fieldProfiles": ["basePlace", "politicalPlace", "naturalPlace"],
+      "primaryParentCategories": ["Country", "Kingdom", "Realm", "Continent"],
+      "typicalChildCategories": [
+        "Region",
+        "City",
+        "Town",
+        "Village",
+        "Hamlet",
+        "Fortress",
+        "Road",
+        "River"
+      ],
+      "importantLinks": [
+        {
+          "field": "parentPlace",
+          "targetCategories": ["Country", "Kingdom", "Realm"]
+        },
+        {
+          "field": "capital",
+          "targetCategories": ["Capital", "City", "Town", "Fortress"]
+        },
+        {
+          "field": "settlements",
+          "targetCategories": ["City", "Town", "Village", "Hamlet"]
+        },
+        {
+          "field": "controllingPowers",
+          "targetEntryKinds": ["faction", "character"]
+        }
+      ],
+      "notes": "Use for satrapies, duchies, states, provinces, districts, counties, or administrative marches."
+    },
+    {
+      "id": "region",
+      "label": "Region",
+      "category": "Region",
+      "parentId": "political_administrative_places",
+      "summary": "A flexible named area that can be political, cultural, ecological, magical, or practical.",
+      "fieldProfiles": ["basePlace", "politicalPlace", "naturalPlace"],
+      "primaryParentCategories": [
+        "World",
+        "Planet",
+        "Continent",
+        "Country",
+        "Kingdom",
+        "Province",
+        "Realm",
+        "Plane",
+        "Dimension"
+      ],
+      "typicalChildCategories": [
+        "City",
+        "Town",
+        "Village",
+        "Forest",
+        "Mountain",
+        "Lake",
+        "Temple",
+        "Ruin",
+        "Road",
+        "Mine"
+      ],
+      "importantLinks": [
+        {
+          "field": "parentPlace",
+          "targetCategories": [
+            "World",
+            "Planet",
+            "Continent",
+            "Country",
+            "Kingdom",
+            "Province",
+            "Realm",
+            "Plane",
+            "Dimension"
+          ]
+        },
+        {
+          "field": "childPlaces",
+          "targetCategories": [
+            "City",
+            "Town",
+            "Village",
+            "Forest",
+            "Mountain",
+            "Lake",
+            "Temple",
+            "Ruin",
+            "Road",
+            "Mine"
+          ]
+        },
+        { "field": "relatedLore", "targetEntryKinds": ["lore"] }
+      ],
+      "notes": "This is the safest category for fuzzy or early-draft geography before a more precise category is known."
+    },
+    {
+      "id": "settlements",
+      "label": "Settlements",
+      "category": null,
+      "parentId": "political_administrative_places",
+      "summary": "Inhabited places organized by scale and function.",
+      "fieldProfiles": ["basePlace", "settlementPlace"],
+      "primaryParentCategories": [
+        "Country",
+        "Kingdom",
+        "Province",
+        "Region",
+        "Realm",
+        "Continent"
+      ],
+      "typicalChildCategories": [
+        "Capital",
+        "City",
+        "Town",
+        "Village",
+        "Hamlet",
+        "Harbor",
+        "Port"
+      ],
+      "importantLinks": [
+        {
+          "field": "parentPlace",
+          "targetCategories": [
+            "Country",
+            "Kingdom",
+            "Province",
+            "Region",
+            "Realm"
+          ]
+        },
+        {
+          "field": "districts",
+          "targetCategories": [
+            "Region",
+            "Harbor",
+            "Port",
+            "Temple",
+            "Castle",
+            "Fortress",
+            "Road",
+            "Ruin",
+            "Mine"
+          ]
+        }
+      ],
+      "notes": "Grouping node; not selectable in the current category list."
+    },
+    {
+      "id": "capital",
+      "label": "Capital",
+      "category": "Capital",
+      "parentId": "settlements",
+      "summary": "A seat of government, ritual authority, faction control, or symbolic central place.",
+      "fieldProfiles": ["basePlace", "settlementPlace", "politicalPlace"],
+      "primaryParentCategories": ["Country", "Kingdom", "Province", "Realm"],
+      "typicalChildCategories": [
+        "City",
+        "Town",
+        "Castle",
+        "Fortress",
+        "Temple",
+        "Harbor",
+        "Port",
+        "Region"
+      ],
+      "importantLinks": [
+        {
+          "field": "parentPlace",
+          "targetCategories": ["Country", "Kingdom", "Province", "Realm"]
+        },
+        {
+          "field": "controllingPowers",
+          "targetEntryKinds": ["faction", "character"]
+        },
+        {
+          "field": "districts",
+          "targetCategories": [
+            "Castle",
+            "Fortress",
+            "Temple",
+            "Harbor",
+            "Port",
+            "Region"
+          ]
+        }
+      ],
+      "notes": "A Capital can also be categorized as City in the prose; keep Capital when the capital role is the important fact."
+    },
+    {
+      "id": "city",
+      "label": "City",
+      "category": "City",
+      "parentId": "settlements",
+      "summary": "A large settlement with districts, institutions, trade, politics, and dense population.",
+      "fieldProfiles": ["basePlace", "settlementPlace"],
+      "primaryParentCategories": [
+        "Country",
+        "Kingdom",
+        "Province",
+        "Region",
+        "Realm",
+        "Continent"
+      ],
+      "typicalChildCategories": [
+        "Region",
+        "Harbor",
+        "Port",
+        "Temple",
+        "Castle",
+        "Fortress",
+        "Road",
+        "Ruin"
+      ],
+      "importantLinks": [
+        {
+          "field": "parentPlace",
+          "targetCategories": [
+            "Country",
+            "Kingdom",
+            "Province",
+            "Region",
+            "Realm"
+          ]
+        },
+        {
+          "field": "districts",
+          "targetCategories": [
+            "Region",
+            "Harbor",
+            "Port",
+            "Temple",
+            "Castle",
+            "Fortress",
+            "Ruin"
+          ]
+        },
+        {
+          "field": "routeConnections",
+          "targetCategories": ["Road", "River", "Harbor", "Port", "Pass"]
+        },
+        { "field": "inhabitants", "targetEntryKinds": ["character", "faction"] }
+      ],
+      "notes": "Cities benefit from direct links to ruling factions, resident characters, districts, trade routes, nearby water, and founding events."
+    },
+    {
+      "id": "town",
+      "label": "Town",
+      "category": "Town",
+      "parentId": "settlements",
+      "summary": "A mid-sized settlement with local governance, trade, and named institutions.",
+      "fieldProfiles": ["basePlace", "settlementPlace"],
+      "primaryParentCategories": [
+        "Country",
+        "Kingdom",
+        "Province",
+        "Region",
+        "Realm"
+      ],
+      "typicalChildCategories": [
+        "Harbor",
+        "Port",
+        "Temple",
+        "Road",
+        "Mine",
+        "Ruin",
+        "Castle"
+      ],
+      "importantLinks": [
+        {
+          "field": "parentPlace",
+          "targetCategories": [
+            "Country",
+            "Kingdom",
+            "Province",
+            "Region",
+            "Realm"
+          ]
+        },
+        {
+          "field": "routeConnections",
+          "targetCategories": ["Road", "River", "Harbor", "Port", "Pass"]
+        },
+        { "field": "tradePartners", "targetEntryKinds": ["place", "faction"] },
+        { "field": "inhabitants", "targetEntryKinds": ["character", "faction"] }
+      ],
+      "notes": "Towns often need sharper economic fields than cities because one industry or route usually defines them."
+    },
+    {
+      "id": "village",
+      "label": "Village",
+      "category": "Village",
+      "parentId": "settlements",
+      "summary": "A small settlement defined by local families, work, nearby terrain, and social memory.",
+      "fieldProfiles": ["basePlace", "settlementPlace", "naturalPlace"],
+      "primaryParentCategories": [
+        "Province",
+        "Region",
+        "Country",
+        "Kingdom",
+        "Realm"
+      ],
+      "typicalChildCategories": [
+        "Temple",
+        "Road",
+        "Mine",
+        "Ruin",
+        "Forest",
+        "Lake"
+      ],
+      "importantLinks": [
+        {
+          "field": "parentPlace",
+          "targetCategories": [
+            "Province",
+            "Region",
+            "Country",
+            "Kingdom",
+            "Realm"
+          ]
+        },
+        {
+          "field": "inhabitants",
+          "targetEntryKinds": ["character", "faction"]
+        },
+        {
+          "field": "routeConnections",
+          "targetCategories": ["Road", "River", "Pass"]
+        },
+        { "field": "relatedLore", "targetEntryKinds": ["lore"] }
+      ],
+      "notes": "Villages should expose local customs, secrets, nearby hazards, notable families, and dependence on larger places."
+    },
+    {
+      "id": "hamlet",
+      "label": "Hamlet",
+      "category": "Hamlet",
+      "parentId": "settlements",
+      "summary": "A tiny settlement, cluster of homes, outpost, camp, or named habitation point.",
+      "fieldProfiles": ["basePlace", "settlementPlace", "naturalPlace"],
+      "primaryParentCategories": [
+        "Region",
+        "Province",
+        "Country",
+        "Kingdom",
+        "Realm"
+      ],
+      "typicalChildCategories": ["Road", "Mine", "Temple", "Ruin"],
+      "importantLinks": [
+        {
+          "field": "parentPlace",
+          "targetCategories": [
+            "Region",
+            "Province",
+            "Country",
+            "Kingdom",
+            "Realm"
+          ]
+        },
+        {
+          "field": "inhabitants",
+          "targetEntryKinds": ["character", "faction"]
+        },
+        { "field": "access", "targetEntryKinds": [] },
+        { "field": "hazards", "targetEntryKinds": [] }
+      ],
+      "notes": "Hamlets may be seasonal, abandoned, hidden, or known only because a key character lives there."
+    },
+    {
+      "id": "maritime_settlements",
+      "label": "Maritime Settlements",
+      "category": null,
+      "parentId": "settlements",
+      "summary": "Settlement categories defined by water access and docking function.",
+      "fieldProfiles": ["basePlace", "settlementPlace", "waterPlace"],
+      "primaryParentCategories": [
+        "City",
+        "Town",
+        "Village",
+        "Coast",
+        "Bay",
+        "River",
+        "Lake",
+        "Sea",
+        "Ocean"
+      ],
+      "typicalChildCategories": ["Harbor", "Port"],
+      "importantLinks": [
+        {
+          "field": "waters",
+          "targetCategories": [
+            "River",
+            "Lake",
+            "Sea",
+            "Ocean",
+            "Bay",
+            "Gulf",
+            "Coast"
+          ]
+        },
+        {
+          "field": "routeConnections",
+          "targetCategories": [
+            "Road",
+            "River",
+            "Sea",
+            "Ocean",
+            "Port",
+            "Harbor"
+          ]
+        }
+      ],
+      "notes": "Grouping node; not selectable in the current category list."
+    },
+    {
+      "id": "harbor",
+      "label": "Harbor",
+      "category": "Harbor",
+      "parentId": "maritime_settlements",
+      "summary": "A sheltered water access point or harbor district used for anchorage, trade, repair, or defense.",
+      "fieldProfiles": [
+        "basePlace",
+        "settlementPlace",
+        "waterPlace",
+        "builtPlace"
+      ],
+      "primaryParentCategories": [
+        "City",
+        "Town",
+        "Village",
+        "Coast",
+        "Bay",
+        "Lake",
+        "River",
+        "Sea"
+      ],
+      "typicalChildCategories": ["Port", "Fortress", "Road", "Market", "Ruin"],
+      "importantLinks": [
+        {
+          "field": "parentPlace",
+          "targetCategories": [
+            "City",
+            "Town",
+            "Village",
+            "Coast",
+            "Bay",
+            "Lake",
+            "River",
+            "Sea"
+          ]
+        },
+        {
+          "field": "waters",
+          "targetCategories": [
+            "Bay",
+            "Gulf",
+            "Sea",
+            "Ocean",
+            "River",
+            "Lake",
+            "Coast"
+          ]
+        },
+        { "field": "tradePartners", "targetEntryKinds": ["place", "faction"] },
+        {
+          "field": "controllingPowers",
+          "targetEntryKinds": ["faction", "character"]
+        }
+      ],
+      "notes": "Use Harbor when the physical shelter matters; use Port when the institution, customs, or dock infrastructure matters."
+    },
+    {
+      "id": "port",
+      "label": "Port",
+      "category": "Port",
+      "parentId": "maritime_settlements",
+      "summary": "A managed docking, customs, trade, ferry, naval, river, or space-port facility.",
+      "fieldProfiles": [
+        "basePlace",
+        "settlementPlace",
+        "builtPlace",
+        "routePlace"
+      ],
+      "primaryParentCategories": [
+        "City",
+        "Town",
+        "Village",
+        "Harbor",
+        "Coast",
+        "River",
+        "Lake",
+        "Sea",
+        "Ocean",
+        "Space station"
+      ],
+      "typicalChildCategories": [
+        "Harbor",
+        "Road",
+        "Fortress",
+        "Region",
+        "Mine"
+      ],
+      "importantLinks": [
+        {
+          "field": "parentPlace",
+          "targetCategories": [
+            "City",
+            "Town",
+            "Village",
+            "Harbor",
+            "Coast",
+            "River",
+            "Lake",
+            "Sea",
+            "Ocean",
+            "Space station"
+          ]
+        },
+        {
+          "field": "routeConnections",
+          "targetCategories": [
+            "Road",
+            "River",
+            "Sea",
+            "Ocean",
+            "Harbor",
+            "Space station"
+          ]
+        },
+        {
+          "field": "controllingPowers",
+          "targetEntryKinds": ["faction", "character"]
+        },
+        { "field": "tradePartners", "targetEntryKinds": ["place", "faction"] }
+      ],
+      "notes": "Ports should link to the authorities, customs rules, route endpoints, cargo sources, and hazards that shape traffic."
+    },
+    {
+      "id": "built_and_cultural_sites",
+      "label": "Built and Cultural Sites",
+      "category": null,
+      "parentId": "terrestrial_macro_geography",
+      "summary": "Constructed or culturally defined places that often sit inside settlements or terrain.",
+      "fieldProfiles": ["basePlace", "builtPlace"],
+      "primaryParentCategories": [
+        "City",
+        "Town",
+        "Village",
+        "Region",
+        "Country",
+        "Kingdom",
+        "Realm"
+      ],
+      "typicalChildCategories": [
+        "Fortress",
+        "Castle",
+        "Temple",
+        "Ruin",
+        "Mine",
+        "Road"
+      ],
+      "importantLinks": [
+        {
+          "field": "builders",
+          "targetEntryKinds": ["character", "faction", "timeline"]
+        },
+        {
+          "field": "controllingPowers",
+          "targetEntryKinds": ["faction", "character"]
+        },
+        { "field": "relatedLore", "targetEntryKinds": ["lore"] }
+      ],
+      "notes": "Grouping node; not selectable in the current category list."
+    },
+    {
+      "id": "fortress",
+      "label": "Fortress",
+      "category": "Fortress",
+      "parentId": "built_and_cultural_sites",
+      "summary": "A defensive military site, citadel, keep, border fort, orbital bastion, or fortified complex.",
+      "fieldProfiles": ["basePlace", "builtPlace"],
+      "primaryParentCategories": [
+        "Country",
+        "Kingdom",
+        "Province",
+        "Region",
+        "City",
+        "Pass",
+        "Coast",
+        "Space station"
+      ],
+      "typicalChildCategories": [
+        "Castle",
+        "Road",
+        "Pass",
+        "Harbor",
+        "Port",
+        "Mine",
+        "Ruin"
+      ],
+      "importantLinks": [
+        {
+          "field": "parentPlace",
+          "targetCategories": [
+            "Country",
+            "Kingdom",
+            "Province",
+            "Region",
+            "City",
+            "Pass",
+            "Coast",
+            "Space station"
+          ]
+        },
+        {
+          "field": "controllingPowers",
+          "targetEntryKinds": ["faction", "character"]
+        },
+        {
+          "field": "routeConnections",
+          "targetCategories": ["Road", "Pass", "Harbor", "Port"]
+        },
+        { "field": "notableEvents", "targetEntryKinds": ["timeline"] }
+      ],
+      "notes": "Fortresses are often relationship hubs for armies, commanders, sieges, roads, borders, and disputed claims."
+    },
+    {
+      "id": "castle",
+      "label": "Castle",
+      "category": "Castle",
+      "parentId": "built_and_cultural_sites",
+      "summary": "A noble residence, defensive seat, palace-fort, royal keep, or symbolic power center.",
+      "fieldProfiles": ["basePlace", "builtPlace", "settlementPlace"],
+      "primaryParentCategories": [
+        "City",
+        "Town",
+        "Country",
+        "Kingdom",
+        "Province",
+        "Region",
+        "Realm"
+      ],
+      "typicalChildCategories": ["Fortress", "Temple", "Road", "Ruin"],
+      "importantLinks": [
+        {
+          "field": "parentPlace",
+          "targetCategories": [
+            "City",
+            "Town",
+            "Country",
+            "Kingdom",
+            "Province",
+            "Region",
+            "Realm"
+          ]
+        },
+        {
+          "field": "inhabitants",
+          "targetEntryKinds": ["character", "faction"]
+        },
+        {
+          "field": "claimants",
+          "targetEntryKinds": ["faction", "character", "place"]
+        },
+        {
+          "field": "founders",
+          "targetEntryKinds": ["character", "faction", "timeline"]
+        }
+      ],
+      "notes": "Castles should link to noble houses, rulers, heirs, staff, sieges, founding events, and nearby settlements."
+    },
+    {
+      "id": "temple",
+      "label": "Temple",
+      "category": "Temple",
+      "parentId": "built_and_cultural_sites",
+      "summary": "A sacred place, shrine, monastery, ritual complex, oracle, or institutional religious site.",
+      "fieldProfiles": ["basePlace", "builtPlace", "settlementPlace"],
+      "primaryParentCategories": [
+        "City",
+        "Town",
+        "Village",
+        "Region",
+        "Mountain",
+        "Forest",
+        "Realm",
+        "Plane"
+      ],
+      "typicalChildCategories": ["Ruin", "Road", "Cave", "Lake", "Mountain"],
+      "importantLinks": [
+        {
+          "field": "parentPlace",
+          "targetCategories": [
+            "City",
+            "Town",
+            "Village",
+            "Region",
+            "Mountain",
+            "Forest",
+            "Realm",
+            "Plane"
+          ]
+        },
+        {
+          "field": "controllingPowers",
+          "targetEntryKinds": ["faction", "character"]
+        },
+        { "field": "relatedLore", "targetEntryKinds": ["lore"] },
+        { "field": "notableEvents", "targetEntryKinds": ["timeline"] }
+      ],
+      "notes": "Temple records should surface deity, rite, taboo, relic, faction, pilgrimage route, and access restrictions through lore and faction links."
+    },
+    {
+      "id": "ruin",
+      "label": "Ruin",
+      "category": "Ruin",
+      "parentId": "built_and_cultural_sites",
+      "summary": "An abandoned, destroyed, buried, haunted, or partially reclaimed former place.",
+      "fieldProfiles": ["basePlace", "builtPlace", "naturalPlace"],
+      "primaryParentCategories": [
+        "City",
+        "Town",
+        "Village",
+        "Region",
+        "Forest",
+        "Desert",
+        "Swamp",
+        "Mountain",
+        "Cave",
+        "Asteroid belt"
+      ],
+      "typicalChildCategories": [
+        "Temple",
+        "Castle",
+        "Fortress",
+        "Mine",
+        "Cave",
+        "Road"
+      ],
+      "importantLinks": [
+        {
+          "field": "parentPlace",
+          "targetCategories": [
+            "City",
+            "Town",
+            "Village",
+            "Region",
+            "Forest",
+            "Desert",
+            "Swamp",
+            "Mountain",
+            "Cave",
+            "Asteroid belt"
+          ]
+        },
+        {
+          "field": "builders",
+          "targetEntryKinds": ["faction", "character", "timeline"]
+        },
+        { "field": "notableEvents", "targetEntryKinds": ["timeline"] },
+        { "field": "relatedLore", "targetEntryKinds": ["lore"] }
+      ],
+      "notes": "Ruin fields should capture original function, fall event, current occupants, salvage, hazards, and false histories."
+    },
+    {
+      "id": "mine",
+      "label": "Mine",
+      "category": "Mine",
+      "parentId": "built_and_cultural_sites",
+      "summary": "A resource extraction site, quarry, shaft, asteroid operation, undercity dig, or magical harvesting site.",
+      "fieldProfiles": ["basePlace", "builtPlace", "naturalPlace"],
+      "primaryParentCategories": [
+        "Mountain",
+        "Cave",
+        "Region",
+        "Desert",
+        "Asteroid belt",
+        "Moon",
+        "Planet"
+      ],
+      "typicalChildCategories": ["Cave", "Road", "Town", "Hamlet", "Ruin"],
+      "importantLinks": [
+        {
+          "field": "parentPlace",
+          "targetCategories": [
+            "Mountain",
+            "Cave",
+            "Region",
+            "Desert",
+            "Asteroid belt",
+            "Moon",
+            "Planet"
+          ]
+        },
+        { "field": "resources", "targetEntryKinds": [] },
+        {
+          "field": "controllingPowers",
+          "targetEntryKinds": ["faction", "character"]
+        },
+        {
+          "field": "routeConnections",
+          "targetCategories": ["Road", "Pass", "Port", "Space station"]
+        }
+      ],
+      "notes": "Mines need ownership, labor, output, depletion, hazards, transport, and ecological or magical consequences."
+    },
+    {
+      "id": "routes_and_corridors",
+      "label": "Routes and Corridors",
+      "category": null,
+      "parentId": "terrestrial_macro_geography",
+      "summary": "Places that primarily organize movement between other places.",
+      "fieldProfiles": ["basePlace", "routePlace"],
+      "primaryParentCategories": [
+        "Country",
+        "Kingdom",
+        "Province",
+        "Region",
+        "Mountain range",
+        "Valley",
+        "Coast",
+        "Sea",
+        "Ocean",
+        "Space station"
+      ],
+      "typicalChildCategories": [
+        "Road",
+        "Pass",
+        "River",
+        "Coast",
+        "Harbor",
+        "Port"
+      ],
+      "importantLinks": [
+        { "field": "routeConnections", "targetEntryKinds": ["place"] },
+        {
+          "field": "controllingPowers",
+          "targetEntryKinds": ["faction", "character"]
+        },
+        { "field": "hazards", "targetEntryKinds": [] }
+      ],
+      "notes": "Grouping node; not selectable in the current category list."
+    },
+    {
+      "id": "road",
+      "label": "Road",
+      "category": "Road",
+      "parentId": "routes_and_corridors",
+      "summary": "A road, trail, causeway, caravan route, tunnel road, rail line, pilgrimage route, or known path.",
+      "fieldProfiles": ["basePlace", "routePlace", "builtPlace"],
+      "primaryParentCategories": [
+        "Country",
+        "Kingdom",
+        "Province",
+        "Region",
+        "City",
+        "Town",
+        "Forest",
+        "Desert",
+        "Mountain range"
+      ],
+      "typicalChildCategories": [
+        "Pass",
+        "Bridge",
+        "Fortress",
+        "Town",
+        "Village",
+        "Ruin"
+      ],
+      "importantLinks": [
+        {
+          "field": "routeConnections",
+          "targetCategories": [
+            "City",
+            "Town",
+            "Village",
+            "Fortress",
+            "Castle",
+            "Pass",
+            "Harbor",
+            "Port",
+            "Mine",
+            "Ruin"
+          ]
+        },
+        {
+          "field": "controllingPowers",
+          "targetEntryKinds": ["faction", "character"]
+        },
+        { "field": "relatedLore", "targetEntryKinds": ["lore"] }
+      ],
+      "notes": "There is no Bridge category yet; model important bridges as Road, Pass, or Landmark-style Region entries."
+    },
+    {
+      "id": "pass",
+      "label": "Pass",
+      "category": "Pass",
+      "parentId": "routes_and_corridors",
+      "summary": "A mountain pass, strait-like land gap, canyon crossing, gate corridor, or chokepoint.",
+      "fieldProfiles": ["basePlace", "routePlace", "naturalPlace"],
+      "primaryParentCategories": [
+        "Mountain range",
+        "Mountain",
+        "Valley",
+        "Canyon",
+        "Region",
+        "Country",
+        "Kingdom"
+      ],
+      "typicalChildCategories": [
+        "Road",
+        "Fortress",
+        "Temple",
+        "Ruin",
+        "Cave",
+        "Mine"
+      ],
+      "importantLinks": [
+        {
+          "field": "parentPlace",
+          "targetCategories": [
+            "Mountain range",
+            "Mountain",
+            "Valley",
+            "Canyon",
+            "Region"
+          ]
+        },
+        {
+          "field": "routeConnections",
+          "targetCategories": [
+            "Country",
+            "Kingdom",
+            "Province",
+            "Region",
+            "City",
+            "Town",
+            "Road"
+          ]
+        },
+        {
+          "field": "controllingPowers",
+          "targetEntryKinds": ["faction", "character"]
+        },
+        { "field": "hazards", "targetEntryKinds": [] }
+      ],
+      "notes": "Passes should expose seasonality, tolls, military control, closures, ambush sites, and alternate routes."
+    },
+    {
+      "id": "land_biomes_and_terrain",
+      "label": "Land Biomes and Terrain",
+      "category": null,
+      "parentId": "terrestrial_macro_geography",
+      "summary": "Large terrestrial ecological and geological places.",
+      "fieldProfiles": ["basePlace", "naturalPlace"],
+      "primaryParentCategories": [
+        "World",
+        "Planet",
+        "Continent",
+        "Country",
+        "Kingdom",
+        "Province",
+        "Region",
+        "Realm"
+      ],
+      "typicalChildCategories": [
+        "Forest",
+        "Jungle",
+        "Desert",
+        "Swamp",
+        "Wetland",
+        "Plains",
+        "Steppe",
+        "Tundra",
+        "Mountain range",
+        "Valley",
+        "Canyon",
+        "Plateau",
+        "Volcano",
+        "Glacier",
+        "Cave"
+      ],
+      "importantLinks": [
+        {
+          "field": "childPlaces",
+          "targetCategories": [
+            "Forest",
+            "Jungle",
+            "Desert",
+            "Swamp",
+            "Wetland",
+            "Plains",
+            "Steppe",
+            "Tundra",
+            "Mountain range",
+            "Valley",
+            "Canyon",
+            "Plateau",
+            "Volcano",
+            "Glacier",
+            "Cave"
+          ]
+        },
+        { "field": "relatedLore", "targetEntryKinds": ["lore"] }
+      ],
+      "notes": "Grouping node; not selectable in the current category list."
+    },
+    {
+      "id": "forest",
+      "label": "Forest",
+      "category": "Forest",
+      "parentId": "land_biomes_and_terrain",
+      "summary": "A wooded region with ecology, travel constraints, inhabitants, paths, and resources.",
+      "fieldProfiles": ["basePlace", "naturalPlace"],
+      "primaryParentCategories": [
+        "Continent",
+        "Country",
+        "Kingdom",
+        "Province",
+        "Region",
+        "Realm"
+      ],
+      "typicalChildCategories": [
+        "Road",
+        "Village",
+        "Hamlet",
+        "Temple",
+        "Ruin",
+        "River",
+        "Lake",
+        "Cave"
+      ],
+      "importantLinks": [
+        {
+          "field": "routeConnections",
+          "targetCategories": ["Road", "Pass", "River"]
+        },
+        {
+          "field": "settlements",
+          "targetCategories": ["Village", "Hamlet", "Town"]
+        },
+        {
+          "field": "landmarks",
+          "targetCategories": ["Temple", "Ruin", "Lake", "Cave"]
+        },
+        { "field": "relatedLore", "targetEntryKinds": ["lore"] }
+      ],
+      "notes": "Forests need paths, canopy/light, ownership, taboos, resources, monsters, and border settlements."
+    },
+    {
+      "id": "jungle",
+      "label": "Jungle",
+      "category": "Jungle",
+      "parentId": "land_biomes_and_terrain",
+      "summary": "A dense tropical or alien forest with intense growth, humidity, ruins, and travel friction.",
+      "fieldProfiles": ["basePlace", "naturalPlace"],
+      "primaryParentCategories": [
+        "Continent",
+        "Country",
+        "Province",
+        "Region",
+        "Realm",
+        "Planet"
+      ],
+      "typicalChildCategories": [
+        "River",
+        "Temple",
+        "Ruin",
+        "Village",
+        "Cave",
+        "Swamp",
+        "Mountain"
+      ],
+      "importantLinks": [
+        {
+          "field": "waters",
+          "targetCategories": ["River", "Lake", "Swamp", "Wetland"]
+        },
+        {
+          "field": "landmarks",
+          "targetCategories": ["Temple", "Ruin", "Cave", "Mountain"]
+        },
+        { "field": "hazards", "targetEntryKinds": [] },
+        { "field": "relatedLore", "targetEntryKinds": ["lore"] }
+      ],
+      "notes": "Use Jungle instead of Forest when climate, density, disease, rivers, canopy, and hidden ruins are defining traits."
+    },
+    {
+      "id": "desert",
+      "label": "Desert",
+      "category": "Desert",
+      "parentId": "land_biomes_and_terrain",
+      "summary": "An arid, icy, salt, ash, magical, or resource-scarce region shaped by exposure and routes.",
+      "fieldProfiles": ["basePlace", "naturalPlace", "routePlace"],
+      "primaryParentCategories": [
+        "Continent",
+        "Country",
+        "Kingdom",
+        "Province",
+        "Region",
+        "Realm",
+        "Planet"
+      ],
+      "typicalChildCategories": [
+        "Road",
+        "Oasis",
+        "Town",
+        "Village",
+        "Ruin",
+        "Mine",
+        "Canyon",
+        "Plateau"
+      ],
+      "importantLinks": [
+        {
+          "field": "routeConnections",
+          "targetCategories": [
+            "Road",
+            "Pass",
+            "Town",
+            "Village",
+            "Mine",
+            "Ruin"
+          ]
+        },
+        { "field": "resources", "targetEntryKinds": [] },
+        { "field": "hazards", "targetEntryKinds": [] },
+        { "field": "relatedLore", "targetEntryKinds": ["lore"] }
+      ],
+      "notes": "There is no Oasis category yet; model important oases as Lake, Wetland, Village, or Region entries."
+    },
+    {
+      "id": "swamp",
+      "label": "Swamp",
+      "category": "Swamp",
+      "parentId": "land_biomes_and_terrain",
+      "summary": "A wooded wetland, flooded lowland, boggy wilderness, or liminal hazard zone.",
+      "fieldProfiles": ["basePlace", "naturalPlace", "waterPlace"],
+      "primaryParentCategories": [
+        "Region",
+        "Province",
+        "Country",
+        "River",
+        "Lake",
+        "Coast"
+      ],
+      "typicalChildCategories": [
+        "Wetland",
+        "River",
+        "Lake",
+        "Village",
+        "Hamlet",
+        "Ruin",
+        "Temple"
+      ],
+      "importantLinks": [
+        {
+          "field": "waters",
+          "targetCategories": ["River", "Lake", "Wetland", "Coast"]
+        },
+        {
+          "field": "settlements",
+          "targetCategories": ["Village", "Hamlet", "Town"]
+        },
+        { "field": "hazards", "targetEntryKinds": [] },
+        { "field": "relatedLore", "targetEntryKinds": ["lore"] }
+      ],
+      "notes": "Swamps should capture water level, navigability, disease, concealment, guides, spirits, and seasonal change."
+    },
+    {
+      "id": "wetland",
+      "label": "Wetland",
+      "category": "Wetland",
+      "parentId": "land_biomes_and_terrain",
+      "summary": "A marsh, fen, bog, delta wetland, reedland, or ecologically important water-land boundary.",
+      "fieldProfiles": ["basePlace", "naturalPlace", "waterPlace"],
+      "primaryParentCategories": [
+        "Region",
+        "River",
+        "Lake",
+        "Coast",
+        "Swamp",
+        "Country"
+      ],
+      "typicalChildCategories": [
+        "River",
+        "Lake",
+        "Village",
+        "Hamlet",
+        "Ruin",
+        "Road"
+      ],
+      "importantLinks": [
+        {
+          "field": "waters",
+          "targetCategories": ["River", "Lake", "Swamp", "Coast", "Bay"]
+        },
+        { "field": "floraFauna", "targetEntryKinds": [] },
+        { "field": "resources", "targetEntryKinds": [] },
+        { "field": "hazards", "targetEntryKinds": [] }
+      ],
+      "notes": "Wetland is more ecological; Swamp is more atmospheric and wooded. Both can coexist if the distinction matters."
+    },
+    {
+      "id": "plains",
+      "label": "Plains",
+      "category": "Plains",
+      "parentId": "land_biomes_and_terrain",
+      "summary": "A broad open low-relief region useful for agriculture, migration, cavalry, storms, or visibility.",
+      "fieldProfiles": ["basePlace", "naturalPlace", "politicalPlace"],
+      "primaryParentCategories": [
+        "Continent",
+        "Country",
+        "Kingdom",
+        "Province",
+        "Region",
+        "Realm"
+      ],
+      "typicalChildCategories": [
+        "Town",
+        "Village",
+        "Hamlet",
+        "Road",
+        "River",
+        "Lake",
+        "Fortress",
+        "Ruin"
+      ],
+      "importantLinks": [
+        {
+          "field": "settlements",
+          "targetCategories": ["Town", "Village", "Hamlet"]
+        },
+        { "field": "routeConnections", "targetCategories": ["Road", "River"] },
+        { "field": "resources", "targetEntryKinds": [] },
+        {
+          "field": "controllingPowers",
+          "targetEntryKinds": ["faction", "character"]
+        }
+      ],
+      "notes": "Track pasture, grain, nomadic routes, battlefield visibility, weather exposure, and border vulnerability."
+    },
+    {
+      "id": "steppe",
+      "label": "Steppe",
+      "category": "Steppe",
+      "parentId": "land_biomes_and_terrain",
+      "summary": "A dry grassland or semi-arid open region shaped by herding, migration, wind, and distance.",
+      "fieldProfiles": ["basePlace", "naturalPlace", "politicalPlace"],
+      "primaryParentCategories": [
+        "Continent",
+        "Country",
+        "Province",
+        "Region",
+        "Realm"
+      ],
+      "typicalChildCategories": [
+        "Road",
+        "Town",
+        "Village",
+        "Hamlet",
+        "River",
+        "Fortress",
+        "Ruin"
+      ],
+      "importantLinks": [
+        {
+          "field": "routeConnections",
+          "targetCategories": ["Road", "River", "Pass"]
+        },
+        {
+          "field": "inhabitants",
+          "targetEntryKinds": ["character", "faction"]
+        },
+        { "field": "resources", "targetEntryKinds": [] },
+        { "field": "relatedLore", "targetEntryKinds": ["lore"] }
+      ],
+      "notes": "Often driven by cultures and routes more than fixed settlement density; link nomadic factions explicitly."
+    },
+    {
+      "id": "tundra",
+      "label": "Tundra",
+      "category": "Tundra",
+      "parentId": "land_biomes_and_terrain",
+      "summary": "A cold treeless or sparsely vegetated region with permafrost, seasonal travel, and scarce resources.",
+      "fieldProfiles": ["basePlace", "naturalPlace"],
+      "primaryParentCategories": [
+        "Continent",
+        "Country",
+        "Province",
+        "Region",
+        "Planet",
+        "Moon"
+      ],
+      "typicalChildCategories": [
+        "Glacier",
+        "Lake",
+        "River",
+        "Village",
+        "Hamlet",
+        "Road",
+        "Ruin"
+      ],
+      "importantLinks": [
+        { "field": "climate", "targetEntryKinds": [] },
+        { "field": "settlements", "targetCategories": ["Village", "Hamlet"] },
+        { "field": "waters", "targetCategories": ["Glacier", "Lake", "River"] },
+        { "field": "hazards", "targetEntryKinds": [] }
+      ],
+      "notes": "Tundra records should capture seasonality, food, migration, exposure, and what makes travel possible."
+    },
+    {
+      "id": "mountain_systems",
+      "label": "Mountain Systems",
+      "category": null,
+      "parentId": "land_biomes_and_terrain",
+      "summary": "Highland and geological categories.",
+      "fieldProfiles": ["basePlace", "naturalPlace"],
+      "primaryParentCategories": [
+        "Continent",
+        "Country",
+        "Kingdom",
+        "Province",
+        "Region",
+        "Planet",
+        "Moon"
+      ],
+      "typicalChildCategories": [
+        "Mountain range",
+        "Mountain",
+        "Valley",
+        "Canyon",
+        "Plateau",
+        "Volcano",
+        "Glacier",
+        "Pass",
+        "Cave",
+        "Mine"
+      ],
+      "importantLinks": [
+        {
+          "field": "childPlaces",
+          "targetCategories": [
+            "Mountain range",
+            "Mountain",
+            "Valley",
+            "Canyon",
+            "Plateau",
+            "Volcano",
+            "Glacier",
+            "Pass",
+            "Cave",
+            "Mine"
+          ]
+        }
+      ],
+      "notes": "Grouping node; not selectable in the current category list."
+    },
+    {
+      "id": "mountain_range",
+      "label": "Mountain range",
+      "category": "Mountain range",
+      "parentId": "mountain_systems",
+      "summary": "A chain or system of mountains that shapes borders, climate, travel, watersheds, and cultures.",
+      "fieldProfiles": ["basePlace", "naturalPlace", "routePlace"],
+      "primaryParentCategories": [
+        "Continent",
+        "Country",
+        "Kingdom",
+        "Province",
+        "Region",
+        "Planet",
+        "Moon"
+      ],
+      "typicalChildCategories": [
+        "Mountain",
+        "Volcano",
+        "Glacier",
+        "Pass",
+        "Valley",
+        "Canyon",
+        "Cave",
+        "Mine",
+        "Fortress",
+        "Temple"
+      ],
+      "importantLinks": [
+        {
+          "field": "childPlaces",
+          "targetCategories": [
+            "Mountain",
+            "Volcano",
+            "Glacier",
+            "Pass",
+            "Valley",
+            "Canyon",
+            "Cave",
+            "Mine"
+          ]
+        },
+        { "field": "waters", "targetCategories": ["River", "Lake", "Glacier"] },
+        {
+          "field": "neighbors",
+          "targetCategories": ["Country", "Kingdom", "Province", "Region"]
+        }
+      ],
+      "notes": "Mountain ranges are strong border and watershed entities; expose both adjacent polities and route passes."
+    },
+    {
+      "id": "mountain",
+      "label": "Mountain",
+      "category": "Mountain",
+      "parentId": "mountain_systems",
+      "summary": "A named peak, sacred mountain, isolated highland, or dominant landmark.",
+      "fieldProfiles": ["basePlace", "naturalPlace"],
+      "primaryParentCategories": [
+        "Mountain range",
+        "Region",
+        "Country",
+        "Kingdom",
+        "Province",
+        "Planet",
+        "Moon"
+      ],
+      "typicalChildCategories": [
+        "Pass",
+        "Cave",
+        "Mine",
+        "Temple",
+        "Fortress",
+        "Glacier",
+        "Volcano"
+      ],
+      "importantLinks": [
+        {
+          "field": "parentPlace",
+          "targetCategories": [
+            "Mountain range",
+            "Region",
+            "Country",
+            "Kingdom",
+            "Province"
+          ]
+        },
+        {
+          "field": "landmarks",
+          "targetCategories": [
+            "Pass",
+            "Cave",
+            "Mine",
+            "Temple",
+            "Fortress",
+            "Glacier",
+            "Volcano"
+          ]
+        },
+        { "field": "relatedLore", "targetEntryKinds": ["lore"] }
+      ],
+      "notes": "Mountains often need elevation, route difficulty, sacred status, resource value, and visibility from nearby places."
+    },
+    {
+      "id": "valley",
+      "label": "Valley",
+      "category": "Valley",
+      "parentId": "mountain_systems",
+      "summary": "A lowland corridor or basin between highlands, often with rivers, settlements, roads, and agriculture.",
+      "fieldProfiles": [
+        "basePlace",
+        "naturalPlace",
+        "routePlace",
+        "politicalPlace"
+      ],
+      "primaryParentCategories": [
+        "Mountain range",
+        "Mountain",
+        "Region",
+        "Province",
+        "Country",
+        "Kingdom"
+      ],
+      "typicalChildCategories": [
+        "River",
+        "Road",
+        "Town",
+        "Village",
+        "Hamlet",
+        "Pass",
+        "Lake",
+        "Mine",
+        "Fortress"
+      ],
+      "importantLinks": [
+        { "field": "waters", "targetCategories": ["River", "Lake"] },
+        {
+          "field": "settlements",
+          "targetCategories": ["Town", "Village", "Hamlet"]
+        },
+        {
+          "field": "routeConnections",
+          "targetCategories": ["Road", "Pass", "River"]
+        }
+      ],
+      "notes": "Valleys frequently become natural corridors, agricultural zones, or contested borderlands."
+    },
+    {
+      "id": "canyon",
+      "label": "Canyon",
+      "category": "Canyon",
+      "parentId": "mountain_systems",
+      "summary": "A deep cut, gorge, chasm, rift, or exposed geological corridor.",
+      "fieldProfiles": ["basePlace", "naturalPlace", "routePlace"],
+      "primaryParentCategories": [
+        "Region",
+        "Desert",
+        "Mountain range",
+        "Plateau",
+        "Planet",
+        "Moon"
+      ],
+      "typicalChildCategories": [
+        "River",
+        "Road",
+        "Pass",
+        "Cave",
+        "Mine",
+        "Ruin",
+        "Bridge"
+      ],
+      "importantLinks": [
+        { "field": "waters", "targetCategories": ["River"] },
+        {
+          "field": "routeConnections",
+          "targetCategories": ["Road", "Pass", "River"]
+        },
+        { "field": "landmarks", "targetCategories": ["Cave", "Mine", "Ruin"] },
+        { "field": "hazards", "targetEntryKinds": [] }
+      ],
+      "notes": "Canyons need vertical access, crossings, sight lines, floods, echoes, hidden routes, and what exposed the rock or ruin."
+    },
+    {
+      "id": "plateau",
+      "label": "Plateau",
+      "category": "Plateau",
+      "parentId": "mountain_systems",
+      "summary": "An elevated flatland or tableland with distinct climate, edges, access routes, and settlements.",
+      "fieldProfiles": ["basePlace", "naturalPlace", "politicalPlace"],
+      "primaryParentCategories": [
+        "Region",
+        "Mountain range",
+        "Continent",
+        "Country",
+        "Kingdom",
+        "Planet"
+      ],
+      "typicalChildCategories": [
+        "Town",
+        "Village",
+        "Road",
+        "Pass",
+        "Canyon",
+        "Mine",
+        "Temple",
+        "Ruin"
+      ],
+      "importantLinks": [
+        {
+          "field": "routeConnections",
+          "targetCategories": ["Road", "Pass", "Canyon"]
+        },
+        {
+          "field": "settlements",
+          "targetCategories": ["Town", "Village", "Hamlet"]
+        },
+        { "field": "resources", "targetEntryKinds": [] },
+        { "field": "hazards", "targetEntryKinds": [] }
+      ],
+      "notes": "Track edge routes and why the plateau is separated culturally, climatically, or militarily from lowlands."
+    },
+    {
+      "id": "volcano",
+      "label": "Volcano",
+      "category": "Volcano",
+      "parentId": "mountain_systems",
+      "summary": "An active, dormant, dead, magical, cryogenic, or divine volcanic feature.",
+      "fieldProfiles": ["basePlace", "naturalPlace", "builtPlace"],
+      "primaryParentCategories": [
+        "Mountain range",
+        "Mountain",
+        "Island",
+        "Region",
+        "Planet",
+        "Moon"
+      ],
+      "typicalChildCategories": [
+        "Mountain",
+        "Cave",
+        "Mine",
+        "Temple",
+        "Ruin",
+        "Lake"
+      ],
+      "importantLinks": [
+        {
+          "field": "parentPlace",
+          "targetCategories": [
+            "Mountain range",
+            "Mountain",
+            "Island",
+            "Region",
+            "Planet",
+            "Moon"
+          ]
+        },
+        { "field": "hazards", "targetEntryKinds": [] },
+        { "field": "resources", "targetEntryKinds": [] },
+        { "field": "relatedLore", "targetEntryKinds": ["lore"] },
+        { "field": "notableEvents", "targetEntryKinds": ["timeline"] }
+      ],
+      "notes": "Volcanoes should capture eruption history, warning signs, divine taboos, geothermal resources, and affected settlements."
+    },
+    {
+      "id": "glacier",
+      "label": "Glacier",
+      "category": "Glacier",
+      "parentId": "mountain_systems",
+      "summary": "A moving ice mass, ice sheet, frozen river, magical icefield, or climate marker.",
+      "fieldProfiles": ["basePlace", "naturalPlace", "waterPlace"],
+      "primaryParentCategories": [
+        "Mountain range",
+        "Mountain",
+        "Tundra",
+        "Region",
+        "Planet",
+        "Moon"
+      ],
+      "typicalChildCategories": ["River", "Lake", "Cave", "Pass", "Ruin"],
+      "importantLinks": [
+        {
+          "field": "source",
+          "targetCategories": ["Mountain", "Mountain range", "Tundra", "Region"]
+        },
+        {
+          "field": "mouth",
+          "targetCategories": ["River", "Lake", "Sea", "Ocean", "Valley"]
+        },
+        { "field": "hazards", "targetEntryKinds": [] },
+        { "field": "relatedLore", "targetEntryKinds": ["lore"] }
+      ],
+      "notes": "Glaciers tie climate, time depth, water sources, hidden ruins, and dangerous travel into one record."
+    },
+    {
+      "id": "subterranean_places",
+      "label": "Subterranean Places",
+      "category": null,
+      "parentId": "land_biomes_and_terrain",
+      "summary": "Underground places and enclosed natural systems.",
+      "fieldProfiles": ["basePlace", "naturalPlace", "builtPlace"],
+      "primaryParentCategories": [
+        "Mountain",
+        "Mountain range",
+        "Canyon",
+        "Region",
+        "Mine",
+        "Ruin",
+        "Planet",
+        "Moon"
+      ],
+      "typicalChildCategories": [
+        "Cave",
+        "Mine",
+        "Ruin",
+        "Lake",
+        "River",
+        "Temple"
+      ],
+      "importantLinks": [
+        { "field": "access", "targetEntryKinds": [] },
+        { "field": "hazards", "targetEntryKinds": [] },
+        {
+          "field": "routeConnections",
+          "targetCategories": ["Cave", "Mine", "Road", "Pass"]
+        }
+      ],
+      "notes": "Grouping node; not selectable in the current category list."
+    },
+    {
+      "id": "cave",
+      "label": "Cave",
+      "category": "Cave",
+      "parentId": "subterranean_places",
+      "summary": "A cave, cavern system, lair, tunnel network, shrine grotto, sinkhole, or underworld entrance.",
+      "fieldProfiles": [
+        "basePlace",
+        "naturalPlace",
+        "builtPlace",
+        "routePlace"
+      ],
+      "primaryParentCategories": [
+        "Mountain",
+        "Mountain range",
+        "Canyon",
+        "Region",
+        "Forest",
+        "Jungle",
+        "Mine",
+        "Ruin",
+        "Island"
+      ],
+      "typicalChildCategories": [
+        "Mine",
+        "Ruin",
+        "Temple",
+        "Lake",
+        "River",
+        "Road"
+      ],
+      "importantLinks": [
+        {
+          "field": "parentPlace",
+          "targetCategories": [
+            "Mountain",
+            "Mountain range",
+            "Canyon",
+            "Region",
+            "Forest",
+            "Jungle",
+            "Mine",
+            "Ruin",
+            "Island"
+          ]
+        },
+        {
+          "field": "routeConnections",
+          "targetCategories": ["Mine", "Ruin", "Temple", "Road", "Pass"]
+        },
+        {
+          "field": "inhabitants",
+          "targetEntryKinds": ["character", "faction"]
+        },
+        { "field": "relatedLore", "targetEntryKinds": ["lore"] }
+      ],
+      "notes": "Caves should capture entrances, depth, maps, air/water, inhabitants, acoustics, treasures, and why people go inside."
+    },
+    {
+      "id": "water_and_coasts",
+      "label": "Water and Coasts",
+      "category": null,
+      "parentId": "terrestrial_macro_geography",
+      "summary": "Hydrological, coastal, and maritime geography.",
+      "fieldProfiles": ["basePlace", "waterPlace"],
+      "primaryParentCategories": [
+        "World",
+        "Planet",
+        "Continent",
+        "Country",
+        "Kingdom",
+        "Province",
+        "Region",
+        "Realm"
+      ],
+      "typicalChildCategories": [
+        "River",
+        "Lake",
+        "Ocean",
+        "Sea",
+        "Coast",
+        "Bay",
+        "Gulf",
+        "Island",
+        "Peninsula",
+        "Archipelago",
+        "Harbor",
+        "Port"
+      ],
+      "importantLinks": [
+        {
+          "field": "waters",
+          "targetCategories": [
+            "River",
+            "Lake",
+            "Ocean",
+            "Sea",
+            "Coast",
+            "Bay",
+            "Gulf"
+          ]
+        },
+        {
+          "field": "settlements",
+          "targetCategories": ["Harbor", "Port", "City", "Town", "Village"]
+        }
+      ],
+      "notes": "Grouping node; not selectable in the current category list."
+    },
+    {
+      "id": "river",
+      "label": "River",
+      "category": "River",
+      "parentId": "water_and_coasts",
+      "summary": "A river, stream, canal-like natural flow, magical current, lava river, or trade waterway.",
+      "fieldProfiles": ["basePlace", "waterPlace", "routePlace"],
+      "primaryParentCategories": [
+        "Mountain",
+        "Glacier",
+        "Lake",
+        "Region",
+        "Country",
+        "Kingdom",
+        "Continent"
+      ],
+      "typicalChildCategories": [
+        "Lake",
+        "Wetland",
+        "Swamp",
+        "Harbor",
+        "Port",
+        "City",
+        "Town",
+        "Village",
+        "Road"
+      ],
+      "importantLinks": [
+        {
+          "field": "source",
+          "targetCategories": [
+            "Mountain",
+            "Glacier",
+            "Lake",
+            "Swamp",
+            "Wetland",
+            "Region"
+          ]
+        },
+        {
+          "field": "mouth",
+          "targetCategories": [
+            "Lake",
+            "Sea",
+            "Ocean",
+            "Bay",
+            "Gulf",
+            "Swamp",
+            "Wetland",
+            "River"
+          ]
+        },
+        {
+          "field": "settlements",
+          "targetCategories": ["City", "Town", "Village", "Harbor", "Port"]
+        },
+        {
+          "field": "routeConnections",
+          "targetCategories": ["Road", "Harbor", "Port", "Sea", "Lake"]
+        }
+      ],
+      "notes": "Rivers should expose upstream/downstream links, crossings, settlements, navigability, floods, borders, and sacred or legal status."
+    },
+    {
+      "id": "lake",
+      "label": "Lake",
+      "category": "Lake",
+      "parentId": "water_and_coasts",
+      "summary": "A freshwater, salt, crater, underground, glacial, magical, or artificial lake.",
+      "fieldProfiles": ["basePlace", "waterPlace", "naturalPlace"],
+      "primaryParentCategories": [
+        "Region",
+        "Country",
+        "Kingdom",
+        "Mountain",
+        "Valley",
+        "Cave",
+        "Volcano",
+        "Glacier"
+      ],
+      "typicalChildCategories": [
+        "River",
+        "Island",
+        "Harbor",
+        "Port",
+        "Town",
+        "Village",
+        "Temple",
+        "Ruin"
+      ],
+      "importantLinks": [
+        {
+          "field": "tributaries",
+          "targetCategories": ["River", "Glacier", "Wetland", "Swamp"]
+        },
+        {
+          "field": "mouth",
+          "targetCategories": ["River", "Swamp", "Wetland", "Sea", "Ocean"]
+        },
+        {
+          "field": "settlements",
+          "targetCategories": ["Town", "Village", "Harbor", "Port"]
+        },
+        {
+          "field": "landmarks",
+          "targetCategories": ["Island", "Temple", "Ruin"]
+        }
+      ],
+      "notes": "Lakes often need depth, water source, outflow, shoreline settlements, fishing rights, monsters, and seasonal freezing."
+    },
+    {
+      "id": "ocean",
+      "label": "Ocean",
+      "category": "Ocean",
+      "parentId": "water_and_coasts",
+      "summary": "A world-scale body of water or analogous sea of sand, stars, mist, or magic.",
+      "fieldProfiles": ["basePlace", "waterPlace", "naturalPlace"],
+      "primaryParentCategories": [
+        "World",
+        "Planet",
+        "Continent",
+        "Plane",
+        "Realm"
+      ],
+      "typicalChildCategories": [
+        "Sea",
+        "Bay",
+        "Gulf",
+        "Island",
+        "Archipelago",
+        "Coast",
+        "Harbor",
+        "Port"
+      ],
+      "importantLinks": [
+        {
+          "field": "childPlaces",
+          "targetCategories": [
+            "Sea",
+            "Bay",
+            "Gulf",
+            "Island",
+            "Archipelago",
+            "Coast"
+          ]
+        },
+        {
+          "field": "routeConnections",
+          "targetCategories": ["Sea", "Harbor", "Port", "Island", "Archipelago"]
+        },
+        { "field": "hazards", "targetEntryKinds": [] },
+        { "field": "relatedLore", "targetEntryKinds": ["lore"] }
+      ],
+      "notes": "Oceans are best modeled as route networks plus hazards, currents, cultures, weather, monsters, and trade lanes."
+    },
+    {
+      "id": "sea",
+      "label": "Sea",
+      "category": "Sea",
+      "parentId": "water_and_coasts",
+      "summary": "A large named water body, inland sea, marginal sea, magical sea, or navigable subregion of an ocean.",
+      "fieldProfiles": ["basePlace", "waterPlace", "naturalPlace"],
+      "primaryParentCategories": [
+        "Ocean",
+        "Continent",
+        "Country",
+        "Kingdom",
+        "Region",
+        "Realm"
+      ],
+      "typicalChildCategories": [
+        "Bay",
+        "Gulf",
+        "Coast",
+        "Island",
+        "Archipelago",
+        "Harbor",
+        "Port"
+      ],
+      "importantLinks": [
+        {
+          "field": "parentPlace",
+          "targetCategories": [
+            "Ocean",
+            "Continent",
+            "Country",
+            "Kingdom",
+            "Region",
+            "Realm"
+          ]
+        },
+        {
+          "field": "settlements",
+          "targetCategories": ["Harbor", "Port", "City", "Town"]
+        },
+        {
+          "field": "routeConnections",
+          "targetCategories": [
+            "Ocean",
+            "Bay",
+            "Gulf",
+            "Harbor",
+            "Port",
+            "Island"
+          ]
+        }
+      ],
+      "notes": "Seas often define cultures, fleets, piracy, storms, fisheries, religious boundaries, and rival coastlines."
+    },
+    {
+      "id": "coast",
+      "label": "Coast",
+      "category": "Coast",
+      "parentId": "water_and_coasts",
+      "summary": "A shoreline region where land and sea systems meet.",
+      "fieldProfiles": [
+        "basePlace",
+        "waterPlace",
+        "naturalPlace",
+        "politicalPlace"
+      ],
+      "primaryParentCategories": [
+        "Country",
+        "Kingdom",
+        "Province",
+        "Region",
+        "Continent",
+        "Island",
+        "Peninsula"
+      ],
+      "typicalChildCategories": [
+        "Harbor",
+        "Port",
+        "City",
+        "Town",
+        "Village",
+        "Bay",
+        "Gulf",
+        "Road",
+        "Fortress"
+      ],
+      "importantLinks": [
+        {
+          "field": "waters",
+          "targetCategories": ["Ocean", "Sea", "Bay", "Gulf"]
+        },
+        {
+          "field": "settlements",
+          "targetCategories": ["Harbor", "Port", "City", "Town", "Village"]
+        },
+        {
+          "field": "routeConnections",
+          "targetCategories": ["Road", "Sea", "Ocean", "Harbor", "Port"]
+        },
+        { "field": "hazards", "targetEntryKinds": [] }
+      ],
+      "notes": "Coasts should link land polities to water bodies and expose trade, storms, raids, reefs, cliffs, beaches, and legal borders."
+    },
+    {
+      "id": "bay",
+      "label": "Bay",
+      "category": "Bay",
+      "parentId": "water_and_coasts",
+      "summary": "A recessed coastal water body, sheltered anchorage, naval staging area, or culturally named inlet.",
+      "fieldProfiles": ["basePlace", "waterPlace", "naturalPlace"],
+      "primaryParentCategories": [
+        "Coast",
+        "Sea",
+        "Ocean",
+        "Gulf",
+        "Island",
+        "Peninsula"
+      ],
+      "typicalChildCategories": [
+        "Harbor",
+        "Port",
+        "City",
+        "Town",
+        "Village",
+        "Fortress",
+        "Island"
+      ],
+      "importantLinks": [
+        {
+          "field": "parentPlace",
+          "targetCategories": [
+            "Coast",
+            "Sea",
+            "Ocean",
+            "Gulf",
+            "Island",
+            "Peninsula"
+          ]
+        },
+        {
+          "field": "settlements",
+          "targetCategories": ["Harbor", "Port", "City", "Town", "Village"]
+        },
+        {
+          "field": "routeConnections",
+          "targetCategories": ["Sea", "Ocean", "Harbor", "Port", "River"]
+        }
+      ],
+      "notes": "Bays are natural containers for ports, fleets, hidden coves, sea monsters, and contested naval access."
+    },
+    {
+      "id": "gulf",
+      "label": "Gulf",
+      "category": "Gulf",
+      "parentId": "water_and_coasts",
+      "summary": "A large sea indentation or strategic maritime basin bordered by multiple coasts.",
+      "fieldProfiles": [
+        "basePlace",
+        "waterPlace",
+        "naturalPlace",
+        "politicalPlace"
+      ],
+      "primaryParentCategories": [
+        "Ocean",
+        "Sea",
+        "Coast",
+        "Continent",
+        "Region"
+      ],
+      "typicalChildCategories": [
+        "Bay",
+        "Coast",
+        "Harbor",
+        "Port",
+        "City",
+        "Town",
+        "Island",
+        "Peninsula"
+      ],
+      "importantLinks": [
+        {
+          "field": "neighbors",
+          "targetCategories": [
+            "Country",
+            "Kingdom",
+            "Province",
+            "Region",
+            "Coast",
+            "Sea",
+            "Ocean"
+          ]
+        },
+        {
+          "field": "settlements",
+          "targetCategories": ["Harbor", "Port", "City", "Town"]
+        },
+        {
+          "field": "routeConnections",
+          "targetCategories": ["Ocean", "Sea", "Bay", "Harbor", "Port"]
+        }
+      ],
+      "notes": "Gulfs usually matter because several powers share access, trade, resources, storms, or naval conflict."
+    },
+    {
+      "id": "island_and_projecting_land",
+      "label": "Island and Projecting Land",
+      "category": null,
+      "parentId": "water_and_coasts",
+      "summary": "Landforms defined by surrounding water and coastal access.",
+      "fieldProfiles": ["basePlace", "naturalPlace", "politicalPlace"],
+      "primaryParentCategories": [
+        "Ocean",
+        "Sea",
+        "Lake",
+        "River",
+        "Bay",
+        "Gulf",
+        "Coast"
+      ],
+      "typicalChildCategories": ["Island", "Peninsula", "Archipelago"],
+      "importantLinks": [
+        {
+          "field": "waters",
+          "targetCategories": [
+            "Ocean",
+            "Sea",
+            "Lake",
+            "River",
+            "Bay",
+            "Gulf",
+            "Coast"
+          ]
+        },
+        {
+          "field": "settlements",
+          "targetCategories": ["Harbor", "Port", "City", "Town", "Village"]
+        }
+      ],
+      "notes": "Grouping node; not selectable in the current category list."
+    },
+    {
+      "id": "island",
+      "label": "Island",
+      "category": "Island",
+      "parentId": "island_and_projecting_land",
+      "summary": "A landmass surrounded by water, lava, mist, void, ice, or magical boundary.",
+      "fieldProfiles": ["basePlace", "naturalPlace", "politicalPlace"],
+      "primaryParentCategories": [
+        "Ocean",
+        "Sea",
+        "Lake",
+        "River",
+        "Bay",
+        "Gulf",
+        "Archipelago",
+        "Planet"
+      ],
+      "typicalChildCategories": [
+        "City",
+        "Town",
+        "Village",
+        "Harbor",
+        "Port",
+        "Mountain",
+        "Volcano",
+        "Forest",
+        "Temple",
+        "Ruin"
+      ],
+      "importantLinks": [
+        {
+          "field": "parentPlace",
+          "targetCategories": [
+            "Ocean",
+            "Sea",
+            "Lake",
+            "River",
+            "Bay",
+            "Gulf",
+            "Archipelago"
+          ]
+        },
+        {
+          "field": "settlements",
+          "targetCategories": ["City", "Town", "Village", "Harbor", "Port"]
+        },
+        {
+          "field": "landmarks",
+          "targetCategories": [
+            "Mountain",
+            "Volcano",
+            "Forest",
+            "Temple",
+            "Ruin"
+          ]
+        },
+        {
+          "field": "routeConnections",
+          "targetCategories": ["Harbor", "Port", "Sea", "Ocean"]
+        }
+      ],
+      "notes": "Islands should capture isolation, supplies, landing sites, sovereignty, storms, endemic life, and external dependency."
+    },
+    {
+      "id": "peninsula",
+      "label": "Peninsula",
+      "category": "Peninsula",
+      "parentId": "island_and_projecting_land",
+      "summary": "A land projection surrounded mostly by water and connected to a larger landmass.",
+      "fieldProfiles": [
+        "basePlace",
+        "naturalPlace",
+        "politicalPlace",
+        "routePlace"
+      ],
+      "primaryParentCategories": [
+        "Continent",
+        "Country",
+        "Kingdom",
+        "Province",
+        "Region",
+        "Coast"
+      ],
+      "typicalChildCategories": [
+        "Coast",
+        "Bay",
+        "Gulf",
+        "Harbor",
+        "Port",
+        "City",
+        "Town",
+        "Road",
+        "Fortress"
+      ],
+      "importantLinks": [
+        {
+          "field": "parentPlace",
+          "targetCategories": [
+            "Continent",
+            "Country",
+            "Kingdom",
+            "Province",
+            "Region",
+            "Coast"
+          ]
+        },
+        {
+          "field": "waters",
+          "targetCategories": ["Ocean", "Sea", "Bay", "Gulf", "Coast"]
+        },
+        {
+          "field": "routeConnections",
+          "targetCategories": ["Road", "Harbor", "Port", "Pass"]
+        },
+        {
+          "field": "settlements",
+          "targetCategories": ["City", "Town", "Village", "Harbor", "Port"]
+        }
+      ],
+      "notes": "Peninsulas often need chokepoint, naval, border, and land-bridge fields."
+    },
+    {
+      "id": "archipelago",
+      "label": "Archipelago",
+      "category": "Archipelago",
+      "parentId": "island_and_projecting_land",
+      "summary": "A group of islands treated as one geographic, political, trade, or cultural system.",
+      "fieldProfiles": [
+        "basePlace",
+        "naturalPlace",
+        "politicalPlace",
+        "waterPlace"
+      ],
+      "primaryParentCategories": [
+        "Ocean",
+        "Sea",
+        "Bay",
+        "Gulf",
+        "World",
+        "Planet"
+      ],
+      "typicalChildCategories": [
+        "Island",
+        "Harbor",
+        "Port",
+        "City",
+        "Town",
+        "Village",
+        "Volcano",
+        "Temple",
+        "Ruin"
+      ],
+      "importantLinks": [
+        {
+          "field": "childPlaces",
+          "targetCategories": [
+            "Island",
+            "Harbor",
+            "Port",
+            "City",
+            "Town",
+            "Village",
+            "Volcano",
+            "Temple",
+            "Ruin"
+          ]
+        },
+        {
+          "field": "routeConnections",
+          "targetCategories": ["Sea", "Ocean", "Harbor", "Port", "Island"]
+        },
+        {
+          "field": "controllingPowers",
+          "targetEntryKinds": ["faction", "character"]
+        }
+      ],
+      "notes": "Archipelagos should expose island-to-island routes, political fragmentation, currents, storms, and scarce resources."
+    }
+  ],
+  "implementationRecommendations": [
+    {
+      "id": "typed_place_category_profiles",
+      "summary": "Use category-specific field profiles to choose which fields display on the place editor.",
+      "details": "The current prototype can continue storing values in entry.fields while the UI chooses visible fields from fieldProfiles and node-specific importantLinks."
+    },
+    {
+      "id": "relationship_backed_links",
+      "summary": "Represent linked fields as WorldRelationship records, not duplicated text.",
+      "details": "For example, a Country's settlements field should be derived from contains or located in relationships with City, Town, Village, Hamlet, Harbor, and Port place entries."
+    },
+    {
+      "id": "bidirectional_display",
+      "summary": "Show inverse links automatically.",
+      "details": "If a City is located in a Country, the Country editor should show that City under settlements or child places without requiring duplicate manual entry."
+    },
+    {
+      "id": "soft_constraints",
+      "summary": "Treat target categories as suggestions during drafting.",
+      "details": "Fantasy settings often bend categories. The editor should warn or suggest rather than block unusual links."
+    },
+    {
+      "id": "category_promotion",
+      "summary": "Allow Region as an early placeholder that can later be refined.",
+      "details": "Many world records begin as vague regions. The model should preserve relationships when a Region becomes a Province, Forest, Realm, or other more specific category."
+    }
+  ]
+}

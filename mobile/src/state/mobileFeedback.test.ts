@@ -38,5 +38,6 @@ describe('mobile feedback tone', () => {
     expect(getMobileFeedbackTone('Updated workspace on this device.')).toBe(
       'success'
     );
+    expect(getMobileFeedbackTone('Copied Mira Rowan.')).toBe('success');
   });
 });

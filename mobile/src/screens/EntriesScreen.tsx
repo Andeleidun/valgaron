@@ -3,21 +3,48 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { Text, View, StyleSheet } from 'react-native';
 import type {
   EntryDraft,
+  PlaceRelationshipFieldConfig,
+  PlaceRelationshipTextReviewItem,
+  WorldEntry,
   WorldEntryStatus,
+  WorldRelationship,
   WorldSectionConfig,
 } from '@valgaron/core';
 import {
+  buildPlaceRelationshipTextReviewBatchMigration,
+  buildPlaceRelationshipTextReviewMigration,
   draftFromEntry,
+  entryDraftStatusControl,
+  entryPinnedControl,
+  entryShowArchivedControl,
+  entrySortControl,
+  entryStatusFilterControl,
+  entryUpdatedFilterControl,
   formatUpdatedAt,
   getCodexEntriesRoute,
   getCodexHelpRoute,
   getCodexRelationshipsRoute,
   getCodexScreenIntro,
   getEntries,
+  getEntryDetailFieldSuggestions,
+  getDraftDetailFields,
   getEntryStatusLabel,
+  getEntrySortControlOptions,
+  getHiddenPlaceDetailValues,
   getSectionTags,
   hasUnsavedChanges,
-  worldEntryStatusOptions,
+  placeRelationshipFieldConfigs,
+  buildRelationshipTextMigration,
+  filterPlaceRelationshipTargetOptions,
+  getPlaceRelationshipFieldLinks,
+  getPlaceRelationshipFieldTargetId,
+  getPlaceRelationshipTextReviewExactMatchLabel,
+  getPlaceRelationshipTextReviewItems,
+  getPlaceRelationshipTextReviewSuggestionLabels,
+  getPlaceRelationshipTextReviewUnresolvedLabel,
+  getPlaceRelationshipTargetOptions,
+  limitPlaceRelationshipTargetOptions,
+  makePlaceFieldRelationship,
 } from '@valgaron/core';
 import {
   valgaronColors,
@@ -35,30 +62,33 @@ import {
   applyMobileEntrySectionTemplate,
   createMobileEntryDraft,
   createMobileEntryTemplateDraft,
-  getMobileEntryRelationshipSummary,
+  getMobileEntryRelationshipGroups,
   getMobileEntryList,
   getMobileTimelineBrowseView,
   getMobileTimelineSummary,
-  mobileEntrySortOptions,
   type MobileEntrySortKey,
 } from '../state/mobileCodexViewModels';
 import { getMobileFeedbackTone } from '../state/mobileFeedback';
 import {
   ActionButton,
   ButtonRow,
+  CheckboxField,
   Field,
   MutedText,
   ScreenHeader,
   ScreenScroll,
   SectionBlock,
+  SelectField,
   StatusText,
 } from './screenPrimitives';
 import { confirmMobileDestructiveAction } from './mobileConfirm';
 import { confirmMobileDiscardUnsavedChanges } from './mobileUnsavedChanges';
 
 const MOBILE_ENTRY_RESULT_LIMIT = 50;
+const MOBILE_RELATIONSHIP_TARGET_LIMIT = 24;
 const MOBILE_TIMELINE_GROUP_EVENT_LIMIT = 12;
 const MOBILE_TIMELINE_DIAGNOSTIC_LIMIT = 12;
+const MOBILE_DETAIL_SUGGESTION_LIMIT = 8;
 
 function formatLimitedList(
   values: readonly string[],
@@ -101,6 +131,9 @@ export function EntriesScreen() {
   const [sortKey, setSortKey] = useState<MobileEntrySortKey>(() =>
     section.id === 'timeline' ? 'timeline-order' : 'updated-desc'
   );
+  const [updatedWithinDays, setUpdatedWithinDays] = useState<number | null>(
+    null
+  );
   const [statusFilter, setStatusFilter] = useState<WorldEntryStatus | ''>('');
   const [activeTag, setActiveTag] = useState('');
   const [timelineEraFilter, setTimelineEraFilter] = useState('');
@@ -108,10 +141,14 @@ export function EntriesScreen() {
     useState('');
   const [timelineInvolvedEntryQuery, setTimelineInvolvedEntryQuery] =
     useState('');
+  const [linkedFieldQueries, setLinkedFieldQueries] = useState<
+    Record<string, string>
+  >({});
   const [selectedEntryId, setSelectedEntryId] = useState<string | null>(null);
   const [draft, setDraft] = useState<EntryDraft>(() =>
     createMobileEntryDraft(section)
   );
+  const [copyStatus, setCopyStatus] = useState('');
   const entries = useMemo(
     () =>
       getMobileEntryList(controller.activeWorld, section, query, {
@@ -119,6 +156,7 @@ export function EntriesScreen() {
         showArchived,
         sortKey,
         status: statusFilter,
+        updatedWithinDays,
         timelineEra: timelineEraFilter,
         timelineInvolvedEntryId: timelineInvolvedEntryFilter,
       }),
@@ -132,6 +170,7 @@ export function EntriesScreen() {
       statusFilter,
       timelineEraFilter,
       timelineInvolvedEntryFilter,
+      updatedWithinDays,
     ]
   );
   const availableTags = useMemo(
@@ -225,6 +264,7 @@ export function EntriesScreen() {
       statusFilter ||
       activeTag ||
       showArchived ||
+      updatedWithinDays !== null ||
       timelineEraFilter ||
       timelineInvolvedEntryFilter ||
       timelineInvolvedEntryQuery
@@ -234,20 +274,84 @@ export function EntriesScreen() {
       timelineInvolvedEntryFilter ||
       timelineInvolvedEntryQuery
   );
-  const selectedEntryRelationships = useMemo(
+  const selectedEntryRelationshipGroups = useMemo(
     () =>
       selectedEntry
-        ? getMobileEntryRelationshipSummary(
+        ? getMobileEntryRelationshipGroups(
             controller.activeWorld,
-            selectedEntry.id
+            selectedEntry
           )
         : [],
     [controller.activeWorld, selectedEntry]
   );
+  const placeRelationshipTextReviewItems = useMemo(
+    () =>
+      section.kind === 'place'
+        ? getPlaceRelationshipTextReviewItems({
+            codex: controller.activeWorld.codex,
+            sections: controller.activeWorld.entryTypes,
+          }).filter((item) => item.sectionId === section.id)
+        : [],
+    [controller.activeWorld.codex, controller.activeWorld.entryTypes, section]
+  );
+  const placeRelationshipTextReviewExactItems =
+    placeRelationshipTextReviewItems.filter((item) => item.exactMatchCount > 0);
+  const hiddenDetailValues = useMemo(
+    () => getHiddenPlaceDetailValues(section, draft.details),
+    [draft.details, section]
+  );
+  const entrySortOptions = useMemo(
+    () =>
+      getEntrySortControlOptions({
+        includeTimelineOrder: section.id === 'timeline',
+      }),
+    [section.id]
+  );
+  const visibleDetailFields = useMemo(
+    () =>
+      getDraftDetailFields(section, {
+        details: { category: draft.details.category ?? '' },
+      }),
+    [draft.details.category, section]
+  );
+  const visibleFieldKeys = new Set(
+    visibleDetailFields.map((field) => field.key)
+  );
+  const activeRelationshipFieldConfigs =
+    selectedEntry?.kind === 'place'
+      ? placeRelationshipFieldConfigs.filter((config) =>
+          visibleFieldKeys.has(config.fieldKey)
+        )
+      : [];
+  const relationshipFieldKeys = new Set(
+    activeRelationshipFieldConfigs.map((config) => config.fieldKey)
+  );
+  const editableDetailFields =
+    selectedEntry?.kind === 'place'
+      ? visibleDetailFields.filter(
+          (field) => !relationshipFieldKeys.has(field.key)
+        )
+      : visibleDetailFields;
+  const detailFieldSuggestions = useMemo(
+    () => getEntryDetailFieldSuggestions(editableDetailFields, sectionEntries),
+    [editableDetailFields, sectionEntries]
+  );
+  const legacyRelationshipTextValues = activeRelationshipFieldConfigs
+    .map((config) => ({
+      config,
+      key: config.fieldKey,
+      label: config.label,
+      value: draft.details[config.fieldKey]?.trim() ?? '',
+    }))
+    .filter((field) => field.value);
   const baselineDraft = selectedEntry
     ? draftFromEntry(selectedEntry, section)
     : createMobileEntryDraft(section);
   const isDraftDirty = hasUnsavedChanges(baselineDraft, draft);
+
+  useEffect(() => {
+    setCopyStatus('');
+  }, [section.id, selectedEntryId]);
 
   useEffect(() => {
     if (controller.sections.some((item) => item.id === sectionId)) {
@@ -305,6 +409,7 @@ export function EntriesScreen() {
         setTimelineEraFilter('');
         setTimelineInvolvedEntryFilter('');
         setTimelineInvolvedEntryQuery('');
+        setLinkedFieldQueries({});
         setStatusFilter('');
         setShowArchived(false);
         setSortKey(
@@ -324,6 +429,7 @@ export function EntriesScreen() {
       ) {
         setSelectedEntryId(null);
         setDraft(createMobileEntryDraft(nextSection));
+        setLinkedFieldQueries({});
       }
 
       if (requestedEntryId) {
@@ -334,9 +440,11 @@ export function EntriesScreen() {
         if (requestedEntry) {
           setSelectedEntryId(requestedEntry.id);
           setDraft(draftFromEntry(requestedEntry, nextSection));
+          setLinkedFieldQueries({});
         } else {
           setSelectedEntryId(null);
           setDraft(createMobileEntryDraft(nextSection));
+          setLinkedFieldQueries({});
         }
       }
       appliedRouteKeyRef.current = routeKey;
@@ -376,6 +484,7 @@ export function EntriesScreen() {
       setTimelineEraFilter('');
       setTimelineInvolvedEntryFilter('');
       setTimelineInvolvedEntryQuery('');
+      setLinkedFieldQueries({});
       setStatusFilter('');
       setShowArchived(false);
       setSortKey(
@@ -398,6 +507,7 @@ export function EntriesScreen() {
     confirmMobileDiscardUnsavedChanges(isDraftDirty, () => {
       setSelectedEntryId(entry.id);
       setDraft(draftFromEntry(entry, section));
+      setLinkedFieldQueries({});
     });
   }
 
@@ -405,6 +515,7 @@ export function EntriesScreen() {
     const reset = () => {
       setSelectedEntryId(null);
       setDraft(createMobileEntryDraft(section));
+      setLinkedFieldQueries({});
     };
     if (force) {
       reset();
@@ -423,6 +534,7 @@ export function EntriesScreen() {
       const duplicate = controller.duplicateEntry(section, entry);
       setSelectedEntryId(duplicate.id);
       setDraft(draftFromEntry(duplicate, section));
+      setLinkedFieldQueries({});
       setShowArchived(false);
     });
   }
@@ -433,6 +545,7 @@ export function EntriesScreen() {
     confirmMobileDiscardUnsavedChanges(isDraftDirty, () => {
       setSelectedEntryId(null);
       setDraft(createMobileEntryTemplateDraft(entry, section));
+      setLinkedFieldQueries({});
     });
   }
 
@@ -449,6 +562,7 @@ export function EntriesScreen() {
           updatedAt: new Date().toISOString(),
         };
         setDraft(draftFromEntry(restoredEntry, section));
+        setLinkedFieldQueries({});
         setShowArchived(true);
       }
     });
@@ -463,6 +577,31 @@ export function EntriesScreen() {
     });
   }
 
+  function copyEntryName() {
+    const name = (selectedEntry?.name ?? draft.name).trim();
+    if (!name) {
+      setCopyStatus('Add a name before copying it.');
+      return;
+    }
+    const clipboard = (
+      globalThis as {
+        navigator?: {
+          clipboard?: {
+            writeText?: (text: string) => Promise<void>;
+          };
+        };
+      }
+    ).navigator?.clipboard;
+    if (!clipboard?.writeText) {
+      setCopyStatus('Clipboard copy is unavailable in this runtime.');
+      return;
+    }
+    clipboard
+      .writeText(name)
+      .then(() => setCopyStatus(`Copied ${name}.`))
+      .catch(() => setCopyStatus('Clipboard copy failed.'));
+  }
+
   function applySectionTemplate() {
     setDraft((current) => applyMobileEntrySectionTemplate(current, section));
   }
@@ -475,6 +614,284 @@ export function EntriesScreen() {
         [key]: value,
       },
     }));
+  }
+
+  function saveMobilePlaceRelationshipLink(
+    config: PlaceRelationshipFieldConfig,
+    targetEntryId: string,
+    existingRelationship?: WorldRelationship
+  ) {
+    if (!selectedEntry) {
+      return;
+    }
+    controller.saveRelationshipDraft(
+      makePlaceFieldRelationship(
+        selectedEntry,
+        config,
+        targetEntryId,
+        existingRelationship
+      ),
+      existingRelationship
+    );
+  }
+
+  function setMobileSingleRelationshipTarget(
+    config: PlaceRelationshipFieldConfig,
+    targetEntryId: string
+  ) {
+    if (!selectedEntry) {
+      return;
+    }
+    const [primaryRelationship, ...extraRelationships] =
+      getPlaceRelationshipFieldLinks(
+        controller.activeWorld.relationships,
+        selectedEntry,
+        config
+      );
+    for (const relationship of extraRelationships) {
+      controller.unlinkRelationship(relationship.id);
+    }
+    if (!targetEntryId) {
+      if (primaryRelationship) {
+        controller.unlinkRelationship(primaryRelationship.id);
+      }
+      return;
+    }
+    if (
+      primaryRelationship &&
+      getPlaceRelationshipFieldTargetId(primaryRelationship, config) ===
+        targetEntryId
+    ) {
+      return;
+    }
+    saveMobilePlaceRelationshipLink(config, targetEntryId, primaryRelationship);
+  }
+
+  function toggleMobileManyRelationshipTarget(
+    config: PlaceRelationshipFieldConfig,
+    targetEntryId: string,
+    selected: boolean
+  ) {
+    if (!selectedEntry) {
+      return;
+    }
+    const fieldRelationships = getPlaceRelationshipFieldLinks(
+      controller.activeWorld.relationships,
+      selectedEntry,
+      config
+    );
+    const existingRelationship = fieldRelationships.find(
+      (relationship) =>
+        getPlaceRelationshipFieldTargetId(relationship, config) ===
+        targetEntryId
+    );
+    if (selected) {
+      if (!existingRelationship) {
+        saveMobilePlaceRelationshipLink(config, targetEntryId);
+      }
+      return;
+    }
+    if (existingRelationship) {
+      controller.unlinkRelationship(existingRelationship.id);
+    }
+  }
+
+  function getMobileLegacyRelationshipTextMigration(
+    config: PlaceRelationshipFieldConfig,
+    value: string
+  ) {
+    if (!selectedEntry) {
+      return null;
+    }
+    const options = getPlaceRelationshipTargetOptions({
+      codex: controller.activeWorld.codex,
+      config,
+      sections: controller.activeWorld.entryTypes,
+      currentEntry: selectedEntry,
+    });
+    return buildRelationshipTextMigration(
+      value,
+      options.map((option) => ({
+        id: option.entry.id,
+        name: option.entry.name,
+      })),
+      config.cardinality
+    );
+  }
+
+  function migrateMobileLegacyRelationshipText(
+    config: PlaceRelationshipFieldConfig,
+    value: string
+  ) {
+    if (!selectedEntry || isDraftDirty) {
+      return;
+    }
+    const migration = getMobileLegacyRelationshipTextMigration(config, value);
+    if (!migration || migration.targetIds.length === 0) {
+      return;
+    }
+    const fieldRelationships = getPlaceRelationshipFieldLinks(
+      controller.activeWorld.relationships,
+      selectedEntry,
+      config
+    );
+
+    if (config.cardinality === 'one') {
+      const [primaryRelationship, ...extraRelationships] = fieldRelationships;
+      for (const relationship of extraRelationships) {
+        controller.unlinkRelationship(relationship.id);
+      }
+      const targetEntryId = migration.targetIds[0];
+      if (
+        !primaryRelationship ||
+        getPlaceRelationshipFieldTargetId(primaryRelationship, config) !==
+          targetEntryId
+      ) {
+        saveMobilePlaceRelationshipLink(
+          config,
+          targetEntryId,
+          primaryRelationship
+        );
+      }
+    } else {
+      for (const targetEntryId of migration.targetIds) {
+        const existingRelationship = fieldRelationships.find(
+          (relationship) =>
+            getPlaceRelationshipFieldTargetId(relationship, config) ===
+            targetEntryId
+        );
+        if (!existingRelationship) {
+          saveMobilePlaceRelationshipLink(config, targetEntryId);
+        }
+      }
+    }
+    const nextDraft = {
+      ...draft,
+      details: {
+        ...draft.details,
+        [config.fieldKey]: migration.remainingText,
+      },
+    };
+    const savedEntry = controller.saveEntryDraft(
+      section,
+      nextDraft,
+      selectedEntry
+    );
+    if (savedEntry) {
+      setSelectedEntryId(savedEntry.id);
+      setDraft(draftFromEntry(savedEntry, section));
+    }
+  }
+
+  function migrateMobileReviewItemExactMatches(
+    item: PlaceRelationshipTextReviewItem
+  ) {
+    if (isDraftDirty) {
+      return;
+    }
+    applyMobileReviewItemExactMigration(item);
+  }
+
+  function applyMobileReviewItemExactMigration(
+    item: PlaceRelationshipTextReviewItem
+  ) {
+    const entry = sectionEntries.find(
+      (candidate) => candidate.id === item.entryId
+    );
+    const config = placeRelationshipFieldConfigs.find(
+      (candidate) => candidate.fieldKey === item.fieldKey
+    );
+    if (!entry || !config || item.exactTargetIds.length === 0) {
+      return;
+    }
+
+    const migration = buildPlaceRelationshipTextReviewMigration({
+      config,
+      entry,
+      item,
+      relationships: controller.activeWorld.relationships,
+    });
+    migration.relationshipIdsToDelete.forEach((relationshipId) => {
+      controller.unlinkRelationship(relationshipId);
+    });
+    migration.relationshipsToSave.forEach(
+      ({ relationship, existingRelationship }) => {
+        controller.saveRelationshipDraft(relationship, existingRelationship);
+      }
+    );
+    const savedEntry = controller.saveEntryDraft(
+      section,
+      draftFromEntry(
+        {
+          ...entry,
+          fields: migration.fields,
+          updatedAt: new Date().toISOString(),
+        },
+        section
+      ),
+      entry
+    );
+    if (savedEntry) {
+      setSelectedEntryId(savedEntry.id);
+      setDraft(draftFromEntry(savedEntry, section));
+      setLinkedFieldQueries({});
+    }
+  }
+
+  function migrateAllMobileReviewExactMatches() {
+    if (isDraftDirty) {
+      return;
+    }
+    applyAllMobileReviewExactMigrations();
+  }
+
+  function applyAllMobileReviewExactMigrations() {
+    if (placeRelationshipTextReviewExactItems.length === 0) {
+      return;
+    }
+    const migration = buildPlaceRelationshipTextReviewBatchMigration({
+      codex: controller.activeWorld.codex,
+      items: placeRelationshipTextReviewExactItems,
+      relationships: controller.activeWorld.relationships,
+      sections: controller.activeWorld.entryTypes,
+    });
+    migration.relationshipIdsToDelete.forEach((relationshipId) => {
+      controller.unlinkRelationship(relationshipId);
+    });
+    migration.relationshipsToSave.forEach(
+      ({ relationship, existingRelationship }) => {
+        controller.saveRelationshipDraft(relationship, existingRelationship);
+      }
+    );
+    let lastSavedEntry: WorldEntry | null = null;
+    for (const update of migration.entryFieldUpdates) {
+      const entry = sectionEntries.find(
+        (candidate) => candidate.id === update.entryId
+      );
+      if (!entry) {
+        continue;
+      }
+      const savedEntry = controller.saveEntryDraft(
+        section,
+        draftFromEntry(
+          {
+            ...entry,
+            fields: update.fields,
+            updatedAt: new Date().toISOString(),
+          },
+          section
+        ),
+        entry
+      );
+      if (savedEntry) {
+        lastSavedEntry = savedEntry;
+      }
+    }
+    if (lastSavedEntry) {
+      setSelectedEntryId(lastSavedEntry.id);
+      setDraft(draftFromEntry(lastSavedEntry, section));
+      setLinkedFieldQueries({});
+    }
   }
 
   function openRelatedEntryRoute(route: ReturnType<typeof getMobileRouteHref>) {
@@ -513,44 +930,34 @@ export function EntriesScreen() {
           value={query}
           onChangeText={setQuery}
         />
-        <ButtonRow>
-          <ActionButton
-            label="Any Status"
-            selected={statusFilter === ''}
-            tone={statusFilter === '' ? 'accent' : 'neutral'}
-            onPress={() => setStatusFilter('')}
-          />
-          {worldEntryStatusOptions.map((option) => (
-            <ActionButton
-              key={option.value}
-              label={option.label}
-              selected={statusFilter === option.value}
-              tone={statusFilter === option.value ? 'accent' : 'neutral'}
-              onPress={() => {
-                setStatusFilter(option.value);
-                if (option.value === 'archived') {
-                  setShowArchived(true);
-                }
-              }}
-            />
-          ))}
-        </ButtonRow>
-        <ButtonRow>
-          {mobileEntrySortOptions
-            .filter(
-              (option) => !option.timelineOnly || section.id === 'timeline'
-            )
-            .map((option) => (
-              <ActionButton
-                key={option.key}
-                accessibilityLabel={`Sort entries by ${option.label.toLowerCase()}`}
-                label={option.label}
-                selected={sortKey === option.key}
-                tone={sortKey === option.key ? 'accent' : 'neutral'}
-                onPress={() => setSortKey(option.key)}
-              />
-            ))}
-        </ButtonRow>
+        <SelectField
+          accessibilityLabel={entryStatusFilterControl.accessibilityLabel}
+          label={entryStatusFilterControl.label}
+          options={entryStatusFilterControl.options}
+          value={statusFilter}
+          onValueChange={(value) => {
+            setStatusFilter(value);
+            if (value === 'archived') {
+              setShowArchived(true);
+            }
+          }}
+        />
+        <SelectField
+          accessibilityLabel={entrySortControl.accessibilityLabel}
+          label={entrySortControl.label}
+          options={entrySortOptions}
+          value={sortKey}
+          onValueChange={setSortKey}
+        />
+        <SelectField
+          accessibilityLabel={entryUpdatedFilterControl.accessibilityLabel}
+          label={entryUpdatedFilterControl.label}
+          options={entryUpdatedFilterControl.options}
+          value={updatedWithinDays === null ? '' : String(updatedWithinDays)}
+          onValueChange={(value) =>
+            setUpdatedWithinDays(value ? Number(value) : null)
+          }
+        />
         {availableTags.length > 0 ? (
           <ButtonRow>
             <ActionButton
@@ -573,11 +980,11 @@ export function EntriesScreen() {
           </ButtonRow>
         ) : null}
         <ButtonRow>
-          <ActionButton
-            label={showArchived ? 'Showing Archived' : 'Show Archived'}
-            selected={showArchived}
-            tone={showArchived ? 'accent' : 'neutral'}
-            onPress={() => setShowArchived((current) => !current)}
+          <CheckboxField
+            accessibilityLabel={entryShowArchivedControl.accessibilityLabel}
+            checked={showArchived}
+            label={entryShowArchivedControl.label}
+            onChange={setShowArchived}
           />
           {hasEntryFilters ? (
             <ActionButton
@@ -586,6 +993,7 @@ export function EntriesScreen() {
                 setQuery('');
                 setStatusFilter('');
                 setActiveTag('');
+                setUpdatedWithinDays(null);
                 setTimelineEraFilter('');
                 setTimelineInvolvedEntryFilter('');
                 setTimelineInvolvedEntryQuery('');
@@ -758,6 +1166,73 @@ export function EntriesScreen() {
         </SectionBlock>
       ) : null}
 
+      {placeRelationshipTextReviewItems.length > 0 ? (
+        <SectionBlock title="Legacy Link Text">
+          <MutedText>
+            {placeRelationshipTextReviewItems.length} relationship-backed field
+            {placeRelationshipTextReviewItems.length === 1 ? '' : 's'} still
+            contain text that exact-match migration cannot fully resolve.
+          </MutedText>
+          {isDraftDirty ? (
+            <MutedText>
+              Save or discard the current entry draft before migrating exact
+              matches.
+            </MutedText>
+          ) : null}
+          {placeRelationshipTextReviewExactItems.length > 0 ? (
+            <ButtonRow>
+              <ActionButton
+                disabled={isDraftDirty}
+                label="Migrate All Exact Matches"
+                onPress={migrateAllMobileReviewExactMatches}
+              />
+            </ButtonRow>
+          ) : null}
+          {placeRelationshipTextReviewItems.slice(0, 6).map((item) => (
+            <View
+              key={`${item.entryId}-${item.fieldKey}`}
+              style={styles.entryRow}
+            >
+              <Text style={styles.entryTitle}>{item.entryName}</Text>
+              <MutedText>{item.fieldLabel}</MutedText>
+              <MutedText>
+                Unresolved:{' '}
+                {getPlaceRelationshipTextReviewUnresolvedLabel(item)}.{' '}
+                {getPlaceRelationshipTextReviewExactMatchLabel(item)}
+              </MutedText>
+              {item.suggestedTargets.length > 0 ? (
+                <MutedText>
+                  Suggestions:{' '}
+                  {formatLimitedList(
+                    getPlaceRelationshipTextReviewSuggestionLabels(item),
+                    '; '
+                  )}
+                </MutedText>
+              ) : null}
+              <ButtonRow>
+                {item.exactMatchCount > 0 ? (
+                  <ActionButton
+                    disabled={isDraftDirty}
+                    label="Migrate Exact Matches"
+                    onPress={() => migrateMobileReviewItemExactMatches(item)}
+                  />
+                ) : null}
+                <ActionButton
+                  label="Review Entry"
+                  onPress={() => chooseEntry(item.entryId)}
+                />
+              </ButtonRow>
+            </View>
+          ))}
+          {placeRelationshipTextReviewItems.length > 6 ? (
+            <MutedText>
+              Showing 6 of {placeRelationshipTextReviewItems.length}. Review
+              affected entries to continue cleanup.
+            </MutedText>
+          ) : null}
+        </SectionBlock>
+      ) : null}
+
       <SectionBlock title={section.title}>
         {entries.length > 0 ? (
           <>
@@ -823,41 +1298,46 @@ export function EntriesScreen() {
 
       {selectedEntry ? (
         <SectionBlock title="Linked Records">
-          {selectedEntryRelationships.length > 0 ? (
-            selectedEntryRelationships.map((relationship) => (
-              <View key={relationship.id} style={styles.entryRow}>
-                <View style={styles.entryText}>
-                  <Text style={styles.entryTitle}>
-                    {relationship.relatedEntryName}
-                  </Text>
-                  <MutedText>
-                    {relationship.directionLabel} - {relationship.type}
-                  </MutedText>
-                  {relationship.note ? (
-                    <MutedText>{relationship.note}</MutedText>
-                  ) : null}
-                </View>
-                {relationship.relatedEntryId &&
-                relationship.relatedSectionId ? (
-                  <ButtonRow>
-                    <ActionButton
-                      accessibilityLabel={`Open ${relationship.relatedEntryName}`}
-                      label="Open"
-                      onPress={() =>
-                        openRelatedEntryRoute(
-                          getMobileRouteHref(
-                            getCodexEntriesRoute({
-                              entryId: relationship.relatedEntryId,
-                              intent: 'edit',
-                              query: relationship.relatedEntryName,
-                              sectionId: relationship.relatedSectionId,
-                            })
-                          )
-                        )
-                      }
-                    />
-                  </ButtonRow>
-                ) : null}
+          {selectedEntryRelationshipGroups.length > 0 ? (
+            selectedEntryRelationshipGroups.map((group) => (
+              <View key={group.id} style={styles.relationshipGroup}>
+                <Text style={styles.relationshipGroupTitle}>{group.label}</Text>
+                {group.relationships.map((relationship) => (
+                  <View key={relationship.id} style={styles.entryRow}>
+                    <View style={styles.entryText}>
+                      <Text style={styles.entryTitle}>
+                        {relationship.relatedEntryName}
+                      </Text>
+                      <MutedText>
+                        {relationship.directionLabel} - {relationship.type}
+                      </MutedText>
+                      {relationship.note ? (
+                        <MutedText>{relationship.note}</MutedText>
+                      ) : null}
+                    </View>
+                    {relationship.relatedEntryId &&
+                    relationship.relatedSectionId ? (
+                      <ButtonRow>
+                        <ActionButton
+                          accessibilityLabel={`Open ${relationship.relatedEntryName}`}
+                          label="Open"
+                          onPress={() =>
+                            openRelatedEntryRoute(
+                              getMobileRouteHref(
+                                getCodexEntriesRoute({
+                                  entryId: relationship.relatedEntryId,
+                                  intent: 'edit',
+                                  query: relationship.relatedEntryName,
+                                  sectionId: relationship.relatedSectionId,
+                                })
+                              )
+                            )
+                          }
+                        />
+                      </ButtonRow>
+                    ) : null}
+                  </View>
+                ))}
               </View>
             ))
           ) : (
@@ -901,9 +1381,10 @@ export function EntriesScreen() {
         <Field
           label="Name"
           value={draft.name}
-          onChangeText={(value) =>
-            setDraft((current) => ({ ...current, name: value }))
-          }
+          onChangeText={(value) => {
+            setCopyStatus('');
+            setDraft((current) => ({ ...current, name: value }));
+          }}
         />
         <Field
           label="Summary"
@@ -921,6 +1402,14 @@ export function EntriesScreen() {
           }
           multiline
         />
+        <View style={styles.notesPreview}>
+          <Text style={styles.notesPreviewTitle}>Notes preview</Text>
+          {draft.notes.trim() ? (
+            <Text style={styles.notesPreviewText}>{draft.notes}</Text>
+          ) : (
+            <MutedText>No notes to preview yet.</MutedText>
+          )}
+        </View>
         <Field
           autoCapitalize="none"
           autoCorrect={false}
@@ -931,36 +1420,268 @@ export function EntriesScreen() {
           }
           placeholder="maps, routes"
         />
-        <ButtonRow>
-          {worldEntryStatusOptions.map((option) => (
-            <ActionButton
-              key={option.value}
-              label={option.label}
-              selected={draft.status === option.value}
-              tone={draft.status === option.value ? 'accent' : 'neutral'}
-              onPress={() =>
-                setDraft((current) => ({ ...current, status: option.value }))
-              }
-            />
-          ))}
-          <ActionButton
-            label={draft.pinned ? 'Pinned' : 'Pin'}
-            selected={draft.pinned}
-            tone={draft.pinned ? 'accent' : 'neutral'}
-            onPress={() =>
-              setDraft((current) => ({ ...current, pinned: !current.pinned }))
-            }
-          />
-        </ButtonRow>
-        {section.detailFields.map((field) => (
-          <Field
-            key={field.key}
-            label={field.label}
-            value={draft.details[field.key] ?? ''}
-            multiline={field.multiline}
-            onChangeText={(value) => setDetailValue(field.key, value)}
-          />
-        ))}
+        <SelectField
+          accessibilityLabel={entryDraftStatusControl.accessibilityLabel}
+          label={entryDraftStatusControl.label}
+          options={entryDraftStatusControl.options}
+          value={draft.status}
+          onValueChange={(value) =>
+            setDraft((current) => ({ ...current, status: value }))
+          }
+        />
+        <CheckboxField
+          accessibilityLabel={entryPinnedControl.accessibilityLabel}
+          checked={draft.pinned}
+          label={entryPinnedControl.label}
+          onChange={(checked) =>
+            setDraft((current) => ({ ...current, pinned: checked }))
+          }
+        />
+        {editableDetailFields.map((field) => {
+          const currentValue = draft.details[field.key] ?? '';
+          const suggestions = (detailFieldSuggestions[field.key] ?? [])
+            .filter((suggestion) => suggestion !== currentValue)
+            .slice(0, MOBILE_DETAIL_SUGGESTION_LIMIT);
+          return (
+            <View key={field.key} style={styles.fieldWithSuggestions}>
+              <Field
+                label={field.label}
+                value={currentValue}
+                multiline={field.multiline}
+                onChangeText={(value) => setDetailValue(field.key, value)}
+              />
+              {suggestions.length > 0 ? (
+                <ButtonRow>
+                  {suggestions.map((suggestion) => (
+                    <ActionButton
+                      key={suggestion}
+                      label={suggestion}
+                      onPress={() => setDetailValue(field.key, suggestion)}
+                    />
+                  ))}
+                </ButtonRow>
+              ) : null}
+            </View>
+          );
+        })}
+        {selectedEntry?.kind === 'place' &&
+        activeRelationshipFieldConfigs.length > 0 ? (
+          <View style={styles.relationshipGroup}>
+            <Text style={styles.relationshipGroupTitle}>
+              Linked place fields
+            </Text>
+            <MutedText>
+              These fields are saved as relationships once this entry has no
+              unsaved changes.
+            </MutedText>
+            {isDraftDirty ? (
+              <MutedText>
+                Save entry changes before editing linked fields.
+              </MutedText>
+            ) : (
+              activeRelationshipFieldConfigs.map((config) => {
+                const fieldRelationships = getPlaceRelationshipFieldLinks(
+                  controller.activeWorld.relationships,
+                  selectedEntry,
+                  config
+                );
+                const selectedTargetIds = new Set(
+                  fieldRelationships.map((relationship) =>
+                    getPlaceRelationshipFieldTargetId(relationship, config)
+                  )
+                );
+                const options = getPlaceRelationshipTargetOptions({
+                  codex: controller.activeWorld.codex,
+                  config,
+                  includedTargetIds: selectedTargetIds,
+                  sections: controller.activeWorld.entryTypes,
+                  currentEntry: selectedEntry,
+                });
+                const fieldQuery = linkedFieldQueries[config.fieldKey] ?? '';
+                const filteredOptions = filterPlaceRelationshipTargetOptions(
+                  options,
+                  fieldQuery,
+                  selectedTargetIds
+                );
+                const visibleOptions = limitPlaceRelationshipTargetOptions(
+                  filteredOptions,
+                  selectedTargetIds,
+                  MOBILE_RELATIONSHIP_TARGET_LIMIT
+                );
+                const hiddenOptionCount =
+                  filteredOptions.length - visibleOptions.length;
+                return (
+                  <View key={config.fieldKey} style={styles.linkedField}>
+                    <Text style={styles.relationshipGroupTitle}>
+                      {config.label}
+                    </Text>
+                    {options.length > 0 ? (
+                      <>
+                        <Field
+                          autoCapitalize="none"
+                          autoCorrect={false}
+                          label={`Search ${config.label}`}
+                          value={fieldQuery}
+                          onChangeText={(value) =>
+                            setLinkedFieldQueries((current) => ({
+                              ...current,
+                              [config.fieldKey]: value,
+                            }))
+                          }
+                          placeholder="Filter linked record targets"
+                        />
+                        {filteredOptions.length === 0 ? (
+                          <MutedText>
+                            No matching records. Clear the search to see all
+                            targets.
+                          </MutedText>
+                        ) : null}
+                        {config.cardinality === 'one' ? (
+                          <ButtonRow>
+                            <ActionButton
+                              label="No Link"
+                              selected={fieldRelationships.length === 0}
+                              tone={
+                                fieldRelationships.length === 0
+                                  ? 'accent'
+                                  : 'neutral'
+                              }
+                              onPress={() =>
+                                setMobileSingleRelationshipTarget(config, '')
+                              }
+                            />
+                            {visibleOptions.map((option) => (
+                              <ActionButton
+                                key={option.entry.id}
+                                label={option.entry.name}
+                                selected={selectedTargetIds.has(
+                                  option.entry.id
+                                )}
+                                tone={
+                                  selectedTargetIds.has(option.entry.id)
+                                    ? 'accent'
+                                    : 'neutral'
+                                }
+                                onPress={() =>
+                                  setMobileSingleRelationshipTarget(
+                                    config,
+                                    option.entry.id
+                                  )
+                                }
+                              />
+                            ))}
+                          </ButtonRow>
+                        ) : (
+                          <ButtonRow>
+                            {visibleOptions.map((option) => {
+                              const selected = selectedTargetIds.has(
+                                option.entry.id
+                              );
+                              return (
+                                <ActionButton
+                                  key={option.entry.id}
+                                  label={option.entry.name}
+                                  selected={selected}
+                                  tone={selected ? 'accent' : 'neutral'}
+                                  onPress={() =>
+                                    toggleMobileManyRelationshipTarget(
+                                      config,
+                                      option.entry.id,
+                                      !selected
+                                    )
+                                  }
+                                />
+                              );
+                            })}
+                          </ButtonRow>
+                        )}
+                        {hiddenOptionCount > 0 ? (
+                          <MutedText>
+                            Showing {visibleOptions.length} of{' '}
+                            {filteredOptions.length} matches. Refine the search
+                            to show {hiddenOptionCount} more record
+                            {hiddenOptionCount === 1 ? '' : 's'}.
+                          </MutedText>
+                        ) : null}
+                      </>
+                    ) : (
+                      <MutedText>
+                        Create matching records before linking this field.
+                      </MutedText>
+                    )}
+                  </View>
+                );
+              })
+            )}
+            {legacyRelationshipTextValues.length > 0 ? (
+              <View style={styles.linkedField}>
+                <Text style={styles.relationshipGroupTitle}>
+                  Saved text link notes
+                </Text>
+                {legacyRelationshipTextValues.map((field) => {
+                  const migration = !isDraftDirty
+                    ? getMobileLegacyRelationshipTextMigration(
+                        field.config,
+                        field.value
+                      )
+                    : null;
+                  return (
+                    <View key={field.key} style={styles.cleanupRow}>
+                      <MutedText>
+                        {field.label}: {field.value}
+                      </MutedText>
+                      {migration ? (
+                        <MutedText>
+                          {migration.targetIds.length > 0
+                            ? `${migration.targetIds.length} exact match${
+                                migration.targetIds.length === 1 ? '' : 'es'
+                              } found.`
+                            : 'No exact matches found.'}
+                          {migration.remainingText
+                            ? ' Unmatched text will remain.'
+                            : ''}
+                        </MutedText>
+                      ) : null}
+                      {migration?.targetIds.length ? (
+                        <ActionButton
+                          label="Migrate Exact Matches"
+                          onPress={() =>
+                            migrateMobileLegacyRelationshipText(
+                              field.config,
+                              field.value
+                            )
+                          }
+                        />
+                      ) : null}
+                      <ActionButton
+                        label="Clear"
+                        onPress={() => setDetailValue(field.key, '')}
+                      />
+                    </View>
+                  );
+                })}
+              </View>
+            ) : null}
+          </View>
+        ) : null}
+        {hiddenDetailValues.length > 0 ? (
+          <View style={styles.relationshipGroup}>
+            <Text style={styles.relationshipGroupTitle}>
+              Hidden place details
+            </Text>
+            {hiddenDetailValues.map((field) => (
+              <View key={field.key} style={styles.cleanupRow}>
+                <MutedText>
+                  {field.label}: {field.value}
+                </MutedText>
+                <ActionButton
+                  label="Clear"
+                  onPress={() => setDetailValue(field.key, '')}
+                />
+              </View>
+            ))}
+          </View>
+        ) : null}
         <ButtonRow>
           <ActionButton
             label="Save Entry"
@@ -974,10 +1695,12 @@ export function EntriesScreen() {
               if (savedEntry) {
                 setSelectedEntryId(savedEntry.id);
                 setDraft(draftFromEntry(savedEntry, section));
+                setLinkedFieldQueries({});
               }
             }}
           />
           <ActionButton label="New Draft" onPress={resetDraft} />
+          <ActionButton label="Copy Name" onPress={copyEntryName} />
           {selectedEntry ? (
             <>
               <ActionButton
@@ -1016,6 +1739,11 @@ export function EntriesScreen() {
             />
           )}
         </ButtonRow>
+        {copyStatus ? (
+          <StatusText tone={getMobileFeedbackTone(copyStatus)}>
+            {copyStatus}
+          </StatusText>
+        ) : null}
       </SectionBlock>
     </ScreenScroll>
   );
@@ -1036,5 +1764,43 @@ const styles = StyleSheet.create({
     color: valgaronColors.heading,
     fontSize: valgaronTypography.sizes.md,
     fontWeight: '700',
+  },
+  relationshipGroup: {
+    gap: valgaronSpacing.sm,
+  },
+  relationshipGroupTitle: {
+    color: valgaronColors.heading,
+    fontSize: valgaronTypography.sizes.sm,
+    fontWeight: '700',
+  },
+  notesPreview: {
+    borderColor: valgaronColors.border,
+    borderRadius: valgaronRadius.md,
+    borderWidth: 1,
+    gap: valgaronSpacing.sm,
+    padding: valgaronSpacing.md,
+  },
+  notesPreviewTitle: {
+    color: valgaronColors.heading,
+    fontSize: valgaronTypography.sizes.sm,
+    fontWeight: '700',
+  },
+  notesPreviewText: {
+    color: valgaronColors.text,
+    fontSize: valgaronTypography.sizes.sm,
+    lineHeight: 20,
+  },
+  fieldWithSuggestions: {
+    gap: valgaronSpacing.sm,
+  },
+  linkedField: {
+    borderColor: valgaronColors.border,
+    borderRadius: valgaronRadius.md,
+    borderWidth: 1,
+    gap: valgaronSpacing.sm,
+    padding: valgaronSpacing.md,
+  },
+  cleanupRow: {
+    gap: valgaronSpacing.xs,
   },
 });

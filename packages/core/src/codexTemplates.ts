@@ -1,5 +1,6 @@
 import type { WorldEntry, WorldSectionConfig } from './types';
 import type { EntryDraft } from './codexEntries';
+import { getEntryDetailFields, getDraftDetailFields } from './placeTaxonomy';
 
 export type EntryTemplateDraft = Pick<
   EntryDraft,
@@ -57,7 +58,7 @@ export function createTemplateDraft(
       '## Overview\n\n## Details\n\n## Connections\n\n## Open questions',
     tags: section.kind,
     details: Object.fromEntries(
-      section.detailFields.map((field) => [field.key, ''])
+      getDraftDetailFields(section).map((field) => [field.key, ''])
     ),
   };
 }
@@ -80,7 +81,7 @@ export function getEntryCompleteness(
       complete: entry.tags.length > 0,
       prompt: 'Add at least one tag.',
     },
-    ...section.detailFields.map((field) => ({
+    ...getEntryDetailFields(section, entry).map((field) => ({
       complete: (entry.fields[field.key] ?? '').trim().length > 0,
       prompt: detailPromptsByKey[field.key] ?? `Fill in ${field.label}.`,
     })),

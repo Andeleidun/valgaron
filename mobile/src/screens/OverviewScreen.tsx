@@ -4,6 +4,8 @@ import { Text, View, StyleSheet } from 'react-native';
 import {
   formatUpdatedAt,
   getCodexEntriesRoute,
+  getDataRecoverySnapshotModel,
+  getDeviceSaveStatusModel,
   getIncompleteEntries,
   getSearchableEntries,
   summarizeRecoverySnapshot,
@@ -18,21 +20,19 @@ import {
 import { useMobileCodex } from '../state/MobileCodexContext';
 import { getMobileRouteHref } from '../navigation/mobileRoutes';
 import {
-  getLocalDeviceStatusText,
   getMobileOverviewEntryHighlights,
   getMobileOverviewSummary,
   getMobileOverviewSearchResults,
-  getMobileRecoverySnapshotText,
 } from '../state/mobileCodexViewModels';
 import {
   ActionButton,
-  BodyText,
   ButtonRow,
   Field,
   MutedText,
   ScreenHeader,
   ScreenScroll,
   SectionBlock,
+  StatusText,
 } from './screenPrimitives';
 
 export function OverviewScreen() {
@@ -50,6 +50,10 @@ export function OverviewScreen() {
   const recoverySnapshotSummary = controller.lastRecoverySnapshot
     ? summarizeRecoverySnapshot(controller.lastRecoverySnapshot)
     : null;
+  const recoverySnapshotText = recoverySnapshotSummary
+    ? getDataRecoverySnapshotModel([recoverySnapshotSummary]).rows[0]
+        ?.mobileSummaryText
+    : '';
   const globalResults = useMemo(
     () =>
       getMobileOverviewSearchResults(controller.activeWorld, globalQuery).slice(
@@ -62,6 +66,10 @@ export function OverviewScreen() {
     () => getMobileOverviewEntryHighlights(controller.activeWorld),
     [controller.activeWorld]
   );
+  const saveStatus = getDeviceSaveStatusModel({
+    savedAt: controller.document.savedAt,
+    saveMessage: controller.saveMessage,
+  });
 
   function openEntry(entry: { id: string; name: string; sectionId: string }) {
     router.push({
@@ -93,18 +101,24 @@ export function OverviewScreen() {
         />
       </View>
 
+      <SectionBlock title={saveStatus.title}>
+        <StatusText tone={saveStatus.tone}>{saveStatus.label}</StatusText>
+        <MutedText>{saveStatus.detail}</MutedText>
+        <ButtonRow>
+          <ActionButton
+            label="Open Data"
+            onPress={() => router.push('/data')}
+          />
+        </ButtonRow>
+      </SectionBlock>
+
       <SectionBlock title="Current Draft State">
-        <BodyText>
-          {getLocalDeviceStatusText(controller.document.savedAt)}
-        </BodyText>
         <MutedText>
           {summary.incompleteEntryCount} visible entries still have drafting
           prompts.
         </MutedText>
-        {recoverySnapshotSummary ? (
-          <MutedText>
-            {getMobileRecoverySnapshotText(recoverySnapshotSummary)}
-          </MutedText>
+        {recoverySnapshotText ? (
+          <MutedText>{recoverySnapshotText}</MutedText>
         ) : null}
       </SectionBlock>
 

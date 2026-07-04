@@ -1,6 +1,8 @@
 import { worldSections } from './seedCodex';
+import { getEntryDetailFields } from './placeTaxonomy';
 import type {
   WorldCodex,
+  WorldDetailField,
   WorldDetailFieldKey,
   WorldEntry,
   WorldEntryKind,
@@ -26,6 +28,33 @@ export function getEntryStatusLabel(status: WorldEntryStatus): string {
   return (
     worldEntryStatusOptions.find((option) => option.value === status)?.label ??
     status
+  );
+}
+
+/** Build autocomplete suggestions for detail fields that opt into suggestions. */
+export function getEntryDetailFieldSuggestions(
+  fields: readonly Pick<WorldDetailField, 'autocompleteOptions' | 'key'>[],
+  entries: readonly WorldEntry[]
+): Record<WorldDetailFieldKey, string[]> {
+  return Object.fromEntries(
+    fields.map((field) => {
+      const suggestions = new Map<string, string>();
+      for (const option of field.autocompleteOptions ?? []) {
+        const normalizedOption = option.trim();
+        if (normalizedOption) {
+          suggestions.set(normalizedOption.toLowerCase(), normalizedOption);
+        }
+      }
+      if (suggestions.size > 0) {
+        for (const entry of entries) {
+          const value = entry.fields[field.key]?.trim();
+          if (value) {
+            suggestions.set(value.toLowerCase(), value);
+          }
+        }
+      }
+      return [field.key, Array.from(suggestions.values()).sort()];
+    })
   );
 }
 
@@ -81,11 +110,19 @@ export function getEntrySearchText(
   entry: WorldEntry,
   section: WorldSectionConfig
 ): string {
+  const entryDetailFields = getEntryDetailFields(section, entry);
+  const sectionFieldKeys = new Set(entryDetailFields.map((field) => field.key));
+  const searchableFieldValues = [
+    ...entryDetailFields.map((field) => getDetailValue(entry, field.key)),
+    ...Object.entries(entry.fields)
+      .filter(([key]) => !sectionFieldKeys.has(key))
+      .map(([, value]) => value),
+  ];
   return [
     entry.name,
     entry.summary,
     entry.tags.join(' '),
-    ...section.detailFields.map((field) => getDetailValue(entry, field.key)),
+    ...searchableFieldValues,
   ]
     .join(' ')
     .toLowerCase();
@@ -118,6 +155,12 @@ export function draftFromEntry(
   entry: WorldEntry,
   section: WorldSectionConfig
 ): EntryDraft {
+  const details = { ...entry.fields };
+  for (const field of section.detailFields) {
+    if (!(field.key in details)) {
+      details[field.key] = getDetailValue(entry, field.key);
+    }
+  }
   return {
     name: entry.name,
     summary: entry.summary,
@@ -125,12 +168,7 @@ export function draftFromEntry(
     tags: entry.tags.join(', '),
     status: entry.status,
     pinned: entry.pinned,
-    details: Object.fromEntries(
-      section.detailFields.map((field) => [
-        field.key,
-        getDetailValue(entry, field.key),
-      ])
-    ),
+    details,
   };
 }
 
@@ -163,6 +201,11 @@ export function entryFromDraft(
   draft: EntryDraft,
   existingEntry?: WorldEntry
 ): WorldEntry {
+  const fieldKeys = new Set([
+    ...section.detailFields.map((field) => field.key),
+    ...Object.keys(existingEntry?.fields ?? {}),
+    ...Object.keys(draft.details),
+  ]);
   const base = {
     id: existingEntry?.id ?? makeEntryId(section.kind, draft.name),
     kind: section.kind,
@@ -175,7 +218,7 @@ export function entryFromDraft(
     createdAt: existingEntry?.createdAt ?? new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     fields: Object.fromEntries(
-      section.detailFields.map((field) => [field.key, detail(draft, field.key)])
+      Array.from(fieldKeys).map((key) => [key, detail(draft, key)])
     ),
   };
 

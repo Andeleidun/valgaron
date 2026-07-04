@@ -2,10 +2,12 @@ import { describe, expect, it } from '@jest/globals';
 import type { CharacterEntry } from './types';
 import {
   applyEntry,
+  draftFromEntry,
   deleteEntry,
   duplicateEntry,
   entryFromDraft,
   entryMatchesFilters,
+  getEntryDetailFieldSuggestions,
   getEntryStatusLabel,
   getEntries,
   getSectionById,
@@ -27,6 +29,27 @@ describe('codex entry helpers', () => {
   it('returns display labels for entry statuses', () => {
     expect(getEntryStatusLabel('needs-review')).toBe('Needs Review');
     expect(getEntryStatusLabel('archived')).toBe('Archived');
+  });
+
+  it('builds detail field suggestions from configured options and existing entries', () => {
+    const codex = createSeedCodex();
+    const section = getSectionById('places');
+    if (!section) {
+      throw new Error('Expected place section seed config.');
+    }
+
+    const categorySuggestions = getEntryDetailFieldSuggestions(
+      section.detailFields,
+      codex.places
+    ).category;
+
+    expect(categorySuggestions).toContain('Forest');
+    expect(categorySuggestions).toContain('Town');
+    expect(categorySuggestions).toContain('Planet');
+    expect(categorySuggestions).toEqual([...categorySuggestions].sort());
+    expect(
+      getEntryDetailFieldSuggestions([{ key: 'region' }], codex.places).region
+    ).toEqual([]);
   });
 
   it('creates a trimmed character entry from a draft', () => {
@@ -69,6 +92,45 @@ describe('codex entry helpers', () => {
     });
     expect(entry.id).toContain('character-mira-vale-');
     expect(Date.parse(entry.updatedAt)).not.toBeNaN();
+  });
+
+  it('persists category-specific place fields without dropping hidden details', () => {
+    const section = getSectionById('places');
+    const codex = createSeedCodex();
+    const existingFields: Record<string, string> = {
+      ...codex.places[0].fields,
+      category: 'City',
+      districts: 'Old Market',
+      population: '12,000',
+      hiddenPlanningNote: 'Keep this value even if the UI hides it.',
+    };
+    const existingEntry = {
+      ...codex.places[0],
+      fields: existingFields,
+    };
+
+    if (!section) {
+      throw new Error('Expected place section seed config.');
+    }
+
+    const draft = draftFromEntry(existingEntry, section);
+    draft.details.category = 'River';
+    draft.details.source = 'North glacier';
+    draft.details.mouth = 'Grey Sea';
+
+    const savedEntry = entryFromDraft(section, draft, existingEntry);
+
+    expect(savedEntry.fields).toMatchObject({
+      category: 'River',
+      region: existingEntry.fields.region,
+      climate: existingEntry.fields.climate,
+      significance: existingEntry.fields.significance,
+      source: 'North glacier',
+      mouth: 'Grey Sea',
+      districts: 'Old Market',
+      population: '12,000',
+      hiddenPlanningNote: 'Keep this value even if the UI hides it.',
+    });
   });
 
   it('adds new entries to the correct collection and updates existing entries', () => {

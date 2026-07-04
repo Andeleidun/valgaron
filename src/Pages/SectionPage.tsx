@@ -10,8 +10,14 @@ import {
   duplicateEntry,
   filterSectionEntries,
   filterTimelineEvents,
+  buildPlaceRelationshipTextReviewBatchMigration,
+  buildPlaceRelationshipTextReviewMigration,
   getCodexHelpRoute,
   getEntries,
+  getPlaceRelationshipTextReviewExactMatchLabel,
+  getPlaceRelationshipTextReviewItems,
+  getPlaceRelationshipTextReviewSuggestionLabels,
+  getPlaceRelationshipTextReviewUnresolvedLabel,
   getRelationshipEntries,
   getSectionById,
   getSectionTags,
@@ -19,6 +25,8 @@ import {
   getTimelineInvolvedEntryIds,
   sortEntries,
   sortTimelineEvents,
+  placeRelationshipFieldConfigs,
+  type PlaceRelationshipTextReviewItem,
   type EntryDraft,
   type EntrySortKey,
   type WorldCodex,
@@ -44,14 +52,18 @@ export function SectionPage({
   sections,
   onArchiveEntry,
   onDeleteEntry,
+  onDeleteRelationship,
   onSaveEntry,
+  onSaveRelationship,
 }: {
   codex: WorldCodex;
   relationships: readonly WorldRelationship[];
   sections: readonly WorldSectionConfig[];
   onArchiveEntry: (entry: WorldEntry, archived: boolean) => void;
   onDeleteEntry: (entry: WorldEntry) => void;
+  onDeleteRelationship: (relationshipId: string) => void;
   onSaveEntry: (entry: WorldEntry) => void;
+  onSaveRelationship: (relationship: WorldRelationship) => void;
 }) {
   const { sectionId } = useParams();
   const [searchParams] = useSearchParams();
@@ -234,6 +246,17 @@ export function SectionPage({
     involvedEntryFilter.length > 0 ||
     showArchived ||
     updatedWithinDays !== null;
+  const placeRelationshipTextReviewItems = useMemo(
+    () =>
+      section?.kind === 'place'
+        ? getPlaceRelationshipTextReviewItems({ codex, sections }).filter(
+            (item) => item.sectionId === section.id
+          )
+        : [],
+    [codex, section, sections]
+  );
+  const placeRelationshipTextReviewExactItems =
+    placeRelationshipTextReviewItems.filter((item) => item.exactMatchCount > 0);
 
   useEffect(() => {
     if (
@@ -274,6 +297,68 @@ export function SectionPage({
     }
   };
 
+  const migrateReviewItemExactMatches = (
+    item: PlaceRelationshipTextReviewItem
+  ) => {
+    if (isEntryFormDirty) {
+      return;
+    }
+    const entry = entries.find((candidate) => candidate.id === item.entryId);
+    const config = placeRelationshipFieldConfigs.find(
+      (candidate) => candidate.fieldKey === item.fieldKey
+    );
+    if (!entry || !config || item.exactTargetIds.length === 0) {
+      return;
+    }
+
+    const migration = buildPlaceRelationshipTextReviewMigration({
+      config,
+      entry,
+      item,
+      relationships,
+    });
+    migration.relationshipIdsToDelete.forEach(onDeleteRelationship);
+    migration.relationshipsToSave.forEach(({ relationship }) =>
+      onSaveRelationship(relationship)
+    );
+    onSaveEntry({
+      ...entry,
+      fields: migration.fields,
+      updatedAt: new Date().toISOString(),
+    });
+  };
+
+  const migrateAllReviewExactMatches = () => {
+    if (
+      placeRelationshipTextReviewExactItems.length === 0 ||
+      isEntryFormDirty
+    ) {
+      return;
+    }
+    const migration = buildPlaceRelationshipTextReviewBatchMigration({
+      codex,
+      items: placeRelationshipTextReviewExactItems,
+      relationships,
+      sections,
+    });
+    migration.relationshipIdsToDelete.forEach(onDeleteRelationship);
+    migration.relationshipsToSave.forEach(({ relationship }) =>
+      onSaveRelationship(relationship)
+    );
+    for (const update of migration.entryFieldUpdates) {
+      const entry = entries.find(
+        (candidate) => candidate.id === update.entryId
+      );
+      if (entry) {
+        onSaveEntry({
+          ...entry,
+          fields: update.fields,
+          updatedAt: new Date().toISOString(),
+        });
+      }
+    }
+  };
+
   return (
     <main
       className="vwb-main vwb-section-layout"
@@ -310,6 +395,92 @@ export function SectionPage({
           relationships={relationships}
           sections={sections}
         />
+      ) : null}
+
+      {placeRelationshipTextReviewItems.length > 0 ? (
+        <section
+          className="vwb-panel vwb-linked-field-panel"
+          aria-label="Legacy place link text review"
+        >
+          <div className="vwb-section-heading">
+            <div>
+              <p className="vwb-kicker">
+                {placeRelationshipTextReviewItems.length} field
+                {placeRelationshipTextReviewItems.length === 1 ? '' : 's'} to
+                review
+              </p>
+              <h2>Legacy Link Text</h2>
+            </div>
+          </div>
+          <p>
+            These relationship-backed fields still contain text that exact-match
+            migration cannot fully resolve.
+          </p>
+          {isEntryFormDirty ? (
+            <p className="vwb-inline-status">
+              Save or discard the current entry draft before migrating exact
+              matches.
+            </p>
+          ) : null}
+          {placeRelationshipTextReviewExactItems.length > 0 ? (
+            <button
+              className="vwb-secondary-button"
+              disabled={isEntryFormDirty}
+              type="button"
+              onClick={migrateAllReviewExactMatches}
+            >
+              Migrate All Exact Matches
+            </button>
+          ) : null}
+          <div className="vwb-relationship-list">
+            {placeRelationshipTextReviewItems.slice(0, 6).map((item) => (
+              <article
+                className="vwb-relationship-row"
+                key={`${item.entryId}-${item.fieldKey}`}
+              >
+                <div>
+                  <span className="vwb-entry-kind">{item.fieldLabel}</span>
+                  <button
+                    className="vwb-link-button"
+                    type="button"
+                    onClick={() => selectEntry(item.entryId)}
+                  >
+                    {item.entryName}
+                  </button>
+                </div>
+                <p>
+                  Unresolved:{' '}
+                  {getPlaceRelationshipTextReviewUnresolvedLabel(item)};{' '}
+                  {getPlaceRelationshipTextReviewExactMatchLabel(item)}
+                </p>
+                {item.suggestedTargets.length > 0 ? (
+                  <p>
+                    Suggestions:{' '}
+                    {getPlaceRelationshipTextReviewSuggestionLabels(item).join(
+                      '; '
+                    )}
+                  </p>
+                ) : null}
+                {item.exactMatchCount > 0 ? (
+                  <button
+                    className="vwb-secondary-button"
+                    disabled={isEntryFormDirty}
+                    type="button"
+                    onClick={() => migrateReviewItemExactMatches(item)}
+                  >
+                    Migrate Exact Matches
+                  </button>
+                ) : null}
+              </article>
+            ))}
+          </div>
+          {placeRelationshipTextReviewItems.length > 6 ? (
+            <p className="vwb-inline-status">
+              Showing 6 of {placeRelationshipTextReviewItems.length}. Use the
+              affected entries to continue cleanup.
+            </p>
+          ) : null}
+        </section>
       ) : null}
 
       <section
@@ -555,6 +726,8 @@ export function SectionPage({
             setSelectedEntryId(entry.id);
             setTemplateDraft(null);
           }}
+          onDeleteRelationship={onDeleteRelationship}
+          onSaveRelationship={onSaveRelationship}
           onUseAsTemplate={(entry) => {
             const nextTemplateDraft = draftFromEntry(entry, section);
             setTemplateDraft({
@@ -569,6 +742,9 @@ export function SectionPage({
           selectedEntry={selectedEntry}
           initialDraft={templateDraft ?? undefined}
           onDirtyChange={setIsEntryFormDirty}
+          codex={codex}
+          relationships={relationships}
+          sections={sections}
         />
       </section>
       {entryPendingDelete ? (

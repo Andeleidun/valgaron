@@ -8,9 +8,8 @@ import {
   createMobileEntryDraft,
   createMobileEntryTemplateDraft,
   applyMobileEntrySectionTemplate,
-  getLocalDeviceStatusText,
-  getMobileDataStorageStatus,
   getMobileBrokenRelationshipList,
+  getMobileEntryRelationshipGroups,
   getMobileEntryRelationshipSummary,
   getMobileEntryList,
   getMobileOrphanedRelationshipEntries,
@@ -19,12 +18,10 @@ import {
   getMobileOverviewSearchResults,
   getMobileRelationshipEntryPickerItems,
   getMobileRelationshipGraphView,
-  getMobileRecoverySnapshotText,
   getMobileRelationshipHealthSummary,
   getMobileRelationshipList,
   getMobileTimelineBrowseView,
   getMobileTimelineSummary,
-  getMobileWorkspaceActionState,
   mobileEntrySortOptions,
 } from './mobileCodexViewModels';
 
@@ -169,6 +166,12 @@ describe('mobile codex view models', () => {
         (entry) => entry.name
       )
     ).toEqual(['Mira Rowan']);
+    expect(
+      getMobileEntryList(world, section, '', {
+        now: new Date('2026-06-02T00:00:00.000Z'),
+        updatedWithinDays: 3,
+      }).map((entry) => entry.name)
+    ).toEqual(['Mira Rowan']);
   });
 
   it('sorts mobile section entries with the same options as web browsing', () => {
@@ -196,11 +199,11 @@ describe('mobile codex view models', () => {
     };
 
     expect(mobileEntrySortOptions.map((option) => option.label)).toEqual([
-      'Updated',
-      'Created',
+      'Recently updated',
+      'Recently created',
+      'Timeline order',
       'Name',
       'Status',
-      'Timeline',
     ]);
     expect(
       getMobileEntryList(sortedWorld, section, '', {
@@ -287,6 +290,58 @@ describe('mobile codex view models', () => {
     });
   });
 
+  it('groups place linked records for mobile place detail sections', () => {
+    const world = getActiveWorld(createSeedWorldDocument());
+    const harbor = world.codex.places[0];
+    const groupedWorld = {
+      ...world,
+      relationships: [
+        {
+          ...world.relationships[0],
+          id: 'relationship-harbor-forest',
+          sourceEntryId: harbor.id,
+          targetEntryId: 'place-glassroot-forest',
+          type: 'located in',
+        },
+        {
+          ...world.relationships[0],
+          id: 'relationship-harbor-guild',
+          sourceEntryId: harbor.id,
+          targetEntryId: 'faction-cartographers-guild',
+          type: 'controlled by',
+        },
+        ...world.relationships,
+      ],
+    };
+
+    expect(
+      getMobileEntryRelationshipGroups(groupedWorld, harbor)
+    ).toMatchObject([
+      {
+        id: 'location',
+        label: 'Location and parent places',
+        relationships: [
+          {
+            relatedEntryId: 'place-glassroot-forest',
+            relatedEntryName: 'Glassroot Forest',
+            type: 'located in',
+          },
+        ],
+      },
+      {
+        id: 'power',
+        label: 'Control and claims',
+        relationships: [
+          {
+            relatedEntryId: 'faction-cartographers-guild',
+            relatedEntryName: 'The Cartographers Guild',
+            type: 'controlled by',
+          },
+        ],
+      },
+    ]);
+  });
+
   it('filters relationship picker entries by name, section, id, and tags', () => {
     const world = getActiveWorld(createSeedWorldDocument());
 
@@ -360,50 +415,6 @@ describe('mobile codex view models', () => {
     expect(
       getMobileOrphanedRelationshipEntries(world).map((entry) => entry.name)
     ).toEqual(['Northwatch Harbor', 'The Ember Court']);
-  });
-
-  it('keeps workspace actions aligned with core workspace rules', () => {
-    const world = getActiveWorld(createSeedWorldDocument());
-
-    expect(
-      getMobileWorkspaceActionState({
-        activeWorkspaceId: world.id,
-        activeWorkspaceCount: 1,
-        workspace: world,
-        workspaceCount: 1,
-      })
-    ).toEqual({
-      switchLabel: 'Current',
-      canSwitch: false,
-      canArchive: false,
-      canDelete: false,
-    });
-    expect(
-      getMobileWorkspaceActionState({
-        activeWorkspaceId: 'other-workspace',
-        activeWorkspaceCount: 2,
-        workspace: world,
-        workspaceCount: 2,
-      })
-    ).toEqual({
-      switchLabel: 'Switch',
-      canSwitch: true,
-      canArchive: true,
-      canDelete: true,
-    });
-    expect(
-      getMobileWorkspaceActionState({
-        activeWorkspaceId: 'other-workspace',
-        activeWorkspaceCount: 1,
-        workspace: { ...world, status: 'archived' },
-        workspaceCount: 2,
-      })
-    ).toEqual({
-      switchLabel: 'Archived',
-      canSwitch: false,
-      canArchive: true,
-      canDelete: true,
-    });
   });
 
   it('summarizes timeline health and highlights for mobile', () => {
@@ -575,54 +586,5 @@ describe('mobile codex view models', () => {
 
     expect(draft.tags).toBe('character');
     expect(draft.notes).toContain('## Role in the story');
-  });
-
-  it('uses neutral local-device timestamp text', () => {
-    const text = getLocalDeviceStatusText('2026-06-01T09:00:00.000Z');
-
-    expect(text).toContain('Jun 1, 2026');
-    expect(text).toContain('Document timestamp');
-    expect(text).not.toContain('Saved on this device');
-  });
-
-  it('summarizes mobile Data storage state without world content', () => {
-    const status = getMobileDataStorageStatus({
-      lastRecoverySnapshot: {
-        createdAt: '2026-06-01T09:00:00.000Z',
-        document: createSeedWorldDocument(),
-        id: 'snapshot-import-test',
-        reason: 'import',
-      },
-      loadStatus: {
-        checkedAt: '2026-06-01T09:00:00.000Z',
-        message: 'Loaded saved data.',
-        source: 'saved',
-      },
-      saveMessage: 'Saved to this device.',
-      recoverySnapshotCount: 3,
-    });
-
-    expect(status.loadLine).toContain('Load state: saved');
-    expect(status.saveLine).toBe('Device save: Saved to this device.');
-    expect(status.recoveryLine).toContain('3 snapshots saved');
-    expect(status.recoveryLine).toContain('before import');
-    expect(JSON.stringify(status)).not.toContain('Sample Atlas');
-    expect(JSON.stringify(status)).not.toContain('Mira Rowan');
-  });
-
-  it('formats recovery snapshot summaries with action context', () => {
-    const text = getMobileRecoverySnapshotText({
-      id: 'snapshot-reset-test',
-      reason: 'reset',
-      createdAt: '2026-06-01T09:00:00.000Z',
-      activeWorldName: 'Sample Atlas',
-      worldCount: 1,
-      entryCount: 10,
-      relationshipCount: 5,
-    });
-
-    expect(text).toContain('before reset');
-    expect(text).toContain('Jun 1, 2026');
-    expect(text).not.toContain('Latest');
   });
 });

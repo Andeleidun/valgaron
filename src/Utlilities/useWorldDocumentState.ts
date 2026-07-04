@@ -77,6 +77,7 @@ export type WorldDocumentState = {
   permanentlyDeleteEntry: (entry: WorldEntry) => void;
   saveRelationship: (relationship: WorldRelationship) => void;
   removeRelationship: (relationshipId: string) => void;
+  unlinkRelationship: (relationshipId: string) => void;
   resetToSeed: () => void;
   importDocument: (nextDocument: WorldDocument) => void;
   restoreSnapshot: (snapshotId: string) => void;
@@ -221,8 +222,7 @@ export function useWorldDocumentState(): WorldDocumentState {
     );
   };
 
-  const removeRelationship = (relationshipId: string) => {
-    captureSnapshot(document, 'relationship-delete');
+  const unlinkRelationship = (relationshipId: string) => {
     setUnsavedDocument((currentDocument) =>
       updateActiveWorld(currentDocument, (world) => ({
         ...world,
@@ -230,6 +230,11 @@ export function useWorldDocumentState(): WorldDocumentState {
         updatedAt: new Date().toISOString(),
       }))
     );
+  };
+
+  const removeRelationship = (relationshipId: string) => {
+    captureSnapshot(document, 'relationship-delete');
+    unlinkRelationship(relationshipId);
   };
 
   const resetToSeed = () => {
@@ -396,6 +401,7 @@ export function useWorldDocumentState(): WorldDocumentState {
     permanentlyDeleteEntry,
     saveRelationship,
     removeRelationship,
+    unlinkRelationship,
     resetToSeed,
     importDocument,
     restoreSnapshot,

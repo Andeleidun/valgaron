@@ -12,18 +12,32 @@ import {
   getCodexEntriesRoute,
   getCodexRelationshipsRoute,
   getDestructiveActionCopy,
+  getDraftDetailFields,
   getEntries,
+  getEntryDetailFieldSuggestions,
+  getEntryDetailFields,
   getEntryRelationships,
   getEntryStatusLabel,
+  getHiddenPlaceDetailValues,
+  getPlaceRelationshipGroups,
   getRelationshipEntries,
   getTimelineDiagnostics,
   getTimelineHighlights,
   getTimelineInvolvedEntryIdsByEvent,
   getTimelineOrderUpdates,
   groupTimelineEventsByEra,
+  buildRelationshipTextMigration,
+  filterPlaceRelationshipTargetOptions,
+  getPlaceRelationshipFieldLinks,
+  getPlaceRelationshipFieldTargetId,
+  placeRelationshipFieldConfigs,
+  getPlaceRelationshipTargetOptions,
+  limitPlaceRelationshipTargetOptions,
+  makePlaceFieldRelationship,
   sortTimelineEvents,
   validateEntryDraft,
   type EntryDraft,
+  type PlaceRelationshipFieldConfig,
   worldEntryStatusOptions,
   type RelationshipWithEntries,
   type WorldCodex,
@@ -49,32 +63,6 @@ function getDetailFieldSuggestionId(
   );
 }
 
-function getDetailFieldSuggestions(
-  section: WorldSectionConfig,
-  entries: readonly WorldEntry[]
-): Record<string, string[]> {
-  return Object.fromEntries(
-    section.detailFields.map((field) => {
-      const suggestions = new Map<string, string>();
-      for (const option of field.autocompleteOptions ?? []) {
-        const normalizedOption = option.trim();
-        if (normalizedOption) {
-          suggestions.set(normalizedOption.toLowerCase(), normalizedOption);
-        }
-      }
-      if (suggestions.size > 0) {
-        for (const entry of entries) {
-          const value = entry.fields[field.key]?.trim();
-          if (value) {
-            suggestions.set(value.toLowerCase(), value);
-          }
-        }
-      }
-      return [field.key, Array.from(suggestions.values()).sort()];
-    })
-  );
-}
-
 export function EntryCard({
   entry,
   section,
@@ -86,7 +74,7 @@ export function EntryCard({
   isSelected: boolean;
   onSelect: () => void;
 }) {
-  const detailPreview = section.detailFields
+  const detailPreview = getEntryDetailFields(section, entry)
     .map((field) => getDetailValue(entry, field.key))
     .filter(Boolean)
     .slice(0, 2)
@@ -136,12 +124,13 @@ export function EntryDetail({
   section: WorldSectionConfig;
   sections: readonly WorldSectionConfig[];
 }) {
-  const visibleDetails = section.detailFields
+  const visibleDetails = getEntryDetailFields(section, entry)
     .map((field) => ({
       label: field.label,
       value: getDetailValue(entry, field.key),
     }))
     .filter((field) => field.value);
+  const hiddenDetails = getHiddenPlaceDetailValues(section, entry.fields);
 
   return (
     <article className="vwb-detail-panel" aria-labelledby="entry-detail-title">
@@ -188,6 +177,22 @@ export function EntryDetail({
         <section className="vwb-notes-block" aria-label="Markdown notes">
           <h3>Notes</h3>
           <pre>{entry.notes}</pre>
+        </section>
+      ) : null}
+      {hiddenDetails.length > 0 ? (
+        <section
+          className="vwb-hidden-detail-panel"
+          aria-label="Hidden place details"
+        >
+          <h3>Hidden place details</h3>
+          <dl className="vwb-detail-list">
+            {hiddenDetails.map((field) => (
+              <div key={field.key}>
+                <dt>{field.label}</dt>
+                <dd>{field.value}</dd>
+              </div>
+            ))}
+          </dl>
         </section>
       ) : null}
       <EntryRelationships
@@ -253,6 +258,12 @@ function EntryRelationships({
     sections,
     entry.id
   );
+  const placeRelationshipGroups = getPlaceRelationshipGroups(
+    entry,
+    relationships,
+    codex,
+    sections
+  );
 
   return (
     <section className="vwb-relationship-panel" aria-labelledby="entry-links">
@@ -272,7 +283,49 @@ function EntryRelationships({
           Manage Links
         </NavLink>
       </div>
-      {linkedRelationships.length > 0 ? (
+      {placeRelationshipGroups.length > 0 ? (
+        <div className="vwb-relationship-list">
+          {placeRelationshipGroups.map((group) => (
+            <section
+              className="vwb-relationship-group"
+              aria-label={group.label}
+              key={group.id}
+            >
+              <h4>{group.label}</h4>
+              {group.relationships.map((relationship) => {
+                const relatedEntry = getRelatedEntry(relationship, entry.id);
+                return (
+                  <article
+                    className="vwb-relationship-row"
+                    key={relationship.id}
+                  >
+                    <div>
+                      <span className="vwb-entry-kind">
+                        {formatRelationshipDirection(relationship, entry.id)} -{' '}
+                        {relationship.type}
+                      </span>
+                      {relatedEntry ? (
+                        <NavLink
+                          to={getRelationshipEntryPath(
+                            codex,
+                            sections,
+                            relatedEntry.id
+                          )}
+                        >
+                          {relatedEntry.name}
+                        </NavLink>
+                      ) : (
+                        <strong>Missing entry</strong>
+                      )}
+                    </div>
+                    {relationship.note ? <p>{relationship.note}</p> : null}
+                  </article>
+                );
+              })}
+            </section>
+          ))}
+        </div>
+      ) : linkedRelationships.length > 0 ? (
         <div className="vwb-relationship-list">
           {linkedRelationships.map((relationship) => {
             const relatedEntry = getRelatedEntry(relationship, entry.id);
@@ -596,16 +649,203 @@ export function ResetConfirmationDialog({
   );
 }
 
+const RELATIONSHIP_TARGET_RESULT_LIMIT = 60;
+
+function PlaceRelationshipFieldControl({
+  codex,
+  config,
+  entry,
+  onDeleteRelationship,
+  onSaveRelationship,
+  relationships,
+  sections,
+}: {
+  codex: WorldCodex;
+  config: PlaceRelationshipFieldConfig;
+  entry: WorldEntry;
+  onDeleteRelationship: (relationshipId: string) => void;
+  onSaveRelationship: (relationship: WorldRelationship) => void;
+  relationships: readonly WorldRelationship[];
+  sections: readonly WorldSectionConfig[];
+}) {
+  const [query, setQuery] = useState('');
+  const fieldRelationships = getPlaceRelationshipFieldLinks(
+    relationships,
+    entry,
+    config
+  );
+  const selectedTargetIds = new Set(
+    fieldRelationships.map((relationship) =>
+      getPlaceRelationshipFieldTargetId(relationship, config)
+    )
+  );
+  const options = getPlaceRelationshipTargetOptions({
+    codex,
+    config,
+    includedTargetIds: selectedTargetIds,
+    sections,
+    currentEntry: entry,
+  });
+  const filteredOptions = filterPlaceRelationshipTargetOptions(
+    options,
+    query,
+    selectedTargetIds
+  );
+  const visibleOptions = limitPlaceRelationshipTargetOptions(
+    filteredOptions,
+    selectedTargetIds,
+    RELATIONSHIP_TARGET_RESULT_LIMIT
+  );
+  const hiddenOptionCount = filteredOptions.length - visibleOptions.length;
+
+  const saveLink = (
+    targetEntryId: string,
+    existingRelationship?: WorldRelationship
+  ) => {
+    onSaveRelationship(
+      makePlaceFieldRelationship(
+        entry,
+        config,
+        targetEntryId,
+        existingRelationship
+      )
+    );
+  };
+
+  const setSingleTarget = (targetEntryId: string) => {
+    const [primaryRelationship, ...extraRelationships] = fieldRelationships;
+    for (const relationship of extraRelationships) {
+      onDeleteRelationship(relationship.id);
+    }
+    if (!targetEntryId) {
+      if (primaryRelationship) {
+        onDeleteRelationship(primaryRelationship.id);
+      }
+      return;
+    }
+    if (
+      primaryRelationship &&
+      getPlaceRelationshipFieldTargetId(primaryRelationship, config) ===
+        targetEntryId
+    ) {
+      return;
+    }
+    saveLink(targetEntryId, primaryRelationship);
+  };
+
+  const toggleManyTarget = (targetEntryId: string, checked: boolean) => {
+    const existingRelationship = fieldRelationships.find(
+      (relationship) =>
+        getPlaceRelationshipFieldTargetId(relationship, config) ===
+        targetEntryId
+    );
+    if (checked) {
+      if (!existingRelationship) {
+        saveLink(targetEntryId);
+      }
+      return;
+    }
+    if (existingRelationship) {
+      onDeleteRelationship(existingRelationship.id);
+    }
+  };
+
+  return (
+    <section className="vwb-linked-field" aria-label={config.label}>
+      <div>
+        <h4>{config.label}</h4>
+        <p>
+          Saved as {config.relationshipType} relationship
+          {config.cardinality === 'many' ? 's' : ''}.
+        </p>
+      </div>
+      {options.length > 0 ? (
+        <>
+          <label>
+            Search {config.label}
+            <input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Filter linked record targets"
+              type="search"
+            />
+          </label>
+          {filteredOptions.length > 0 ? (
+            config.cardinality === 'one' ? (
+              <label>
+                {config.label}
+                <select
+                  value={
+                    fieldRelationships[0]
+                      ? getPlaceRelationshipFieldTargetId(
+                          fieldRelationships[0],
+                          config
+                        )
+                      : ''
+                  }
+                  onChange={(event) => setSingleTarget(event.target.value)}
+                >
+                  <option value="">No linked record</option>
+                  {visibleOptions.map((option) => (
+                    <option value={option.entry.id} key={option.entry.id}>
+                      {option.entry.name} ({option.section.singularTitle})
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : (
+              <div className="vwb-linked-field-options">
+                {visibleOptions.map((option) => (
+                  <label className="vwb-inline-toggle" key={option.entry.id}>
+                    <input
+                      checked={selectedTargetIds.has(option.entry.id)}
+                      onChange={(event) =>
+                        toggleManyTarget(option.entry.id, event.target.checked)
+                      }
+                      type="checkbox"
+                    />
+                    {option.entry.name} ({option.section.singularTitle})
+                  </label>
+                ))}
+              </div>
+            )
+          ) : (
+            <p className="vwb-inline-status">
+              No matching records. Clear the search to see all targets.
+            </p>
+          )}
+          {hiddenOptionCount > 0 ? (
+            <p className="vwb-inline-status">
+              Showing {visibleOptions.length} of {filteredOptions.length}{' '}
+              matches. Refine the search to show {hiddenOptionCount} more record
+              {hiddenOptionCount === 1 ? '' : 's'}.
+            </p>
+          ) : null}
+        </>
+      ) : (
+        <p className="vwb-inline-status">
+          Create matching records before linking this field.
+        </p>
+      )}
+    </section>
+  );
+}
+
 export function EntryForm({
   section,
   selectedEntry,
+  codex,
+  relationships,
+  sections,
   onArchive,
   onSave,
   onCancel,
   onDelete,
+  onDeleteRelationship,
   onDuplicate,
   onDirtyChange,
   onRestore,
+  onSaveRelationship,
   onUseAsTemplate,
   initialDraft,
   sectionEntries = [],
@@ -614,13 +854,18 @@ export function EntryForm({
   sectionEntries?: readonly WorldEntry[];
   selectedEntry?: WorldEntry;
   initialDraft?: EntryDraft;
+  codex?: WorldCodex;
+  relationships?: readonly WorldRelationship[];
+  sections?: readonly WorldSectionConfig[];
   onArchive: (entry: WorldEntry) => void;
   onSave: (entry: WorldEntry) => void;
   onCancel: () => void;
   onDelete: (entry: WorldEntry) => void;
+  onDeleteRelationship?: (relationshipId: string) => void;
   onDuplicate: (entry: WorldEntry) => void;
   onDirtyChange?: (isDirty: boolean) => void;
   onRestore: (entry: WorldEntry) => void;
+  onSaveRelationship?: (relationship: WorldRelationship) => void;
   onUseAsTemplate: (entry: WorldEntry) => void;
 }) {
   const baselineDraft = useMemo(
@@ -634,9 +879,53 @@ export function EntryForm({
   const [error, setError] = useState('');
   const [copyStatus, setCopyStatus] = useState('');
   const isDirty = hasUnsavedChanges(baselineDraft, draft);
+  const selectedPlaceCategory = draft.details.category ?? '';
+  const visibleDetailFields = useMemo(
+    () =>
+      getDraftDetailFields(section, {
+        details: { category: selectedPlaceCategory },
+      }),
+    [section, selectedPlaceCategory]
+  );
+  const visibleFieldKeys = new Set(
+    visibleDetailFields.map((field) => field.key)
+  );
+  const activeRelationshipFieldConfigs =
+    selectedEntry?.kind === 'place'
+      ? placeRelationshipFieldConfigs.filter((config) =>
+          visibleFieldKeys.has(config.fieldKey)
+        )
+      : [];
+  const relationshipFieldKeys = new Set(
+    activeRelationshipFieldConfigs.map((config) => config.fieldKey)
+  );
+  const editableDetailFields =
+    selectedEntry?.kind === 'place'
+      ? visibleDetailFields.filter(
+          (field) => !relationshipFieldKeys.has(field.key)
+        )
+      : visibleDetailFields;
   const detailFieldSuggestions = useMemo(
-    () => getDetailFieldSuggestions(section, sectionEntries),
-    [section, sectionEntries]
+    () => getEntryDetailFieldSuggestions(editableDetailFields, sectionEntries),
+    [editableDetailFields, sectionEntries]
+  );
+  const hiddenDetailValues = getHiddenPlaceDetailValues(section, draft.details);
+  const legacyRelationshipTextValues = activeRelationshipFieldConfigs
+    .map((config) => ({
+      config,
+      key: config.fieldKey,
+      label: config.label,
+      value: draft.details[config.fieldKey]?.trim() ?? '',
+    }))
+    .filter((field) => field.value);
+  const canEditPlaceRelationships = Boolean(
+    selectedEntry &&
+      !isDirty &&
+      codex &&
+      relationships &&
+      sections &&
+      onDeleteRelationship &&
+      onSaveRelationship
   );
 
   useUnsavedChangesWarning(isDirty);
@@ -700,6 +989,99 @@ export function EntryForm({
     }
     onSave(entryFromDraft(section, draft, selectedEntry));
     setError('');
+  };
+
+  const getLegacyRelationshipTextMigration = (
+    config: PlaceRelationshipFieldConfig,
+    value: string
+  ) => {
+    if (!selectedEntry || !codex || !sections) {
+      return null;
+    }
+    const options = getPlaceRelationshipTargetOptions({
+      codex,
+      config,
+      sections,
+      currentEntry: selectedEntry,
+    });
+    return buildRelationshipTextMigration(
+      value,
+      options.map((option) => ({
+        id: option.entry.id,
+        name: option.entry.name,
+      })),
+      config.cardinality
+    );
+  };
+
+  const migrateLegacyRelationshipText = (
+    config: PlaceRelationshipFieldConfig,
+    value: string
+  ) => {
+    if (
+      !selectedEntry ||
+      !relationships ||
+      !codex ||
+      !sections ||
+      isDirty ||
+      !onDeleteRelationship ||
+      !onSaveRelationship
+    ) {
+      return;
+    }
+    const migration = getLegacyRelationshipTextMigration(config, value);
+    if (!migration || migration.targetIds.length === 0) {
+      return;
+    }
+    const fieldRelationships = getPlaceRelationshipFieldLinks(
+      relationships,
+      selectedEntry,
+      config
+    );
+
+    if (config.cardinality === 'one') {
+      const [primaryRelationship, ...extraRelationships] = fieldRelationships;
+      for (const relationship of extraRelationships) {
+        onDeleteRelationship(relationship.id);
+      }
+      const targetEntryId = migration.targetIds[0];
+      if (
+        !primaryRelationship ||
+        getPlaceRelationshipFieldTargetId(primaryRelationship, config) !==
+          targetEntryId
+      ) {
+        onSaveRelationship(
+          makePlaceFieldRelationship(
+            selectedEntry,
+            config,
+            targetEntryId,
+            primaryRelationship
+          )
+        );
+      }
+    } else {
+      for (const targetEntryId of migration.targetIds) {
+        const existingRelationship = fieldRelationships.find(
+          (relationship) =>
+            getPlaceRelationshipFieldTargetId(relationship, config) ===
+            targetEntryId
+        );
+        if (!existingRelationship) {
+          onSaveRelationship(
+            makePlaceFieldRelationship(selectedEntry, config, targetEntryId)
+          );
+        }
+      }
+    }
+    const nextDraft = {
+      ...draft,
+      details: {
+        ...draft.details,
+        [config.fieldKey]: migration.remainingText,
+      },
+    };
+    setDraft(nextDraft);
+    onSave(entryFromDraft(section, nextDraft, selectedEntry));
   };
 
   return (
@@ -823,7 +1205,7 @@ export function EntryForm({
       </div>
 
       <div className="vwb-form-grid">
-        {section.detailFields.map((field) =>
+        {editableDetailFields.map((field) =>
           (() => {
             const suggestions = detailFieldSuggestions[field.key] ?? [];
             const suggestionId = getDetailFieldSuggestionId(
@@ -867,6 +1249,125 @@ export function EntryForm({
           })()
         )}
       </div>
+
+      {selectedEntry?.kind === 'place' &&
+      activeRelationshipFieldConfigs.length > 0 ? (
+        <section
+          className="vwb-linked-field-panel"
+          aria-label="Relationship-backed place fields"
+        >
+          <div>
+            <h3>Linked place fields</h3>
+            <p>
+              These fields are saved as relationships so linked records stay
+              navigable from both sides.
+            </p>
+          </div>
+          {canEditPlaceRelationships ? (
+            activeRelationshipFieldConfigs.map((config) => (
+              <PlaceRelationshipFieldControl
+                codex={codex!}
+                config={config}
+                entry={selectedEntry}
+                key={config.fieldKey}
+                onDeleteRelationship={onDeleteRelationship!}
+                onSaveRelationship={onSaveRelationship!}
+                relationships={relationships!}
+                sections={sections!}
+              />
+            ))
+          ) : (
+            <p className="vwb-inline-status">
+              Save this place before editing relationship links.
+            </p>
+          )}
+          {legacyRelationshipTextValues.length > 0 ? (
+            <section
+              className="vwb-hidden-detail-panel"
+              aria-label="Saved text link notes"
+            >
+              <h4>Saved text link notes</h4>
+              <dl className="vwb-detail-list">
+                {legacyRelationshipTextValues.map((field) => {
+                  const migration = canEditPlaceRelationships
+                    ? getLegacyRelationshipTextMigration(
+                        field.config,
+                        field.value
+                      )
+                    : null;
+                  return (
+                    <div key={field.key}>
+                      <dt>{field.label}</dt>
+                      <dd>
+                        <span>{field.value}</span>
+                        {migration?.targetIds.length ? (
+                          <button
+                            className="vwb-secondary-button"
+                            type="button"
+                            onClick={() =>
+                              migrateLegacyRelationshipText(
+                                field.config,
+                                field.value
+                              )
+                            }
+                          >
+                            Migrate Exact Matches
+                          </button>
+                        ) : null}
+                        <button
+                          className="vwb-secondary-button"
+                          type="button"
+                          onClick={() => updateDetail(field.key, '')}
+                        >
+                          Clear
+                        </button>
+                        {migration ? (
+                          <small>
+                            {migration.targetIds.length > 0
+                              ? `${migration.targetIds.length} exact match${
+                                  migration.targetIds.length === 1 ? '' : 'es'
+                                } found.`
+                              : 'No exact matches found.'}
+                            {migration.remainingText
+                              ? ' Unmatched text will remain.'
+                              : ''}
+                          </small>
+                        ) : null}
+                      </dd>
+                    </div>
+                  );
+                })}
+              </dl>
+            </section>
+          ) : null}
+        </section>
+      ) : null}
+
+      {hiddenDetailValues.length > 0 ? (
+        <section
+          className="vwb-hidden-detail-panel"
+          aria-label="Hidden place details"
+        >
+          <h3>Hidden place details</h3>
+          <dl className="vwb-detail-list">
+            {hiddenDetailValues.map((field) => (
+              <div key={field.key}>
+                <dt>{field.label}</dt>
+                <dd>
+                  <span>{field.value}</span>
+                  <button
+                    className="vwb-secondary-button"
+                    type="button"
+                    onClick={() => updateDetail(field.key, '')}
+                  >
+                    Clear
+                  </button>
+                </dd>
+              </div>
+            ))}
+          </dl>
+        </section>
+      ) : null}
 
       {error ? <p className="vwb-form-error">{error}</p> : null}
       <div className="vwb-form-actions">

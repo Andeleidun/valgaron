@@ -3,14 +3,27 @@ import { Text, View, StyleSheet } from 'react-native';
 import { router } from 'expo-router';
 import type {
   EntryTypeDraft,
+  InFictionWorld,
+  PlanetaryWorldDraft,
   WorkspaceDraft,
   WorldWorkspace,
 } from '@valgaron/core';
 import {
   getCodexHelpRoute,
   getCodexScreenIntro,
+  getWorkspaceFormKicker,
+  getWorkspaceFormTitle,
+  getWorkspaceFeatureModel,
+  entryTypeDraftFields,
   hasUnsavedChanges,
   lastActiveWorkspaceArchiveMessage,
+  normalizePlanetaryWorldDraft,
+  normalizeWorkspaceDraft,
+  planetaryWorldDraftFrom,
+  planetaryWorldDraftFields,
+  workspaceDraftFields,
+  workspaceFeatureActions,
+  workspaceFeatureCopy,
 } from '@valgaron/core';
 import {
   valgaronColors,
@@ -31,12 +44,8 @@ import {
 } from './screenPrimitives';
 import { confirmMobileDestructiveAction } from './mobileConfirm';
 import { confirmMobileDiscardUnsavedChanges } from './mobileUnsavedChanges';
-import { getMobileWorkspaceActionState } from '../state/mobileCodexViewModels';
 import { getMobileFeedbackTone } from '../state/mobileFeedback';
 import { getMobileRouteHref } from '../navigation/mobileRoutes';
-
-const MOBILE_WORKSPACE_RESULT_LIMIT = 40;
-const MOBILE_ENTRY_TYPE_RESULT_LIMIT = 40;
 
 const blankWorkspaceDraft: WorkspaceDraft = {
   name: '',
@@ -59,14 +68,6 @@ function workspaceDraftFrom(workspace?: WorldWorkspace): WorkspaceDraft {
   };
 }
 
-function matchesQuery(values: readonly string[], query: string): boolean {
-  const normalizedQuery = query.trim().toLowerCase();
-  return (
-    !normalizedQuery ||
-    values.some((value) => value.toLowerCase().includes(normalizedQuery))
-  );
-}
-
 export function WorkspacesScreen() {
   const controller = useMobileCodex();
   const intro = getCodexScreenIntro('workspaces');
@@ -79,8 +80,14 @@ export function WorkspacesScreen() {
   );
   const [entryTypeDraft, setEntryTypeDraft] =
     useState<EntryTypeDraft>(blankEntryTypeDraft);
+  const [selectedPlanetaryWorldId, setSelectedPlanetaryWorldId] = useState<
+    string | null
+  >(null);
+  const [planetaryWorldDraft, setPlanetaryWorldDraft] =
+    useState<PlanetaryWorldDraft>(() => planetaryWorldDraftFrom());
   const [workspaceQuery, setWorkspaceQuery] = useState('');
   const [entryTypeQuery, setEntryTypeQuery] = useState('');
+  const [planetaryWorldQuery, setPlanetaryWorldQuery] = useState('');
 
   useEffect(() => {
     if (activeWorkspaceIdRef.current === controller.activeWorld.id) {
@@ -89,6 +96,8 @@ export function WorkspacesScreen() {
     activeWorkspaceIdRef.current = controller.activeWorld.id;
     setSelectedWorkspaceId(controller.activeWorld.id);
     setWorkspaceDraft(workspaceDraftFrom(controller.activeWorld));
+    setSelectedPlanetaryWorldId(null);
+    setPlanetaryWorldDraft(planetaryWorldDraftFrom());
   }, [controller.activeWorld]);
 
   useEffect(() => {
@@ -103,14 +112,40 @@ export function WorkspacesScreen() {
     }
   }, [controller.document.worlds, selectedWorkspaceId]);
 
-  const selectedWorkspace = selectedWorkspaceId
-    ? controller.document.worlds.find(
-        (workspace) => workspace.id === selectedWorkspaceId
-      ) ?? null
-    : null;
-  const activeWorkspaceCount = controller.document.worlds.filter(
-    (workspace) => workspace.status !== 'archived'
-  ).length;
+  useEffect(() => {
+    if (
+      selectedPlanetaryWorldId &&
+      !controller.activeWorld.planetaryWorlds.some(
+        (planetaryWorld) => planetaryWorld.id === selectedPlanetaryWorldId
+      )
+    ) {
+      setSelectedPlanetaryWorldId(null);
+      setPlanetaryWorldDraft(planetaryWorldDraftFrom());
+    }
+  }, [controller.activeWorld.planetaryWorlds, selectedPlanetaryWorldId]);
+
+  const workspaceModel = useMemo(
+    () =>
+      getWorkspaceFeatureModel({
+        activeWorld: controller.activeWorld,
+        document: controller.document,
+        queries: {
+          workspaces: workspaceQuery,
+          customEntryTypes: entryTypeQuery,
+          planetaryWorlds: planetaryWorldQuery,
+        },
+        selectedWorkspaceId,
+      }),
+    [
+      controller.activeWorld,
+      controller.document,
+      entryTypeQuery,
+      planetaryWorldQuery,
+      selectedWorkspaceId,
+      workspaceQuery,
+    ]
+  );
+  const selectedWorkspace = workspaceModel.selectedWorkspace;
   const workspaceBaselineDraft = workspaceDraftFrom(
     selectedWorkspace ?? undefined
   );
@@ -122,62 +157,22 @@ export function WorkspacesScreen() {
     blankEntryTypeDraft,
     entryTypeDraft
   );
-  const hasDirtyDraft = isWorkspaceDraftDirty || isEntryTypeDraftDirty;
-  const customEntryTypes = useMemo(
-    () => controller.activeWorld.entryTypes.filter((section) => section.custom),
-    [controller.activeWorld.entryTypes]
+  const selectedPlanetaryWorld = selectedPlanetaryWorldId
+    ? controller.activeWorld.planetaryWorlds.find(
+        (planetaryWorld) => planetaryWorld.id === selectedPlanetaryWorldId
+      ) ?? null
+    : null;
+  const planetaryWorldBaselineDraft = planetaryWorldDraftFrom(
+    selectedPlanetaryWorld ?? undefined
   );
-  const matchingWorkspaces = useMemo(
-    () =>
-      controller.document.worlds.filter((workspace) =>
-        matchesQuery(
-          [
-            workspace.id,
-            workspace.name,
-            workspace.summary,
-            workspace.defaultEra,
-            workspace.status,
-          ],
-          workspaceQuery
-        )
-      ),
-    [controller.document.worlds, workspaceQuery]
+  const isPlanetaryWorldDraftDirty = hasUnsavedChanges(
+    planetaryWorldBaselineDraft,
+    planetaryWorldDraft
   );
-  const displayedWorkspaces = matchingWorkspaces.slice(
-    0,
-    MOBILE_WORKSPACE_RESULT_LIMIT
-  );
-  const hiddenWorkspaceCount = Math.max(
-    0,
-    matchingWorkspaces.length - displayedWorkspaces.length
-  );
-  const matchingCustomEntryTypes = useMemo(
-    () =>
-      customEntryTypes.filter((section) =>
-        matchesQuery(
-          [
-            section.id,
-            section.title,
-            section.singularTitle,
-            section.description,
-            ...section.detailFields.flatMap((field) => [
-              field.key,
-              field.label,
-            ]),
-          ],
-          entryTypeQuery
-        )
-      ),
-    [customEntryTypes, entryTypeQuery]
-  );
-  const displayedCustomEntryTypes = matchingCustomEntryTypes.slice(
-    0,
-    MOBILE_ENTRY_TYPE_RESULT_LIMIT
-  );
-  const hiddenCustomEntryTypeCount = Math.max(
-    0,
-    matchingCustomEntryTypes.length - displayedCustomEntryTypes.length
-  );
+  const hasDirtyDraft =
+    isWorkspaceDraftDirty ||
+    isEntryTypeDraftDirty ||
+    isPlanetaryWorldDraftDirty;
 
   function editWorkspace(workspace: WorldWorkspace) {
     if (selectedWorkspaceId === workspace.id) {
@@ -241,6 +236,96 @@ export function WorkspacesScreen() {
     );
   }
 
+  function editPlanetaryWorld(planetaryWorld: InFictionWorld) {
+    if (selectedPlanetaryWorldId === planetaryWorld.id) {
+      return;
+    }
+    confirmMobileDiscardUnsavedChanges(hasDirtyDraft, () => {
+      setSelectedPlanetaryWorldId(planetaryWorld.id);
+      setPlanetaryWorldDraft(planetaryWorldDraftFrom(planetaryWorld));
+    });
+  }
+
+  function resetPlanetaryWorldDraft(force = false) {
+    const reset = () => {
+      setSelectedPlanetaryWorldId(null);
+      setPlanetaryWorldDraft(planetaryWorldDraftFrom());
+    };
+    if (force) {
+      reset();
+      return;
+    }
+    confirmMobileDiscardUnsavedChanges(hasDirtyDraft, reset);
+  }
+
+  function savePlanetaryWorld() {
+    const normalizedDraft = normalizePlanetaryWorldDraft(planetaryWorldDraft);
+    const didSave = controller.savePlanetaryWorld(
+      normalizedDraft,
+      selectedPlanetaryWorld ?? undefined
+    );
+    if (didSave) {
+      if (selectedPlanetaryWorld) {
+        setPlanetaryWorldDraft(normalizedDraft);
+      } else {
+        resetPlanetaryWorldDraft(true);
+      }
+    }
+  }
+
+  function archivePlanetaryWorld(planetaryWorld: InFictionWorld) {
+    confirmMobileDiscardUnsavedChanges(
+      selectedPlanetaryWorldId === planetaryWorld.id &&
+        isPlanetaryWorldDraftDirty,
+      () =>
+        controller.archivePlanetaryWorld(
+          planetaryWorld.id,
+          planetaryWorld.status !== 'archived'
+        )
+    );
+  }
+
+  function deletePlanetaryWorld(planetaryWorld: InFictionWorld) {
+    confirmMobileDiscardUnsavedChanges(
+      selectedPlanetaryWorldId === planetaryWorld.id &&
+        isPlanetaryWorldDraftDirty,
+      () =>
+        confirmMobileDestructiveAction('delete-planetary-world', () =>
+          controller.permanentlyDeletePlanetaryWorld(planetaryWorld.id)
+        )
+    );
+  }
+
+  function updatePlanetaryWorldDraft(
+    key: (typeof planetaryWorldDraftFields)[number]['key'],
+    value: string
+  ) {
+    setPlanetaryWorldDraft((current) => ({
+      ...current,
+      [key]: value,
+    }));
+  }
+
+  function updateWorkspaceDraft(
+    key: (typeof workspaceDraftFields)[number]['key'],
+    value: string
+  ) {
+    setWorkspaceDraft((current) => ({
+      ...current,
+      [key]: value,
+    }));
+  }
+
+  function updateEntryTypeDraft(
+    key: (typeof entryTypeDraftFields)[number]['key'],
+    value: string
+  ) {
+    setEntryTypeDraft((current) => ({
+      ...current,
+      [key]: value,
+    }));
+  }
+
   return (
     <ScreenScroll>
       <ScreenHeader title={intro.title} detail={intro.detail} />
@@ -250,10 +335,10 @@ export function WorkspacesScreen() {
         </StatusText>
       ) : null}
 
-      <SectionBlock title="Saved Workspaces">
+      <SectionBlock title={workspaceFeatureCopy.sections.workspaces}>
         <ButtonRow>
           <ActionButton
-            label="Workspace Help"
+            label={workspaceFeatureActions.workspaceHelp}
             onPress={() =>
               confirmMobileDiscardUnsavedChanges(hasDirtyDraft, () =>
                 router.push({
@@ -266,31 +351,23 @@ export function WorkspacesScreen() {
         <Field
           autoCapitalize="none"
           autoCorrect={false}
-          label="Search workspaces"
+          label={workspaceModel.workspaces.label}
           value={workspaceQuery}
           onChangeText={setWorkspaceQuery}
-          placeholder="Name, summary, era, status, or id"
+          placeholder={workspaceModel.workspaces.placeholder}
         />
-        {displayedWorkspaces.length > 0 ? (
-          displayedWorkspaces.map((workspace) => {
-            const actionState = getMobileWorkspaceActionState({
-              activeWorkspaceId: controller.activeWorld.id,
-              activeWorkspaceCount,
-              workspace,
-              workspaceCount: controller.document.worlds.length,
-            });
+        {workspaceModel.workspaces.rows.length > 0 ? (
+          workspaceModel.workspaces.rows.map((workspaceRow) => {
+            const { actionState, workspace } = workspaceRow;
             return (
               <View key={workspace.id} style={styles.workspaceRow}>
-                <Text style={styles.itemTitle}>{workspace.name}</Text>
-                <MutedText>
-                  {workspace.status} -{' '}
-                  {workspace.defaultEra || 'No default era'}
-                </MutedText>
-                <MutedText>{workspace.summary || 'No summary yet.'}</MutedText>
+                <Text style={styles.itemTitle}>{workspaceRow.name}</Text>
+                <MutedText>{workspaceRow.statusLine}</MutedText>
+                <MutedText>{workspaceRow.summaryText}</MutedText>
                 <ButtonRow>
                   <ActionButton
                     accessibilityLabel={`Edit workspace ${workspace.name}`}
-                    label="Edit"
+                    label={workspaceFeatureActions.edit}
                     selected={workspace.id === selectedWorkspaceId}
                     tone={
                       workspace.id === selectedWorkspaceId
@@ -322,20 +399,22 @@ export function WorkspacesScreen() {
                         : `Archive workspace ${workspace.name}`
                     }
                     label={
-                      workspace.status === 'archived' ? 'Restore' : 'Archive'
+                      workspace.status === 'archived'
+                        ? workspaceFeatureActions.restore
+                        : workspaceFeatureActions.archive
                     }
                     disabled={!actionState.canArchive}
                     onPress={() => archiveWorkspace(workspace)}
                   />
                   <ActionButton
                     accessibilityLabel={`Duplicate workspace ${workspace.name}`}
-                    label="Duplicate"
+                    label={workspaceFeatureActions.duplicate}
                     onPress={() => duplicateWorkspace(workspace.id)}
                   />
                   <ActionButton
                     accessibilityHint="Deletes this workspace after confirmation."
                     accessibilityLabel={`Delete workspace ${workspace.name}`}
-                    label="Delete"
+                    label={workspaceFeatureActions.deletePermanently}
                     tone="danger"
                     disabled={!actionState.canDelete}
                     onPress={() => deleteWorkspace(workspace.id)}
@@ -350,162 +429,213 @@ export function WorkspacesScreen() {
             );
           })
         ) : (
-          <MutedText>No workspaces match this search.</MutedText>
+          <MutedText>{workspaceModel.workspaces.emptyText}</MutedText>
         )}
-        {hiddenWorkspaceCount > 0 ? (
-          <MutedText>
-            Refine workspace search to show {hiddenWorkspaceCount} more
-            workspace{hiddenWorkspaceCount === 1 ? '' : 's'}.
-          </MutedText>
+        {workspaceModel.workspaces.hiddenCount > 0 ? (
+          <MutedText>{workspaceModel.workspaces.hiddenText}</MutedText>
         ) : null}
       </SectionBlock>
 
       <SectionBlock
-        title={
-          selectedWorkspace
-            ? `Edit ${selectedWorkspace.name}`
-            : 'New Workspace Metadata'
-        }
+        title={`${getWorkspaceFormKicker(
+          selectedWorkspace?.name
+        )}: ${getWorkspaceFormTitle(selectedWorkspace?.name)}`}
       >
         {isWorkspaceDraftDirty ? (
           <StatusText tone="warning">Unsaved workspace draft.</StatusText>
         ) : null}
-        <Field
-          label="Name"
-          value={workspaceDraft.name}
-          onChangeText={(value) =>
-            setWorkspaceDraft((current) => ({ ...current, name: value }))
-          }
-        />
-        <Field
-          label="Summary"
-          value={workspaceDraft.summary}
-          multiline
-          onChangeText={(value) =>
-            setWorkspaceDraft((current) => ({ ...current, summary: value }))
-          }
-        />
-        <Field
-          label="Default era"
-          value={workspaceDraft.defaultEra}
-          onChangeText={(value) =>
-            setWorkspaceDraft((current) => ({ ...current, defaultEra: value }))
-          }
-        />
+        {workspaceDraftFields.map((field) => (
+          <Field
+            key={field.key}
+            label={field.label}
+            multiline={field.multiline}
+            placeholder={field.placeholder}
+            value={workspaceDraft[field.key]}
+            onChangeText={(value) => updateWorkspaceDraft(field.key, value)}
+          />
+        ))}
         <ButtonRow>
           <ActionButton
-            label={selectedWorkspace ? 'Save Workspace' : 'Create Workspace'}
+            label={
+              selectedWorkspace
+                ? workspaceFeatureActions.saveWorkspace
+                : workspaceFeatureActions.createWorkspace
+            }
             tone="accent"
             onPress={() => {
+              const normalizedDraft = normalizeWorkspaceDraft(workspaceDraft);
               const didSave = selectedWorkspace
                 ? controller.updateWorkspace(
                     selectedWorkspace.id,
-                    workspaceDraft
+                    normalizedDraft
                   )
-                : controller.createWorkspace(workspaceDraft);
-              if (didSave && !selectedWorkspace) {
-                resetWorkspaceDraft(true);
+                : controller.createWorkspace(normalizedDraft);
+              if (didSave) {
+                if (selectedWorkspace) {
+                  setWorkspaceDraft(normalizedDraft);
+                } else {
+                  resetWorkspaceDraft(true);
+                }
               }
             }}
           />
           <ActionButton
-            label="New Workspace Draft"
+            label={workspaceFeatureActions.newWorkspace}
             onPress={resetWorkspaceDraft}
           />
         </ButtonRow>
       </SectionBlock>
 
-      <SectionBlock title="Custom Entry Types">
+      <SectionBlock title={workspaceFeatureCopy.sections.planetaryWorlds}>
+        {isPlanetaryWorldDraftDirty ? (
+          <StatusText tone="warning">
+            Unsaved in-fiction world draft.
+          </StatusText>
+        ) : null}
+        <Field
+          autoCapitalize="none"
+          autoCorrect={false}
+          label={workspaceModel.planetaryWorlds.label}
+          value={planetaryWorldQuery}
+          onChangeText={setPlanetaryWorldQuery}
+          placeholder={workspaceModel.planetaryWorlds.placeholder}
+        />
+        {workspaceModel.planetaryWorlds.rows.length > 0 ? (
+          workspaceModel.planetaryWorlds.rows.map((planetaryWorldRow) => {
+            const { planetaryWorld } = planetaryWorldRow;
+            return (
+              <View key={planetaryWorld.id} style={styles.workspaceRow}>
+                <Text style={styles.itemTitle}>{planetaryWorldRow.name}</Text>
+                <MutedText>{planetaryWorldRow.statusLine}</MutedText>
+                <MutedText>{planetaryWorldRow.climateText}</MutedText>
+                <MutedText>{planetaryWorldRow.terrainText}</MutedText>
+                <MutedText>{planetaryWorldRow.summaryText}</MutedText>
+                <MutedText>{planetaryWorldRow.tagsText}</MutedText>
+                <ButtonRow>
+                  <ActionButton
+                    accessibilityLabel={`Edit in-fiction world ${planetaryWorld.name}`}
+                    label={workspaceFeatureActions.edit}
+                    selected={planetaryWorld.id === selectedPlanetaryWorldId}
+                    tone={
+                      planetaryWorld.id === selectedPlanetaryWorldId
+                        ? 'accent'
+                        : 'neutral'
+                    }
+                    onPress={() => editPlanetaryWorld(planetaryWorld)}
+                  />
+                  <ActionButton
+                    accessibilityLabel={
+                      planetaryWorld.status === 'archived'
+                        ? `Restore in-fiction world ${planetaryWorld.name}`
+                        : `Archive in-fiction world ${planetaryWorld.name}`
+                    }
+                    label={
+                      planetaryWorld.status === 'archived'
+                        ? workspaceFeatureActions.restore
+                        : workspaceFeatureActions.archive
+                    }
+                    onPress={() => archivePlanetaryWorld(planetaryWorld)}
+                  />
+                  <ActionButton
+                    accessibilityHint="Deletes this in-fiction world after confirmation."
+                    accessibilityLabel={`Delete in-fiction world ${planetaryWorld.name}`}
+                    label={workspaceFeatureActions.deletePermanently}
+                    tone="danger"
+                    onPress={() => deletePlanetaryWorld(planetaryWorld)}
+                  />
+                </ButtonRow>
+              </View>
+            );
+          })
+        ) : (
+          <MutedText>{workspaceModel.planetaryWorlds.emptyText}</MutedText>
+        )}
+        {workspaceModel.planetaryWorlds.hiddenCount > 0 ? (
+          <MutedText>{workspaceModel.planetaryWorlds.hiddenText}</MutedText>
+        ) : null}
+        {planetaryWorldDraftFields.map((field) => (
+          <Field
+            autoCapitalize={field.key === 'tags' ? 'words' : undefined}
+            autoCorrect={field.key === 'tags' ? false : undefined}
+            key={field.key}
+            label={field.label}
+            multiline={'multiline' in field ? field.multiline : undefined}
+            placeholder={'placeholder' in field ? field.placeholder : undefined}
+            value={planetaryWorldDraft[field.key]}
+            onChangeText={(value) =>
+              updatePlanetaryWorldDraft(field.key, value)
+            }
+          />
+        ))}
+        <ButtonRow>
+          <ActionButton
+            label={
+              selectedPlanetaryWorld
+                ? workspaceFeatureActions.saveWorld
+                : workspaceFeatureActions.createWorld
+            }
+            tone="accent"
+            onPress={savePlanetaryWorld}
+          />
+          <ActionButton
+            label={workspaceFeatureActions.newWorldDraft}
+            onPress={resetPlanetaryWorldDraft}
+          />
+        </ButtonRow>
+      </SectionBlock>
+
+      <SectionBlock title={workspaceFeatureCopy.sections.customEntryTypes}>
         {isEntryTypeDraftDirty ? (
           <StatusText tone="warning">Unsaved custom type draft.</StatusText>
         ) : null}
         <Field
           autoCapitalize="none"
           autoCorrect={false}
-          label="Search custom entry types"
+          label={workspaceModel.customEntryTypes.label}
           value={entryTypeQuery}
           onChangeText={setEntryTypeQuery}
-          placeholder="Title, field, description, or id"
+          placeholder={workspaceModel.customEntryTypes.placeholder}
         />
-        {displayedCustomEntryTypes.length > 0 ? (
-          displayedCustomEntryTypes.map((section) => (
-            <View key={section.id} style={styles.workspaceRow}>
-              <Text style={styles.itemTitle}>{section.title}</Text>
-              <MutedText>{section.description || 'No description.'}</MutedText>
-              <MutedText>
-                Fields:{' '}
-                {section.detailFields.length > 0
-                  ? section.detailFields.map((field) => field.label).join(', ')
-                  : 'No custom fields'}
-              </MutedText>
+        {workspaceModel.customEntryTypes.rows.length > 0 ? (
+          workspaceModel.customEntryTypes.rows.map((entryTypeRow) => (
+            <View key={entryTypeRow.id} style={styles.workspaceRow}>
+              <Text style={styles.itemTitle}>{entryTypeRow.title}</Text>
+              <MutedText>{entryTypeRow.descriptionText}</MutedText>
+              <MutedText>Fields: {entryTypeRow.fieldsText}</MutedText>
               <ActionButton
                 accessibilityHint="Deletes this custom entry type, its entries, and its relationships after confirmation."
-                accessibilityLabel={`Delete custom entry type ${section.title}`}
-                label="Delete"
+                accessibilityLabel={`Delete custom entry type ${entryTypeRow.title}`}
+                label={workspaceFeatureActions.deleteType}
                 tone="danger"
                 onPress={() =>
                   confirmMobileDestructiveAction('delete-entry-type', () =>
-                    controller.permanentlyDeleteEntryType(section.id)
+                    controller.permanentlyDeleteEntryType(entryTypeRow.id)
                   )
                 }
               />
             </View>
           ))
-        ) : entryTypeQuery.trim() ? (
-          <MutedText>No custom entry types match this search.</MutedText>
         ) : (
-          <MutedText>
-            No custom entry types yet. Create one when the built-in sections are
-            not enough.
-          </MutedText>
+          <MutedText>{workspaceModel.customEntryTypes.emptyText}</MutedText>
         )}
-        {hiddenCustomEntryTypeCount > 0 ? (
-          <MutedText>
-            Refine custom type search to show {hiddenCustomEntryTypeCount} more
-            type{hiddenCustomEntryTypeCount === 1 ? '' : 's'}.
-          </MutedText>
+        {workspaceModel.customEntryTypes.hiddenCount > 0 ? (
+          <MutedText>{workspaceModel.customEntryTypes.hiddenText}</MutedText>
         ) : null}
-        <Field
-          label="Plural title"
-          value={entryTypeDraft.title}
-          onChangeText={(value) =>
-            setEntryTypeDraft((current) => ({ ...current, title: value }))
-          }
-        />
-        <Field
-          label="Singular title"
-          value={entryTypeDraft.singularTitle}
-          onChangeText={(value) =>
-            setEntryTypeDraft((current) => ({
-              ...current,
-              singularTitle: value,
-            }))
-          }
-        />
-        <Field
-          label="Description"
-          value={entryTypeDraft.description}
-          multiline
-          onChangeText={(value) =>
-            setEntryTypeDraft((current) => ({
-              ...current,
-              description: value,
-            }))
-          }
-        />
-        <Field
-          autoCapitalize="words"
-          autoCorrect={false}
-          label="Fields"
-          value={entryTypeDraft.fields}
-          placeholder="Origin, Cost, Current holder"
-          onChangeText={(value) =>
-            setEntryTypeDraft((current) => ({ ...current, fields: value }))
-          }
-        />
+        {entryTypeDraftFields.map((field) => (
+          <Field
+            autoCapitalize={field.key === 'fields' ? 'words' : undefined}
+            autoCorrect={field.key === 'fields' ? false : undefined}
+            key={field.key}
+            label={field.label}
+            multiline={field.multiline}
+            placeholder={field.placeholder}
+            value={entryTypeDraft[field.key]}
+            onChangeText={(value) => updateEntryTypeDraft(field.key, value)}
+          />
+        ))}
         <ButtonRow>
           <ActionButton
-            label="Create Type"
+            label={workspaceFeatureActions.createEntryType}
             tone="accent"
             onPress={() => {
               if (controller.createEntryType(entryTypeDraft)) {

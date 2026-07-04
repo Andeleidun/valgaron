@@ -1,7 +1,9 @@
 import {
   getCodexShellRouteTitle,
   getCodexShellRoutes,
+  getCodexMobileShellRouteLabel,
   mobilePrimaryRouteOrder,
+  parseCodexRouteIntent,
   type CodexShellRouteId,
 } from '@valgaron/core';
 
@@ -27,14 +29,7 @@ const mobileTabIconNames: Record<MobileTabId, MobileTabIconName> = {
   help: 'help-circle',
 };
 
-const mobileTabLabels: Record<MobileTabId, string> = {
-  overview: 'Home',
-  entries: 'Entries',
-  relationships: 'Links',
-  workspaces: 'Worlds',
-  data: 'Data',
-  help: 'Help',
-};
+export const mobileRouteFocusParam = 'routeFocusId' as const;
 
 export type MobileTabRoute = {
   id: MobileTabId;
@@ -50,7 +45,7 @@ export const mobileTabRoutes: readonly MobileTabRoute[] = getCodexShellRoutes(
 ).map((route) => ({
   id: route.id as MobileTabId,
   title: route.title,
-  tabLabel: mobileTabLabels[route.id as MobileTabId],
+  tabLabel: getCodexMobileShellRouteLabel(route.id),
   href: route.path === '/entries' ? '/entries' : route.path,
   iconName: mobileTabIconNames[route.id as MobileTabId],
   screenName:
@@ -71,8 +66,12 @@ export function getMobileRouteHref(route: string): {
   pathname: string;
   params: Record<string, string>;
 } {
-  const [routeWithoutHash] = route.split('#');
-  const [pathname, search = ''] = routeWithoutHash.split('?');
-  const params = Object.fromEntries(new URLSearchParams(search).entries());
-  return { pathname, params };
+  const intent = parseCodexRouteIntent(route);
+  return {
+    pathname: intent.pathname,
+    params: {
+      ...intent.params,
+      ...(intent.focusId ? { [mobileRouteFocusParam]: intent.focusId } : {}),
+    },
+  };
 }

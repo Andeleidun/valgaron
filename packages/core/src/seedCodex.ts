@@ -9,70 +9,13 @@ import type {
   WorldSectionConfig,
   WorldWorkspace,
 } from './types';
+import { supportedPlaceCategoryOptions } from './placeTaxonomy';
 
 const SEED_CREATED_AT = '2026-05-01T08:00:00.000Z';
 const SEED_SAVED_AT = '2026-06-01T09:00:00.000Z';
 const SEED_WORLD_ID = 'world-starter-atlas';
 
-export const placeCategoryOptions: readonly string[] = [
-  'World',
-  'Planet',
-  'Moon',
-  'Continent',
-  'Country',
-  'Province',
-  'Region',
-  'Kingdom',
-  'City',
-  'Town',
-  'Village',
-  'Hamlet',
-  'Capital',
-  'Harbor',
-  'Port',
-  'Fortress',
-  'Castle',
-  'Temple',
-  'Ruin',
-  'Road',
-  'Pass',
-  'Forest',
-  'Jungle',
-  'Desert',
-  'Swamp',
-  'Wetland',
-  'Plains',
-  'Steppe',
-  'Tundra',
-  'Mountain',
-  'Mountain range',
-  'Valley',
-  'Canyon',
-  'Plateau',
-  'Volcano',
-  'Glacier',
-  'River',
-  'Lake',
-  'Ocean',
-  'Sea',
-  'Coast',
-  'Bay',
-  'Gulf',
-  'Island',
-  'Peninsula',
-  'Archipelago',
-  'Cave',
-  'Mine',
-  'Realm',
-  'Plane',
-  'Dimension',
-  'Star',
-  'Solar system',
-  'Galaxy',
-  'Nebula',
-  'Asteroid belt',
-  'Space station',
-];
+export const placeCategoryOptions = supportedPlaceCategoryOptions;
 
 export const worldSections: readonly WorldSectionConfig[] = [
   {

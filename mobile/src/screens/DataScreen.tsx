@@ -1,33 +1,37 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
-import { Share } from 'react-native';
-import { router } from 'expo-router';
+import { ScrollView, Share } from 'react-native';
+import { router, useLocalSearchParams } from 'expo-router';
 import {
   codexDataHelpTopics,
   codexDataHelpSummary,
+  dataExportCopy,
+  dataExportOptions,
+  dataImportCopy,
+  dataResetCopy,
   formatUpdatedAt,
   getCodexExportOption,
   getCodexHelpRoute,
   getCodexScreenIntro,
+  getDataExportDraftState,
+  getDataExportSharePayload,
+  getDataImportPreviewText,
+  getDataImportReviewState,
+  getDataRecoverySnapshotModel,
+  getDataStorageStatusModel,
+  getNextVisibleExportText,
   getWorldDocumentDiagnostics,
+  isCodexExportMode,
   summarizeRecoverySnapshots,
+  type DataExportMode,
 } from '@valgaron/core';
 import { useMobileCodex } from '../state/MobileCodexContext';
-import { getMobileRouteHref } from '../navigation/mobileRoutes';
 import {
-  getMobileExportDraftState,
-  getMobileExportSharePayload,
-  getMobileExportText,
-  getMobileImportReviewState,
-  getMobileImportPreviewText,
-  getNextMobileVisibleExportText,
-  mobileExportOptions,
-  type MobileExportMode,
-} from '../state/mobileDataExport';
+  getMobileRouteHref,
+  mobileRouteFocusParam,
+} from '../navigation/mobileRoutes';
+import { getMobileRouteParam } from '../navigation/mobileRouteParams';
+import { getMobileExportText } from '../state/mobileDataExport';
 import { getMobileFeedbackTone } from '../state/mobileFeedback';
-import {
-  getMobileDataStorageStatus,
-  getMobileRecoverySnapshotText,
-} from '../state/mobileCodexViewModels';
 import { parseMobileWorldImport } from '../storage/mobileStorage';
 import {
   ActionButton,
@@ -46,7 +50,22 @@ import { confirmMobileDiscardUnsavedChanges } from './mobileUnsavedChanges';
 export function DataScreen() {
   const controller = useMobileCodex();
   const intro = getCodexScreenIntro('data');
-  const [exportMode, setExportMode] = useState<MobileExportMode>('full-json');
+  const routeParams = useLocalSearchParams<{
+    [mobileRouteFocusParam]?: string;
+    mode?: string;
+  }>();
+  const routeFocusId = getMobileRouteParam(routeParams[mobileRouteFocusParam]);
+  const routeModeParam = getMobileRouteParam(routeParams.mode);
+  const routeExportMode = isCodexExportMode(routeModeParam)
+    ? routeModeParam
+    : null;
+  const scrollRef = useRef<ScrollView | null>(null);
+  const focusedSectionOffsets = useRef<Partial<Record<string, number>>>({});
+  const [focusedSectionLayoutVersion, setFocusedSectionLayoutVersion] =
+    useState(0);
+  const [exportMode, setExportMode] = useState<DataExportMode>(
+    () => routeExportMode ?? 'full-json'
+  );
   const selectedExportOption = getCodexExportOption(exportMode);
   const diagnosticsContext = useMemo(
     () => ({
@@ -70,7 +89,7 @@ export function DataScreen() {
   const [shareMessage, setShareMessage] = useState('');
   const [importText, setImportText] = useState('');
   const exportDraftState = useMemo(
-    () => getMobileExportDraftState(currentExportText, exportText),
+    () => getDataExportDraftState(currentExportText, exportText),
     [currentExportText, exportText]
   );
   const diagnostics = useMemo(
@@ -83,26 +102,31 @@ export function DataScreen() {
     [importText]
   );
   const importReview = useMemo(
-    () => getMobileImportReviewState(importText, importPreview),
+    () => getDataImportReviewState(importText, importPreview),
     [importPreview, importText]
   );
-  const recoverySnapshotSummaries = summarizeRecoverySnapshots(
-    controller.recoverySnapshots
+  const recoverySnapshotSummaries = useMemo(
+    () => summarizeRecoverySnapshots(controller.recoverySnapshots),
+    [controller.recoverySnapshots]
   );
-  const storageStatus = getMobileDataStorageStatus({
+  const recoverySnapshotModel = useMemo(
+    () => getDataRecoverySnapshotModel(recoverySnapshotSummaries),
+    [recoverySnapshotSummaries]
+  );
+  const storageStatus = getDataStorageStatusModel({
     lastRecoverySnapshot: controller.lastRecoverySnapshot,
     loadStatus: controller.loadStatus,
     recoverySnapshotCount: controller.recoverySnapshots.length,
     saveMessage: controller.saveMessage,
   });
   const lastImportPreviewText = controller.importResult?.ok
-    ? getMobileImportPreviewText(controller.importResult.preview)
+    ? getDataImportPreviewText(controller.importResult.preview)
     : null;
   const hasImportText = importText.trim().length > 0;
 
   useEffect(() => {
     setExportText((visibleText) =>
-      getNextMobileVisibleExportText({
+      getNextVisibleExportText({
         currentGeneratedText: generatedExportTextRef.current,
         nextGeneratedText: currentExportText,
         visibleText,
@@ -111,7 +135,47 @@ export function DataScreen() {
     generatedExportTextRef.current = currentExportText;
   }, [currentExportText]);
 
-  function selectExportMode(mode: MobileExportMode) {
+  useEffect(() => {
+    if (!routeFocusId) {
+      return undefined;
+    }
+    const focusedOffset = focusedSectionOffsets.current[routeFocusId];
+    if (focusedOffset === undefined) {
+      return undefined;
+    }
+    const timeout = setTimeout(() => {
+      scrollRef.current?.scrollTo({
+        animated: true,
+        y: Math.max(focusedOffset - 12, 0),
+      });
+    }, 0);
+    return () => clearTimeout(timeout);
+  }, [focusedSectionLayoutVersion, routeFocusId]);
+
+  useEffect(() => {
+    if (!routeExportMode || routeExportMode === exportMode) {
+      return;
+    }
+    const routeExportText = getMobileExportText(
+      controller.document,
+      routeExportMode,
+      diagnosticsContext
+    );
+    setExportMode(routeExportMode);
+    setExportText(routeExportText);
+    generatedExportTextRef.current = routeExportText;
+    setShareMessage('');
+  }, [controller.document, diagnosticsContext, exportMode, routeExportMode]);
+
+  function setFocusedSectionOffset(focusId: string, offset: number) {
+    if (focusedSectionOffsets.current[focusId] === offset) {
+      return;
+    }
+    focusedSectionOffsets.current[focusId] = offset;
+    setFocusedSectionLayoutVersion((version) => version + 1);
+  }
+
+  function selectExportMode(mode: DataExportMode) {
     if (mode === exportMode) {
       return;
     }
@@ -126,9 +190,8 @@ export function DataScreen() {
       },
       undefined,
       {
-        message:
-          'The visible export text has local edits that will be replaced by the selected export format.',
-        title: 'Replace edited export text?',
+        message: dataExportCopy.replaceEditedMessage,
+        title: dataExportCopy.replaceEditedTitle,
       }
     );
   }
@@ -143,13 +206,12 @@ export function DataScreen() {
       exportDraftState.isEdited,
       () => {
         setExportText(currentExportText);
-        setShareMessage('Refreshed the export text.');
+        setShareMessage(dataExportCopy.refreshedMessage);
       },
       undefined,
       {
-        message:
-          'The visible export text has local edits that will be replaced by the latest generated export.',
-        title: 'Refresh export text?',
+        message: dataExportCopy.refreshEditedMessage,
+        title: dataExportCopy.refreshEditedTitle,
       }
     );
   }
@@ -223,17 +285,15 @@ export function DataScreen() {
 
   async function shareExport() {
     try {
-      await Share.share(getMobileExportSharePayload(exportMode, exportText));
-      setShareMessage('Opened the device share sheet.');
+      await Share.share(getDataExportSharePayload(exportMode, exportText));
+      setShareMessage(dataExportCopy.shareOpenedMessage);
     } catch {
-      setShareMessage(
-        'Sharing is unavailable here. The export text is still ready to select and copy.'
-      );
+      setShareMessage(dataExportCopy.shareUnavailableMessage);
     }
   }
 
   return (
-    <ScreenScroll>
+    <ScreenScroll scrollRef={scrollRef}>
       <ScreenHeader title={intro.title} detail={intro.detail} />
 
       <SectionBlock title="Local Storage">
@@ -262,9 +322,14 @@ export function DataScreen() {
         ) : null}
       </SectionBlock>
 
-      <SectionBlock title="Export">
+      <SectionBlock
+        title={dataExportCopy.title}
+        onLayout={(event) => {
+          setFocusedSectionOffset('export', event.nativeEvent.layout.y);
+        }}
+      >
         <ButtonRow>
-          {mobileExportOptions.map((option) => (
+          {dataExportOptions.map((option) => (
             <ActionButton
               key={option.mode}
               label={option.label}
@@ -292,7 +357,7 @@ export function DataScreen() {
         ) : null}
         <ButtonRow>
           <ActionButton
-            label="Share Export"
+            label={dataExportCopy.shareLabel}
             tone="accent"
             disabled={!exportDraftState.canShare}
             onPress={() => {
@@ -300,7 +365,10 @@ export function DataScreen() {
             }}
           />
           {exportDraftState.isEdited ? (
-            <ActionButton label="Refresh Export" onPress={refreshExportText} />
+            <ActionButton
+              label={dataExportCopy.refreshLabel}
+              onPress={refreshExportText}
+            />
           ) : null}
         </ButtonRow>
         {shareMessage ? (
@@ -310,7 +378,15 @@ export function DataScreen() {
         ) : null}
       </SectionBlock>
 
-      <SectionBlock title="Import">
+      <SectionBlock
+        title={dataImportCopy.title}
+        onLayout={(event) => {
+          setFocusedSectionOffset(
+            'import-json-backup',
+            event.nativeEvent.layout.y
+          );
+        }}
+      >
         {importReview.error ? (
           <StatusText tone="danger">{importReview.error}</StatusText>
         ) : null}
@@ -323,43 +399,42 @@ export function DataScreen() {
         <Field
           autoCapitalize="none"
           autoCorrect={false}
-          label="Paste JSON backup"
+          label={dataImportCopy.textAreaLabel}
           value={importText}
           multiline
+          placeholder={dataImportCopy.placeholder}
           onChangeText={setImportText}
         />
         <ButtonRow>
           <ActionButton
-            label="Import JSON"
+            label={dataImportCopy.importLabel}
             tone="accent"
             disabled={!importReview.canImport}
             onPress={requestImport}
           />
           <ActionButton
-            label="Clear"
+            label={dataImportCopy.clearLabel}
             disabled={!hasImportText}
             onPress={clearImportText}
           />
         </ButtonRow>
       </SectionBlock>
 
-      <SectionBlock title="Recovery Snapshots">
-        <MutedText>
-          Recovery snapshots are saved before import, reset, selected snapshot
-          restore, and permanent deletes on this device.
-        </MutedText>
-        {recoverySnapshotSummaries.length > 0 ? (
+      <SectionBlock title={recoverySnapshotModel.title}>
+        <MutedText>{recoverySnapshotModel.countLabel}</MutedText>
+        <MutedText>{recoverySnapshotModel.description}</MutedText>
+        {recoverySnapshotModel.rows.length > 0 ? (
           <>
-            {recoverySnapshotSummaries.map((snapshot, index) => (
+            {recoverySnapshotModel.rows.map((snapshot) => (
               <Fragment key={snapshot.id}>
                 <MutedText>
-                  {index === 0 ? 'Latest: ' : 'Older: '}
-                  {getMobileRecoverySnapshotText(snapshot)}
+                  {snapshot.latestPrefix}
+                  {snapshot.mobileSummaryText}
                 </MutedText>
                 <ButtonRow>
                   <ActionButton
                     accessibilityHint="Restores this saved recovery snapshot after confirmation."
-                    label="Restore Snapshot"
+                    label={snapshot.restoreLabel}
                     onPress={() =>
                       replaceDocumentAfterConfirm('restore-snapshot', () =>
                         controller.restoreRecoverySnapshot(snapshot.id)
@@ -368,7 +443,7 @@ export function DataScreen() {
                   />
                   <ActionButton
                     accessibilityHint="Deletes this recovery snapshot after confirmation."
-                    label="Delete Snapshot"
+                    label={snapshot.deleteLabel}
                     tone="danger"
                     onPress={() =>
                       confirmMobileDestructiveAction('delete-snapshot', () =>
@@ -381,17 +456,18 @@ export function DataScreen() {
             ))}
           </>
         ) : (
-          <MutedText>No recovery snapshots are saved on this device.</MutedText>
+          <>
+            <MutedText>{recoverySnapshotModel.emptyTitle}</MutedText>
+            <MutedText>{recoverySnapshotModel.emptyDetail}</MutedText>
+          </>
         )}
       </SectionBlock>
 
-      <SectionBlock title="Reset">
-        <MutedText>
-          Reset loads the starter codex and stores a recovery snapshot first.
-        </MutedText>
+      <SectionBlock title={dataResetCopy.title}>
+        <MutedText>{dataResetCopy.description}</MutedText>
         <ActionButton
-          accessibilityHint="Replaces the current document with starter data after confirmation."
-          label="Reset To Starter"
+          accessibilityHint={dataResetCopy.accessibilityHint}
+          label={dataResetCopy.actionLabel}
           tone="danger"
           onPress={() =>
             replaceDocumentAfterConfirm(
