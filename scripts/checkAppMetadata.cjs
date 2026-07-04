@@ -9,6 +9,10 @@ const metadataSource = readFileSync(
   join(rootDir, 'src', 'Utlilities', 'appMetadata.ts'),
   'utf8'
 );
+const coreShellSource = readFileSync(
+  join(rootDir, 'packages', 'core', 'src', 'shell.ts'),
+  'utf8'
+);
 const serviceWorkerSource = readFileSync(
   join(rootDir, 'public', 'sw.js'),
   'utf8'
@@ -18,8 +22,14 @@ const versionMatch = metadataSource.match(
   /export const APP_VERSION = '([^']+)';/
 );
 const nameMatch = metadataSource.match(/export const APP_NAME = '([^']+)';/);
+const coreFullTitleMatch = coreShellSource.match(/fullTitle: '([^']+)'/);
+const appName =
+  nameMatch?.[1] ??
+  (metadataSource.includes('export const APP_NAME = valgaronProduct.fullTitle;')
+    ? coreFullTitleMatch?.[1]
+    : undefined);
 
-if (!nameMatch || nameMatch[1] !== 'Valgaron World Codex') {
+if (appName !== 'Valgaron World Codex') {
   throw new Error('APP_NAME must be "Valgaron World Codex".');
 }
 

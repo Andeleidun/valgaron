@@ -81,7 +81,25 @@
   max-width: 100%;
   overflow-x: auto;
   min-width: 0;
+  padding-bottom: 4px;
+  scrollbar-color: var(--vwb-muted) var(--vwb-surface-strong);
   scrollbar-gutter: stable;
+  scrollbar-width: thin;
+}
+
+.vwb-top-nav::-webkit-scrollbar {
+  height: 8px;
+}
+
+.vwb-top-nav::-webkit-scrollbar-track {
+  border-radius: 999px;
+  background: var(--vwb-surface-strong);
+}
+
+.vwb-top-nav::-webkit-scrollbar-thumb {
+  border: 2px solid var(--vwb-surface-strong);
+  border-radius: 999px;
+  background: var(--vwb-muted);
 }
 
 .vwb-nav-link,
@@ -1121,12 +1139,13 @@
 
 @media (max-width: 900px) {
   .vwb-app-header {
-    grid-template-columns: 1fr;
-    align-items: stretch;
+    grid-template-columns: minmax(0, 1fr) max-content max-content;
+    align-items: center;
     gap: 10px;
   }
 
   .vwb-top-nav {
+    grid-column: 1 / -1;
     justify-content: flex-start;
   }
 
@@ -1160,11 +1179,11 @@
   }
 
   .vwb-save-status {
-    justify-self: start;
+    justify-self: end;
   }
 
   .vwb-header-menu {
-    justify-self: start;
+    justify-self: end;
   }
 
   .vwb-header-menu-list {
@@ -1174,6 +1193,28 @@
 }
 
 @media (max-width: 520px) {
+  .vwb-app-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+  }
+
+  .vwb-brand {
+    flex: 1 0 100%;
+  }
+
+  .vwb-top-nav {
+    flex: 1 0 100%;
+  }
+
+  .vwb-save-status {
+    flex: 0 0 auto;
+  }
+
+  .vwb-header-menu {
+    flex: 0 0 auto;
+  }
+
   .vwb-main {
     margin-left: 10px;
     margin-right: auto;

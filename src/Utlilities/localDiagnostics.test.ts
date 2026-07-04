@@ -2,6 +2,7 @@ import { describe, expect, it } from '@jest/globals';
 import { createSeedWorldDocument } from './seedCodex';
 import {
   createLocalDiagnosticsReport,
+  sanitizeDiagnosticsRoute,
   serializeLocalDiagnosticsReport,
 } from './localDiagnostics';
 import { getActiveWorld } from './worldDocument';
@@ -33,7 +34,7 @@ const recoverySnapshotStatus: RecoverySnapshotStatus = {
 };
 
 describe('local diagnostics', () => {
-  it('summarizes runtime and document counts without user-authored content', () => {
+  it('summarizes runtime and document counts without world content', () => {
     const seedDocument = createSeedWorldDocument();
     const seedWorld = getActiveWorld(seedDocument);
     const seedEntry = seedWorld.codex.characters[0];
@@ -70,7 +71,8 @@ describe('local diagnostics', () => {
       loadStatus,
       recoverySnapshotCount: 2,
       recoverySnapshotStatus,
-      route: '/data',
+      route:
+        '/relationships?entryQuery=Secret%20Entry%20Name&entryId=secret-entry-id',
       saveStatus,
       userAgent: 'Test Browser',
     });
@@ -78,7 +80,9 @@ describe('local diagnostics', () => {
 
     expect(report.app.name).toBe('Valgaron World Codex');
     expect(report.app.schemaVersion).toBe(2);
-    expect(report.runtime.route).toBe('/data');
+    expect(report.runtime.route).toBe(
+      '/relationships?entryQuery=redacted&entryId=redacted'
+    );
     expect(report.document.workspaceCount).toBe(document.worlds.length);
     expect(report.document.activeWorkspaceEntryCount).toBeGreaterThan(0);
     expect(report.storage.recoverySnapshotCount).toBe(2);
@@ -88,6 +92,15 @@ describe('local diagnostics', () => {
     expect(serializedReport).not.toContain(firstEntry.summary);
     expect(serializedReport).not.toContain(firstEntry.notes);
     expect(serializedReport).not.toContain(firstEntry.id);
+  });
+
+  it('redacts route query values in diagnostics', () => {
+    expect(sanitizeDiagnosticsRoute('/data')).toBe('/data');
+    expect(
+      sanitizeDiagnosticsRoute(
+        '/entries?sectionId=characters&query=Mira%20Rowan'
+      )
+    ).toBe('/entries?sectionId=redacted&query=redacted');
   });
 
   it('includes non-sensitive local failure messages', () => {

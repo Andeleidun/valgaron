@@ -6,7 +6,13 @@ Run this checklist before publishing a public GitHub Pages release.
 
 1. Run `npm run check:release`.
 2. Confirm the browser smoke screenshots were written under `.tmp/browser-smoke`.
-3. Run `git diff --check`.
+3. Run `npm run typecheck:mobile`.
+4. Run `npm run test:mobile`.
+5. Rerun `npm run mobile:doctor` only when investigating an Expo compatibility
+   issue from the release gate.
+6. Rerun `npm run check:audit` only when investigating dependency findings from
+   the release gate.
+7. Run `git diff --check`.
 
 ## Browser Matrix
 
@@ -30,6 +36,9 @@ Check these routes at phone, tablet, and desktop widths:
 
 Confirm navigation wraps or scrolls without covering controls, form labels stay
 readable, dialogs remain usable, and no primary content overlaps.
+Confirm the phone-width web header keeps Save and Data Menu visible, and the
+native mobile tab shell shows recognizable icons and labels for each primary
+codex area.
 
 ## Keyboard And Focus
 
@@ -50,6 +59,19 @@ readable, dialogs remain usable, and no primary content overlaps.
 5. Create and delete a custom entry type.
 6. Create, archive, restore, and delete an in-fiction world/planet.
 
+## Mobile Companion
+
+1. Open the Expo app locally.
+2. Confirm Overview, Entries, Relationships, Workspaces, and Data load.
+3. Create and edit an entry, link it with a relationship, switch workspaces,
+   and return to the edited entry.
+4. Export JSON from Data and confirm the text matches the selected export mode.
+5. Import valid JSON, reject invalid JSON, reset starter data, and restore the
+   latest recovery snapshot.
+6. Follow the mobile runtime recovery steps in
+   `docs/qa/runtime-recovery.md` when route, shell, or recovery UI changes are
+   part of the release.
+
 ## Data And Recovery
 
 1. Export active-workspace JSON and import it into a clean browser profile.
@@ -69,7 +91,7 @@ readable, dialogs remain usable, and no primary content overlaps.
 2. Confirm diagnostics exclude world names, entry names, notes, summaries, tags,
    relationship notes, and ids by default.
 3. Confirm Markdown notes and exports render as text, not executable HTML.
-4. Run `npm audit --omit=dev` and review runtime dependency findings.
+4. Run `npm run check:audit` and review any new runtime dependency findings.
 5. Confirm static-hosting docs do not claim GitHub Pages enforces custom
    security headers.
 

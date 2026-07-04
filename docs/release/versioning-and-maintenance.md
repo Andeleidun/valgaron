@@ -23,13 +23,12 @@ the same package version.
 5. Add or update the `CHANGELOG.md` entry.
 6. Review schema migration impact.
 7. Run `npm run check:metadata`.
-8. Run `npm audit --omit=dev`.
-9. Run `npm run check:release`.
-10. Run `docs/qa/manual-release-checklist.md`.
-11. Deploy through GitHub Pages.
-12. Run the deployment smoke checklist in
+8. Run `npm run check:release`.
+9. Run `docs/qa/manual-release-checklist.md`.
+10. Deploy through GitHub Pages.
+11. Run the deployment smoke checklist in
     `docs/deployment/static-hosting.md`.
-13. Confirm README, in-app Help, privacy notes, and release notes match the
+12. Confirm README, in-app Help, privacy notes, and release notes match the
     deployed behavior.
 
 ## Schema Migration Expectations
@@ -51,6 +50,11 @@ Runtime dependency findings from `npm audit --omit=dev` are release blockers
 until reviewed. Dev dependency findings should be triaged for build, test, and
 automation exposure.
 
+`npm run check:audit` allows the reviewed Expo CLI/config tooling finding and
+fails when a new runtime vulnerability appears. Update that allowlist only after
+documenting why the finding is not reachable from the published web runtime or
+why the available fix is incompatible with the current Expo SDK line.
+
 Dependency updates should be handled in small batches and followed by:
 
 ```bash
@@ -59,6 +63,11 @@ npm run check:release
 
 For React, Vite, TypeScript, Jest, ESLint, or service-worker-adjacent changes,
 also run manual route, PWA, and import/export checks before publishing.
+For Expo, React Native, or native-module changes, treat `npm run mobile:doctor`
+as the compatibility gate and avoid audit fixes that downgrade the Expo SDK.
+The scripted Doctor gate skips the optional React Native Directory network
+lookup and warns on Expo API network failures so restricted-network release
+checks still validate local Expo SDK compatibility.
 
 ## User-Reported Data Issues
 

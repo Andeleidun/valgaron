@@ -8,6 +8,7 @@ const {
 const { get } = require('node:http');
 const { basename, join } = require('node:path');
 const { spawn, spawnSync } = require('node:child_process');
+const WebSocket = require('ws');
 
 const host = '127.0.0.1';
 const port = Number(process.env.VWB_SMOKE_PORT ?? 5373);
@@ -22,6 +23,7 @@ const profileRoot = join(
 const screenshotDir = join(artifactDir, 'screenshots');
 const serverReadyTimeoutMs = 15000;
 const browserTimeoutMs = 30000;
+const cdpTimeoutMs = 20000;
 
 const routeChecks = [
   {
@@ -74,11 +76,25 @@ const routeChecks = [
 ];
 
 const screenshotChecks = [
+  { name: 'overview-narrow-mobile', path: '/', size: '320,900' },
   { name: 'overview-mobile', path: '/', size: '375,900' },
   { name: 'characters-mobile', path: '/characters', size: '375,900' },
   { name: 'data-mobile', path: '/data', size: '375,900' },
   { name: 'workspaces-tablet', path: '/workspaces', size: '768,900' },
   { name: 'help-mobile', path: '/help', size: '375,900' },
+];
+
+const layoutChecks = [
+  {
+    name: 'mobile-header-actions',
+    path: '/',
+    size: '375,900',
+  },
+  {
+    name: 'narrow-mobile-header-actions',
+    path: '/',
+    size: '320,900',
+  },
 ];
 
 function writeLine(message) {
@@ -123,6 +139,33 @@ function requestUrl(url) {
     const request = get(url, (response) => {
       response.resume();
       response.on('end', () => resolve(response.statusCode ?? 0));
+    });
+    request.on('error', reject);
+    request.setTimeout(2000, () => {
+      request.destroy(new Error(`Timed out waiting for ${url}`));
+    });
+  });
+}
+
+function requestJson(url, method = 'GET') {
+  return new Promise((resolve, reject) => {
+    const request = get(url, { method }, (response) => {
+      let body = '';
+      response.setEncoding('utf8');
+      response.on('data', (chunk) => {
+        body += chunk;
+      });
+      response.on('end', () => {
+        if ((response.statusCode ?? 0) >= 400) {
+          reject(new Error(`HTTP ${response.statusCode} from ${url}`));
+          return;
+        }
+        try {
+          resolve(JSON.parse(body));
+        } catch (error) {
+          reject(error);
+        }
+      });
     });
     request.on('error', reject);
     request.setTimeout(2000, () => {
@@ -184,6 +227,12 @@ function browserBaseArgs(profilePrefix, profileName, size) {
   ];
 }
 
+function browserCdpBaseArgs(profilePrefix, profileName, size) {
+  return browserBaseArgs(profilePrefix, profileName, size).filter(
+    (arg) => !arg.startsWith('--virtual-time-budget=')
+  );
+}
+
 function runBrowser(browserPath, args) {
   const result = spawnSync(browserPath, args, {
     cwd: rootDir,
@@ -243,6 +292,276 @@ function assertScreenshot(browserPath, profilePrefix, screenshotCheck) {
   }
 }
 
+function createCdpClient(webSocketUrl) {
+  return new Promise((resolve, reject) => {
+    const socket = new WebSocket(webSocketUrl);
+    let nextId = 1;
+    const pending = new Map();
+    const timeout = setTimeout(() => {
+      reject(new Error(`Timed out connecting to ${webSocketUrl}`));
+      socket.close();
+    }, 5000);
+
+    socket.on('open', () => {
+      clearTimeout(timeout);
+      resolve({
+        close: () => socket.close(),
+        send(method, params = {}) {
+          const id = nextId;
+          nextId += 1;
+          socket.send(JSON.stringify({ id, method, params }));
+          return new Promise((sendResolve, sendReject) => {
+            pending.set(id, { reject: sendReject, resolve: sendResolve });
+          });
+        },
+      });
+    });
+
+    socket.on('message', (data) => {
+      const message = JSON.parse(data.toString());
+      if (!message.id) {
+        return;
+      }
+      const callbacks = pending.get(message.id);
+      if (!callbacks) {
+        return;
+      }
+      pending.delete(message.id);
+      if (message.error) {
+        callbacks.reject(
+          new Error(`${message.error.message}: ${message.error.data ?? ''}`)
+        );
+        return;
+      }
+      callbacks.resolve(message.result);
+    });
+
+    socket.on('error', (error) => {
+      clearTimeout(timeout);
+      reject(error);
+    });
+  });
+}
+
+async function waitForDebugPage(debugPort, expectedUrl) {
+  const startedAt = Date.now();
+  while (Date.now() - startedAt < cdpTimeoutMs) {
+    try {
+      const pages = await requestJson(`http://${host}:${debugPort}/json/list`);
+      const page = pages.find(
+        (item) => item.type === 'page' && item.url.startsWith(expectedUrl)
+      );
+      if (page?.webSocketDebuggerUrl) {
+        return page.webSocketDebuggerUrl;
+      }
+    } catch {
+      await new Promise((resolve) => setTimeout(resolve, 250));
+    }
+  }
+  throw new Error(`Chrome DevTools page did not appear for ${expectedUrl}`);
+}
+
+async function waitForRuntimeCondition(cdp, expression) {
+  const startedAt = Date.now();
+  while (Date.now() - startedAt < cdpTimeoutMs) {
+    const result = await cdp.send('Runtime.evaluate', {
+      expression,
+      returnByValue: true,
+    });
+    if (result.result.value) {
+      return;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 250));
+  }
+  throw new Error(`Timed out waiting for runtime condition: ${expression}`);
+}
+
+async function evaluateRuntime(cdp, expression) {
+  const result = await cdp.send('Runtime.evaluate', {
+    expression,
+    returnByValue: true,
+  });
+  if (result.exceptionDetails) {
+    throw new Error(
+      result.exceptionDetails.text ?? 'Runtime evaluation failed.'
+    );
+  }
+  return result.result.value;
+}
+
+async function assertMobileHeaderLayout(browserPath, profilePrefix, check) {
+  const debugPort = 59000 + (process.pid % 1000);
+  const url = `${baseUrl}${check.path}`;
+  const child = spawn(
+    browserPath,
+    [
+      ...browserCdpBaseArgs(profilePrefix, `layout-${check.name}`, check.size),
+      `--remote-debugging-port=${debugPort}`,
+      url,
+    ],
+    {
+      cwd: rootDir,
+      stdio: ['ignore', 'pipe', 'pipe'],
+    }
+  );
+  let output = '';
+  child.stdout.on('data', (chunk) => {
+    output += chunk.toString();
+  });
+  child.stderr.on('data', (chunk) => {
+    output += chunk.toString();
+  });
+
+  let cdp;
+  try {
+    const webSocketUrl = await waitForDebugPage(debugPort, url);
+    cdp = await createCdpClient(webSocketUrl);
+    await waitForRuntimeCondition(
+      cdp,
+      "document.readyState !== 'loading' && Boolean(document.querySelector('.vwb-save-status'))"
+    );
+    const headerResult = await evaluateRuntime(
+      cdp,
+      `(() => {
+        const selectors = {
+          brand: '.vwb-brand',
+          nav: '.vwb-top-nav',
+          save: '.vwb-save-status',
+          dataMenu: '.vwb-header-menu > button'
+        };
+        const viewportWidth = document.documentElement.clientWidth;
+        const viewportHeight = window.innerHeight;
+        const issues = [];
+        const rects = {};
+        for (const [name, selector] of Object.entries(selectors)) {
+          const element = document.querySelector(selector);
+          if (!element) {
+            issues.push(name + ' is missing');
+            continue;
+          }
+          const rect = element.getBoundingClientRect();
+          rects[name] = {
+            bottom: Math.round(rect.bottom),
+            height: Math.round(rect.height),
+            left: Math.round(rect.left),
+            right: Math.round(rect.right),
+            top: Math.round(rect.top),
+            width: Math.round(rect.width)
+          };
+          if (rect.width <= 0 || rect.height <= 0) {
+            issues.push(name + ' has no visible size');
+          }
+          if (rect.left < 0 || rect.right > viewportWidth) {
+            issues.push(name + ' is clipped horizontally');
+          }
+          if (rect.top < 0 || rect.bottom > viewportHeight) {
+            issues.push(name + ' is clipped vertically');
+          }
+        }
+        return { issues, rects, viewportHeight, viewportWidth };
+      })()`
+    );
+    if (headerResult.issues.length > 0) {
+      throw new Error(
+        `${check.name} layout issues: ${headerResult.issues.join(
+          ', '
+        )}. Rects: ${JSON.stringify(headerResult.rects)}`
+      );
+    }
+
+    const overflowResult = await evaluateRuntime(
+      cdp,
+      `(() => {
+        const viewportWidth = document.documentElement.clientWidth;
+        const overflowers = Array.from(document.body.querySelectorAll('*'))
+          .map((element) => {
+            const rect = element.getBoundingClientRect();
+            return {
+              className: element.className,
+              nodeName: element.nodeName,
+              left: Math.round(rect.left),
+              right: Math.round(rect.right),
+              width: Math.round(rect.width)
+            };
+          })
+          .filter((item) => item.width > 0 && item.right > viewportWidth + 1)
+          .slice(0, 8);
+        return {
+          clientWidth: viewportWidth,
+          issues: document.documentElement.scrollWidth > viewportWidth + 1
+            ? ['page has horizontal overflow']
+            : [],
+          overflowers,
+          scrollWidth: document.documentElement.scrollWidth
+        };
+      })()`
+    );
+    if (overflowResult.issues.length > 0) {
+      throw new Error(
+        `${check.name} page overflow: ${JSON.stringify(overflowResult)}`
+      );
+    }
+
+    await evaluateRuntime(
+      cdp,
+      "document.querySelector('.vwb-header-menu > button')?.click(); true"
+    );
+    await waitForRuntimeCondition(
+      cdp,
+      "Boolean(document.querySelector('.vwb-header-menu-list'))"
+    );
+    const menuResult = await evaluateRuntime(
+      cdp,
+      `(() => {
+        const menu = document.querySelector('.vwb-header-menu-list');
+        const viewportWidth = document.documentElement.clientWidth;
+        const issues = [];
+        if (!menu) {
+          issues.push('data menu list did not open');
+          return { issues, rect: null, itemCount: 0 };
+        }
+        const rect = menu.getBoundingClientRect();
+        const itemCount = menu.querySelectorAll('button, a').length;
+        if (itemCount < 4) {
+          issues.push('data menu has too few actions');
+        }
+        if (rect.left < 0 || rect.right > viewportWidth) {
+          issues.push('data menu list is clipped horizontally');
+        }
+        return {
+          issues,
+          itemCount,
+          rect: {
+            bottom: Math.round(rect.bottom),
+            height: Math.round(rect.height),
+            left: Math.round(rect.left),
+            right: Math.round(rect.right),
+            top: Math.round(rect.top),
+            width: Math.round(rect.width)
+          }
+        };
+      })()`
+    );
+    if (menuResult.issues.length > 0) {
+      throw new Error(
+        `${check.name} menu issues: ${menuResult.issues.join(
+          ', '
+        )}. Rect: ${JSON.stringify(menuResult.rect)}`
+      );
+    }
+  } finally {
+    cdp?.close();
+    child.kill();
+    await new Promise((resolve) => {
+      child.once('exit', resolve);
+      setTimeout(resolve, 1000);
+    });
+    if (child.exitCode && child.exitCode !== 0) {
+      writeError(output);
+    }
+  }
+}
+
 async function run() {
   const browserPaths = findBrowserExecutables();
   if (browserPaths.length === 0) {
@@ -273,6 +592,14 @@ async function run() {
         for (const screenshotCheck of screenshotChecks) {
           assertScreenshot(browserPath, profilePrefix, screenshotCheck);
           writeLine(`screenshot ok: ${screenshotCheck.name}`);
+        }
+        for (const layoutCheck of layoutChecks) {
+          await assertMobileHeaderLayout(
+            browserPath,
+            profilePrefix,
+            layoutCheck
+          );
+          writeLine(`layout ok: ${layoutCheck.name}`);
         }
         writeLine(`Browser smoke artifacts: ${artifactDir}`);
         return;

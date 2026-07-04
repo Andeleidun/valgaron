@@ -58,7 +58,7 @@ npm run check:pwa
 npm run check:release
 ```
 
-`check:pwa` verifies the built manifest, service worker, install icons, metadata, and GitHub Pages fallback. `check:release` runs the full local release gate, including browser smoke screenshots.
+`check:pwa` verifies the built manifest, service worker, install icons, metadata, and GitHub Pages fallback. `check:release` runs the full local release gate, including the runtime dependency audit, Expo Doctor, and browser smoke screenshots.
 
 ## Deployment Smoke Checklist
 

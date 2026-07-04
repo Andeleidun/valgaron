@@ -1,0 +1,91 @@
+{
+  "name": "@valgaron/core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./types": {
+      "types": "./src/types.ts",
+      "default": "./src/types.ts"
+    },
+    "./seedCodex": {
+      "types": "./src/seedCodex.ts",
+      "default": "./src/seedCodex.ts"
+    },
+    "./worldDocument": {
+      "types": "./src/worldDocument.ts",
+      "default": "./src/worldDocument.ts"
+    },
+    "./codexEntries": {
+      "types": "./src/codexEntries.ts",
+      "default": "./src/codexEntries.ts"
+    },
+    "./codexRelationships": {
+      "types": "./src/codexRelationships.ts",
+      "default": "./src/codexRelationships.ts"
+    },
+    "./workspaceManagement": {
+      "types": "./src/workspaceManagement.ts",
+      "default": "./src/workspaceManagement.ts"
+    },
+    "./codexDataPortability": {
+      "types": "./src/codexDataPortability.ts",
+      "default": "./src/codexDataPortability.ts"
+    },
+    "./codexSearch": {
+      "types": "./src/codexSearch.ts",
+      "default": "./src/codexSearch.ts"
+    },
+    "./codexTemplates": {
+      "types": "./src/codexTemplates.ts",
+      "default": "./src/codexTemplates.ts"
+    },
+    "./codexTimeline": {
+      "types": "./src/codexTimeline.ts",
+      "default": "./src/codexTimeline.ts"
+    },
+    "./documentDiagnostics": {
+      "types": "./src/documentDiagnostics.ts",
+      "default": "./src/documentDiagnostics.ts"
+    },
+    "./destructiveActions": {
+      "types": "./src/destructiveActions.ts",
+      "default": "./src/destructiveActions.ts"
+    },
+    "./draftValidation": {
+      "types": "./src/draftValidation.ts",
+      "default": "./src/draftValidation.ts"
+    },
+    "./helpTopics": {
+      "types": "./src/helpTopics.ts",
+      "default": "./src/helpTopics.ts"
+    },
+    "./overview": {
+      "types": "./src/overview.ts",
+      "default": "./src/overview.ts"
+    },
+    "./recoverySnapshots": {
+      "types": "./src/recoverySnapshots.ts",
+      "default": "./src/recoverySnapshots.ts"
+    },
+    "./shell": {
+      "types": "./src/shell.ts",
+      "default": "./src/shell.ts"
+    },
+    "./unsavedChanges": {
+      "types": "./src/unsavedChanges.ts",
+      "default": "./src/unsavedChanges.ts"
+    }
+  },
+  "sideEffects": false,
+  "scripts": {
+    "test": "jest --runInBand packages/core/src",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  }
+}

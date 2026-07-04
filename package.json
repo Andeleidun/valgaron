@@ -3,20 +3,34 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "workspaces": [
+    "packages/core",
+    "packages/platform",
+    "packages/ui-tokens",
+    "mobile"
+  ],
+  "overrides": {
+    "expo-font": "~55.0.8"
+  },
   "scripts": {
     "dev": "vite",
     "format:check": "prettier --check . --ignore-unknown",
     "test": "jest --runInBand",
+    "test:packages": "jest --runInBand packages",
+    "test:mobile": "jest --runInBand mobile/src",
     "typecheck": "tsc -b --noEmit",
+    "typecheck:mobile": "npm run typecheck --workspace @valgaron/mobile",
     "build": "tsc -b && vite build",
     "build:pages": "npm run build && node scripts/preparePagesArtifact.cjs",
     "lint": "eslint .",
     "check:metadata": "node scripts/checkAppMetadata.cjs",
+    "check:audit": "node scripts/checkRuntimeAudit.cjs",
+    "mobile:doctor": "node scripts/mobileDoctor.cjs",
     "check:performance": "jest src/Utlilities/largeWorldPerformance.test.ts --runInBand",
     "check:pwa": "npm run build:pages && node scripts/verifyPwaBuild.cjs",
     "check:browser": "node scripts/browserSmoke.cjs",
-    "check": "npm run format:check && npm run lint && npm run typecheck && npm run check:metadata && npm test && npm run build",
-    "check:release": "npm run check && npm run check:pwa && npm run check:browser",
+    "check": "npm run format:check && npm run lint && npm run typecheck && npm run typecheck:mobile && npm run check:metadata && npm test && npm run build",
+    "check:release": "npm run check && npm run check:audit && npm run mobile:doctor && npm run check:pwa && npm run check:browser",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -25,8 +39,11 @@
     "@fontsource/roboto": "^4.5.8",
     "@mui/icons-material": "^5.11.0",
     "@mui/material": "^5.11.8",
-    "react": "^19.2.6",
-    "react-dom": "^19.2.6",
+    "@valgaron/core": "0.1.0",
+    "@valgaron/platform": "0.1.0",
+    "@valgaron/ui-tokens": "0.1.0",
+    "react": "19.2.0",
+    "react-dom": "19.2.0",
     "react-router-dom": "^6.8.0"
   },
   "devDependencies": {
@@ -41,12 +58,15 @@
     "eslint": "^10.3.0",
     "eslint-config-prettier": "^8.6.0",
     "eslint-plugin-prettier": "^4.2.1",
+    "expo-doctor": "^1.20.0",
+    "expo-font": "~55.0.8",
     "globals": "^17.6.0",
     "jest": "^30.4.2",
     "prettier": "^2.8.8",
     "ts-jest": "^29.4.11",
     "typescript": "~6.0.2",
     "typescript-eslint": "^8.59.2",
-    "vite": "^8.0.12"
+    "vite": "^8.0.12",
+    "ws": "^8.21.0"
   }
 }

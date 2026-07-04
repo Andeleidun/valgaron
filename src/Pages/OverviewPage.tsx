@@ -1,49 +1,48 @@
 import { useMemo, useState } from 'react';
 import { NavLink } from 'react-router-dom';
-import { formatUpdatedAt, getEntries } from '../Utlilities/codexEntries';
-import { getIncompleteEntries } from '../Utlilities/codexTemplates';
 import {
-  getSearchableEntries,
+  formatUpdatedAt,
+  getActiveWorld,
+  getCodexEntriesRoute,
+  getCodexOverviewSummary,
+  getCodexScreenIntro,
+  getIncompleteEntries,
   getSearchResultContext,
+  getVisibleWorkspaceEntries,
+  getWorkspaceOverviewEntryHighlights,
   searchEntries,
-} from '../Utlilities/codexSearch';
-import type { WorldCodex, WorldSectionConfig } from '../types';
+  type SearchableEntry,
+  type WorldDocument,
+} from '@valgaron/core';
 
-export function Overview({
-  codex,
-  sections,
-  worldName,
-}: {
-  codex: WorldCodex;
-  sections: readonly WorldSectionConfig[];
-  worldName: string;
-}) {
+function getEntryRoute(
+  entry: Pick<SearchableEntry, 'sectionId' | 'id' | 'name'>
+) {
+  return getCodexEntriesRoute({
+    sectionId: entry.sectionId,
+    entryId: entry.id,
+    intent: 'edit',
+    query: entry.name,
+  });
+}
+
+export function Overview({ document }: { document: WorldDocument }) {
   const [globalQuery, setGlobalQuery] = useState('');
+  const activeWorld = useMemo(() => getActiveWorld(document), [document]);
+  const intro = getCodexScreenIntro('overview');
+  const sections = activeWorld.entryTypes;
+  const summary = useMemo(() => getCodexOverviewSummary(document), [document]);
   const visibleEntries = useMemo(
-    () =>
-      getSearchableEntries(codex, sections).filter(
-        (entry) => entry.status !== 'archived'
-      ),
-    [codex, sections]
+    () => getVisibleWorkspaceEntries(activeWorld),
+    [activeWorld]
   );
   const globalResults = useMemo(
     () => searchEntries(visibleEntries, sections, globalQuery).slice(0, 8),
     [globalQuery, sections, visibleEntries]
   );
-  const pinnedEntries = useMemo(
-    () => visibleEntries.filter((entry) => entry.pinned).slice(0, 6),
-    [visibleEntries]
-  );
-  const recentEntries = useMemo(
-    () =>
-      [...visibleEntries]
-        .sort(
-          (first, second) =>
-            new Date(second.updatedAt).getTime() -
-            new Date(first.updatedAt).getTime()
-        )
-        .slice(0, 6),
-    [visibleEntries]
+  const entryHighlights = useMemo(
+    () => getWorkspaceOverviewEntryHighlights(activeWorld, 6),
+    [activeWorld]
   );
   const incompleteEntries = useMemo(
     () => getIncompleteEntries(visibleEntries, sections).slice(0, 6),
@@ -54,15 +53,10 @@ export function Overview({
     <main className="vwb-main" id="main-content" tabIndex={-1}>
       <section className="vwb-hero" aria-labelledby="overview-title">
         <div>
-          <p className="vwb-kicker">{worldName} Workspace</p>
-          <h2 id="overview-title">
-            Draft the world where the story can breathe.
-          </h2>
+          <p className="vwb-kicker">{summary.workspaceName} Workspace</p>
+          <h2 id="overview-title">{intro.title}</h2>
         </div>
-        <p>
-          Capture the people, places, powers, lore, and turning points that make
-          a setting coherent enough to write in.
-        </p>
+        <p>{intro.detail}</p>
       </section>
 
       <section className="vwb-local-data-notice" aria-label="Local data notice">
@@ -78,11 +72,11 @@ export function Overview({
         {sections.map((section) => (
           <NavLink
             className="vwb-stat-card"
-            to={`/${section.id}`}
+            to={getCodexEntriesRoute({ sectionId: section.id })}
             key={section.id}
           >
             <span>{section.title}</span>
-            <strong>{getEntries(codex, section.id).length}</strong>
+            <strong>{summary.sectionCounts[section.id] ?? 0}</strong>
           </NavLink>
         ))}
       </section>
@@ -99,7 +93,10 @@ export function Overview({
             <NavLink
               className="vwb-secondary-button"
               key={section.id}
-              to={`/${section.id}`}
+              to={getCodexEntriesRoute({
+                sectionId: section.id,
+                intent: 'new',
+              })}
             >
               New {section.singularTitle}
             </NavLink>
@@ -124,6 +121,15 @@ export function Overview({
           />
         </label>
         {globalQuery.trim() ? (
+          <button
+            className="vwb-secondary-button vwb-clear-filters-button"
+            type="button"
+            onClick={() => setGlobalQuery('')}
+          >
+            Clear Search
+          </button>
+        ) : null}
+        {globalQuery.trim() ? (
           <div className="vwb-entry-list vwb-search-results" role="list">
             {globalResults.length > 0 ? (
               globalResults.map((entry) => (
@@ -139,7 +145,7 @@ export function Overview({
                       </p>
                       <h3>{entry.name}</h3>
                     </div>
-                    <NavLink to={entry.sectionPath}>Open</NavLink>
+                    <NavLink to={getEntryRoute(entry)}>Open</NavLink>
                   </div>
                   <p>{entry.summary || 'No summary yet.'}</p>
                 </article>
@@ -162,23 +168,30 @@ export function Overview({
           </div>
         </div>
         <div className="vwb-entry-list">
-          {recentEntries.map((entry) => (
-            <article className="vwb-entry-card" key={entry.id}>
-              <div className="vwb-entry-card-header">
-                <div>
-                  <p className="vwb-entry-kind">{entry.sectionTitle}</p>
-                  <h3>{entry.name}</h3>
+          {entryHighlights.recent.length > 0 ? (
+            entryHighlights.recent.map((entry) => (
+              <article className="vwb-entry-card" key={entry.id}>
+                <div className="vwb-entry-card-header">
+                  <div>
+                    <p className="vwb-entry-kind">{entry.sectionTitle}</p>
+                    <h3>{entry.name}</h3>
+                  </div>
+                  <NavLink to={getEntryRoute(entry)}>Edit</NavLink>
                 </div>
-                <NavLink to={entry.sectionPath}>Edit</NavLink>
-              </div>
-              <p>{entry.summary || 'No summary yet.'}</p>
-              <small>Updated {formatUpdatedAt(entry.updatedAt)}</small>
-            </article>
-          ))}
+                <p>{entry.summary || 'No summary yet.'}</p>
+                <small>Updated {formatUpdatedAt(entry.updatedAt)}</small>
+              </article>
+            ))
+          ) : (
+            <div className="vwb-empty-results" role="status">
+              <strong>No recent records yet.</strong>
+              <p>Create a codex record to start filling this workspace.</p>
+            </div>
+          )}
         </div>
       </section>
 
-      {pinnedEntries.length > 0 ? (
+      {entryHighlights.pinned.length > 0 ? (
         <section className="vwb-panel" aria-labelledby="pinned-title">
           <div className="vwb-section-heading">
             <div>
@@ -187,14 +200,14 @@ export function Overview({
             </div>
           </div>
           <div className="vwb-entry-list">
-            {pinnedEntries.map((entry) => (
+            {entryHighlights.pinned.map((entry) => (
               <article className="vwb-entry-card" key={entry.id}>
                 <div className="vwb-entry-card-header">
                   <div>
                     <p className="vwb-entry-kind">{entry.sectionTitle}</p>
                     <h3>{entry.name}</h3>
                   </div>
-                  <NavLink to={entry.sectionPath}>Edit</NavLink>
+                  <NavLink to={getEntryRoute(entry)}>Edit</NavLink>
                 </div>
                 <p>{entry.summary || 'No summary yet.'}</p>
                 <small>Updated {formatUpdatedAt(entry.updatedAt)}</small>
@@ -222,7 +235,16 @@ export function Overview({
                     </p>
                     <h3>{item.entry.name}</h3>
                   </div>
-                  <NavLink to={`/${item.section.id}`}>Edit</NavLink>
+                  <NavLink
+                    to={getCodexEntriesRoute({
+                      sectionId: item.section.id,
+                      entryId: item.entry.id,
+                      intent: 'edit',
+                      query: item.entry.name,
+                    })}
+                  >
+                    Edit
+                  </NavLink>
                 </div>
                 <p>{item.prompts[0]}</p>
               </article>

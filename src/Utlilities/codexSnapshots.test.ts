@@ -122,4 +122,37 @@ describe('codex recovery snapshots', () => {
     expect(result.snapshots).toHaveLength(1);
     expect(loadRecoverySnapshots()).toEqual([]);
   });
+
+  it('loads all current destructive-action snapshot reasons', () => {
+    const document = createSeedWorldDocument();
+    storage.setItem(
+      RECOVERY_SNAPSHOT_STORAGE_KEY,
+      JSON.stringify([
+        {
+          id: 'snapshot-workspace-delete-test',
+          reason: 'workspace-delete',
+          createdAt: '2026-06-01T00:00:00.000Z',
+          document,
+        },
+        {
+          id: 'snapshot-planetary-delete-test',
+          reason: 'planetary-world-delete',
+          createdAt: '2026-06-01T00:01:00.000Z',
+          document,
+        },
+        {
+          id: 'snapshot-entry-type-delete-test',
+          reason: 'entry-type-delete',
+          createdAt: '2026-06-01T00:02:00.000Z',
+          document,
+        },
+      ])
+    );
+
+    expect(loadRecoverySnapshots().map((snapshot) => snapshot.reason)).toEqual([
+      'entry-type-delete',
+      'planetary-world-delete',
+      'workspace-delete',
+    ]);
+  });
 });

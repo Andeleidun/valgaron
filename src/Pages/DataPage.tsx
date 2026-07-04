@@ -1,12 +1,21 @@
 import { useEffect, useMemo, useState, type ChangeEvent } from 'react';
 import {
+  type DestructiveActionId,
   exportWorldToMarkdown,
+  formatDestructiveActionTitle,
+  formatUpdatedAt,
+  formatWorldImportPreviewText,
+  getCodexExportFilename,
+  getCodexExportOption,
+  getCodexScreenIntro,
+  getDestructiveActionCopy,
+  getRecoverySnapshotReasonTitle,
+  localPersistenceCopy,
   parseWorldImport,
   serializeActiveWorldBackup,
   serializeWorldDocumentBackup,
   type WorldImportResult,
-} from '../Utlilities/codexDataPortability';
-import { formatUpdatedAt } from '../Utlilities/codexEntries';
+} from '@valgaron/core';
 import { downloadTextFile, slugFilename } from '../Utlilities/fileDownloads';
 import {
   createLocalDiagnosticsReport,
@@ -17,8 +26,8 @@ import {
   confirmDiscardUnsavedChanges,
   useUnsavedChangesWarning,
 } from '../Utlilities/unsavedChanges';
+import { useDialogFocus } from '../Utlilities/dialogFocus';
 import type {
-  RecoverySnapshotReason,
   RecoverySnapshotSummary,
   WorldDocument,
   WorldWorkspace,
@@ -29,16 +38,64 @@ import type {
   WorldDocumentSaveStatus,
 } from '../Utlilities/useWorldDocumentState';
 
-const snapshotReasonLabels: Record<RecoverySnapshotReason, string> = {
-  import: 'Before import',
-  reset: 'Before reset',
-  'permanent-delete': 'Before permanent delete',
-  'relationship-delete': 'Before relationship delete',
-  restore: 'Before snapshot restore',
-  'workspace-delete': 'Before workspace delete',
-  'planetary-world-delete': 'Before in-fiction world delete',
-  'entry-type-delete': 'Before custom entry type delete',
+type PendingSnapshotAction = {
+  actionId: Extract<
+    DestructiveActionId,
+    'restore-snapshot' | 'delete-snapshot'
+  >;
+  snapshotId: string;
 };
+
+function DataActionConfirmationDialog({
+  actionId,
+  onCancel,
+  onConfirm,
+  title,
+}: {
+  actionId: DestructiveActionId;
+  onCancel: () => void;
+  onConfirm: () => void;
+  title: string;
+}) {
+  const dialogRef = useDialogFocus<HTMLElement>(true, onCancel);
+  const copy = getDestructiveActionCopy(actionId);
+  const titleId = `${actionId}-confirm-title`;
+  const descriptionId = `${actionId}-confirm-description`;
+
+  return (
+    <div className="vwb-dialog-backdrop" role="presentation">
+      <section
+        aria-labelledby={titleId}
+        aria-describedby={descriptionId}
+        className="vwb-dialog"
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        tabIndex={-1}
+      >
+        <p className="vwb-kicker">Destructive action</p>
+        <h2 id={titleId}>{title}</h2>
+        <p id={descriptionId}>{copy.message}</p>
+        <div className="vwb-form-actions">
+          <button
+            className="vwb-secondary-button"
+            type="button"
+            onClick={onCancel}
+          >
+            Cancel
+          </button>
+          <button
+            className="vwb-primary-button vwb-danger-confirm-button"
+            type="button"
+            onClick={onConfirm}
+          >
+            {copy.confirmLabel}
+          </button>
+        </div>
+      </section>
+    </div>
+  );
+}
 
 export function DataPage({
   activeWorld,
@@ -57,7 +114,7 @@ export function DataPage({
   loadStatus: WorldDocumentLoadStatus;
   onDeleteSnapshot: (snapshotId: string) => void;
   onImportDocument: (document: WorldDocument) => void;
-  onRequestReset: () => void;
+  onRequestReset: (afterReset?: () => void) => void;
   onRestoreSnapshot: (snapshotId: string) => void;
   recoverySnapshots: readonly RecoverySnapshotSummary[];
   recoverySnapshotStatus: RecoverySnapshotStatus;
@@ -77,6 +134,11 @@ export function DataPage({
   const [diagnosticsDownloadMessage, setDiagnosticsDownloadMessage] =
     useState('');
   const [importFileMessage, setImportFileMessage] = useState('');
+  const [isImportConfirmationOpen, setIsImportConfirmationOpen] =
+    useState(false);
+  const [pendingSnapshotAction, setPendingSnapshotAction] =
+    useState<PendingSnapshotAction | null>(null);
+  const intro = getCodexScreenIntro('data');
   const isImportDirty = importText.trim().length > 0;
   useUnsavedChangesWarning(isImportDirty);
   const jsonExport = useMemo(
@@ -165,6 +227,13 @@ export function DataPage({
     saveStatus,
   ]);
   const filenameBase = slugFilename(activeWorld.name);
+  const activeJsonExportOption = getCodexExportOption('active-json');
+  const fullJsonExportOption = getCodexExportOption('full-json');
+  const markdownExportOption = getCodexExportOption('markdown');
+  const diagnosticsExportOption = getCodexExportOption('diagnostics');
+  const importPreviewText = importResult?.ok
+    ? formatWorldImportPreviewText(importResult.preview)
+    : null;
   const saveStatusLabel =
     saveStatus.state === 'saved'
       ? 'Saved'
@@ -181,13 +250,13 @@ export function DataPage({
           saveStatus.savedAt
         )}.`
       : saveStatus.state === 'unsaved'
-      ? `This document is loaded in the session but has not been saved to current localStorage yet. Last document timestamp: ${formatUpdatedAt(
-          saveStatus.savedAt
-        )}.`
+      ? `This document is loaded in the session but has not been saved to current ${
+          localPersistenceCopy.browserSaveTarget
+        } yet. Last document timestamp: ${formatUpdatedAt(saveStatus.savedAt)}.`
       : saveStatus.state === 'dirty'
-      ? `Unsaved session changes. Last localStorage save: ${formatUpdatedAt(
-          saveStatus.savedAt
-        )}.`
+      ? `Unsaved session changes. Last ${
+          localPersistenceCopy.browserSaveTarget
+        } save: ${formatUpdatedAt(saveStatus.savedAt)}.`
       : `Last save attempt: ${formatUpdatedAt(saveStatus.savedAt)}.`;
 
   const downloadExport = (
@@ -206,19 +275,27 @@ export function DataPage({
   };
 
   const downloadDiagnostics = () => {
-    const didDownload = downloadTextFile(
-      'valgaron-diagnostics.json',
-      diagnosticsText
+    const diagnosticsFilename = getCodexExportFilename(
+      'diagnostics',
+      filenameBase
     );
+    const didDownload = downloadTextFile(diagnosticsFilename, diagnosticsText);
     setDiagnosticsDownloadMessage(
       didDownload
-        ? 'Downloaded valgaron-diagnostics.json.'
+        ? `Downloaded ${diagnosticsFilename}.`
         : 'Download is unavailable in this runtime; copy the diagnostics text instead.'
     );
   };
 
   const previewImport = () => {
     setImportResult(parseWorldImport(importText));
+  };
+
+  const clearImportDraft = () => {
+    setImportText('');
+    setImportResult(null);
+    setImportFileMessage('');
+    setIsImportConfirmationOpen(false);
   };
 
   const discardImportIfAllowed = (action: () => void) => {
@@ -230,6 +307,10 @@ export function DataPage({
   const readImportFile = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) {
+      return;
+    }
+    if (isImportDirty && !confirmDiscardUnsavedChanges(true)) {
+      event.target.value = '';
       return;
     }
     if (typeof FileReader === 'undefined') {
@@ -257,22 +338,37 @@ export function DataPage({
 
   const applyImport = () => {
     if (importResult?.ok) {
-      onImportDocument(importResult.document);
-      setImportText('');
-      setImportResult(null);
+      setIsImportConfirmationOpen(true);
     }
+  };
+
+  const confirmImport = () => {
+    if (importResult?.ok) {
+      onImportDocument(importResult.document);
+      clearImportDraft();
+    }
+  };
+
+  const confirmSnapshotAction = () => {
+    if (!pendingSnapshotAction) {
+      return;
+    }
+    if (pendingSnapshotAction.actionId === 'restore-snapshot') {
+      onRestoreSnapshot(pendingSnapshotAction.snapshotId);
+      clearImportDraft();
+    }
+    if (pendingSnapshotAction.actionId === 'delete-snapshot') {
+      onDeleteSnapshot(pendingSnapshotAction.snapshotId);
+    }
+    setPendingSnapshotAction(null);
   };
 
   return (
     <main className="vwb-main vwb-data-layout" id="main-content" tabIndex={-1}>
       <section className="vwb-panel vwb-section-intro">
-        <p className="vwb-kicker">Local data</p>
-        <h1>Data</h1>
-        <p>
-          Export JSON backups for the active workspace or the full local
-          document, copy a Markdown reference, import a validated backup, or
-          reset to starter data.
-        </p>
+        <p className="vwb-kicker">{intro.kicker}</p>
+        <h1>{intro.title}</h1>
+        <p>{intro.detail}</p>
       </section>
 
       <section className="vwb-panel" aria-labelledby="save-status-title">
@@ -331,27 +427,23 @@ export function DataPage({
         <div className="vwb-section-heading">
           <div>
             <p className="vwb-kicker">Local-only report</p>
-            <h2 id="diagnostics-title">Diagnostics</h2>
+            <h2 id="diagnostics-title">{diagnosticsExportOption.heading}</h2>
           </div>
           <button
             className="vwb-primary-button"
             type="button"
             onClick={downloadDiagnostics}
           >
-            Download Diagnostics
+            {diagnosticsExportOption.downloadLabel}
           </button>
         </div>
-        <p>
-          Diagnostics include app version, schema version, route, browser,
-          storage state, and counts. They exclude world names, entry names,
-          notes, summaries, tags, and ids by default.
-        </p>
+        <p>{diagnosticsExportOption.description}</p>
         <textarea
           className="vwb-export-textarea"
           readOnly
           rows={10}
           value={diagnosticsText}
-          aria-label="Local diagnostics JSON"
+          aria-label={diagnosticsExportOption.textAreaLabel}
         />
         {diagnosticsDownloadMessage ? (
           <p className="vwb-inline-status" role="status">
@@ -363,30 +455,30 @@ export function DataPage({
       <section className="vwb-panel" aria-labelledby="json-export-title">
         <div className="vwb-section-heading">
           <div>
-            <p className="vwb-kicker">Active workspace backup</p>
-            <h2 id="json-export-title">Active workspace JSON</h2>
+            <p className="vwb-kicker">{activeJsonExportOption.kicker}</p>
+            <h2 id="json-export-title">{activeJsonExportOption.heading}</h2>
           </div>
           <button
             className="vwb-primary-button"
             type="button"
             onClick={() =>
-              downloadExport('activeJson', `${filenameBase}.json`, jsonExport)
+              downloadExport(
+                'activeJson',
+                getCodexExportFilename('active-json', filenameBase),
+                jsonExport
+              )
             }
           >
-            Download Active JSON
+            {activeJsonExportOption.downloadLabel}
           </button>
         </div>
-        <p>
-          This backup contains the current project/universe workspace only. Use
-          all-workspaces export when you need every workspace in this browser
-          profile.
-        </p>
+        <p>{activeJsonExportOption.description}</p>
         <textarea
           className="vwb-export-textarea"
           readOnly
           rows={12}
           value={jsonExport}
-          aria-label="Active workspace JSON backup"
+          aria-label={activeJsonExportOption.textAreaLabel}
         />
         {downloadMessages.activeJson ? (
           <p className="vwb-inline-status" role="status">
@@ -398,8 +490,8 @@ export function DataPage({
       <section className="vwb-panel" aria-labelledby="full-json-export-title">
         <div className="vwb-section-heading">
           <div>
-            <p className="vwb-kicker">All-workspaces backup</p>
-            <h2 id="full-json-export-title">Full document JSON</h2>
+            <p className="vwb-kicker">{fullJsonExportOption.kicker}</p>
+            <h2 id="full-json-export-title">{fullJsonExportOption.heading}</h2>
           </div>
           <button
             className="vwb-primary-button"
@@ -407,25 +499,21 @@ export function DataPage({
             onClick={() =>
               downloadExport(
                 'allJson',
-                'valgaron-all-workspaces.json',
+                getCodexExportFilename('full-json', filenameBase),
                 fullJsonExport
               )
             }
           >
-            Download All JSON
+            {fullJsonExportOption.downloadLabel}
           </button>
         </div>
-        <p>
-          This backup contains every project/universe workspace, every
-          in-fiction world or planet, custom entry types, entries, and
-          relationships in this local document.
-        </p>
+        <p>{fullJsonExportOption.description}</p>
         <textarea
           className="vwb-export-textarea"
           readOnly
           rows={12}
           value={fullJsonExport}
-          aria-label="All workspaces JSON backup"
+          aria-label={fullJsonExportOption.textAreaLabel}
         />
         {downloadMessages.allJson ? (
           <p className="vwb-inline-status" role="status">
@@ -437,25 +525,30 @@ export function DataPage({
       <section className="vwb-panel" aria-labelledby="markdown-export-title">
         <div className="vwb-section-heading">
           <div>
-            <p className="vwb-kicker">Drafting reference</p>
-            <h2 id="markdown-export-title">Markdown export</h2>
+            <p className="vwb-kicker">{markdownExportOption.kicker}</p>
+            <h2 id="markdown-export-title">{markdownExportOption.heading}</h2>
           </div>
           <button
             className="vwb-primary-button"
             type="button"
             onClick={() =>
-              downloadExport('md', `${filenameBase}.md`, markdownExport)
+              downloadExport(
+                'md',
+                getCodexExportFilename('markdown', filenameBase),
+                markdownExport
+              )
             }
           >
-            Download Markdown
+            {markdownExportOption.downloadLabel}
           </button>
         </div>
+        <p>{markdownExportOption.description}</p>
         <textarea
           className="vwb-export-textarea"
           readOnly
           rows={12}
           value={markdownExport}
-          aria-label="Markdown world export"
+          aria-label={markdownExportOption.textAreaLabel}
         />
         {downloadMessages.md ? (
           <p className="vwb-inline-status" role="status">
@@ -523,18 +616,10 @@ export function DataPage({
               </button>
             ) : null}
           </div>
-          {importResult?.ok ? (
+          {importPreviewText ? (
             <div className="vwb-import-preview" role="status">
-              <strong>{importResult.preview.activeWorldName}</strong>
-              <span>{importResult.preview.worldCount} world(s)</span>
-              <span>
-                {importResult.preview.planetaryWorldCount} in-fiction world(s)
-              </span>
-              <span>{importResult.preview.entryCount} entries</span>
-              <span>
-                {importResult.preview.relationshipCount} relationships
-              </span>
-              <span>Saved {formatUpdatedAt(importResult.preview.savedAt)}</span>
+              <strong>{importPreviewText.title}</strong>
+              <span>{importPreviewText.detail}</span>
             </div>
           ) : null}
           {importResult && !importResult.ok ? (
@@ -544,6 +629,27 @@ export function DataPage({
           ) : null}
         </div>
       </section>
+
+      {isImportConfirmationOpen ? (
+        <DataActionConfirmationDialog
+          actionId="import-document"
+          onCancel={() => setIsImportConfirmationOpen(false)}
+          onConfirm={confirmImport}
+          title={formatDestructiveActionTitle('import-document', 'backup')}
+        />
+      ) : null}
+
+      {pendingSnapshotAction ? (
+        <DataActionConfirmationDialog
+          actionId={pendingSnapshotAction.actionId}
+          onCancel={() => setPendingSnapshotAction(null)}
+          onConfirm={confirmSnapshotAction}
+          title={formatDestructiveActionTitle(
+            pendingSnapshotAction.actionId,
+            'recovery snapshot'
+          )}
+        />
+      ) : null}
 
       <section className="vwb-panel" aria-labelledby="recovery-title">
         <div className="vwb-section-heading">
@@ -575,7 +681,7 @@ export function DataPage({
               <article className="vwb-snapshot-row" key={snapshot.id}>
                 <div>
                   <span className="vwb-entry-kind">
-                    {snapshotReasonLabels[snapshot.reason]}
+                    {getRecoverySnapshotReasonTitle(snapshot.reason)}
                   </span>
                   <strong>{snapshot.activeWorldName}</strong>
                   <p>
@@ -592,7 +698,10 @@ export function DataPage({
                     type="button"
                     onClick={() =>
                       discardImportIfAllowed(() =>
-                        onRestoreSnapshot(snapshot.id)
+                        setPendingSnapshotAction({
+                          actionId: 'restore-snapshot',
+                          snapshotId: snapshot.id,
+                        })
                       )
                     }
                   >
@@ -603,7 +712,10 @@ export function DataPage({
                     type="button"
                     onClick={() =>
                       discardImportIfAllowed(() =>
-                        onDeleteSnapshot(snapshot.id)
+                        setPendingSnapshotAction({
+                          actionId: 'delete-snapshot',
+                          snapshotId: snapshot.id,
+                        })
                       )
                     }
                   >
@@ -633,7 +745,9 @@ export function DataPage({
           <button
             className="vwb-secondary-button vwb-danger-button"
             type="button"
-            onClick={() => discardImportIfAllowed(onRequestReset)}
+            onClick={() =>
+              discardImportIfAllowed(() => onRequestReset(clearImportDraft))
+            }
           >
             Reset Starter Data
           </button>

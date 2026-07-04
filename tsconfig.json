@@ -1,6 +1,10 @@
 {
   "files": [],
   "references": [
+    { "path": "./packages/core" },
+    { "path": "./packages/platform" },
+    { "path": "./packages/ui-tokens" },
+    { "path": "./mobile" },
     { "path": "./tsconfig.app.json" },
     { "path": "./tsconfig.node.json" }
   ]

@@ -1,5 +1,9 @@
 import type { WorldDocument, WorldWorkspace } from '../types';
-import { getEntries } from './codexEntries';
+import {
+  contentSafeDiagnosticOmittedFields,
+  getWorldDocumentDiagnostics,
+  type WorldDocumentDiagnostics,
+} from '@valgaron/core';
 import { APP_NAME, APP_VERSION } from './appMetadata';
 import { CURRENT_WORLD_SCHEMA_VERSION, getActiveWorld } from './worldDocument';
 import type { WorldDocumentLoadStatus } from './codexStorage';
@@ -50,19 +54,7 @@ export type LocalDiagnosticsReport = {
     recoverySnapshotMessage: string;
     recoverySnapshotCount: number;
   };
-  document: {
-    workspaceCount: number;
-    activeWorkspaceStatus: WorldWorkspace['status'];
-    entryTypeCount: number;
-    customEntryTypeCount: number;
-    activeWorkspaceEntryCount: number;
-    totalEntryCount: number;
-    relationshipCount: number;
-    inFictionWorldCount: number;
-    archivedWorkspaceCount: number;
-    archivedEntryCount: number;
-    archivedInFictionWorldCount: number;
-  };
+  document: WorldDocumentDiagnostics;
   recentMessages: readonly LocalDiagnosticMessage[];
   contentPolicy: {
     includesWorldContent: false;
@@ -70,23 +62,23 @@ export type LocalDiagnosticsReport = {
   };
 };
 
-const contentFieldOmissions = [
-  'workspace names',
-  'entry names',
-  'summaries',
-  'notes',
-  'tags',
-  'relationship notes',
-  'entry ids',
-  'relationship ids',
-] as const;
+export function sanitizeDiagnosticsRoute(route: string): string {
+  const [path, search = ''] = route.split('?');
+  if (!search) {
+    return path;
+  }
+  const keys = new URLSearchParams(search);
+  const sanitizedSearch = Array.from(keys.keys())
+    .map((key) => `${encodeURIComponent(key)}=redacted`)
+    .join('&');
+  return sanitizedSearch ? `${path}?${sanitizedSearch}` : path;
+}
 
-/** Build a local-only diagnostics report that excludes user-authored content. */
+/** Build a local-only diagnostics report that excludes world content. */
 export function createLocalDiagnosticsReport(
   input: LocalDiagnosticsInput
 ): LocalDiagnosticsReport {
   const activeWorld = input.activeWorld ?? getActiveWorld(input.document);
-  const activeWorkspaceEntryCount = countWorkspaceEntries(activeWorld);
   return {
     app: {
       name: APP_NAME,
@@ -94,7 +86,7 @@ export function createLocalDiagnosticsReport(
       schemaVersion: CURRENT_WORLD_SCHEMA_VERSION,
     },
     runtime: {
-      route: input.route,
+      route: sanitizeDiagnosticsRoute(input.route),
       userAgent: input.userAgent,
       generatedAt: new Date().toISOString(),
     },
@@ -110,46 +102,11 @@ export function createLocalDiagnosticsReport(
       recoverySnapshotMessage: input.recoverySnapshotStatus.message,
       recoverySnapshotCount: input.recoverySnapshotCount,
     },
-    document: {
-      workspaceCount: input.document.worlds.length,
-      activeWorkspaceStatus: activeWorld.status,
-      entryTypeCount: activeWorld.entryTypes.length,
-      customEntryTypeCount: activeWorld.entryTypes.filter(
-        (entryType) => entryType.custom
-      ).length,
-      activeWorkspaceEntryCount,
-      totalEntryCount: input.document.worlds.reduce(
-        (total, world) => total + countWorkspaceEntries(world),
-        0
-      ),
-      relationshipCount: input.document.worlds.reduce(
-        (total, world) => total + world.relationships.length,
-        0
-      ),
-      inFictionWorldCount: input.document.worlds.reduce(
-        (total, world) => total + world.planetaryWorlds.length,
-        0
-      ),
-      archivedWorkspaceCount: input.document.worlds.filter(
-        (world) => world.status === 'archived'
-      ).length,
-      archivedEntryCount: input.document.worlds.reduce(
-        (total, world) => total + countArchivedEntries(world),
-        0
-      ),
-      archivedInFictionWorldCount: input.document.worlds.reduce(
-        (total, world) =>
-          total +
-          world.planetaryWorlds.filter(
-            (planetaryWorld) => planetaryWorld.status === 'archived'
-          ).length,
-        0
-      ),
-    },
+    document: getWorldDocumentDiagnostics(input.document, activeWorld),
     recentMessages: input.recentMessages ?? [],
     contentPolicy: {
       includesWorldContent: false,
-      omittedFields: contentFieldOmissions,
+      omittedFields: contentSafeDiagnosticOmittedFields,
     },
   };
 }
@@ -159,22 +116,4 @@ export function serializeLocalDiagnosticsReport(
   report: LocalDiagnosticsReport
 ): string {
   return `${JSON.stringify(report, null, 2)}\n`;
-}
-
-function countWorkspaceEntries(world: WorldWorkspace): number {
-  return world.entryTypes.reduce(
-    (total, section) => total + getEntries(world.codex, section.id).length,
-    0
-  );
-}
-
-function countArchivedEntries(world: WorldWorkspace): number {
-  return world.entryTypes.reduce(
-    (total, section) =>
-      total +
-      getEntries(world.codex, section.id).filter(
-        (entry) => entry.status === 'archived'
-      ).length,
-    0
-  );
 }

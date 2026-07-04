@@ -1,0 +1,18 @@
+{
+  "expo": {
+    "name": "Valgaron",
+    "slug": "valgaron-mobile",
+    "scheme": "valgaron",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "platforms": ["android", "ios", "web"],
+    "android": {
+      "package": "com.valgaron.mobile"
+    },
+    "extra": {
+      "localOnly": true,
+      "storageModel": "device-local"
+    }
+  }
+}

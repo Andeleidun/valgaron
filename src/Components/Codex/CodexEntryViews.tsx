@@ -2,42 +2,42 @@ import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { NavLink } from 'react-router-dom';
 import {
   createEmptyDraft,
+  createTemplateDraft,
   draftFromEntry,
   entryFromDraft,
   formatUpdatedAt,
+  formatDestructiveActionTitle,
+  formatDraftValidationErrors,
   getDetailValue,
+  getCodexEntriesRoute,
+  getCodexRelationshipsRoute,
+  getDestructiveActionCopy,
   getEntries,
-  getEntryStatusLabel,
-  type EntryDraft,
-  worldEntryStatusOptions,
-} from '../../Utlilities/codexEntries';
-import { createTemplateDraft } from '../../Utlilities/codexTemplates';
-import {
   getEntryRelationships,
+  getEntryStatusLabel,
   getRelationshipEntries,
-  type RelationshipWithEntries,
-} from '../../Utlilities/codexRelationships';
-import {
   getTimelineDiagnostics,
   getTimelineHighlights,
   getTimelineInvolvedEntryIdsByEvent,
   getTimelineOrderUpdates,
   groupTimelineEventsByEra,
   sortTimelineEvents,
-} from '../../Utlilities/codexTimeline';
+  validateEntryDraft,
+  type EntryDraft,
+  worldEntryStatusOptions,
+  type RelationshipWithEntries,
+  type WorldCodex,
+  type WorldDetailFieldKey,
+  type WorldEntry,
+  type WorldRelationship,
+  type WorldSectionConfig,
+} from '@valgaron/core';
 import {
   confirmDiscardUnsavedChanges,
   hasUnsavedChanges,
   useUnsavedChangesWarning,
 } from '../../Utlilities/unsavedChanges';
 import { useDialogFocus } from '../../Utlilities/dialogFocus';
-import type {
-  WorldCodex,
-  WorldDetailFieldKey,
-  WorldEntry,
-  WorldRelationship,
-  WorldSectionConfig,
-} from '../../types';
 
 export function EntryCard({
   entry,
@@ -172,7 +172,13 @@ function getRelationshipEntryPath(
   const section = sections.find((item) =>
     getEntries(codex, item.id).some((entry) => entry.id === entryId)
   );
-  return section ? `/${section.id}` : '/relationships';
+  return section
+    ? getCodexEntriesRoute({
+        sectionId: section.id,
+        entryId,
+        intent: 'edit',
+      })
+    : '/relationships';
 }
 
 function formatRelationshipDirection(
@@ -219,7 +225,14 @@ function EntryRelationships({
           <p className="vwb-kicker">Relationships</p>
           <h3 id="entry-links">Linked records</h3>
         </div>
-        <NavLink className="vwb-secondary-button" to="/relationships">
+        <NavLink
+          className="vwb-secondary-button"
+          to={getCodexRelationshipsRoute({
+            entryId: entry.id,
+            entryQuery: entry.name,
+            relationshipQuery: entry.name,
+          })}
+        >
           Manage Links
         </NavLink>
       </div>
@@ -461,6 +474,7 @@ export function ConfirmationDialog({
   onConfirm: () => void;
 }) {
   const dialogRef = useDialogFocus<HTMLElement>(true, onCancel);
+  const copy = getDestructiveActionCopy('delete-entry');
 
   return (
     <div className="vwb-dialog-backdrop" role="presentation">
@@ -474,11 +488,10 @@ export function ConfirmationDialog({
         tabIndex={-1}
       >
         <p className="vwb-kicker">Permanent delete</p>
-        <h2 id="delete-dialog-title">Delete {entry.name}?</h2>
-        <p id="delete-dialog-description">
-          This removes the entry from this local world. Archive is safer when
-          you may need the record later.
-        </p>
+        <h2 id="delete-dialog-title">
+          {formatDestructiveActionTitle('delete-entry', entry.name)}
+        </h2>
+        <p id="delete-dialog-description">{copy.message}</p>
         <div className="vwb-form-actions">
           <button
             className="vwb-secondary-button"
@@ -492,7 +505,7 @@ export function ConfirmationDialog({
             type="button"
             onClick={onConfirm}
           >
-            Delete Permanently
+            {copy.confirmLabel}
           </button>
         </div>
       </section>
@@ -508,6 +521,7 @@ export function ResetConfirmationDialog({
   onConfirm: () => void;
 }) {
   const dialogRef = useDialogFocus<HTMLElement>(true, onCancel);
+  const copy = getDestructiveActionCopy('reset-document');
 
   return (
     <div className="vwb-dialog-backdrop" role="presentation">
@@ -521,12 +535,10 @@ export function ResetConfirmationDialog({
         tabIndex={-1}
       >
         <p className="vwb-kicker">Reset starter data</p>
-        <h2 id="reset-dialog-title">Reset this local workspace?</h2>
-        <p id="reset-dialog-description">
-          This replaces the current local world document with the starter sample
-          data. Export a JSON backup first if you may need the current data
-          later.
-        </p>
+        <h2 id="reset-dialog-title">
+          {formatDestructiveActionTitle('reset-document', 'workspace')}
+        </h2>
+        <p id="reset-dialog-description">{copy.message}</p>
         <div className="vwb-form-actions">
           <button
             className="vwb-secondary-button"
@@ -540,7 +552,7 @@ export function ResetConfirmationDialog({
             type="button"
             onClick={onConfirm}
           >
-            Reset Starter Data
+            {copy.confirmLabel}
           </button>
         </div>
       </section>
@@ -639,8 +651,9 @@ export function EntryForm({
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!draft.name.trim()) {
-      setError(`${section.singularTitle} name is required.`);
+    const validation = validateEntryDraft(section, draft);
+    if (!validation.ok) {
+      setError(formatDraftValidationErrors(validation));
       return;
     }
     onSave(entryFromDraft(section, draft, selectedEntry));

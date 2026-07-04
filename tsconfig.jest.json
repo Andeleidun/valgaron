@@ -4,5 +4,6 @@
     "module": "CommonJS",
     "types": ["jest", "node"],
     "verbatimModuleSyntax": false
-  }
+  },
+  "include": ["src", "packages", "mobile/src"]
 }

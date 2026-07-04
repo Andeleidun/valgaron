@@ -6,16 +6,25 @@ import {
   NavLink,
   Route,
   Routes,
+  useLocation,
 } from 'react-router-dom';
 import './App.css';
 import { ResetConfirmationDialog } from './Components/Codex/CodexEntryViews';
 import { ErrorBoundary } from './Components/Common/ErrorBoundary/ErrorBoundary';
 import { RuntimeErrorFallback } from './Components/Common/RuntimeErrorFallback';
 import {
+  codexShellRoutes,
   exportWorldToMarkdown,
+  getCodexExportFilename,
+  getCodexExportOption,
+  getCodexShellRoutes,
+  localPersistenceCopy,
   serializeActiveWorldBackup,
   serializeWorldDocumentBackup,
-} from './Utlilities/codexDataPortability';
+  valgaronProduct,
+  webPrimaryRouteOrder,
+  type WorldSectionConfig,
+} from '@valgaron/core';
 import { downloadTextFile, slugFilename } from './Utlilities/fileDownloads';
 import { useBeforeUnloadWarning } from './Utlilities/unsavedChanges';
 import { useWorldDocumentState } from './Utlilities/useWorldDocumentState';
@@ -30,6 +39,12 @@ const routerBaseName =
   import.meta.env.BASE_URL === '/' ? undefined : import.meta.env.BASE_URL;
 const appBasePath = import.meta.env.BASE_URL;
 const headerDataMenuId = 'vwb-header-data-menu';
+const webPrimaryRoutes = getCodexShellRoutes(webPrimaryRouteOrder);
+const webOverviewRoute = codexShellRoutes.overview;
+const webSecondaryRoutes = webPrimaryRoutes.filter(
+  (route) => route.id !== 'overview'
+);
+const headerExportModes = ['active-json', 'full-json', 'markdown'] as const;
 
 function saveButtonText(
   state: 'saved' | 'unsaved' | 'dirty' | 'failed' | 'paused'
@@ -48,8 +63,36 @@ function saveButtonText(
   }
 }
 
+function EntriesRouteRedirect({
+  sections,
+}: {
+  sections: readonly WorldSectionConfig[];
+}) {
+  const location = useLocation();
+  const searchParams = new URLSearchParams(location.search);
+  const requestedSectionId = searchParams.get('sectionId');
+  const section =
+    sections.find((item) => item.id === requestedSectionId) ?? sections[0];
+
+  if (!section) {
+    return <Navigate to="/" replace />;
+  }
+
+  searchParams.delete('sectionId');
+  const search = searchParams.toString();
+  return (
+    <Navigate
+      to={`/${section.id}${search ? `?${search}` : ''}${location.hash}`}
+      replace
+    />
+  );
+}
+
 function AppShell() {
   const [isResetPending, setIsResetPending] = useState(false);
+  const [afterResetConfirm, setAfterResetConfirm] = useState<
+    (() => void) | null
+  >(null);
   const [isDataMenuOpen, setIsDataMenuOpen] = useState(false);
   const [dataMenuMessage, setDataMenuMessage] = useState('');
   const {
@@ -88,6 +131,12 @@ function AppShell() {
 
   const confirmResetToSeed = () => {
     resetToSeed();
+    afterResetConfirm?.();
+    setAfterResetConfirm(null);
+    setIsResetPending(false);
+  };
+  const cancelResetToSeed = () => {
+    setAfterResetConfirm(null);
     setIsResetPending(false);
   };
   const downloadHeaderExport = (
@@ -107,6 +156,17 @@ function AppShell() {
   const isSaveButtonDisabled = saveStatus.state === 'saved';
   useBeforeUnloadWarning(hasUnsavedDocumentChanges);
 
+  const getHeaderExportText = (mode: (typeof headerExportModes)[number]) => {
+    switch (mode) {
+      case 'active-json':
+        return serializeActiveWorldBackup(document);
+      case 'full-json':
+        return serializeWorldDocumentBackup(document);
+      case 'markdown':
+        return exportWorldToMarkdown(activeWorld);
+    }
+  };
+
   return (
     <BrowserRouter basename={routerBaseName}>
       <div className="vwb-app-shell">
@@ -116,21 +176,23 @@ function AppShell() {
         <header className="vwb-app-header">
           <NavLink
             className="vwb-brand"
-            to="/"
-            aria-label="Valgaron World Codex overview"
+            to={webOverviewRoute.path}
+            aria-label={`${
+              valgaronProduct.fullTitle
+            } ${webOverviewRoute.title.toLowerCase()}`}
           >
-            <span>Valgaron</span>
-            <strong>World Codex</strong>
+            <span>{valgaronProduct.name}</span>
+            <strong>{valgaronProduct.codexTitle}</strong>
           </NavLink>
           <nav className="vwb-top-nav" aria-label="Codex sections">
             <NavLink
               className={({ isActive }) =>
                 `vwb-nav-link ${isActive ? 'is-active' : ''}`
               }
-              to="/"
+              to={webOverviewRoute.path}
               end
             >
-              Overview
+              {webOverviewRoute.title}
             </NavLink>
             {sections.map((section) => (
               <NavLink
@@ -143,38 +205,17 @@ function AppShell() {
                 {section.title}
               </NavLink>
             ))}
-            <NavLink
-              className={({ isActive }) =>
-                `vwb-nav-link ${isActive ? 'is-active' : ''}`
-              }
-              to="/relationships"
-            >
-              Relationships
-            </NavLink>
-            <NavLink
-              className={({ isActive }) =>
-                `vwb-nav-link ${isActive ? 'is-active' : ''}`
-              }
-              to="/data"
-            >
-              Data
-            </NavLink>
-            <NavLink
-              className={({ isActive }) =>
-                `vwb-nav-link ${isActive ? 'is-active' : ''}`
-              }
-              to="/workspaces"
-            >
-              Workspaces
-            </NavLink>
-            <NavLink
-              className={({ isActive }) =>
-                `vwb-nav-link ${isActive ? 'is-active' : ''}`
-              }
-              to="/help"
-            >
-              Help
-            </NavLink>
+            {webSecondaryRoutes.map((route) => (
+              <NavLink
+                className={({ isActive }) =>
+                  `vwb-nav-link ${isActive ? 'is-active' : ''}`
+                }
+                key={route.id}
+                to={route.path}
+              >
+                {route.title}
+              </NavLink>
+            ))}
           </nav>
           <button
             className={`vwb-save-status ${
@@ -189,8 +230,8 @@ function AppShell() {
             disabled={isSaveButtonDisabled}
             aria-label={
               isSaveButtonDisabled
-                ? 'Current progress is saved to localStorage'
-                : 'Save current progress to localStorage'
+                ? `Current progress is saved to ${localPersistenceCopy.browserSaveTarget}`
+                : `Save current progress to ${localPersistenceCopy.browserSaveTarget}`
             }
             aria-live="polite"
           >
@@ -221,42 +262,24 @@ function AppShell() {
                 id={headerDataMenuId}
                 aria-label="Data actions"
               >
-                <button
-                  type="button"
-                  onClick={() =>
-                    downloadHeaderExport(
-                      `${filenameBase}.json`,
-                      serializeActiveWorldBackup(document),
-                      'Active workspace JSON'
-                    )
-                  }
-                >
-                  Download Active JSON
-                </button>
-                <button
-                  type="button"
-                  onClick={() =>
-                    downloadHeaderExport(
-                      'valgaron-all-workspaces.json',
-                      serializeWorldDocumentBackup(document),
-                      'All workspaces JSON'
-                    )
-                  }
-                >
-                  Download All JSON
-                </button>
-                <button
-                  type="button"
-                  onClick={() =>
-                    downloadHeaderExport(
-                      `${filenameBase}.md`,
-                      exportWorldToMarkdown(activeWorld),
-                      'Markdown export'
-                    )
-                  }
-                >
-                  Download Markdown
-                </button>
+                {headerExportModes.map((mode) => {
+                  const option = getCodexExportOption(mode);
+                  return (
+                    <button
+                      key={mode}
+                      type="button"
+                      onClick={() =>
+                        downloadHeaderExport(
+                          getCodexExportFilename(mode, filenameBase),
+                          getHeaderExportText(mode),
+                          option.heading
+                        )
+                      }
+                    >
+                      {option.downloadLabel}
+                    </button>
+                  );
+                })}
                 <Link
                   to="/data#import-json-backup"
                   onClick={() => setIsDataMenuOpen(false)}
@@ -294,16 +317,7 @@ function AppShell() {
           )}
         >
           <Routes>
-            <Route
-              path="/"
-              element={
-                <Overview
-                  codex={codex}
-                  sections={sections}
-                  worldName={activeWorld.name}
-                />
-              }
-            />
+            <Route path="/" element={<Overview document={document} />} />
             <Route
               path="/relationships"
               element={
@@ -325,7 +339,10 @@ function AppShell() {
                   loadStatus={loadStatus}
                   onDeleteSnapshot={deleteSnapshot}
                   onImportDocument={importDocument}
-                  onRequestReset={() => setIsResetPending(true)}
+                  onRequestReset={(afterReset) => {
+                    setAfterResetConfirm(afterReset ? () => afterReset : null);
+                    setIsResetPending(true);
+                  }}
                   onRestoreSnapshot={restoreSnapshot}
                   recoverySnapshots={recoverySnapshots}
                   recoverySnapshotStatus={recoverySnapshotStatus}
@@ -355,6 +372,10 @@ function AppShell() {
             />
             <Route path="/help" element={<HelpPage />} />
             <Route
+              path="/entries"
+              element={<EntriesRouteRedirect sections={sections} />}
+            />
+            <Route
               path="/:sectionId"
               element={
                 <SectionPage
@@ -372,7 +393,7 @@ function AppShell() {
         </ErrorBoundary>
         {isResetPending ? (
           <ResetConfirmationDialog
-            onCancel={() => setIsResetPending(false)}
+            onCancel={cancelResetToSeed}
             onConfirm={confirmResetToSeed}
           />
         ) : null}

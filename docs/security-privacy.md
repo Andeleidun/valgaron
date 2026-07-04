@@ -6,10 +6,12 @@ no maintainer access to user data.
 
 ## Local Data
 
-World documents and recovery snapshots are saved in browser `localStorage`.
-They are readable by JavaScript running on the same origin and removable by
-browser data cleanup. This is acceptable for the first local-only release only
-because users are told to keep downloaded JSON backups.
+World documents and recovery snapshots are saved in browser `localStorage` on
+web and device storage in the mobile companion. Browser data is readable by
+JavaScript running on the same origin and removable by browser data cleanup.
+Mobile data is local to the installed app storage area. This is acceptable for
+the first local-only release only because users are told to keep downloaded JSON
+backups.
 
 ## Import Safety
 
@@ -31,8 +33,10 @@ and tests for script, event-handler, URL, and embedded HTML payloads.
 ## Diagnostics
 
 Diagnostics are local-only and intentionally exclude world content by default.
-They should remain count/status focused unless a user explicitly chooses to
-share a JSON backup or Markdown export.
+They may include app version, schema version, storage target, route or device
+save state, recovery snapshot state, and document counts. They should remain
+count/status focused unless a user explicitly chooses to share a JSON backup or
+Markdown export.
 
 ## Static Hosting Headers
 
@@ -59,10 +63,17 @@ change.
 Run dependency checks before release and after dependency updates:
 
 ```bash
-npm audit --omit=dev
+npm run check:audit
 npm run check:release
 ```
 
-Treat runtime dependency findings as release blockers until reviewed. Dev-only
-findings should still be triaged, but they are not automatically user-facing in
-the static published artifact.
+Treat new runtime dependency findings as release blockers until reviewed.
+Dev-only findings should still be triaged, but they are not automatically
+user-facing in the static published artifact.
+
+When `npm audit --omit=dev` reports Expo CLI/config tooling findings, review
+the dependency path before applying fixes. Do not use `npm audit fix --force`
+when it would downgrade Expo or replace the SDK line used by the mobile app.
+Track those findings as known release risks unless an Expo-compatible upgrade is
+available or the vulnerable package is reachable from published web runtime
+code.

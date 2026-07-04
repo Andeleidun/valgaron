@@ -9,15 +9,17 @@ chooses to share files or text.
 1. Export a full-document JSON backup from Data if the app still opens.
 2. Download Diagnostics from Data if the issue involves storage, import/export,
    routing, or rendering.
-3. Record the browser name and version.
-4. Record whether the app was installed as a PWA or opened in a browser tab.
-5. Record the route where the issue happened.
+3. For web issues, record the browser name and version.
+4. For web issues, record whether the app was installed as a PWA or opened in a
+   browser tab.
+5. Record the route or mobile tab where the issue happened.
 
 ## What To Share By Default
 
 Share diagnostics first. Diagnostics are designed to avoid world content by
-default. They include app version, schema version, route, browser, storage
-status, recovery status, and document counts.
+default. They include app version, schema version, storage target, recovery
+status, document counts, and web route/browser or mobile device-save state
+where available.
 
 It is usually helpful to include:
 
@@ -25,7 +27,7 @@ It is usually helpful to include:
 - the exact action that failed;
 - the expected result;
 - the actual result;
-- whether refreshing changed the behavior;
+- whether refreshing or retrying the view changed the behavior;
 - whether Data > Full document JSON export still works.
 
 ## What Not To Share By Default

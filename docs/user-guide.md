@@ -1,7 +1,8 @@
 # Valgaron World Codex User Guide
 
-Valgaron World Codex is a local-only browser tool for drafting and organizing
-fiction or tabletop worldbuilding records.
+Valgaron World Codex is a local-only tool for drafting and organizing fiction
+or tabletop worldbuilding records across the browser prototype and native mobile
+companion.
 
 ## Core Concepts
 
@@ -28,12 +29,13 @@ fiction or tabletop worldbuilding records.
 
 ## Local Data And Backups
 
-The app saves in the current browser profile with `localStorage`. There is no
-account, hosted database, telemetry, cloud sync, collaboration, or remote backup.
+The browser app saves in the current browser profile with `localStorage`. The
+mobile companion saves on the current device. There is no account, hosted
+database, telemetry, cloud sync, collaboration, or remote backup.
 
 Downloaded JSON is the portable backup. Active-workspace JSON backs up the
 current project/universe workspace. Full-document JSON backs up every workspace
-stored in this browser profile. Export JSON before:
+stored in the local document. Export JSON before:
 
 - clearing browser data;
 - switching browsers;
@@ -59,7 +61,8 @@ current local document matters.
 
 Recovery snapshots are local restore points created before destructive actions
 when possible. They are useful for undoing local mistakes in the same browser
-profile, but they are not portable and can be lost with browser data.
+profile or device storage area, but they are not portable and can be lost with
+local storage data.
 
 Keep downloaded JSON backups for work that cannot be lost.
 
@@ -73,14 +76,15 @@ failure.
 
 ## Diagnostics
 
-The Data route can export local diagnostics for debugging storage or rendering
-problems. Diagnostics include app version, schema version, route, browser,
-storage status, recovery status, and counts. They omit world names, entry names,
-notes, summaries, tags, relationship notes, and ids by default.
+The web Data route and mobile Data tab can export local diagnostics for
+debugging storage or rendering problems. Diagnostics include app version, schema
+version, route or storage status where available, recovery status, and counts.
+They omit world names, entry names, notes, summaries, tags, relationship notes,
+and ids by default.
 
 Do not share JSON backups unless you intentionally want to share world content.
 
 ## Release Limits
 
 This release does not include accounts, cloud sync, collaboration, sharing,
-publishing, AI generation, payments, native mobile apps, or localization.
+publishing, AI generation, payments, or localization.

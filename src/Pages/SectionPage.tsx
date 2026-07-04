@@ -1,26 +1,26 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Navigate, useParams } from 'react-router-dom';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Navigate, useParams, useSearchParams } from 'react-router-dom';
 import {
   draftFromEntry,
   duplicateEntry,
+  filterSectionEntries,
+  filterTimelineEvents,
   getEntries,
+  getRelationshipEntries,
   getSectionById,
   getSectionTags,
-  type EntryDraft,
-  worldEntryStatusOptions,
-} from '../Utlilities/codexEntries';
-import {
-  filterSectionEntries,
-  sortEntries,
-  type EntrySortKey,
-} from '../Utlilities/codexSearch';
-import { getRelationshipEntries } from '../Utlilities/codexRelationships';
-import {
-  filterTimelineEvents,
   getTimelineEras,
   getTimelineInvolvedEntryIds,
+  sortEntries,
   sortTimelineEvents,
-} from '../Utlilities/codexTimeline';
+  type EntryDraft,
+  type EntrySortKey,
+  type WorldCodex,
+  type WorldEntry,
+  type WorldRelationship,
+  type WorldSectionConfig,
+  worldEntryStatusOptions,
+} from '@valgaron/core';
 import { confirmDiscardUnsavedChanges } from '../Utlilities/unsavedChanges';
 import {
   ConfirmationDialog,
@@ -29,12 +29,6 @@ import {
   EntryForm,
   TimelineOverview,
 } from '../Components/Codex/CodexEntryViews';
-import type {
-  WorldCodex,
-  WorldEntry,
-  WorldRelationship,
-  WorldSectionConfig,
-} from '../types';
 
 type SectionSortKey = EntrySortKey | 'timeline-order';
 
@@ -54,7 +48,15 @@ export function SectionPage({
   onSaveEntry: (entry: WorldEntry) => void;
 }) {
   const { sectionId } = useParams();
+  const [searchParams] = useSearchParams();
   const section = getSectionById(sectionId, sections);
+  const requestedEntryId = searchParams.get('entryId');
+  const requestedIntent = searchParams.get('intent');
+  const requestedQuery = searchParams.get('query');
+  const routeSelectionKey = `${sectionId ?? ''}|${requestedEntryId ?? ''}|${
+    requestedIntent ?? ''
+  }|${requestedQuery ?? ''}`;
+  const appliedRouteSelectionKeyRef = useRef('');
   const [selectedEntryId, setSelectedEntryId] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   const [activeTag, setActiveTag] = useState('');
@@ -86,6 +88,71 @@ export function SectionPage({
     setIsEntryFormDirty(false);
     setTemplateDraft(null);
   }, [sectionId]);
+
+  useEffect(() => {
+    if (!section) {
+      return;
+    }
+    if (appliedRouteSelectionKeyRef.current === routeSelectionKey) {
+      return;
+    }
+    const applyRouteQuery = () => {
+      if (requestedQuery !== null) {
+        setQuery(requestedQuery);
+      }
+    };
+    const cancelRouteSelection = () => {
+      appliedRouteSelectionKeyRef.current = routeSelectionKey;
+    };
+    if (requestedIntent === 'new') {
+      if (confirmDiscardUnsavedChanges(isEntryFormDirty)) {
+        applyRouteQuery();
+        setSelectedEntryId(null);
+        setTemplateDraft(null);
+        appliedRouteSelectionKeyRef.current = routeSelectionKey;
+      } else {
+        cancelRouteSelection();
+      }
+      return;
+    }
+    if (!requestedEntryId) {
+      applyRouteQuery();
+      appliedRouteSelectionKeyRef.current = routeSelectionKey;
+      return;
+    }
+    const nextEntry = getEntries(codex, section.id).find(
+      (entry) => entry.id === requestedEntryId
+    );
+    if (!nextEntry) {
+      applyRouteQuery();
+      if (!isEntryFormDirty) {
+        setSelectedEntryId(null);
+        setTemplateDraft(null);
+      }
+      appliedRouteSelectionKeyRef.current = routeSelectionKey;
+      return;
+    }
+    if (
+      nextEntry.id === selectedEntryId ||
+      confirmDiscardUnsavedChanges(isEntryFormDirty)
+    ) {
+      applyRouteQuery();
+      setSelectedEntryId(nextEntry.id);
+      setTemplateDraft(null);
+      appliedRouteSelectionKeyRef.current = routeSelectionKey;
+    } else {
+      cancelRouteSelection();
+    }
+  }, [
+    codex,
+    isEntryFormDirty,
+    requestedEntryId,
+    requestedIntent,
+    requestedQuery,
+    routeSelectionKey,
+    section,
+    selectedEntryId,
+  ]);
 
   const entries = useMemo(
     () => (section ? getEntries(codex, section.id) : []),
@@ -150,12 +217,16 @@ export function SectionPage({
     updatedWithinDays,
   ]);
   const selectedEntry = entries.find((entry) => entry.id === selectedEntryId);
+  const archivedEntryCount = entries.filter(
+    (entry) => entry.status === 'archived'
+  ).length;
   const hasActiveFilters =
     query.trim().length > 0 ||
     activeTag.length > 0 ||
     statusFilter.length > 0 ||
     eraFilter.length > 0 ||
     involvedEntryFilter.length > 0 ||
+    showArchived ||
     updatedWithinDays !== null;
 
   useEffect(() => {
@@ -178,8 +249,11 @@ export function SectionPage({
     setStatusFilter('');
     setEraFilter('');
     setInvolvedEntryFilter('');
+    setShowArchived(false);
     setUpdatedWithinDays(null);
   };
+  const hasOnlyArchivedEntries =
+    entries.length > 0 && archivedEntryCount === entries.length;
 
   const selectEntry = (entryId: string) => {
     if (
@@ -380,8 +454,29 @@ export function SectionPage({
             ))
           ) : (
             <div className="vwb-empty-results" role="status">
-              <strong>No entries found.</strong>
-              <p>Try a different search term or clear the active filters.</p>
+              <strong>
+                {entries.length === 0
+                  ? `No ${section.title.toLowerCase()} saved yet.`
+                  : hasOnlyArchivedEntries && !showArchived
+                  ? 'Only archived entries are in this section.'
+                  : 'No entries found.'}
+              </strong>
+              <p>
+                {entries.length === 0
+                  ? `Create a ${section.singularTitle.toLowerCase()} when you are ready to draft this part of the world.`
+                  : hasOnlyArchivedEntries && !showArchived
+                  ? 'Show archived entries to review or restore them.'
+                  : 'Try a different search term or clear the active filters.'}
+              </p>
+              {hasOnlyArchivedEntries && !showArchived ? (
+                <button
+                  className="vwb-secondary-button"
+                  type="button"
+                  onClick={() => setShowArchived(true)}
+                >
+                  Show Archived
+                </button>
+              ) : null}
               {hasActiveFilters ? (
                 <button
                   className="vwb-secondary-button"

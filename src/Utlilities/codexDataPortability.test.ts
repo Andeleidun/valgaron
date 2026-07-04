@@ -173,9 +173,22 @@ describe('codexDataPortability', () => {
     expect(markdown).toContain('## Characters');
     expect(markdown).toContain('### Mira Rowan');
     expect(markdown).toContain('## Relationships');
-    expect(markdown).toContain(
-      'character-mira-rowan member of faction-cartographers-guild'
-    );
+    expect(markdown).toContain('Mira Rowan member of The Cartographers Guild');
+  });
+
+  it('falls back to relationship endpoint ids in Markdown when records are missing', () => {
+    const world = getActiveWorld(createSeedWorldDocument());
+    const markdown = exportWorldToMarkdown({
+      ...world,
+      relationships: [
+        {
+          ...world.relationships[0],
+          targetEntryId: 'missing-faction',
+        },
+      ],
+    });
+
+    expect(markdown).toContain('Mira Rowan member of missing-faction');
   });
 
   it('keeps Markdown export content as literal text', () => {

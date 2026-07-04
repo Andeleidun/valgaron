@@ -1,47 +1,50 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
+import {
+  type EntryTypeDraft,
+  formatDraftValidationErrors,
+  formatDestructiveActionTitle,
+  formatUpdatedAt,
+  getCodexScreenIntro,
+  getDestructiveActionCopy,
+  getEntries,
+  getWorkspaceActionState,
+  lastActiveWorkspaceArchiveMessage,
+  type PlanetaryWorldDraft,
+  planetaryWorldDraftFrom,
+  validateEntryTypeDraft,
+  validatePlanetaryWorldDraft,
+  validateWorkspaceDraft,
+  type WorkspaceDraft,
+} from '@valgaron/core';
 import type {
   InFictionWorld,
   WorldDocument,
   WorldSectionConfig,
   WorldWorkspace,
 } from '../types';
-import { formatUpdatedAt, getEntries } from '../Utlilities/codexEntries';
 import {
   confirmDiscardUnsavedChanges,
   hasUnsavedChanges,
   useUnsavedChangesWarning,
 } from '../Utlilities/unsavedChanges';
 import { useDialogFocus } from '../Utlilities/dialogFocus';
-import type {
-  EntryTypeDraft,
-  PlanetaryWorldDraft,
-  WorkspaceDraft,
-} from '../Utlilities/workspaceManagement';
 
 type PendingDelete =
   | { type: 'workspace'; id: string; name: string }
   | { type: 'planetary-world'; id: string; name: string }
   | { type: 'entry-type'; id: string; name: string };
 
+const pendingDeleteActionIdByType = {
+  workspace: 'delete-workspace',
+  'planetary-world': 'delete-planetary-world',
+  'entry-type': 'delete-entry-type',
+} as const satisfies Record<PendingDelete['type'], string>;
+
 function workspaceDraftFrom(workspace?: WorldWorkspace): WorkspaceDraft {
   return {
     name: workspace?.name ?? '',
     summary: workspace?.summary ?? '',
     defaultEra: workspace?.defaultEra ?? '',
-  };
-}
-
-function planetaryWorldDraftFrom(
-  planetaryWorld?: InFictionWorld
-): PlanetaryWorldDraft {
-  return {
-    name: planetaryWorld?.name ?? '',
-    summary: planetaryWorld?.summary ?? '',
-    classification: planetaryWorld?.classification ?? '',
-    climate: planetaryWorld?.climate ?? '',
-    dominantTerrain: planetaryWorld?.dominantTerrain ?? '',
-    notes: planetaryWorld?.notes ?? '',
-    tags: planetaryWorld?.tags.join(', ') ?? '',
   };
 }
 
@@ -71,12 +74,8 @@ function ConfirmDeleteDialog({
   onConfirm: () => void;
 }) {
   const dialogRef = useDialogFocus<HTMLElement>(true, onCancel);
-  const description =
-    pendingDelete.type === 'workspace'
-      ? 'This permanently removes the project/universe workspace and all records inside it.'
-      : pendingDelete.type === 'planetary-world'
-      ? 'This permanently removes the in-fiction world or planet record from this workspace.'
-      : 'This permanently removes the custom entry type and all entries in that type.';
+  const actionId = pendingDeleteActionIdByType[pendingDelete.type];
+  const copy = getDestructiveActionCopy(actionId);
 
   return (
     <div className="vwb-dialog-backdrop" role="presentation">
@@ -90,10 +89,10 @@ function ConfirmDeleteDialog({
         tabIndex={-1}
       >
         <p className="vwb-kicker">Permanent delete</p>
-        <h2 id="workspace-delete-title">Delete {pendingDelete.name}?</h2>
-        <p id="workspace-delete-description">
-          {description} A recovery snapshot is saved first when possible.
-        </p>
+        <h2 id="workspace-delete-title">
+          {formatDestructiveActionTitle(actionId, pendingDelete.name)}
+        </h2>
+        <p id="workspace-delete-description">{copy.message}</p>
         <div className="vwb-form-actions">
           <button
             className="vwb-secondary-button"
@@ -107,7 +106,7 @@ function ConfirmDeleteDialog({
             type="button"
             onClick={onConfirm}
           >
-            Delete Permanently
+            {copy.confirmLabel}
           </button>
         </div>
       </section>
@@ -168,15 +167,30 @@ export function WorkspacesPage({
   const [pendingDelete, setPendingDelete] = useState<PendingDelete | null>(
     null
   );
+  const activeWorkspaceIdRef = useRef(activeWorld.id);
+  const intro = getCodexScreenIntro('workspaces');
 
   const selectedWorkspace = useMemo(
     () =>
       document.worlds.find((workspace) => workspace.id === selectedWorkspaceId),
     [document.worlds, selectedWorkspaceId]
   );
+  const activeWorkspaceCount = document.worlds.filter(
+    (workspace) => workspace.status !== 'archived'
+  ).length;
+  const selectedWorkspaceDraftKey = selectedWorkspace?.id ?? '';
+  const selectedWorkspaceActionState = selectedWorkspace
+    ? getWorkspaceActionState({
+        activeWorkspaceId: activeWorld.id,
+        activeWorkspaceCount,
+        workspace: selectedWorkspace,
+        workspaceCount: document.worlds.length,
+      })
+    : null;
   const selectedPlanetaryWorld = activeWorld.planetaryWorlds.find(
     (planetaryWorld) => planetaryWorld.id === selectedPlanetaryWorldId
   );
+  const selectedPlanetaryWorldDraftKey = selectedPlanetaryWorld?.id ?? '';
   const customEntryTypes = activeWorld.entryTypes.filter(
     (section) => section.custom
   );
@@ -205,6 +219,10 @@ export function WorkspacesPage({
   useUnsavedChangesWarning(hasDirtyDraft);
 
   useEffect(() => {
+    if (activeWorkspaceIdRef.current === activeWorld.id) {
+      return;
+    }
+    activeWorkspaceIdRef.current = activeWorld.id;
     setSelectedWorkspaceId(activeWorld.id);
     setWorkspaceDraft(workspaceDraftFrom(activeWorld));
   }, [activeWorld]);
@@ -212,17 +230,18 @@ export function WorkspacesPage({
   useEffect(() => {
     setWorkspaceDraft(workspaceDraftFrom(selectedWorkspace));
     setWorkspaceError('');
-  }, [selectedWorkspace]);
+  }, [selectedWorkspaceDraftKey]);
 
   useEffect(() => {
     setPlanetaryWorldDraft(planetaryWorldDraftFrom(selectedPlanetaryWorld));
     setPlanetaryWorldError('');
-  }, [selectedPlanetaryWorld]);
+  }, [selectedPlanetaryWorldDraftKey]);
 
   const submitWorkspace = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!workspaceDraft.name.trim()) {
-      setWorkspaceError('Workspace name is required.');
+    const validation = validateWorkspaceDraft(workspaceDraft);
+    if (!validation.ok) {
+      setWorkspaceError(formatDraftValidationErrors(validation));
       return;
     }
     if (selectedWorkspace) {
@@ -235,8 +254,9 @@ export function WorkspacesPage({
 
   const submitPlanetaryWorld = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!planetaryWorldDraft.name.trim()) {
-      setPlanetaryWorldError('In-fiction world or planet name is required.');
+    const validation = validatePlanetaryWorldDraft(planetaryWorldDraft);
+    if (!validation.ok) {
+      setPlanetaryWorldError(formatDraftValidationErrors(validation));
       return;
     }
     onSavePlanetaryWorld(planetaryWorldDraft, selectedPlanetaryWorld);
@@ -247,8 +267,9 @@ export function WorkspacesPage({
 
   const submitEntryType = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!entryTypeDraft.title.trim() || !entryTypeDraft.singularTitle.trim()) {
-      setEntryTypeError('Title and singular title are required.');
+    const validation = validateEntryTypeDraft(entryTypeDraft);
+    if (!validation.ok) {
+      setEntryTypeError(formatDraftValidationErrors(validation));
       return;
     }
     onCreateEntryType(entryTypeDraft);
@@ -289,13 +310,10 @@ export function WorkspacesPage({
     >
       <section className="vwb-hero" aria-labelledby="workspaces-title">
         <div>
-          <p className="vwb-kicker">Project and universe management</p>
-          <h1 id="workspaces-title">Workspaces</h1>
+          <p className="vwb-kicker">{intro.kicker}</p>
+          <h1 id="workspaces-title">{intro.title}</h1>
         </div>
-        <p>
-          Manage project/universe workspaces separately from the in-fiction
-          worlds and planets inside the active workspace.
-        </p>
+        <p>{intro.detail}</p>
       </section>
 
       <section className="vwb-panel" aria-labelledby="workspace-manager-title">
@@ -322,55 +340,64 @@ export function WorkspacesPage({
         </div>
         <div className="vwb-management-grid">
           <div className="vwb-entry-list">
-            {document.worlds.map((workspace) => (
-              <article
-                className={`vwb-entry-card ${
-                  workspace.id === activeWorld.id ? 'is-selected' : ''
-                }`}
-                key={workspace.id}
-              >
-                <div className="vwb-entry-card-header">
-                  <div>
-                    <p className="vwb-entry-kind">
-                      {workspace.status === 'archived'
-                        ? 'Archived workspace'
-                        : 'Project/universe workspace'}
-                    </p>
-                    <h3>{workspace.name}</h3>
+            {document.worlds.map((workspace) => {
+              const actionState = getWorkspaceActionState({
+                activeWorkspaceId: activeWorld.id,
+                activeWorkspaceCount,
+                workspace,
+                workspaceCount: document.worlds.length,
+              });
+              return (
+                <article
+                  className={`vwb-entry-card ${
+                    workspace.id === activeWorld.id ? 'is-selected' : ''
+                  }`}
+                  key={workspace.id}
+                >
+                  <div className="vwb-entry-card-header">
+                    <div>
+                      <p className="vwb-entry-kind">
+                        {workspace.status === 'archived'
+                          ? 'Archived workspace'
+                          : 'Project/universe workspace'}
+                      </p>
+                      <h3>{workspace.name}</h3>
+                    </div>
+                    {workspace.id === activeWorld.id ? (
+                      <span className="vwb-status-pill">Active</span>
+                    ) : null}
                   </div>
-                  {workspace.id === activeWorld.id ? (
-                    <span className="vwb-status-pill">Active</span>
-                  ) : null}
-                </div>
-                <p>{workspace.summary || 'No summary yet.'}</p>
-                <small>Updated {formatUpdatedAt(workspace.updatedAt)}</small>
-                <div className="vwb-form-actions">
-                  <button
-                    className="vwb-secondary-button"
-                    type="button"
-                    onClick={() =>
-                      discardIfAllowed(() =>
-                        setSelectedWorkspaceId(workspace.id)
-                      )
-                    }
-                  >
-                    Edit
-                  </button>
-                  {workspace.status !== 'archived' &&
-                  workspace.id !== activeWorld.id ? (
+                  <p>{workspace.summary || 'No summary yet.'}</p>
+                  <small>Updated {formatUpdatedAt(workspace.updatedAt)}</small>
+                  <div className="vwb-form-actions">
                     <button
-                      className="vwb-primary-button"
+                      className="vwb-secondary-button"
                       type="button"
                       onClick={() =>
-                        discardIfAllowed(() => onSwitchWorkspace(workspace.id))
+                        discardIfAllowed(() =>
+                          setSelectedWorkspaceId(workspace.id)
+                        )
                       }
                     >
-                      Switch
+                      Edit
                     </button>
-                  ) : null}
-                </div>
-              </article>
-            ))}
+                    {actionState.canSwitch ? (
+                      <button
+                        className="vwb-primary-button"
+                        type="button"
+                        onClick={() =>
+                          discardIfAllowed(() =>
+                            onSwitchWorkspace(workspace.id)
+                          )
+                        }
+                      >
+                        {actionState.switchLabel}
+                      </button>
+                    ) : null}
+                  </div>
+                </article>
+              );
+            })}
           </div>
           <form className="vwb-form" onSubmit={submitWorkspace}>
             <div className="vwb-section-heading">
@@ -448,6 +475,7 @@ export function WorkspacesPage({
                   <button
                     className="vwb-secondary-button"
                     type="button"
+                    disabled={!selectedWorkspaceActionState?.canArchive}
                     onClick={() =>
                       discardIfAllowed(() =>
                         onArchiveWorkspace(
@@ -464,7 +492,7 @@ export function WorkspacesPage({
                   <button
                     className="vwb-secondary-button vwb-danger-button"
                     type="button"
-                    disabled={document.worlds.length <= 1}
+                    disabled={!selectedWorkspaceActionState?.canDelete}
                     onClick={() =>
                       discardIfAllowed(() =>
                         setPendingDelete({
@@ -480,6 +508,11 @@ export function WorkspacesPage({
                 </>
               ) : null}
             </div>
+            {selectedWorkspace && !selectedWorkspaceActionState?.canArchive ? (
+              <p className="vwb-inline-status">
+                {lastActiveWorkspaceArchiveMessage}
+              </p>
+            ) : null}
           </form>
         </div>
       </section>

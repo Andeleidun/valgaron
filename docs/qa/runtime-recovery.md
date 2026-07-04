@@ -34,7 +34,7 @@ routing, or recovery UI.
 4. Repeat with valid JSON that contains duplicate ids or orphaned relationships.
 5. Confirm the import is rejected before Import Backup appears.
 
-## Runtime Render Recovery
+## Web Runtime Render Recovery
 
 1. Introduce a temporary render throw in a route component during local testing.
 2. Open that route.
@@ -42,4 +42,16 @@ routing, or recovery UI.
    copyable Diagnostics JSON.
 4. Confirm the diagnostics report excludes world content by default.
 5. Remove the temporary throw and confirm Retry or reload restores normal app
+   rendering.
+
+## Mobile Runtime Render Recovery
+
+1. Introduce a temporary render throw in a mobile tab screen during local
+   testing.
+2. Open that tab in the Expo app.
+3. Confirm the recovery screen appears with Retry View and Open Data.
+4. Confirm Open Data switches to the Data tab, where JSON export, diagnostics,
+   import, reset, and latest-snapshot restore remain available.
+5. Confirm the recovery screen does not show raw error details or world content.
+6. Remove the temporary throw and confirm Retry View restores normal app
    rendering.

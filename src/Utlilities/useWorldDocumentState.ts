@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { localPersistenceCopy } from '@valgaron/core';
 import type {
   RecoverySnapshot,
   RecoverySnapshotReason,
@@ -236,8 +237,7 @@ export function useWorldDocumentState(): WorldDocumentState {
     setLoadStatus({
       state: 'loaded',
       source: 'seed',
-      message:
-        'Starter data was loaded by reset. Use Save to write it to localStorage.',
+      message: `Starter data was loaded by reset. Use Save to write it to ${localPersistenceCopy.browserSaveTarget}.`,
       issues: [],
       checkedAt: new Date().toISOString(),
     });
@@ -249,8 +249,7 @@ export function useWorldDocumentState(): WorldDocumentState {
     setLoadStatus({
       state: 'loaded',
       source: 'current',
-      message:
-        'Imported backup is loaded in this session. Use Save to write it to localStorage.',
+      message: `Imported backup is loaded in this session. Use Save to write it to ${localPersistenceCopy.browserSaveTarget}.`,
       issues: [],
       checkedAt: new Date().toISOString(),
     });
@@ -271,8 +270,7 @@ export function useWorldDocumentState(): WorldDocumentState {
     setLoadStatus({
       state: 'loaded',
       source: 'current',
-      message:
-        'Recovery snapshot is loaded in this session. Use Save to write it to localStorage.',
+      message: `Recovery snapshot is loaded in this session. Use Save to write it to ${localPersistenceCopy.browserSaveTarget}.`,
       issues: [],
       checkedAt: new Date().toISOString(),
     });

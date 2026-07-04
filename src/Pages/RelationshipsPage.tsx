@@ -1,31 +1,93 @@
-import { useMemo, useState, type FormEvent } from 'react';
-import {
-  getEntryStatusLabel,
-  worldEntryStatusOptions,
-} from '../Utlilities/codexEntries';
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   createEmptyRelationshipDraft,
+  draftFromRelationship,
   filterRelationships,
+  formatDestructiveActionTitle,
+  formatDraftValidationErrors,
   getBrokenRelationships,
+  getCodexScreenIntro,
+  getDestructiveActionCopy,
+  getEntryStatusLabel,
+  getOrphanedEntries,
   getRelationshipEntries,
   getRelationshipGraph,
-  getOrphanedEntries,
+  getRelationshipHealthSummary,
+  getSectionTags,
   relationshipFromDraft,
   relationshipTypeOptions,
+  validateRelationshipDraft,
   type RelationshipDraft,
   type RelationshipGraphFilters,
-} from '../Utlilities/codexRelationships';
-import { getSectionTags } from '../Utlilities/codexEntries';
-import type {
-  WorldCodex,
-  WorldRelationship,
-  WorldSectionConfig,
-} from '../types';
+  type WorldCodex,
+  type WorldRelationship,
+  type WorldSectionConfig,
+  worldEntryStatusOptions,
+} from '@valgaron/core';
 import {
   confirmDiscardUnsavedChanges,
   hasUnsavedChanges,
   useUnsavedChangesWarning,
 } from '../Utlilities/unsavedChanges';
+import { useDialogFocus } from '../Utlilities/dialogFocus';
+
+type RelationshipPendingDelete = {
+  id: string;
+  label: string;
+};
+
+function RelationshipDeleteDialog({
+  pendingDelete,
+  onCancel,
+  onConfirm,
+}: {
+  pendingDelete: RelationshipPendingDelete;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  const dialogRef = useDialogFocus<HTMLElement>(true, onCancel);
+  const copy = getDestructiveActionCopy('delete-relationship');
+
+  return (
+    <div className="vwb-dialog-backdrop" role="presentation">
+      <section
+        aria-labelledby="relationship-delete-title"
+        aria-describedby="relationship-delete-description"
+        className="vwb-dialog"
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        tabIndex={-1}
+      >
+        <p className="vwb-kicker">Permanent delete</p>
+        <h2 id="relationship-delete-title">
+          {formatDestructiveActionTitle(
+            'delete-relationship',
+            pendingDelete.label
+          )}
+        </h2>
+        <p id="relationship-delete-description">{copy.message}</p>
+        <div className="vwb-form-actions">
+          <button
+            className="vwb-secondary-button"
+            type="button"
+            onClick={onCancel}
+          >
+            Cancel
+          </button>
+          <button
+            className="vwb-primary-button vwb-danger-confirm-button"
+            type="button"
+            onClick={onConfirm}
+          >
+            {copy.confirmLabel}
+          </button>
+        </div>
+      </section>
+    </div>
+  );
+}
 
 export function RelationshipsPage({
   codex,
@@ -40,6 +102,11 @@ export function RelationshipsPage({
   onDeleteRelationship: (relationshipId: string) => void;
   onSaveRelationship: (relationship: WorldRelationship) => void;
 }) {
+  const [searchParams] = useSearchParams();
+  const requestedEntryId = searchParams.get('entryId');
+  const requestedEntryQuery = searchParams.get('entryQuery');
+  const requestedRelationshipQuery = searchParams.get('relationshipQuery');
+  const appliedRouteKeyRef = useRef('');
   const entries = useMemo(
     () => getRelationshipEntries(codex, sections),
     [codex, sections]
@@ -52,6 +119,7 @@ export function RelationshipsPage({
   >(null);
   const [typeFilter, setTypeFilter] = useState('');
   const [entryFilter, setEntryFilter] = useState('');
+  const [relationshipQuery, setRelationshipQuery] = useState('');
   const [graphFilters, setGraphFilters] = useState<RelationshipGraphFilters>({
     sectionId: '',
     status: '',
@@ -60,6 +128,14 @@ export function RelationshipsPage({
   });
   const [selectedGraphNodeId, setSelectedGraphNodeId] = useState('');
   const [error, setError] = useState('');
+  const [pendingDelete, setPendingDelete] =
+    useState<RelationshipPendingDelete | null>(null);
+  const intro = getCodexScreenIntro('relationships');
+  const routeKey = [
+    requestedEntryId ?? '',
+    requestedEntryQuery ?? '',
+    requestedRelationshipQuery ?? '',
+  ].join('|');
 
   const editingRelationship = useMemo(
     () =>
@@ -71,14 +147,7 @@ export function RelationshipsPage({
   const baselineDraft = useMemo<RelationshipDraft>(
     () =>
       editingRelationship
-        ? {
-            sourceEntryId: editingRelationship.sourceEntryId,
-            targetEntryId: editingRelationship.targetEntryId,
-            type: editingRelationship.type,
-            directional: editingRelationship.directional,
-            note: editingRelationship.note,
-            status: editingRelationship.status,
-          }
+        ? draftFromRelationship(editingRelationship)
         : createEmptyRelationshipDraft(),
     [editingRelationship]
   );
@@ -112,8 +181,10 @@ export function RelationshipsPage({
       filterRelationships(relationships, {
         type: typeFilter,
         entryId: entryFilter,
+        query: relationshipQuery,
+        entryById,
       }),
-    [entryFilter, relationships, typeFilter]
+    [entryById, entryFilter, relationshipQuery, relationships, typeFilter]
   );
   const graph = useMemo(
     () =>
@@ -131,6 +202,10 @@ export function RelationshipsPage({
   );
   const orphanedEntries = useMemo(
     () => getOrphanedEntries(relationships, codex, sections),
+    [codex, relationships, sections]
+  );
+  const relationshipHealth = useMemo(
+    () => getRelationshipHealthSummary(relationships, codex, sections),
     [codex, relationships, sections]
   );
   const selectedGraphNode = useMemo(
@@ -164,6 +239,55 @@ export function RelationshipsPage({
 
   useUnsavedChangesWarning(isDraftDirty);
 
+  useEffect(() => {
+    if (appliedRouteKeyRef.current === routeKey) {
+      return;
+    }
+    if (
+      !requestedEntryId &&
+      requestedEntryQuery === null &&
+      requestedRelationshipQuery === null
+    ) {
+      appliedRouteKeyRef.current = routeKey;
+      return;
+    }
+    const nextRelationshipQuery =
+      requestedRelationshipQuery ?? requestedEntryQuery;
+    if (!requestedEntryId) {
+      if (nextRelationshipQuery !== null) {
+        setRelationshipQuery(nextRelationshipQuery);
+      }
+      appliedRouteKeyRef.current = routeKey;
+      return;
+    }
+    if (!entryById.has(requestedEntryId)) {
+      if (nextRelationshipQuery !== null) {
+        setRelationshipQuery(nextRelationshipQuery);
+      }
+      appliedRouteKeyRef.current = routeKey;
+      return;
+    }
+    if (!confirmDiscardUnsavedChanges(isDraftDirty)) {
+      return;
+    }
+    setEntryFilter(requestedEntryId);
+    if (nextRelationshipQuery !== null) {
+      setRelationshipQuery(nextRelationshipQuery);
+    }
+    setDraft((currentDraft) => ({
+      ...currentDraft,
+      sourceEntryId: requestedEntryId,
+    }));
+    appliedRouteKeyRef.current = routeKey;
+  }, [
+    entryById,
+    isDraftDirty,
+    requestedEntryId,
+    requestedEntryQuery,
+    requestedRelationshipQuery,
+    routeKey,
+  ]);
+
   const resetForm = (force = false) => {
     if (!force && !confirmDiscardUnsavedChanges(isDraftDirty)) {
       return;
@@ -177,30 +301,19 @@ export function RelationshipsPage({
     if (!confirmDiscardUnsavedChanges(isDraftDirty)) {
       return;
     }
-    setDraft({
-      sourceEntryId: relationship.sourceEntryId,
-      targetEntryId: relationship.targetEntryId,
-      type: relationship.type,
-      directional: relationship.directional,
-      note: relationship.note,
-      status: relationship.status,
-    });
+    setDraft(draftFromRelationship(relationship));
     setEditingRelationshipId(relationship.id);
     setError('');
   };
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!draft.sourceEntryId || !draft.targetEntryId) {
-      setError('Choose both source and target entries.');
-      return;
-    }
-    if (draft.sourceEntryId === draft.targetEntryId) {
-      setError('Choose two different entries.');
-      return;
-    }
-    if (!draft.type.trim()) {
-      setError('Relationship type is required.');
+    const validation = validateRelationshipDraft(
+      draft,
+      entries.map((entry) => entry.id)
+    );
+    if (!validation.ok) {
+      setError(formatDraftValidationErrors(validation));
       return;
     }
     onSaveRelationship(
@@ -219,6 +332,35 @@ export function RelationshipsPage({
   const getEntryLabel = (entryId: string): string =>
     entryById.get(entryId)?.name ?? 'Missing entry';
 
+  const getRelationshipLabel = (relationship: WorldRelationship): string =>
+    `${getEntryLabel(relationship.sourceEntryId)} ${
+      relationship.type
+    } ${getEntryLabel(relationship.targetEntryId)}`;
+
+  const requestDeleteRelationship = (relationship: WorldRelationship) => {
+    if (
+      editingRelationshipId === relationship.id &&
+      !confirmDiscardUnsavedChanges(isDraftDirty)
+    ) {
+      return;
+    }
+    setPendingDelete({
+      id: relationship.id,
+      label: getRelationshipLabel(relationship),
+    });
+  };
+
+  const confirmDeleteRelationship = () => {
+    if (!pendingDelete) {
+      return;
+    }
+    onDeleteRelationship(pendingDelete.id);
+    if (editingRelationshipId === pendingDelete.id) {
+      resetForm(true);
+    }
+    setPendingDelete(null);
+  };
+
   return (
     <main
       className="vwb-main vwb-relationships-layout"
@@ -226,12 +368,9 @@ export function RelationshipsPage({
       tabIndex={-1}
     >
       <section className="vwb-panel vwb-section-intro">
-        <p className="vwb-kicker">World logic</p>
-        <h1>Relationships</h1>
-        <p>
-          Connect entries into alliances, memberships, causes, references, and
-          other links that make the world easier to reason about.
-        </p>
+        <p className="vwb-kicker">{intro.kicker}</p>
+        <h1>{intro.title}</h1>
+        <p>{intro.detail}</p>
       </section>
 
       <section
@@ -247,7 +386,7 @@ export function RelationshipsPage({
         <div className="vwb-diagnostics-grid">
           <article className="vwb-diagnostic-card">
             <span className="vwb-entry-kind">Broken references</span>
-            <strong>{brokenRelationships.length}</strong>
+            <strong>{relationshipHealth.brokenRelationshipCount}</strong>
             <p>
               Relationships with a missing source or target after imports or
               deletes.
@@ -255,7 +394,7 @@ export function RelationshipsPage({
           </article>
           <article className="vwb-diagnostic-card">
             <span className="vwb-entry-kind">Orphaned records</span>
-            <strong>{orphanedEntries.length}</strong>
+            <strong>{relationshipHealth.orphanedEntryCount}</strong>
             <p>Entries with no saved relationship links yet.</p>
           </article>
         </div>
@@ -289,7 +428,7 @@ export function RelationshipsPage({
                 <button
                   className="vwb-secondary-button vwb-danger-button"
                   type="button"
-                  onClick={() => onDeleteRelationship(relationship.id)}
+                  onClick={() => requestDeleteRelationship(relationship)}
                 >
                   Delete Broken Link
                 </button>
@@ -463,6 +602,17 @@ export function RelationshipsPage({
             <div className="vwb-filter-panel" aria-label="Relationship filters">
               <div className="vwb-filter-row">
                 <label>
+                  Search links
+                  <input
+                    value={relationshipQuery}
+                    onChange={(event) =>
+                      setRelationshipQuery(event.target.value)
+                    }
+                    placeholder="Entry, type, note, or id"
+                    type="search"
+                  />
+                </label>
+                <label>
                   Type
                   <select
                     value={typeFilter}
@@ -491,13 +641,14 @@ export function RelationshipsPage({
                   </select>
                 </label>
               </div>
-              {typeFilter || entryFilter ? (
+              {typeFilter || entryFilter || relationshipQuery ? (
                 <button
                   className="vwb-secondary-button vwb-clear-filters-button"
                   type="button"
                   onClick={() => {
                     setTypeFilter('');
                     setEntryFilter('');
+                    setRelationshipQuery('');
                   }}
                 >
                   Clear Filters
@@ -534,12 +685,7 @@ export function RelationshipsPage({
                       <button
                         className="vwb-secondary-button vwb-danger-button"
                         type="button"
-                        onClick={() => {
-                          onDeleteRelationship(relationship.id);
-                          if (editingRelationshipId === relationship.id) {
-                            resetForm(true);
-                          }
-                        }}
+                        onClick={() => requestDeleteRelationship(relationship)}
                       >
                         Delete
                       </button>
@@ -710,6 +856,13 @@ export function RelationshipsPage({
           </div>
         )}
       </section>
+      {pendingDelete ? (
+        <RelationshipDeleteDialog
+          pendingDelete={pendingDelete}
+          onCancel={() => setPendingDelete(null)}
+          onConfirm={confirmDeleteRelationship}
+        />
+      ) : null}
     </main>
   );
 }
