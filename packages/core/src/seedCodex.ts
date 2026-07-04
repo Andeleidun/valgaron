@@ -14,6 +14,66 @@ const SEED_CREATED_AT = '2026-05-01T08:00:00.000Z';
 const SEED_SAVED_AT = '2026-06-01T09:00:00.000Z';
 const SEED_WORLD_ID = 'world-starter-atlas';
 
+export const placeCategoryOptions: readonly string[] = [
+  'World',
+  'Planet',
+  'Moon',
+  'Continent',
+  'Country',
+  'Province',
+  'Region',
+  'Kingdom',
+  'City',
+  'Town',
+  'Village',
+  'Hamlet',
+  'Capital',
+  'Harbor',
+  'Port',
+  'Fortress',
+  'Castle',
+  'Temple',
+  'Ruin',
+  'Road',
+  'Pass',
+  'Forest',
+  'Jungle',
+  'Desert',
+  'Swamp',
+  'Wetland',
+  'Plains',
+  'Steppe',
+  'Tundra',
+  'Mountain',
+  'Mountain range',
+  'Valley',
+  'Canyon',
+  'Plateau',
+  'Volcano',
+  'Glacier',
+  'River',
+  'Lake',
+  'Ocean',
+  'Sea',
+  'Coast',
+  'Bay',
+  'Gulf',
+  'Island',
+  'Peninsula',
+  'Archipelago',
+  'Cave',
+  'Mine',
+  'Realm',
+  'Plane',
+  'Dimension',
+  'Star',
+  'Solar system',
+  'Galaxy',
+  'Nebula',
+  'Asteroid belt',
+  'Space station',
+];
+
 export const worldSections: readonly WorldSectionConfig[] = [
   {
     id: 'characters',
@@ -35,8 +95,13 @@ export const worldSections: readonly WorldSectionConfig[] = [
     title: 'Places',
     singularTitle: 'Place',
     description:
-      'Regions, settlements, ruins, landmarks, and realms worth revisiting.',
+      'Worlds, planets, regions, settlements, landmarks, and realms worth revisiting.',
     detailFields: [
+      {
+        key: 'category',
+        label: 'Place category',
+        autocompleteOptions: placeCategoryOptions,
+      },
       { key: 'region', label: 'Region' },
       { key: 'climate', label: 'Climate' },
       { key: 'significance', label: 'Significance', multiline: true },
@@ -106,36 +171,7 @@ function seedEntry(input: SeedEntryInput): WorldEntry {
   };
 }
 
-export const seedPlanetaryWorlds: readonly InFictionWorld[] = [
-  {
-    id: 'planetary-world-aster',
-    name: 'Aster',
-    summary:
-      'A temperate sample planet used to separate workspace management from in-fiction worldbuilding records.',
-    classification: 'Terrestrial planet',
-    climate: 'Mixed coastal and highland climates',
-    dominantTerrain: 'Harbors, forests, and inland routes',
-    notes: '',
-    tags: ['planet', 'temperate', 'sample'],
-    status: 'draft',
-    createdAt: SEED_CREATED_AT,
-    updatedAt: SEED_SAVED_AT,
-  },
-  {
-    id: 'planetary-world-lumen',
-    name: 'Lumen',
-    summary:
-      'A bright companion moon that supports calendar tests and simple orbital notes.',
-    classification: 'Moon',
-    climate: 'Airless highland surface',
-    dominantTerrain: 'Crater fields and reflective plains',
-    notes: '',
-    tags: ['moon', 'calendar', 'sample'],
-    status: 'draft',
-    createdAt: SEED_CREATED_AT,
-    updatedAt: '2026-05-18T16:05:00.000Z',
-  },
-];
+export const seedPlanetaryWorlds: readonly InFictionWorld[] = [];
 
 function clonePlanetaryWorlds(
   planetaryWorlds: readonly InFictionWorld[]
@@ -189,6 +225,7 @@ export const seedCodex: WorldCodex = {
       tags: ['harbor', 'trade', 'survey'],
       updatedAt: '2026-05-27T10:15:00.000Z',
       fields: {
+        category: 'Town',
         region: 'Northern coast',
         climate: 'Cold maritime wind and steady rain',
         significance:
@@ -204,6 +241,7 @@ export const seedCodex: WorldCodex = {
       tags: ['forest', 'waystones', 'dangerous'],
       updatedAt: '2026-05-24T18:00:00.000Z',
       fields: {
+        category: 'Forest',
         region: 'Interior highlands',
         climate: 'Cool canopy with bright ground fog',
         significance:

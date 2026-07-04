@@ -77,7 +77,7 @@ export const codexScreenIntros = {
     kicker: 'Project and universe management',
     title: codexShellRoutes.workspaces.title,
     detail:
-      'Manage project/universe workspaces separately from the in-fiction worlds and planets inside the active workspace.',
+      'Manage project/universe workspaces and custom entry types; use Places for worlds, planets, and map-scale places inside the active workspace.',
   },
   data: {
     kicker: 'Local data',

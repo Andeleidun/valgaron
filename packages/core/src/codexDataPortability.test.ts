@@ -51,7 +51,7 @@ describe('codexDataPortability', () => {
     expect(serializedBackup.backupSummary).toEqual({
       activeWorldName: 'Sample Atlas',
       worldCount: 1,
-      planetaryWorldCount: 2,
+      planetaryWorldCount: 0,
       entryCount: 10,
       relationshipCount: 5,
       savedAt: '2026-06-01T09:00:00.000Z',
@@ -71,7 +71,7 @@ describe('codexDataPortability', () => {
     expect(preview).toEqual({
       activeWorldName: 'Sample Atlas',
       worldCount: 1,
-      planetaryWorldCount: 2,
+      planetaryWorldCount: 0,
       entryCount: 10,
       relationshipCount: 5,
       savedAt: '2026-06-01T09:00:00.000Z',
@@ -79,7 +79,7 @@ describe('codexDataPortability', () => {
     expect(formatWorldImportPreviewText(preview)).toMatchObject({
       title: 'Sample Atlas',
       detail: expect.stringContaining(
-        '1 workspace(s), 2 in-fiction world(s), 10 entries, 5 relationships.'
+        '1 workspace(s), 10 entries, 5 relationships.'
       ),
     });
   });
@@ -165,15 +165,25 @@ describe('codexDataPortability', () => {
         },
       ],
     };
+    const legacyPlanetaryWorld = {
+      id: 'planetary-world-aster',
+      name: 'Aster',
+      summary: 'Legacy planet record.',
+      classification: 'Planet',
+      climate: 'Temperate',
+      dominantTerrain: 'Harbors',
+      notes: '',
+      tags: ['planet'],
+      status: 'draft' as const,
+      createdAt: '2026-06-01T00:00:00.000Z',
+      updatedAt: '2026-06-01T00:00:00.000Z',
+    };
     const duplicatePlanetaryWorldDocument = {
       ...document,
       worlds: [
         {
           ...activeWorld,
-          planetaryWorlds: [
-            activeWorld.planetaryWorlds[0],
-            activeWorld.planetaryWorlds[0],
-          ],
+          planetaryWorlds: [legacyPlanetaryWorld, legacyPlanetaryWorld],
         },
       ],
     };
@@ -203,8 +213,8 @@ describe('codexDataPortability', () => {
     const markdown = exportWorldToMarkdown(world);
 
     expect(markdown).toContain('# Sample Atlas');
-    expect(markdown).toContain('## In-Fiction Worlds And Planets');
-    expect(markdown).toContain('### Aster');
+    expect(markdown).toContain('## Places');
+    expect(markdown).toContain('### Northwatch Harbor');
     expect(markdown).toContain('## Characters');
     expect(markdown).toContain('### Mira Rowan');
     expect(markdown).toContain('## Relationships');

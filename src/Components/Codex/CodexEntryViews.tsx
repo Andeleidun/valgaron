@@ -39,6 +39,42 @@ import {
 } from '../../Utlilities/unsavedChanges';
 import { useDialogFocus } from '../../Utlilities/dialogFocus';
 
+function getDetailFieldSuggestionId(
+  sectionId: string,
+  fieldKey: WorldDetailFieldKey
+): string {
+  return `vwb-${sectionId}-${fieldKey}-suggestions`.replace(
+    /[^a-zA-Z0-9_-]/g,
+    '-'
+  );
+}
+
+function getDetailFieldSuggestions(
+  section: WorldSectionConfig,
+  entries: readonly WorldEntry[]
+): Record<string, string[]> {
+  return Object.fromEntries(
+    section.detailFields.map((field) => {
+      const suggestions = new Map<string, string>();
+      for (const option of field.autocompleteOptions ?? []) {
+        const normalizedOption = option.trim();
+        if (normalizedOption) {
+          suggestions.set(normalizedOption.toLowerCase(), normalizedOption);
+        }
+      }
+      if (suggestions.size > 0) {
+        for (const entry of entries) {
+          const value = entry.fields[field.key]?.trim();
+          if (value) {
+            suggestions.set(value.toLowerCase(), value);
+          }
+        }
+      }
+      return [field.key, Array.from(suggestions.values()).sort()];
+    })
+  );
+}
+
 export function EntryCard({
   entry,
   section,
@@ -572,8 +608,10 @@ export function EntryForm({
   onRestore,
   onUseAsTemplate,
   initialDraft,
+  sectionEntries = [],
 }: {
   section: WorldSectionConfig;
+  sectionEntries?: readonly WorldEntry[];
   selectedEntry?: WorldEntry;
   initialDraft?: EntryDraft;
   onArchive: (entry: WorldEntry) => void;
@@ -596,6 +634,10 @@ export function EntryForm({
   const [error, setError] = useState('');
   const [copyStatus, setCopyStatus] = useState('');
   const isDirty = hasUnsavedChanges(baselineDraft, draft);
+  const detailFieldSuggestions = useMemo(
+    () => getDetailFieldSuggestions(section, sectionEntries),
+    [section, sectionEntries]
+  );
 
   useUnsavedChangesWarning(isDirty);
 
@@ -781,30 +823,49 @@ export function EntryForm({
       </div>
 
       <div className="vwb-form-grid">
-        {section.detailFields.map((field) => (
-          <label
-            className={field.multiline ? 'vwb-wide-field' : undefined}
-            key={field.key}
-          >
-            {field.label}
-            {field.multiline ? (
-              <textarea
-                value={draft.details[field.key] ?? ''}
-                onChange={(event) =>
-                  updateDetail(field.key, event.target.value)
-                }
-                rows={3}
-              />
-            ) : (
-              <input
-                value={draft.details[field.key] ?? ''}
-                onChange={(event) =>
-                  updateDetail(field.key, event.target.value)
-                }
-              />
-            )}
-          </label>
-        ))}
+        {section.detailFields.map((field) =>
+          (() => {
+            const suggestions = detailFieldSuggestions[field.key] ?? [];
+            const suggestionId = getDetailFieldSuggestionId(
+              section.id,
+              field.key
+            );
+            return (
+              <label
+                className={field.multiline ? 'vwb-wide-field' : undefined}
+                key={field.key}
+              >
+                {field.label}
+                {field.multiline ? (
+                  <textarea
+                    value={draft.details[field.key] ?? ''}
+                    onChange={(event) =>
+                      updateDetail(field.key, event.target.value)
+                    }
+                    rows={3}
+                  />
+                ) : (
+                  <>
+                    <input
+                      value={draft.details[field.key] ?? ''}
+                      onChange={(event) =>
+                        updateDetail(field.key, event.target.value)
+                      }
+                      list={suggestions.length > 0 ? suggestionId : undefined}
+                    />
+                    {suggestions.length > 0 ? (
+                      <datalist id={suggestionId}>
+                        {suggestions.map((option) => (
+                          <option value={option} key={option} />
+                        ))}
+                      </datalist>
+                    ) : null}
+                  </>
+                )}
+              </label>
+            );
+          })()
+        )}
       </div>
 
       {error ? <p className="vwb-form-error">{error}</p> : null}

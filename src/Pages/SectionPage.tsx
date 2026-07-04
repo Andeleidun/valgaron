@@ -565,6 +565,7 @@ export function SectionPage({
             setSelectedEntryId(null);
           }}
           section={section}
+          sectionEntries={entries}
           selectedEntry={selectedEntry}
           initialDraft={templateDraft ?? undefined}
           onDirtyChange={setIsEntryFormDirty}

@@ -97,7 +97,6 @@ function AppShell() {
   const [dataMenuMessage, setDataMenuMessage] = useState('');
   const {
     activeWorld,
-    archivePlanetaryWorld,
     archiveWorkspace,
     archiveEntry,
     codex,
@@ -110,7 +109,6 @@ function AppShell() {
     loadStatus,
     permanentlyDeleteEntryType,
     permanentlyDeleteEntry,
-    permanentlyDeletePlanetaryWorld,
     permanentlyDeleteWorkspace,
     recoverySnapshots,
     recoverySnapshotStatus,
@@ -120,7 +118,6 @@ function AppShell() {
     resetToSeed,
     hasUnsavedDocumentChanges,
     saveCurrentDocument,
-    savePlanetaryWorld,
     saveEntry,
     saveRelationship,
     saveStatus,
@@ -356,15 +353,12 @@ function AppShell() {
                 <WorkspacesPage
                   activeWorld={activeWorld}
                   document={document}
-                  onArchivePlanetaryWorld={archivePlanetaryWorld}
                   onArchiveWorkspace={archiveWorkspace}
                   onCreateEntryType={createEntryType}
                   onCreateWorkspace={createWorkspace}
                   onDeleteEntryType={permanentlyDeleteEntryType}
-                  onDeletePlanetaryWorld={permanentlyDeletePlanetaryWorld}
                   onDeleteWorkspace={permanentlyDeleteWorkspace}
                   onDuplicateWorkspace={duplicateWorkspace}
-                  onSavePlanetaryWorld={savePlanetaryWorld}
                   onSwitchWorkspace={switchWorkspace}
                   onUpdateWorkspace={updateWorkspace}
                 />

@@ -65,7 +65,7 @@ export const codexExportOptions: readonly CodexExportOption[] = [
     kicker: 'All-workspaces backup',
     heading: 'Full document JSON',
     description:
-      'This backup contains every project/universe workspace, every in-fiction world or planet, custom entry types, entries, and relationships in this local document.',
+      'This backup contains every project/universe workspace, custom entry type, entry, and relationship in this local document.',
     downloadLabel: 'Download All JSON',
     filename: 'valgaron-all-workspaces.json',
     shareTitle: `${valgaronProduct.name} full JSON backup`,
@@ -254,8 +254,8 @@ export function formatWorldImportPreviewText(
   return {
     title: preview.activeWorldName,
     detail: `${preview.worldCount} workspace(s), ${
-      preview.planetaryWorldCount
-    } in-fiction world(s), ${preview.entryCount} entries, ${
+      preview.entryCount
+    } entries, ${
       preview.relationshipCount
     } relationships. Saved ${formatUpdatedAt(preview.savedAt)}.`,
   };
@@ -325,30 +325,6 @@ function getRelationshipEntryNameById(
   );
 }
 
-function planetaryWorldToMarkdown(world: WorldWorkspace): string {
-  if (world.planetaryWorlds.length === 0) {
-    return 'No in-fiction worlds or planets.';
-  }
-  return world.planetaryWorlds
-    .map((planetaryWorld) =>
-      [
-        `### ${planetaryWorld.name}`,
-        '',
-        planetaryWorld.summary || 'No summary.',
-        '',
-        `- Classification: ${planetaryWorld.classification || 'None'}`,
-        `- Climate: ${planetaryWorld.climate || 'None'}`,
-        `- Dominant terrain: ${planetaryWorld.dominantTerrain || 'None'}`,
-        `- Status: ${planetaryWorld.status}`,
-        `- Tags: ${planetaryWorld.tags.join(', ') || 'None'}`,
-        planetaryWorld.notes ? `\n#### Notes\n\n${planetaryWorld.notes}` : '',
-      ]
-        .filter(Boolean)
-        .join('\n')
-    )
-    .join('\n\n');
-}
-
 /** Export a single world as readable Markdown for drafting reference. */
 export function exportWorldToMarkdown(world: WorldWorkspace): string {
   const entryNameById = getRelationshipEntryNameById(world);
@@ -381,10 +357,6 @@ export function exportWorldToMarkdown(world: WorldWorkspace): string {
     '',
     `- Default era: ${world.defaultEra || 'None'}`,
     `- Updated: ${world.updatedAt}`,
-    '',
-    '## In-Fiction Worlds And Planets',
-    '',
-    planetaryWorldToMarkdown(world),
     '',
     ...sections,
     '',

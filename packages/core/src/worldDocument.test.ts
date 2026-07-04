@@ -22,6 +22,34 @@ describe('world document helpers', () => {
       'lore',
       'timeline',
     ]);
+    const placeSection = activeWorld.entryTypes.find(
+      (entryType) => entryType.id === 'places'
+    );
+    expect(placeSection).toMatchObject({
+      title: 'Places',
+      singularTitle: 'Place',
+    });
+    expect(placeSection?.detailFields[0]).toMatchObject({
+      key: 'category',
+      label: 'Place category',
+      autocompleteOptions: expect.arrayContaining([
+        'World',
+        'Planet',
+        'Forest',
+        'City',
+        'Moon',
+        'Mountain',
+        'River',
+        'Town',
+        'Star',
+        'Coast',
+        'Island',
+        'Country',
+        'Lake',
+        'Solar system',
+        'Galaxy',
+      ]),
+    });
     expect(activeWorld.codex).toEqual(createSeedCodex());
   });
 

@@ -23,7 +23,6 @@ import {
   createCustomEntryType,
   createWorkspace,
   updateActiveWorkspace,
-  upsertPlanetaryWorld,
 } from './workspaceManagement';
 
 describe('release-critical workflows', () => {
@@ -140,25 +139,39 @@ describe('release-critical workflows', () => {
       defaultEra: 'Founding',
     });
 
-    document = updateActiveWorkspace(document, (workspace) =>
-      createCustomEntryType(
-        upsertPlanetaryWorld(workspace, {
-          name: 'Test Moon',
-          summary: 'A neutral moon fixture.',
-          classification: 'Moon',
+    document = updateActiveWorkspace(document, (workspace) => {
+      const placeSection = workspace.entryTypes.find(
+        (section) => section.id === 'places'
+      );
+      if (!placeSection) {
+        throw new Error('Places section is missing.');
+      }
+      const moonPlace = entryFromDraft(placeSection, {
+        ...createEmptyDraft(),
+        name: 'Test Moon',
+        summary: 'A neutral moon fixture.',
+        notes: 'Used by release workflow tests.',
+        tags: 'fixture, moon',
+        details: {
+          category: 'Moon',
+          region: 'Release fixture orbit',
           climate: 'Cold',
-          dominantTerrain: 'Basalt plains',
-          notes: 'Used by release workflow tests.',
-          tags: 'fixture, moon',
-        }),
+          significance: 'Basalt plains used by release workflow tests.',
+        },
+      });
+      return createCustomEntryType(
+        {
+          ...workspace,
+          codex: applyEntry(workspace.codex, moonPlace, workspace.entryTypes),
+        },
         {
           title: 'Artifacts',
           singularTitle: 'Artifact',
           description: 'Objects with worldbuilding importance.',
           fields: 'Origin, Current Keeper',
         }
-      )
-    );
+      );
+    });
 
     const serializedBackup = serializeActiveWorldBackup(document);
     const importResult = parseWorldImport(serializedBackup);
@@ -172,9 +185,9 @@ describe('release-critical workflows', () => {
     expect(importResult.preview).toMatchObject({
       activeWorldName: 'Release Gate Workspace',
       worldCount: 1,
-      planetaryWorldCount: 1,
+      planetaryWorldCount: 0,
     });
-    expect(importedWorld.planetaryWorlds.map((world) => world.name)).toContain(
+    expect(importedWorld.codex.places.map((entry) => entry.name)).toContain(
       'Test Moon'
     );
     expect(importedWorld.entryTypes.map((section) => section.title)).toContain(

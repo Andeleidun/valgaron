@@ -68,7 +68,12 @@ function cloneEntryTypes(
 ): WorldSectionConfig[] {
   return sections.map((section) => ({
     ...section,
-    detailFields: section.detailFields.map((field) => ({ ...field })),
+    detailFields: section.detailFields.map((field) => ({
+      ...field,
+      ...(field.autocompleteOptions
+        ? { autocompleteOptions: [...field.autocompleteOptions] }
+        : {}),
+    })),
   }));
 }
 

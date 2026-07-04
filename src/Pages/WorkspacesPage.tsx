@@ -11,15 +11,11 @@ import {
   getEntries,
   getWorkspaceActionState,
   lastActiveWorkspaceArchiveMessage,
-  type PlanetaryWorldDraft,
-  planetaryWorldDraftFrom,
   validateEntryTypeDraft,
-  validatePlanetaryWorldDraft,
   validateWorkspaceDraft,
   type WorkspaceDraft,
 } from '@valgaron/core';
 import type {
-  InFictionWorld,
   WorldDocument,
   WorldSectionConfig,
   WorldWorkspace,
@@ -33,12 +29,10 @@ import { useDialogFocus } from '../Utlilities/dialogFocus';
 
 type PendingDelete =
   | { type: 'workspace'; id: string; name: string }
-  | { type: 'planetary-world'; id: string; name: string }
   | { type: 'entry-type'; id: string; name: string };
 
 const pendingDeleteActionIdByType = {
   workspace: 'delete-workspace',
-  'planetary-world': 'delete-planetary-world',
   'entry-type': 'delete-entry-type',
 } as const satisfies Record<PendingDelete['type'], string>;
 
@@ -119,35 +113,23 @@ function ConfirmDeleteDialog({
 export function WorkspacesPage({
   activeWorld,
   document,
-  onArchivePlanetaryWorld,
   onArchiveWorkspace,
   onCreateEntryType,
   onCreateWorkspace,
   onDeleteEntryType,
-  onDeletePlanetaryWorld,
   onDeleteWorkspace,
   onDuplicateWorkspace,
-  onSavePlanetaryWorld,
   onSwitchWorkspace,
   onUpdateWorkspace,
 }: {
   activeWorld: WorldWorkspace;
   document: WorldDocument;
-  onArchivePlanetaryWorld: (
-    planetaryWorldId: string,
-    archived: boolean
-  ) => void;
   onArchiveWorkspace: (workspaceId: string, archived: boolean) => void;
   onCreateEntryType: (draft: EntryTypeDraft) => void;
   onCreateWorkspace: (draft: WorkspaceDraft) => void;
   onDeleteEntryType: (sectionId: string) => void;
-  onDeletePlanetaryWorld: (planetaryWorldId: string) => void;
   onDeleteWorkspace: (workspaceId: string) => void;
   onDuplicateWorkspace: (workspaceId: string) => void;
-  onSavePlanetaryWorld: (
-    draft: PlanetaryWorldDraft,
-    existingPlanetaryWorld?: InFictionWorld
-  ) => void;
   onSwitchWorkspace: (workspaceId: string) => void;
   onUpdateWorkspace: (workspaceId: string, draft: WorkspaceDraft) => void;
 }) {
@@ -158,10 +140,6 @@ export function WorkspacesPage({
     workspaceDraftFrom(activeWorld)
   );
   const [workspaceError, setWorkspaceError] = useState('');
-  const [selectedPlanetaryWorldId, setSelectedPlanetaryWorldId] = useState('');
-  const [planetaryWorldDraft, setPlanetaryWorldDraft] =
-    useState<PlanetaryWorldDraft>(() => planetaryWorldDraftFrom());
-  const [planetaryWorldError, setPlanetaryWorldError] = useState('');
   const [entryTypeDraft, setEntryTypeDraft] = useState<EntryTypeDraft>({
     ...emptyEntryTypeDraft(),
   });
@@ -189,34 +167,20 @@ export function WorkspacesPage({
         workspaceCount: document.worlds.length,
       })
     : null;
-  const selectedPlanetaryWorld = activeWorld.planetaryWorlds.find(
-    (planetaryWorld) => planetaryWorld.id === selectedPlanetaryWorldId
-  );
-  const selectedPlanetaryWorldDraftKey = selectedPlanetaryWorld?.id ?? '';
   const customEntryTypes = activeWorld.entryTypes.filter(
     (section) => section.custom
   );
   const workspaceBaselineDraft = workspaceDraftFrom(selectedWorkspace);
-  const planetaryWorldBaselineDraft = planetaryWorldDraftFrom(
-    selectedPlanetaryWorld
-  );
   const entryTypeBaselineDraft = emptyEntryTypeDraft();
   const isWorkspaceDraftDirty = hasUnsavedChanges(
     workspaceBaselineDraft,
     workspaceDraft
   );
-  const isPlanetaryWorldDraftDirty = hasUnsavedChanges(
-    planetaryWorldBaselineDraft,
-    planetaryWorldDraft
-  );
   const isEntryTypeDraftDirty = hasUnsavedChanges(
     entryTypeBaselineDraft,
     entryTypeDraft
   );
-  const hasDirtyDraft =
-    isWorkspaceDraftDirty ||
-    isPlanetaryWorldDraftDirty ||
-    isEntryTypeDraftDirty;
+  const hasDirtyDraft = isWorkspaceDraftDirty || isEntryTypeDraftDirty;
 
   useUnsavedChangesWarning(hasDirtyDraft);
 
@@ -234,11 +198,6 @@ export function WorkspacesPage({
     setWorkspaceError('');
   }, [selectedWorkspaceDraftKey]);
 
-  useEffect(() => {
-    setPlanetaryWorldDraft(planetaryWorldDraftFrom(selectedPlanetaryWorld));
-    setPlanetaryWorldError('');
-  }, [selectedPlanetaryWorldDraftKey]);
-
   const submitWorkspace = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const validation = validateWorkspaceDraft(workspaceDraft);
@@ -252,19 +211,6 @@ export function WorkspacesPage({
       onCreateWorkspace(workspaceDraft);
     }
     setWorkspaceError('');
-  };
-
-  const submitPlanetaryWorld = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const validation = validatePlanetaryWorldDraft(planetaryWorldDraft);
-    if (!validation.ok) {
-      setPlanetaryWorldError(formatDraftValidationErrors(validation));
-      return;
-    }
-    onSavePlanetaryWorld(planetaryWorldDraft, selectedPlanetaryWorld);
-    setSelectedPlanetaryWorldId('');
-    setPlanetaryWorldDraft(planetaryWorldDraftFrom());
-    setPlanetaryWorldError('');
   };
 
   const submitEntryType = (event: FormEvent<HTMLFormElement>) => {
@@ -293,10 +239,6 @@ export function WorkspacesPage({
     }
     if (pendingDelete.type === 'workspace') {
       onDeleteWorkspace(pendingDelete.id);
-    }
-    if (pendingDelete.type === 'planetary-world') {
-      onDeletePlanetaryWorld(pendingDelete.id);
-      setSelectedPlanetaryWorldId('');
     }
     if (pendingDelete.type === 'entry-type') {
       onDeleteEntryType(pendingDelete.id);
@@ -526,225 +468,6 @@ export function WorkspacesPage({
                 {lastActiveWorkspaceArchiveMessage}
               </p>
             ) : null}
-          </form>
-        </div>
-      </section>
-
-      <section className="vwb-panel" aria-labelledby="planetary-worlds-title">
-        <div className="vwb-section-heading">
-          <div>
-            <p className="vwb-kicker">
-              {activeWorld.planetaryWorlds.length} in-fiction world
-              {activeWorld.planetaryWorlds.length === 1 ? '' : 's'}
-            </p>
-            <h2 id="planetary-worlds-title">In-fiction worlds and planets</h2>
-          </div>
-          <button
-            className="vwb-secondary-button"
-            type="button"
-            onClick={() =>
-              discardIfAllowed(() => setSelectedPlanetaryWorldId(''))
-            }
-          >
-            New World/Planet
-          </button>
-        </div>
-        <div className="vwb-management-grid">
-          <div className="vwb-entry-list">
-            {activeWorld.planetaryWorlds.length > 0 ? (
-              activeWorld.planetaryWorlds.map((planetaryWorld) => (
-                <article className="vwb-entry-card" key={planetaryWorld.id}>
-                  <div className="vwb-entry-card-header">
-                    <div>
-                      <p className="vwb-entry-kind">
-                        {planetaryWorld.classification || 'In-fiction world'}
-                      </p>
-                      <h3>{planetaryWorld.name}</h3>
-                    </div>
-                    <span className="vwb-status-pill">
-                      {planetaryWorld.status}
-                    </span>
-                  </div>
-                  <p>{planetaryWorld.summary || 'No summary yet.'}</p>
-                  <small>
-                    {planetaryWorld.climate || 'No climate'} -{' '}
-                    {planetaryWorld.dominantTerrain || 'No terrain'}
-                  </small>
-                  <div className="vwb-form-actions">
-                    <button
-                      className="vwb-secondary-button"
-                      type="button"
-                      onClick={() =>
-                        discardIfAllowed(() =>
-                          setSelectedPlanetaryWorldId(planetaryWorld.id)
-                        )
-                      }
-                    >
-                      Edit
-                    </button>
-                  </div>
-                </article>
-              ))
-            ) : (
-              <div className="vwb-empty-results" role="status">
-                <strong>No in-fiction worlds or planets yet.</strong>
-                <p>Add planets, moons, realms, or nested worlds here.</p>
-              </div>
-            )}
-          </div>
-          <form className="vwb-form" onSubmit={submitPlanetaryWorld}>
-            <div className="vwb-section-heading">
-              <div>
-                <p className="vwb-kicker">
-                  {selectedPlanetaryWorld
-                    ? 'Edit in-fiction world'
-                    : 'New in-fiction world'}
-                </p>
-                <h3>
-                  {selectedPlanetaryWorld
-                    ? selectedPlanetaryWorld.name
-                    : 'Create world/planet'}
-                </h3>
-              </div>
-              {isPlanetaryWorldDraftDirty ? (
-                <span className="vwb-status-pill">Unsaved</span>
-              ) : null}
-            </div>
-            <div className="vwb-form-grid">
-              <label>
-                Name
-                <input
-                  value={planetaryWorldDraft.name}
-                  onChange={(event) =>
-                    setPlanetaryWorldDraft({
-                      ...planetaryWorldDraft,
-                      name: event.target.value,
-                    })
-                  }
-                />
-              </label>
-              <label>
-                Classification
-                <input
-                  value={planetaryWorldDraft.classification}
-                  onChange={(event) =>
-                    setPlanetaryWorldDraft({
-                      ...planetaryWorldDraft,
-                      classification: event.target.value,
-                    })
-                  }
-                  placeholder="Planet, moon, realm, demiplane"
-                />
-              </label>
-              <label>
-                Climate
-                <input
-                  value={planetaryWorldDraft.climate}
-                  onChange={(event) =>
-                    setPlanetaryWorldDraft({
-                      ...planetaryWorldDraft,
-                      climate: event.target.value,
-                    })
-                  }
-                />
-              </label>
-              <label>
-                Dominant terrain
-                <input
-                  value={planetaryWorldDraft.dominantTerrain}
-                  onChange={(event) =>
-                    setPlanetaryWorldDraft({
-                      ...planetaryWorldDraft,
-                      dominantTerrain: event.target.value,
-                    })
-                  }
-                />
-              </label>
-            </div>
-            <label>
-              Summary
-              <textarea
-                rows={4}
-                value={planetaryWorldDraft.summary}
-                onChange={(event) =>
-                  setPlanetaryWorldDraft({
-                    ...planetaryWorldDraft,
-                    summary: event.target.value,
-                  })
-                }
-              />
-            </label>
-            <label>
-              Notes
-              <textarea
-                rows={5}
-                value={planetaryWorldDraft.notes}
-                onChange={(event) =>
-                  setPlanetaryWorldDraft({
-                    ...planetaryWorldDraft,
-                    notes: event.target.value,
-                  })
-                }
-              />
-            </label>
-            <label>
-              Tags
-              <input
-                value={planetaryWorldDraft.tags}
-                onChange={(event) =>
-                  setPlanetaryWorldDraft({
-                    ...planetaryWorldDraft,
-                    tags: event.target.value,
-                  })
-                }
-                placeholder="planet, moon, magic"
-              />
-            </label>
-            {planetaryWorldError ? (
-              <p className="vwb-form-error">{planetaryWorldError}</p>
-            ) : null}
-            <div className="vwb-form-actions">
-              <button className="vwb-primary-button" type="submit">
-                {selectedPlanetaryWorld
-                  ? 'Save World/Planet'
-                  : 'Create World/Planet'}
-              </button>
-              {selectedPlanetaryWorld ? (
-                <>
-                  <button
-                    className="vwb-secondary-button"
-                    type="button"
-                    onClick={() =>
-                      discardIfAllowed(() =>
-                        onArchivePlanetaryWorld(
-                          selectedPlanetaryWorld.id,
-                          selectedPlanetaryWorld.status !== 'archived'
-                        )
-                      )
-                    }
-                  >
-                    {selectedPlanetaryWorld.status === 'archived'
-                      ? 'Restore'
-                      : 'Archive'}
-                  </button>
-                  <button
-                    className="vwb-secondary-button vwb-danger-button"
-                    type="button"
-                    onClick={() =>
-                      discardIfAllowed(() =>
-                        setPendingDelete({
-                          type: 'planetary-world',
-                          id: selectedPlanetaryWorld.id,
-                          name: selectedPlanetaryWorld.name,
-                        })
-                      )
-                    }
-                  >
-                    Delete Permanently
-                  </button>
-                </>
-              ) : null}
-            </div>
           </form>
         </div>
       </section>

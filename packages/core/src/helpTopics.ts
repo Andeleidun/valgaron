@@ -59,7 +59,7 @@ export const codexHelpFocusTopics: readonly CodexHelpFocus[] = [
     id: 'workspaces',
     title: 'Workspaces',
     detail:
-      'Keep project or universe workspaces separate from in-fiction worlds, planets, and custom entry types.',
+      'Keep project or universe workspaces separate from codex places, and manage custom entry types when the built-in sections are not enough.',
   },
   {
     id: 'data',
@@ -87,7 +87,7 @@ export const codexWorkflowHelpTopics: readonly CodexHelpTopic[] = [
     items: [
       'Use Overview to scan recent, pinned, incomplete, and quick-create records.',
       'Use entry sections to create and edit characters, places, factions, lore, timeline events, and custom entry types.',
-      'Use Workspaces for project or universe files, and use in-fiction worlds and planets for realms inside a project.',
+      'Use Places for worlds, planets, moons, settlements, terrain, realms, and other map-scale places inside a project.',
     ],
   },
   {
@@ -132,7 +132,7 @@ export const codexDataHelpTopics: readonly CodexHelpTopic[] = [
 ];
 
 export const codexFirstUseHelp =
-  'The starter workspace is neutral sample content. Rename it, create a new project/universe workspace, or duplicate it from Workspaces. Use sections for codex records and reserve in-fiction worlds and planets for planets, realms, or major setting bodies inside a workspace.';
+  'The starter workspace is neutral sample content. Rename it, create a new project/universe workspace, or duplicate it from Workspaces. Use Places for worlds, planets, realms, settlements, terrain, and other map-scale places inside a workspace.';
 
 export const codexDataHelpSummary = `On web, the header Save button writes current progress to ${localPersistenceCopy.browserSaveTarget}; on mobile, edits save to device storage through the Expo app. ${localPersistenceCopy.noAccountOrSync} JSON export is the backup you control.`;
 

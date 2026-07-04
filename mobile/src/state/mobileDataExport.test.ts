@@ -123,7 +123,7 @@ describe('mobile data export view model', () => {
 
     expect(previewText.title).toBe('Sample Atlas');
     expect(previewText.detail).toContain(
-      '1 workspace(s), 1 in-fiction world(s), 10 entries, 5 relationships.'
+      '1 workspace(s), 10 entries, 5 relationships.'
     );
     expect(previewText.detail).toContain('Jun 1, 2026');
   });

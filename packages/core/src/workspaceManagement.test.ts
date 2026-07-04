@@ -194,8 +194,19 @@ describe('workspace management', () => {
   });
 
   it('converts an in-fiction world into an editable draft', () => {
-    const planetaryWorld = getActiveWorld(createSeedWorldDocument())
-      .planetaryWorlds[0];
+    const planetaryWorld = {
+      id: 'planetary-world-aster',
+      name: 'Aster',
+      summary: 'Legacy planet record.',
+      classification: 'Planet',
+      climate: 'Temperate',
+      dominantTerrain: 'Harbors',
+      notes: 'Legacy notes',
+      tags: ['planet', 'legacy'],
+      status: 'draft' as const,
+      createdAt: '2026-06-01T00:00:00.000Z',
+      updatedAt: '2026-06-01T00:00:00.000Z',
+    };
 
     expect(planetaryWorldDraftFrom(planetaryWorld)).toEqual({
       name: planetaryWorld.name,

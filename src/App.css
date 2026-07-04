@@ -192,15 +192,19 @@
 
 .vwb-section-intro h1 {
   max-width: 760px;
-  margin: 4px 0 0;
+  margin: 4px 0 14px;
   color: var(--vwb-heading);
   font-size: clamp(2rem, 6vw, 4.25rem);
   line-height: 0.98;
 }
 
+.vwb-hero h1 {
+  margin-bottom: 14px;
+}
+
 .vwb-hero h2 {
   max-width: 620px;
-  margin: 4px 0 0;
+  margin: 4px 0 14px;
   color: var(--vwb-heading);
   font-size: clamp(1.45rem, 3vw, 2rem);
   line-height: 1.12;

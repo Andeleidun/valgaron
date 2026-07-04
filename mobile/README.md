@@ -12,8 +12,7 @@ using compact native tabs for repeated editing on a phone.
   and timeline browsing with era and involved-entry filters.
 - Links supports relationship editing, broken-link repair, orphan diagnostics,
   graph filters, graph record search, and selected record context.
-- Worlds supports project/universe workspaces, in-fiction worlds or planets,
-  and custom entry type management.
+- Worlds supports project/universe workspaces and custom entry type management.
 - Data supports JSON import/export, Markdown reference export, diagnostics,
   reset, and selected recovery snapshot restore or delete.
 - Help keeps focused entry, timeline, relationship, workspace, local-device,

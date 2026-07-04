@@ -32,7 +32,7 @@ export type WorldEntryBase = {
 /** A person, creature, or major named figure in a workspace. */
 export type CharacterEntry = WorldEntryBase;
 
-/** A location, region, settlement, landmark, or realm. */
+/** A place, region, settlement, landmark, or realm. */
 export type PlaceEntry = WorldEntryBase;
 
 /** A political, religious, military, cultural, or secret organization. */
@@ -61,6 +61,7 @@ export type WorldDetailField = {
   key: WorldDetailFieldKey;
   label: string;
   multiline?: boolean;
+  autocompleteOptions?: readonly string[];
 };
 
 export type WorldSectionConfig = {

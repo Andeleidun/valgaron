@@ -120,10 +120,14 @@ function readDetailFields(
     const key = readString(field, 'key');
     const label = readString(field, 'label');
     const multiline = field.multiline;
+    const autocompleteOptions = field.autocompleteOptions;
     if (
       !key ||
       !label ||
-      (multiline !== undefined && typeof multiline !== 'boolean')
+      (multiline !== undefined && typeof multiline !== 'boolean') ||
+      (autocompleteOptions !== undefined &&
+        (!Array.isArray(autocompleteOptions) ||
+          !autocompleteOptions.every((option) => typeof option === 'string')))
     ) {
       return null;
     }
@@ -131,6 +135,9 @@ function readDetailFields(
       key,
       label,
       ...(typeof multiline === 'boolean' ? { multiline } : {}),
+      ...(Array.isArray(autocompleteOptions)
+        ? { autocompleteOptions: [...autocompleteOptions] }
+        : {}),
     };
   });
   if (fields.some((field) => field === null)) {

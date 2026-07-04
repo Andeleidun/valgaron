@@ -2,9 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Text, View, StyleSheet } from 'react-native';
 import { router } from 'expo-router';
 import type {
-  InFictionWorld,
   EntryTypeDraft,
-  PlanetaryWorldDraft,
   WorkspaceDraft,
   WorldWorkspace,
 } from '@valgaron/core';
@@ -13,7 +11,6 @@ import {
   getCodexScreenIntro,
   hasUnsavedChanges,
   lastActiveWorkspaceArchiveMessage,
-  planetaryWorldDraftFrom,
 } from '@valgaron/core';
 import {
   valgaronColors,
@@ -39,7 +36,6 @@ import { getMobileFeedbackTone } from '../state/mobileFeedback';
 import { getMobileRouteHref } from '../navigation/mobileRoutes';
 
 const MOBILE_WORKSPACE_RESULT_LIMIT = 40;
-const MOBILE_WORLD_RESULT_LIMIT = 40;
 const MOBILE_ENTRY_TYPE_RESULT_LIMIT = 40;
 
 const blankWorkspaceDraft: WorkspaceDraft = {
@@ -83,13 +79,7 @@ export function WorkspacesScreen() {
   );
   const [entryTypeDraft, setEntryTypeDraft] =
     useState<EntryTypeDraft>(blankEntryTypeDraft);
-  const [editingPlanetaryWorldId, setEditingPlanetaryWorldId] = useState<
-    string | null
-  >(null);
-  const [planetaryWorldDraft, setPlanetaryWorldDraft] =
-    useState<PlanetaryWorldDraft>(() => planetaryWorldDraftFrom());
   const [workspaceQuery, setWorkspaceQuery] = useState('');
-  const [planetaryWorldQuery, setPlanetaryWorldQuery] = useState('');
   const [entryTypeQuery, setEntryTypeQuery] = useState('');
 
   useEffect(() => {
@@ -99,7 +89,6 @@ export function WorkspacesScreen() {
     activeWorkspaceIdRef.current = controller.activeWorld.id;
     setSelectedWorkspaceId(controller.activeWorld.id);
     setWorkspaceDraft(workspaceDraftFrom(controller.activeWorld));
-    resetPlanetaryWorldDraft(true);
   }, [controller.activeWorld]);
 
   useEffect(() => {
@@ -114,25 +103,9 @@ export function WorkspacesScreen() {
     }
   }, [controller.document.worlds, selectedWorkspaceId]);
 
-  useEffect(() => {
-    if (
-      editingPlanetaryWorldId &&
-      !controller.activeWorld.planetaryWorlds.some(
-        (world) => world.id === editingPlanetaryWorldId
-      )
-    ) {
-      resetPlanetaryWorldDraft(true);
-    }
-  }, [controller.activeWorld.planetaryWorlds, editingPlanetaryWorldId]);
-
   const selectedWorkspace = selectedWorkspaceId
     ? controller.document.worlds.find(
         (workspace) => workspace.id === selectedWorkspaceId
-      ) ?? null
-    : null;
-  const editingPlanetaryWorld = editingPlanetaryWorldId
-    ? controller.activeWorld.planetaryWorlds.find(
-        (world) => world.id === editingPlanetaryWorldId
       ) ?? null
     : null;
   const activeWorkspaceCount = controller.document.worlds.filter(
@@ -141,25 +114,15 @@ export function WorkspacesScreen() {
   const workspaceBaselineDraft = workspaceDraftFrom(
     selectedWorkspace ?? undefined
   );
-  const planetaryWorldBaselineDraft = planetaryWorldDraftFrom(
-    editingPlanetaryWorld ?? undefined
-  );
   const isWorkspaceDraftDirty = hasUnsavedChanges(
     workspaceBaselineDraft,
     workspaceDraft
-  );
-  const isPlanetaryWorldDraftDirty = hasUnsavedChanges(
-    planetaryWorldBaselineDraft,
-    planetaryWorldDraft
   );
   const isEntryTypeDraftDirty = hasUnsavedChanges(
     blankEntryTypeDraft,
     entryTypeDraft
   );
-  const hasDirtyDraft =
-    isWorkspaceDraftDirty ||
-    isPlanetaryWorldDraftDirty ||
-    isEntryTypeDraftDirty;
+  const hasDirtyDraft = isWorkspaceDraftDirty || isEntryTypeDraftDirty;
   const customEntryTypes = useMemo(
     () => controller.activeWorld.entryTypes.filter((section) => section.custom),
     [controller.activeWorld.entryTypes]
@@ -188,34 +151,6 @@ export function WorkspacesScreen() {
     0,
     matchingWorkspaces.length - displayedWorkspaces.length
   );
-  const matchingPlanetaryWorlds = useMemo(
-    () =>
-      controller.activeWorld.planetaryWorlds.filter((world) =>
-        matchesQuery(
-          [
-            world.id,
-            world.name,
-            world.summary,
-            world.classification,
-            world.climate,
-            world.dominantTerrain,
-            world.notes,
-            world.status,
-            ...world.tags,
-          ],
-          planetaryWorldQuery
-        )
-      ),
-    [controller.activeWorld.planetaryWorlds, planetaryWorldQuery]
-  );
-  const displayedPlanetaryWorlds = matchingPlanetaryWorlds.slice(
-    0,
-    MOBILE_WORLD_RESULT_LIMIT
-  );
-  const hiddenPlanetaryWorldCount = Math.max(
-    0,
-    matchingPlanetaryWorlds.length - displayedPlanetaryWorlds.length
-  );
   const matchingCustomEntryTypes = useMemo(
     () =>
       customEntryTypes.filter((section) =>
@@ -243,28 +178,6 @@ export function WorkspacesScreen() {
     0,
     matchingCustomEntryTypes.length - displayedCustomEntryTypes.length
   );
-
-  function editPlanetaryWorld(world: InFictionWorld) {
-    if (editingPlanetaryWorldId === world.id) {
-      return;
-    }
-    confirmMobileDiscardUnsavedChanges(hasDirtyDraft, () => {
-      setEditingPlanetaryWorldId(world.id);
-      setPlanetaryWorldDraft(planetaryWorldDraftFrom(world));
-    });
-  }
-
-  function resetPlanetaryWorldDraft(force = false) {
-    const reset = () => {
-      setEditingPlanetaryWorldId(null);
-      setPlanetaryWorldDraft(planetaryWorldDraftFrom());
-    };
-    if (force) {
-      reset();
-      return;
-    }
-    confirmMobileDiscardUnsavedChanges(hasDirtyDraft, reset);
-  }
 
   function editWorkspace(workspace: WorldWorkspace) {
     if (selectedWorkspaceId === workspace.id) {
@@ -325,37 +238,6 @@ export function WorkspacesScreen() {
         confirmMobileDestructiveAction('delete-workspace', () =>
           controller.permanentlyDeleteWorkspace(workspaceId)
         )
-    );
-  }
-
-  function shouldConfirmPlanetaryWorldAction(planetaryWorldId: string) {
-    return (
-      isPlanetaryWorldDraftDirty && editingPlanetaryWorldId === planetaryWorldId
-    );
-  }
-
-  function archivePlanetaryWorld(world: InFictionWorld) {
-    confirmMobileDiscardUnsavedChanges(
-      shouldConfirmPlanetaryWorldAction(world.id),
-      () => {
-        controller.archivePlanetaryWorld(world.id, world.status !== 'archived');
-        if (world.id === editingPlanetaryWorldId) {
-          resetPlanetaryWorldDraft(true);
-        }
-      }
-    );
-  }
-
-  function deletePlanetaryWorld(planetaryWorldId: string) {
-    confirmMobileDiscardUnsavedChanges(
-      shouldConfirmPlanetaryWorldAction(planetaryWorldId),
-      () =>
-        confirmMobileDestructiveAction('delete-planetary-world', () => {
-          controller.permanentlyDeletePlanetaryWorld(planetaryWorldId);
-          if (planetaryWorldId === editingPlanetaryWorldId) {
-            resetPlanetaryWorldDraft(true);
-          }
-        })
     );
   }
 
@@ -529,153 +411,6 @@ export function WorkspacesScreen() {
           <ActionButton
             label="New Workspace Draft"
             onPress={resetWorkspaceDraft}
-          />
-        </ButtonRow>
-      </SectionBlock>
-
-      <SectionBlock title="In-Fiction Worlds And Planets">
-        {isPlanetaryWorldDraftDirty ? (
-          <StatusText tone="warning">Unsaved world draft.</StatusText>
-        ) : null}
-        <Field
-          autoCapitalize="none"
-          autoCorrect={false}
-          label="Search worlds"
-          value={planetaryWorldQuery}
-          onChangeText={setPlanetaryWorldQuery}
-          placeholder="Name, classification, terrain, tag, status, or id"
-        />
-        {displayedPlanetaryWorlds.length > 0 ? (
-          displayedPlanetaryWorlds.map((world) => (
-            <View key={world.id} style={styles.workspaceRow}>
-              <Text style={styles.itemTitle}>{world.name}</Text>
-              <MutedText>
-                {world.status} - {world.classification || 'No classification'}
-              </MutedText>
-              <MutedText>{world.summary || 'No summary yet.'}</MutedText>
-              <ButtonRow>
-                <ActionButton
-                  accessibilityLabel={`Edit in-fiction world ${world.name}`}
-                  label="Edit"
-                  onPress={() => editPlanetaryWorld(world)}
-                />
-                <ActionButton
-                  accessibilityLabel={
-                    world.status === 'archived'
-                      ? `Restore in-fiction world ${world.name}`
-                      : `Archive in-fiction world ${world.name}`
-                  }
-                  label={world.status === 'archived' ? 'Restore' : 'Archive'}
-                  onPress={() => archivePlanetaryWorld(world)}
-                />
-                <ActionButton
-                  accessibilityHint="Deletes this in-fiction world after confirmation."
-                  accessibilityLabel={`Delete in-fiction world ${world.name}`}
-                  label="Delete"
-                  tone="danger"
-                  onPress={() => deletePlanetaryWorld(world.id)}
-                />
-              </ButtonRow>
-            </View>
-          ))
-        ) : planetaryWorldQuery.trim() ? (
-          <MutedText>
-            No in-fiction worlds or planets match this search.
-          </MutedText>
-        ) : (
-          <MutedText>
-            No in-fiction worlds or planets yet. Add one when the setting needs
-            planet-level context.
-          </MutedText>
-        )}
-        {hiddenPlanetaryWorldCount > 0 ? (
-          <MutedText>
-            Refine world search to show {hiddenPlanetaryWorldCount} more world
-            {hiddenPlanetaryWorldCount === 1 ? '' : 's'}.
-          </MutedText>
-        ) : null}
-        <Field
-          label="World or planet name"
-          value={planetaryWorldDraft.name}
-          onChangeText={(value) =>
-            setPlanetaryWorldDraft((current) => ({ ...current, name: value }))
-          }
-        />
-        <Field
-          label="Summary"
-          value={planetaryWorldDraft.summary}
-          multiline
-          onChangeText={(value) =>
-            setPlanetaryWorldDraft((current) => ({
-              ...current,
-              summary: value,
-            }))
-          }
-        />
-        <Field
-          label="Classification"
-          value={planetaryWorldDraft.classification}
-          onChangeText={(value) =>
-            setPlanetaryWorldDraft((current) => ({
-              ...current,
-              classification: value,
-            }))
-          }
-        />
-        <Field
-          label="Climate"
-          value={planetaryWorldDraft.climate}
-          onChangeText={(value) =>
-            setPlanetaryWorldDraft((current) => ({
-              ...current,
-              climate: value,
-            }))
-          }
-        />
-        <Field
-          label="Dominant terrain"
-          value={planetaryWorldDraft.dominantTerrain}
-          onChangeText={(value) =>
-            setPlanetaryWorldDraft((current) => ({
-              ...current,
-              dominantTerrain: value,
-            }))
-          }
-        />
-        <Field
-          label="Notes"
-          value={planetaryWorldDraft.notes}
-          multiline
-          onChangeText={(value) =>
-            setPlanetaryWorldDraft((current) => ({ ...current, notes: value }))
-          }
-        />
-        <Field
-          autoCapitalize="none"
-          autoCorrect={false}
-          label="Tags"
-          value={planetaryWorldDraft.tags}
-          onChangeText={(value) =>
-            setPlanetaryWorldDraft((current) => ({ ...current, tags: value }))
-          }
-        />
-        <ButtonRow>
-          <ActionButton
-            label={editingPlanetaryWorld ? 'Save World' : 'Add World'}
-            tone="accent"
-            onPress={() => {
-              const didSave = controller.savePlanetaryWorld(
-                planetaryWorldDraft,
-                editingPlanetaryWorld ?? undefined
-              );
-              if (didSave) {
-                resetPlanetaryWorldDraft(true);
-              }
-            }}
-          />
-          <ActionButton
-            label="New World Draft"
-            onPress={resetPlanetaryWorldDraft}
           />
         </ButtonRow>
       </SectionBlock>
