@@ -48,6 +48,7 @@ Use this order when files disagree:
 ## Validation
 
 - Run Prettier after file edits.
+- For all reviews, running `npm test` and having all tests pass is a mandatory gate. Do not complete a review without reporting the `npm test` result.
 - For source changes, run `npm run typecheck`; this repository uses TypeScript project references, so build-mode checking is the meaningful type gate.
 - Run `npx vite build` after route/export/build changes. Current Node may warn or fail if it is below Vite's required version; report that separately from code failures.
 - Run `npx eslint .` when the ESLint config and dependencies are in a runnable state.

@@ -1,4 +1,6 @@
 /** @type {import('jest').Config} */
+process.env.TZ = 'America/Los_Angeles';
+
 const config = {
   clearMocks: true,
   moduleFileExtensions: ['ts', 'tsx', 'js'],
