@@ -27,3 +27,7 @@ npm run test:mobile
 npm run typecheck:mobile
 npm run mobile:doctor
 ```
+
+Native device interaction coverage starts with the Android Maestro harness. See
+[`docs/qa/mobile-maestro.md`](../docs/qa/mobile-maestro.md) for Maestro
+installation, E2E reset, build/install, and run instructions.

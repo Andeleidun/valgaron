@@ -721,6 +721,17 @@ export function EntriesScreen() {
     }
   }
 
+  function clearMobileManyRelationshipTargets(config: RelationshipFieldConfig) {
+    if (!selectedEntry) {
+      return;
+    }
+    getRelationshipFieldLinks(
+      controller.activeWorld.relationships,
+      selectedEntry,
+      config
+    ).forEach((relationship) => controller.unlinkRelationship(relationship.id));
+  }
+
   function getMobileLegacyRelationshipTextMigration(
     config: RelationshipFieldConfig,
     value: string
@@ -977,6 +988,7 @@ export function EntriesScreen() {
               key={option.id}
               label={option.label}
               selected={option.isActive}
+              testID={`entries.section.${option.id}`}
               tone={option.isActive ? 'accent' : 'neutral'}
               onPress={() => chooseSection(option.section)}
             />
@@ -1347,6 +1359,7 @@ export function EntriesScreen() {
                 <ActionButton
                   accessibilityLabel={`Edit ${entry.name}`}
                   label="Edit"
+                  testID={`entries.entry.${entry.id}`}
                   onPress={() => chooseEntry(entry.id)}
                 />
                 {section.id === 'timeline' && entries.length > 1 ? (
@@ -1467,6 +1480,7 @@ export function EntriesScreen() {
             ? `Edit ${selectedEntry.name}`
             : getEntryEditorNewTitle(section)
         }
+        titleTestID="entries.editor.title"
       >
         {controller.formMessage ? (
           <StatusText tone={getFeedbackTone(controller.formMessage)}>
@@ -1483,6 +1497,7 @@ export function EntriesScreen() {
             key={field.id}
             label={field.label}
             value={field.value}
+            testID={field.id}
             onChangeText={(value) => {
               if (field.key === 'name') {
                 setCopyStatus('');
@@ -1507,6 +1522,7 @@ export function EntriesScreen() {
             autoCorrect={false}
             key={field.id}
             label={field.label}
+            testID={field.id}
             value={field.value}
             onChangeText={(value) =>
               setDraft((current) => ({ ...current, [field.key]: value }))
@@ -1545,6 +1561,7 @@ export function EntriesScreen() {
                   label={field.label}
                   value={field.value}
                   multiline={field.multiline}
+                  testID={`entries.field.${field.key}`}
                   onChangeText={(value) => setDetailValue(field.key, value)}
                 />
                 {field.suggestions.length > 0 ? (
@@ -1563,7 +1580,10 @@ export function EntriesScreen() {
           </View>
         ))}
         {selectedEntry && activeRelationshipFieldConfigs.length > 0 ? (
-          <View style={styles.relationshipGroup}>
+          <View
+            style={styles.relationshipGroup}
+            testID="entries.linkedFields.section"
+          >
             <Text style={styles.relationshipGroupTitle}>
               Linked {section.singularTitle.toLowerCase()} fields
             </Text>
@@ -1589,7 +1609,11 @@ export function EntriesScreen() {
                   visibleOptions,
                 } = fieldModel;
                 return (
-                  <View key={config.fieldKey} style={styles.linkedField}>
+                  <View
+                    key={config.fieldKey}
+                    style={styles.linkedField}
+                    testID={`entries.linkedField.${config.fieldKey}`}
+                  >
                     <Text style={styles.relationshipGroupTitle}>
                       {config.label}
                     </Text>
@@ -1618,6 +1642,7 @@ export function EntriesScreen() {
                             <ActionButton
                               label={relationshipFieldCopy.noLinkedRecordLabel}
                               selected={fieldRelationships.length === 0}
+                              testID={`entries.linkedField.${config.fieldKey}.clear`}
                               tone={
                                 fieldRelationships.length === 0
                                   ? 'accent'
@@ -1628,54 +1653,83 @@ export function EntriesScreen() {
                               }
                             />
                             {visibleOptions.map((option) => (
-                              <ActionButton
+                              <View
                                 key={option.entry.id}
-                                label={
-                                  option.targetCategoryWarning
-                                    ? `${option.entry.name} (unusual)`
-                                    : option.entry.name
-                                }
-                                selected={selectedTargetIds.has(
-                                  option.entry.id
-                                )}
-                                tone={
+                                testID={
                                   selectedTargetIds.has(option.entry.id)
-                                    ? 'accent'
-                                    : 'neutral'
+                                    ? `entries.linkedField.${config.fieldKey}.selectedTarget.${option.entry.id}`
+                                    : undefined
                                 }
-                                onPress={() =>
-                                  setMobileSingleRelationshipTarget(
-                                    config,
-                                    option.entry.id
-                                  )
-                                }
-                              />
-                            ))}
-                          </ButtonRow>
-                        ) : (
-                          <ButtonRow>
-                            {visibleOptions.map((option) => {
-                              const selected = selectedTargetIds.has(
-                                option.entry.id
-                              );
-                              return (
+                              >
                                 <ActionButton
-                                  key={option.entry.id}
                                   label={
                                     option.targetCategoryWarning
                                       ? `${option.entry.name} (unusual)`
                                       : option.entry.name
                                   }
-                                  selected={selected}
-                                  tone={selected ? 'accent' : 'neutral'}
+                                  selected={selectedTargetIds.has(
+                                    option.entry.id
+                                  )}
+                                  testID={`entries.linkedField.${config.fieldKey}.target.${option.entry.id}`}
+                                  tone={
+                                    selectedTargetIds.has(option.entry.id)
+                                      ? 'accent'
+                                      : 'neutral'
+                                  }
                                   onPress={() =>
-                                    toggleMobileManyRelationshipTarget(
+                                    setMobileSingleRelationshipTarget(
                                       config,
-                                      option.entry.id,
-                                      !selected
+                                      option.entry.id
                                     )
                                   }
                                 />
+                              </View>
+                            ))}
+                          </ButtonRow>
+                        ) : (
+                          <ButtonRow>
+                            {fieldRelationships.length > 0 ? (
+                              <ActionButton
+                                label={
+                                  relationshipFieldCopy.clearLinkedRecordsLabel
+                                }
+                                testID={`entries.linkedField.${config.fieldKey}.clear`}
+                                onPress={() =>
+                                  clearMobileManyRelationshipTargets(config)
+                                }
+                              />
+                            ) : null}
+                            {visibleOptions.map((option) => {
+                              const selected = selectedTargetIds.has(
+                                option.entry.id
+                              );
+                              return (
+                                <View
+                                  key={option.entry.id}
+                                  testID={
+                                    selected
+                                      ? `entries.linkedField.${config.fieldKey}.selectedTarget.${option.entry.id}`
+                                      : undefined
+                                  }
+                                >
+                                  <ActionButton
+                                    label={
+                                      option.targetCategoryWarning
+                                        ? `${option.entry.name} (unusual)`
+                                        : option.entry.name
+                                    }
+                                    selected={selected}
+                                    testID={`entries.linkedField.${config.fieldKey}.target.${option.entry.id}`}
+                                    tone={selected ? 'accent' : 'neutral'}
+                                    onPress={() =>
+                                      toggleMobileManyRelationshipTarget(
+                                        config,
+                                        option.entry.id,
+                                        !selected
+                                      )
+                                    }
+                                  />
+                                </View>
                               );
                             })}
                           </ButtonRow>
@@ -1773,6 +1827,7 @@ export function EntriesScreen() {
         <ButtonRow>
           <ActionButton
             label={getEntryEditorSubmitLabel({ section, selectedEntry })}
+            testID="entries.editor.save"
             tone="accent"
             onPress={() => {
               const savedEntry = controller.saveEntryDraft(

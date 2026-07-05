@@ -33,6 +33,8 @@
     "check:performance": "jest src/Utlilities/largeWorldPerformance.test.ts --runInBand",
     "check:pwa": "npm run build:pages && node scripts/verifyPwaBuild.cjs",
     "check:browser": "node scripts/browserSmoke.cjs",
+    "mobile:e2e": "npm run mobile:e2e:android",
+    "mobile:e2e:android": "node scripts/runMobileMaestro.cjs android",
     "check": "npm run format:check && npm run lint && npm run typecheck && npm run typecheck:mobile && npm run check:metadata && npm run check:taxonomies && npm test && npm run build",
     "check:release": "npm run check && npm run check:audit && npm run mobile:doctor && npm run check:pwa && npm run check:browser",
     "preview": "vite preview"

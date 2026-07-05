@@ -129,6 +129,7 @@ function makeTargetOption(entry: WorldEntry, isPreferredTarget = true) {
 describe('relationship-backed field helpers', () => {
   it('centralizes linked field renderer copy', () => {
     expect(relationshipFieldCopy).toEqual({
+      clearLinkedRecordsLabel: 'Clear linked records',
       createMatchingRecordsMessage:
         'Create matching records before linking this field.',
       noLinkedRecordLabel: 'No linked record',

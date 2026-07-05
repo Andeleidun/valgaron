@@ -41,14 +41,22 @@ export function SectionBlock({
   title,
   children,
   onLayout,
+  testID,
+  titleTestID,
 }: {
   title: string;
   children: ReactNode;
   onLayout?: ViewProps['onLayout'];
+  testID?: string;
+  titleTestID?: string;
 }) {
   return (
-    <View style={styles.section} onLayout={onLayout}>
-      <Text accessibilityRole="header" style={styles.sectionTitle}>
+    <View style={styles.section} onLayout={onLayout} testID={testID}>
+      <Text
+        accessibilityRole="header"
+        style={styles.sectionTitle}
+        testID={titleTestID}
+      >
         {title}
       </Text>
       {children}
@@ -64,6 +72,7 @@ export function Field({
   onChangeText,
   multiline,
   placeholder,
+  testID,
 }: {
   autoCapitalize?: TextInputProps['autoCapitalize'];
   autoCorrect?: boolean;
@@ -72,6 +81,7 @@ export function Field({
   onChangeText: (value: string) => void;
   multiline?: boolean;
   placeholder?: string;
+  testID?: string;
 }) {
   const inputProps: TextInputProps = multiline
     ? { multiline: true, textAlignVertical: 'top' }
@@ -87,6 +97,7 @@ export function Field({
         placeholder={placeholder}
         placeholderTextColor={valgaronColors.muted}
         style={[styles.input, multiline ? styles.multilineInput : null]}
+        testID={testID}
         value={value}
         onChangeText={onChangeText}
       />
@@ -100,6 +111,7 @@ export function SelectField<TValue extends string>({
   options,
   searchable = false,
   searchPlaceholder = 'Search choices',
+  testID,
   value,
   onValueChange,
 }: {
@@ -108,6 +120,7 @@ export function SelectField<TValue extends string>({
   options: readonly ControlOption<TValue>[];
   searchable?: boolean;
   searchPlaceholder?: string;
+  testID?: string;
   value: TValue;
   onValueChange: (value: TValue) => void;
 }) {
@@ -146,6 +159,7 @@ export function SelectField<TValue extends string>({
           styles.selectInput,
           pressed ? styles.pressed : null,
         ]}
+        testID={testID}
       >
         <Text style={styles.selectValue}>
           {selectedOption?.label ?? 'Select'}
@@ -221,11 +235,13 @@ export function CheckboxField({
   checked,
   label,
   onChange,
+  testID,
 }: {
   accessibilityLabel?: string;
   checked: boolean;
   label: string;
   onChange: (checked: boolean) => void;
+  testID?: string;
 }) {
   return (
     <Pressable
@@ -237,6 +253,7 @@ export function CheckboxField({
         styles.checkboxRow,
         pressed ? styles.pressed : null,
       ]}
+      testID={testID}
     >
       <View
         style={[styles.checkboxBox, checked ? styles.checkboxChecked : null]}
@@ -254,6 +271,7 @@ export function ActionButton({
   label,
   onPress,
   selected = false,
+  testID,
   tone = 'neutral',
   disabled = false,
 }: {
@@ -262,6 +280,7 @@ export function ActionButton({
   label: string;
   onPress: () => void;
   selected?: boolean;
+  testID?: string;
   tone?: 'neutral' | 'accent' | 'danger';
   disabled?: boolean;
 }) {
@@ -281,6 +300,7 @@ export function ActionButton({
         disabled ? styles.disabledButton : null,
         pressed && !disabled ? styles.pressed : null,
       ]}
+      testID={testID}
     >
       <Text
         style={[

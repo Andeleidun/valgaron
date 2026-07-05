@@ -1,0 +1,86 @@
+appId: com.valgaron.mobile
+---
+- launchApp:
+    clearState: true
+- extendedWaitUntil:
+    visible:
+      id: tab.entries
+    timeout: 15000
+- tapOn:
+    id: tab.entries
+- tapOn:
+    id: entries.section.characters
+- scrollUntilVisible:
+    element:
+      id: entries.entry.character-mira-rowan
+    direction: DOWN
+- tapOn:
+    id: entries.entry.character-mira-rowan
+- assertVisible:
+    id: entries.editor.title
+- scrollUntilVisible:
+    element:
+      id: entries.field.characterCategory
+    direction: DOWN
+- tapOn:
+    id: entries.field.characterCategory
+- eraseText: 40
+- inputText: Nonhumanoid sapient
+- hideKeyboard
+- assertVisible: Creature profile
+- scrollUntilVisible:
+    element:
+      id: entries.field.ancestry
+    direction: DOWN
+- assertVisible:
+    id: entries.field.ancestry
+- scrollUntilVisible:
+    element:
+      id: entries.field.profession
+    direction: DOWN
+- assertVisible:
+    id: entries.field.profession
+- scrollUntilVisible:
+    element:
+      id: entries.editor.save
+    direction: DOWN
+- tapOn:
+    id: entries.editor.save
+- scrollUntilVisible:
+    element:
+      id: entries.linkedFields.section
+    direction: UP
+- scrollUntilVisible:
+    element:
+      id: entries.linkedField.homePlace
+    direction: UP
+- assertVisible:
+    id: entries.linkedField.homePlace
+- tapOn:
+    id: entries.linkedField.homePlace.target.place-northwatch-harbor
+- extendedWaitUntil:
+    visible:
+      id: entries.linkedField.homePlace.clear
+    timeout: 10000
+- tapOn:
+    id: entries.linkedField.homePlace.clear
+- tapOn:
+    id: entries.linkedField.homePlace.target.place-northwatch-harbor
+- scrollUntilVisible:
+    element:
+      id: entries.section.places
+    direction: UP
+- tapOn:
+    id: entries.section.places
+- tapOn:
+    id: entries.section.characters
+- scrollUntilVisible:
+    element:
+      id: entries.entry.character-mira-rowan
+    direction: DOWN
+- tapOn:
+    id: entries.entry.character-mira-rowan
+- scrollUntilVisible:
+    element:
+      id: entries.linkedField.homePlace.selectedTarget.place-northwatch-harbor
+    direction: DOWN

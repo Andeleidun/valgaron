@@ -124,6 +124,7 @@ export const relationshipTextReviewCopy = {
 } as const;
 
 export const relationshipFieldCopy = {
+  clearLinkedRecordsLabel: 'Clear linked records',
   createMatchingRecordsMessage:
     'Create matching records before linking this field.',
   noLinkedRecordLabel: 'No linked record',

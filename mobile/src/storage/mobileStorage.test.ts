@@ -15,6 +15,7 @@ import {
   loadMobileRecoverySnapshots,
   loadMobileWorldDocument,
   parseMobileWorldImport,
+  resetMobileE2EWorldDocument,
   saveMobileRecoverySnapshot,
   saveMobileWorldDocument,
 } from './mobileStorage';
@@ -40,6 +41,37 @@ describe('mobile storage', () => {
       status: { source: 'saved' },
       document,
     });
+  });
+
+  it('resets mobile E2E storage to seed data and clears recovery snapshots', async () => {
+    const storage = createMemoryStringStorage({
+      [MOBILE_RECOVERY_SNAPSHOT_STORAGE_KEY]: JSON.stringify({
+        createdAt: '2026-06-01T09:00:00.000Z',
+        document: createSeedWorldDocument(),
+        id: 'legacy-snapshot',
+        reason: 'reset',
+      }),
+      [MOBILE_RECOVERY_SNAPSHOTS_STORAGE_KEY]: JSON.stringify([
+        createMobileRecoverySnapshot(createSeedWorldDocument(), 'reset'),
+      ]),
+      [MOBILE_WORLD_DOCUMENT_STORAGE_KEY]: JSON.stringify({
+        schemaVersion: 999,
+      }),
+    });
+
+    await expect(resetMobileE2EWorldDocument(storage)).resolves.toMatchObject({
+      document: createSeedWorldDocument(),
+      status: { source: 'seed' },
+    });
+    expect(storage.snapshot()[MOBILE_WORLD_DOCUMENT_STORAGE_KEY]).toContain(
+      '"schemaVersion":2'
+    );
+    expect(
+      storage.snapshot()[MOBILE_RECOVERY_SNAPSHOT_STORAGE_KEY]
+    ).toBeUndefined();
+    expect(
+      storage.snapshot()[MOBILE_RECOVERY_SNAPSHOTS_STORAGE_KEY]
+    ).toBeUndefined();
   });
 
   it('recovers to starter data when saved mobile JSON is corrupt', async () => {

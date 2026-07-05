@@ -28,6 +28,7 @@ export default function TabLayout() {
           options={{
             title: route.title,
             tabBarAccessibilityLabel: `${route.title} tab`,
+            tabBarButtonTestID: `tab.${route.id}`,
             tabBarLabel: route.tabLabel,
             tabBarIcon: ({ color, size }) => (
               <Feather name={route.iconName} color={color} size={size} />

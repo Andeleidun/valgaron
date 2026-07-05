@@ -74,6 +74,26 @@ export async function loadMobileWorldDocument(
   };
 }
 
+export async function resetMobileE2EWorldDocument(
+  storage: AsyncStringStorageAdapter
+): Promise<MobileDocumentLoadResult> {
+  const document = createSeedWorldDocument();
+  const checkedAt = new Date().toISOString();
+  await Promise.all([
+    saveMobileWorldDocument(storage, document),
+    storage.remove(MOBILE_RECOVERY_SNAPSHOT_STORAGE_KEY),
+    storage.remove(MOBILE_RECOVERY_SNAPSHOTS_STORAGE_KEY),
+  ]);
+  return {
+    document,
+    status: {
+      source: 'seed',
+      message: 'Loaded deterministic mobile E2E starter data.',
+      checkedAt,
+    },
+  };
+}
+
 export async function saveMobileWorldDocument(
   storage: AsyncStringStorageAdapter,
   document: WorldDocument

@@ -6,6 +6,7 @@ import {
   createSeedWorldDocument,
   getActiveWorld,
 } from '@valgaron/core';
+import type { WorldRelationship } from '@valgaron/core';
 import type { MobileCodexController } from '../state/MobileCodexContext';
 import { EntriesScreen } from './EntriesScreen';
 
@@ -17,6 +18,7 @@ type MockNativeProps = {
     | ((state: { pressed: boolean }) => React.ReactNode);
   disabled?: boolean;
   placeholder?: string;
+  testID?: string;
   value?: string;
   visible?: boolean;
 };
@@ -64,12 +66,14 @@ jest.mock('react-native', () => {
       accessibilityRole,
       children,
       disabled,
+      testID,
     }: MockNativeProps) =>
       ReactRuntime.createElement(
         'div',
         {
           'aria-disabled': disabled ? 'true' : undefined,
           'aria-label': accessibilityLabel,
+          'data-testid': testID,
           role: accessibilityRole,
         },
         renderChildren(children)
@@ -81,25 +85,50 @@ jest.mock('react-native', () => {
         styles,
       flatten: (style: unknown) => style,
     },
-    Text: ({ accessibilityRole, children }: MockNativeProps) =>
+    Text: ({ accessibilityRole, children, testID }: MockNativeProps) =>
       ReactRuntime.createElement(
         'span',
-        { role: accessibilityRole },
+        { 'data-testid': testID, role: accessibilityRole },
         renderChildren(children)
       ),
-    TextInput: ({ accessibilityLabel, placeholder, value }: MockNativeProps) =>
+    TextInput: ({
+      accessibilityLabel,
+      placeholder,
+      testID,
+      value,
+    }: MockNativeProps) =>
       ReactRuntime.createElement('input', {
         'aria-label': accessibilityLabel,
+        'data-testid': testID,
         defaultValue: value,
         placeholder,
       }),
-    View: ({ children }: MockNativeProps) =>
-      ReactRuntime.createElement('div', null, renderChildren(children)),
+    View: ({ children, testID }: MockNativeProps) =>
+      ReactRuntime.createElement(
+        'div',
+        { 'data-testid': testID },
+        renderChildren(children)
+      ),
   };
 });
 
 function createMockController(): MobileCodexController {
   const document = createSeedWorldDocument();
+  const homePlaceRelationship: WorldRelationship = {
+    id: 'relationship-mira-northwatch-harbor-home',
+    sourceEntryId: 'character-mira-rowan',
+    targetEntryId: 'place-northwatch-harbor',
+    type: 'resides in',
+    directional: true,
+    note: '',
+    status: 'draft',
+    createdAt: document.savedAt,
+    updatedAt: document.savedAt,
+  };
+  document.worlds[0] = {
+    ...document.worlds[0],
+    relationships: [...document.worlds[0].relationships, homePlaceRelationship],
+  };
   const activeWorld = getActiveWorld(document);
 
   return {
@@ -163,6 +192,29 @@ describe('EntriesScreen render smoke', () => {
     expect(markup).toContain('value="Human"');
     expect(markup).toContain('value="Surveyor"');
     expect(markup).toContain('The Cartographers Guild');
+    expect(markup).toContain('data-testid="entries.section.characters"');
+    expect(markup).toContain(
+      'data-testid="entries.entry.character-mira-rowan"'
+    );
+    expect(markup).toContain('data-testid="entries.editor.title"');
+    expect(markup).toContain('data-testid="entries.editor.save"');
+    expect(markup).toContain('data-testid="entries.field.characterCategory"');
+    expect(markup).toContain('data-testid="entries.field.ancestry"');
+    expect(markup).toContain('data-testid="entries.field.profession"');
+    expect(markup).toContain('data-testid="entries.linkedFields.section"');
+    expect(markup).toContain('data-testid="entries.linkedField.homePlace"');
+    expect(markup).toContain(
+      'data-testid="entries.linkedField.homePlace.target.place-northwatch-harbor"'
+    );
+    expect(markup).toContain(
+      'data-testid="entries.linkedField.homePlace.selectedTarget.place-northwatch-harbor"'
+    );
+    expect(markup).toContain(
+      'data-testid="entries.linkedField.affiliations.selectedTarget.faction-cartographers-guild"'
+    );
+    expect(markup).toContain(
+      'data-testid="entries.linkedField.homePlace.clear"'
+    );
     expect(markup).toContain('Legacy Link Text');
     expect(markup).toContain(
       'relationship-backed fields contain saved text that can be reviewed or migrated to relationships.'

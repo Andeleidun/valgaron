@@ -70,6 +70,7 @@ import {
   loadMobileRecoverySnapshots,
   loadMobileWorldDocument,
   parseMobileWorldImport,
+  resetMobileE2EWorldDocument,
   saveMobileRecoverySnapshot,
   saveMobileWorldDocument,
   type MobileDocumentLoadStatus,
@@ -77,6 +78,7 @@ import {
   type MobileRecoverySnapshot,
   type MobileRecoverySnapshotReason,
 } from '../storage/mobileStorage';
+import { isMobileE2EMode } from './mobileE2E';
 type MobileCodexState = {
   document: WorldDocument;
   loadStatus: MobileDocumentLoadStatus;
@@ -156,10 +158,13 @@ export function MobileCodexProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let mounted = true;
     async function loadDocument() {
-      const [loadResult, recoverySnapshots] = await Promise.all([
-        loadMobileWorldDocument(asyncStorageAdapter),
-        loadMobileRecoverySnapshots(asyncStorageAdapter),
-      ]);
+      const e2eMode = isMobileE2EMode();
+      const loadResult = e2eMode
+        ? await resetMobileE2EWorldDocument(asyncStorageAdapter)
+        : await loadMobileWorldDocument(asyncStorageAdapter);
+      const recoverySnapshots = e2eMode
+        ? []
+        : await loadMobileRecoverySnapshots(asyncStorageAdapter);
       if (!mounted) {
         return;
       }
