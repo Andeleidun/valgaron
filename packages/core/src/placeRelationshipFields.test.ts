@@ -1,17 +1,25 @@
 import { describe, expect, it } from '@jest/globals';
 import {
   filterPlaceRelationshipTargetOptions,
+  buildPlaceRelationshipFieldTextMigrationOperation,
   buildPlaceRelationshipTextReviewBatchMigration,
   buildPlaceRelationshipTextReviewMigration,
+  buildPlaceRelationshipTextReviewSuggestionMigration,
+  getPlaceRelationshipTargetOptionDisplay,
+  getPlaceRelationshipFieldTextMigration,
   getPlaceRelationshipFieldLinks,
   getPlaceRelationshipFieldTargetId,
+  getPlaceRelationshipTextReviewSummary,
   getPlaceRelationshipTextReviewExactMatchLabel,
   getPlaceRelationshipTextReviewItems,
   getPlaceRelationshipTextReviewSuggestionLabels,
   getPlaceRelationshipTextReviewUnresolvedLabel,
+  getPlaceRelationshipTextMigrationStatus,
   getPlaceRelationshipTargetOptions,
   limitPlaceRelationshipTargetOptions,
   makePlaceFieldRelationship,
+  placeRelationshipFieldCopy,
+  placeRelationshipTextReviewCopy,
 } from './placeRelationshipFields';
 import { placeRelationshipFieldConfigs } from './placeTaxonomy';
 import type {
@@ -89,8 +97,30 @@ const codex = {
   timeline: [],
 } as WorldCodex;
 
+function makeTargetOption(entry: WorldEntry, isPreferredTarget = true) {
+  return {
+    entry,
+    section: placeSection,
+    isPreferredTarget,
+    targetCategoryWarning: isPreferredTarget
+      ? undefined
+      : 'Unusual target for this field',
+  };
+}
+
 describe('place relationship field helpers', () => {
-  it('returns eligible target options by section, status, and target category', () => {
+  it('centralizes linked field renderer copy', () => {
+    expect(placeRelationshipFieldCopy).toEqual({
+      createMatchingRecordsMessage:
+        'Create matching records before linking this field.',
+      noLinkedRecordLabel: 'No linked record',
+      noMatchingTargetsMessage:
+        'No matching records. Clear the search to see all targets.',
+      searchPlaceholder: 'Filter linked record targets',
+    });
+  });
+
+  it('returns soft target options with preferred categories sorted first', () => {
     const capitalConfig = placeRelationshipFieldConfigs.find(
       (config) => config.fieldKey === 'capital'
     );
@@ -106,8 +136,16 @@ describe('place relationship field helpers', () => {
         config: capitalConfig,
         sections: [placeSection],
         currentEntry: country,
-      }).map((option) => option.entry.id)
-    ).toEqual(['place-capital']);
+      }).map((option) => ({
+        id: option.entry.id,
+        preferred: option.isPreferredTarget,
+      }))
+    ).toEqual([
+      { id: 'place-capital', preferred: true },
+      { id: 'place-river-source', preferred: false },
+      { id: 'place-village', preferred: false },
+      { id: 'place-river-main', preferred: false },
+    ]);
   });
 
   it('keeps explicitly included selected targets available even when normally filtered out', () => {
@@ -138,8 +176,121 @@ describe('place relationship field helpers', () => {
         ]),
         sections: [placeSection, loreSection],
         currentEntry: country,
-      }).map((option) => option.entry.id)
-    ).toEqual(['lore-capital-charter', 'place-capital', 'place-archived-city']);
+      }).map((option) => ({
+        id: option.entry.id,
+        preferred: option.isPreferredTarget,
+      }))
+    ).toEqual([
+      { id: 'place-capital', preferred: true },
+      { id: 'place-archived-city', preferred: true },
+      { id: 'lore-capital-charter', preferred: false },
+      { id: 'place-river-source', preferred: false },
+      { id: 'place-village', preferred: false },
+      { id: 'place-river-main', preferred: false },
+    ]);
+  });
+
+  it('keeps preferred unusual targets behind lazy expansion', () => {
+    const settlementsConfig = placeRelationshipFieldConfigs.find(
+      (config) => config.fieldKey === 'settlements'
+    );
+    const country = makeEntry('place-country', 'Veyr', 'Country');
+
+    if (!settlementsConfig) {
+      throw new Error('Expected settlements relationship config.');
+    }
+
+    const filteredOptions = filterPlaceRelationshipTargetOptions(
+      getPlaceRelationshipTargetOptions({
+        codex,
+        config: settlementsConfig,
+        sections: [placeSection],
+        currentEntry: country,
+      }),
+      'moon',
+      new Set()
+    );
+    const collapsedDisplay = getPlaceRelationshipTargetOptionDisplay({
+      expandedUnusualTargets: false,
+      limit: 10,
+      options: filteredOptions,
+      selectedTargetIds: new Set(),
+    });
+    const expandedDisplay = getPlaceRelationshipTargetOptionDisplay({
+      expandedUnusualTargets: true,
+      limit: 10,
+      options: filteredOptions,
+      selectedTargetIds: new Set(),
+    });
+
+    expect(collapsedDisplay.visibleOptions).toEqual([]);
+    expect(collapsedDisplay.canExpandUnusualTargets).toBe(true);
+    expect(collapsedDisplay.hiddenUnusualCount).toBe(1);
+    expect(collapsedDisplay.showUnusualTargetsLabel).toBe(
+      'Show 1 unusual target'
+    );
+    expect(
+      expandedDisplay.visibleOptions.map((option) => option.entry.id)
+    ).toEqual(['place-river-source']);
+    expect(expandedDisplay.showUnusualTargetsLabel).toBe('');
+  });
+
+  it('does not offer unusual expansion before all preferred matches are visible', () => {
+    const options = [
+      makeTargetOption(makeEntry('place-capital-a', 'Amber Hall', 'Capital')),
+      makeTargetOption(makeEntry('place-capital-b', 'Brass Hall', 'Capital')),
+      makeTargetOption(
+        makeEntry('place-river-a', 'Copper Run', 'River'),
+        false
+      ),
+    ];
+
+    const display = getPlaceRelationshipTargetOptionDisplay({
+      expandedUnusualTargets: false,
+      limit: 1,
+      options,
+      selectedTargetIds: new Set(),
+    });
+
+    expect(display).toMatchObject({
+      canExpandUnusualTargets: false,
+      hiddenPreferredCount: 1,
+      hiddenPreferredMessage:
+        'Showing 1 of 3 matches. Refine the search to show 1 more preferred record.',
+      hiddenUnusualCount: 1,
+      showUnusualTargetsLabel: '',
+    });
+  });
+
+  it('shows soft unusual targets from the beginning after preferred targets', () => {
+    const options = [
+      makeTargetOption(makeEntry('place-capital-a', 'Amber Hall', 'Capital')),
+      makeTargetOption(
+        makeEntry('place-river-a', 'Copper Run', 'River'),
+        false
+      ),
+      makeTargetOption(makeEntry('place-capital-b', 'Brass Hall', 'Capital')),
+    ];
+
+    const display = getPlaceRelationshipTargetOptionDisplay({
+      expandedUnusualTargets: false,
+      limit: 1,
+      options,
+      selectedTargetIds: new Set(),
+      targetCategoryBehavior: 'soft',
+    });
+
+    expect(display.visibleOptions.map((option) => option.entry.id)).toEqual([
+      'place-capital-a',
+      'place-capital-b',
+      'place-river-a',
+    ]);
+    expect(display).toMatchObject({
+      canExpandUnusualTargets: false,
+      hiddenPreferredCount: 0,
+      hiddenUnusualCount: 0,
+      showUnusualTargetsLabel: '',
+    });
   });
 
   it('uses field role metadata when matching links and target ids', () => {
@@ -203,10 +354,7 @@ describe('place relationship field helpers', () => {
   });
 
   it('keeps selected targets visible while filtering and limiting options', () => {
-    const options = codex.places.map((entry) => ({
-      entry,
-      section: placeSection,
-    }));
+    const options = codex.places.map((entry) => makeTargetOption(entry));
     const selectedTargetIds = new Set(['place-river-source']);
     const filteredOptions = filterPlaceRelationshipTargetOptions(
       options,
@@ -226,6 +374,84 @@ describe('place relationship field helpers', () => {
     expect(limitedOptions.map((option) => option.entry.id)).toEqual([
       'place-river-source',
     ]);
+  });
+
+  it('builds field text migrations from place relationship target options', () => {
+    const config = placeRelationshipFieldConfigs.find(
+      (item) => item.fieldKey === 'tributaries'
+    );
+
+    expect(config).toBeDefined();
+    expect(
+      getPlaceRelationshipFieldTextMigration({
+        codex,
+        config: config!,
+        currentEntry: codex.places[0],
+        sections: [placeSection],
+        value: 'Moon Fork, Lost Spring',
+      })
+    ).toMatchObject({
+      targetIds: ['place-river-source'],
+      matchedFragments: ['Moon Fork'],
+      unmatchedFragments: ['Lost Spring'],
+      remainingText: 'Lost Spring',
+    });
+  });
+
+  it('builds field text migration operations for renderers to apply', () => {
+    const config = placeRelationshipFieldConfigs.find(
+      (item) => item.fieldKey === 'tributaries'
+    );
+    const migration = getPlaceRelationshipFieldTextMigration({
+      codex,
+      config: config!,
+      currentEntry: codex.places[0],
+      sections: [placeSection],
+      value: 'Moon Fork, Lost Spring',
+    });
+    const operation = buildPlaceRelationshipFieldTextMigrationOperation({
+      config: config!,
+      entry: codex.places[0],
+      migration,
+      relationships: [],
+    });
+
+    expect(operation.relationshipIdsToDelete).toEqual([]);
+    expect(operation.relationshipsToSave).toHaveLength(1);
+    expect(operation.relationshipsToSave[0].relationship).toMatchObject({
+      sourceEntryId: 'place-river-source',
+      targetEntryId: 'place-river-main',
+      type: 'flows into',
+    });
+    expect(operation.fields.tributaries).toBe('Lost Spring');
+  });
+
+  it('removes consumed legacy text from field text migration operations', () => {
+    const config = placeRelationshipFieldConfigs.find(
+      (item) => item.fieldKey === 'tributaries'
+    );
+    const entry = {
+      ...codex.places[0],
+      fields: {
+        ...codex.places[0].fields,
+        tributaries: 'Moon Fork',
+      },
+    };
+    const migration = getPlaceRelationshipFieldTextMigration({
+      codex,
+      config: config!,
+      currentEntry: entry,
+      sections: [placeSection],
+      value: 'Moon Fork',
+    });
+    const operation = buildPlaceRelationshipFieldTextMigrationOperation({
+      config: config!,
+      entry,
+      migration,
+      relationships: [],
+    });
+
+    expect(operation.fields.tributaries).toBeUndefined();
   });
 
   it('builds a review queue for legacy link text that exact migration cannot resolve', () => {
@@ -306,6 +532,26 @@ describe('place relationship field helpers', () => {
   });
 
   it('formats review labels for shared web and mobile cleanup displays', () => {
+    expect(placeRelationshipTextReviewCopy).toMatchObject({
+      title: 'Legacy Link Text',
+      batchExactMatchLabel: 'Migrate All Exact Matches',
+      exactMatchMigrationLabel: 'Migrate Exact Matches',
+      hiddenPlaceDetailsTitle: 'Hidden place details',
+      linkedFieldsTitle: 'Linked place fields',
+      reviewEntryLabel: 'Review Entry',
+      savedTextLinkNotesTitle: 'Saved text link notes',
+      draftBlockedMessage:
+        'Save or discard the current entry draft before migrating exact matches.',
+      linkedFieldsBlockedMessage:
+        'Save this place before editing relationship links.',
+    });
+    expect(getPlaceRelationshipTextReviewSummary(1)).toBe(
+      '1 relationship-backed field still contains text that exact-match migration cannot fully resolve.'
+    );
+    expect(getPlaceRelationshipTextReviewSummary(2)).toBe(
+      '2 relationship-backed fields still contain text that exact-match migration cannot fully resolve.'
+    );
+
     const item = {
       entryId: 'place-river-main',
       entryName: 'Silver Run',
@@ -346,6 +592,24 @@ describe('place relationship field helpers', () => {
     expect(getPlaceRelationshipTextReviewSuggestionLabels(item)).toEqual([
       'Reed: Reed Village (Village in Places)',
     ]);
+    expect(
+      getPlaceRelationshipTextMigrationStatus({
+        targetIds: ['place-capital'],
+        remainingText: '',
+      })
+    ).toBe('1 exact match found.');
+    expect(
+      getPlaceRelationshipTextMigrationStatus({
+        targetIds: ['place-capital', 'place-village'],
+        remainingText: 'Old Capital',
+      })
+    ).toBe('2 exact matches found. Unmatched text will remain.');
+    expect(
+      getPlaceRelationshipTextMigrationStatus({
+        targetIds: [],
+        remainingText: 'Old Capital',
+      })
+    ).toBe('No exact matches found. Unmatched text will remain.');
   });
 
   it('builds exact-match review migration operations without duplicating links', () => {
@@ -386,6 +650,93 @@ describe('place relationship field helpers', () => {
       type: 'flows into',
     });
     expect(migration.fields.tributaries).toBe('Lost Spring');
+  });
+
+  it('builds manual suggestion migrations for unresolved review fragments', () => {
+    const settlementsConfig = placeRelationshipFieldConfigs.find(
+      (config) => config.fieldKey === 'settlements'
+    );
+    const entry = {
+      ...codex.places[0],
+      fields: {
+        ...codex.places[0].fields,
+        settlements: 'Glassport, Reed, Missing Town',
+      },
+    };
+
+    if (!settlementsConfig) {
+      throw new Error('Expected settlements relationship config.');
+    }
+
+    const [item] = getPlaceRelationshipTextReviewItems({
+      codex: {
+        ...codex,
+        places: [entry, ...codex.places.slice(1)],
+      } as WorldCodex,
+      sections: [placeSection],
+    });
+    const migration = buildPlaceRelationshipTextReviewSuggestionMigration({
+      config: settlementsConfig,
+      entry,
+      fragment: 'Reed',
+      item,
+      relationships: [],
+      targetEntryId: 'place-village',
+    });
+
+    expect(
+      migration?.relationshipsToSave.map(({ relationship }) => relationship)
+    ).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          sourceEntryId: 'place-river-main',
+          targetEntryId: 'place-capital',
+          type: 'contains',
+        }),
+        expect.objectContaining({
+          sourceEntryId: 'place-river-main',
+          targetEntryId: 'place-village',
+          type: 'contains',
+        }),
+      ])
+    );
+    expect(migration?.fields.settlements).toBe('Missing Town');
+  });
+
+  it('rejects manual suggestion migrations for targets not suggested by the review item', () => {
+    const settlementsConfig = placeRelationshipFieldConfigs.find(
+      (config) => config.fieldKey === 'settlements'
+    );
+    const entry = {
+      ...codex.places[0],
+      fields: {
+        ...codex.places[0].fields,
+        settlements: 'Reed',
+      },
+    };
+
+    if (!settlementsConfig) {
+      throw new Error('Expected settlements relationship config.');
+    }
+
+    const [item] = getPlaceRelationshipTextReviewItems({
+      codex: {
+        ...codex,
+        places: [entry, ...codex.places.slice(1)],
+      } as WorldCodex,
+      sections: [placeSection],
+    });
+
+    expect(
+      buildPlaceRelationshipTextReviewSuggestionMigration({
+        config: settlementsConfig,
+        entry,
+        fragment: 'Reed',
+        item,
+        relationships: [],
+        targetEntryId: 'place-capital',
+      })
+    ).toBeNull();
   });
 
   it('builds batch review migrations without overwriting same-entry field cleanup', () => {

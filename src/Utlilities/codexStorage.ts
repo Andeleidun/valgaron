@@ -1,9 +1,10 @@
-import type { WorldCodex, WorldDocument } from '../types';
 import {
   createFallbackWorldDocument,
   getActiveWorld,
   parseWorldDocument,
-} from './worldDocument';
+  type WorldCodex,
+  type WorldDocument,
+} from '@valgaron/core';
 import { browserLocalStorageAdapter } from './storageAdapter';
 
 export const CODEX_STORAGE_KEY = 'valgaron.worldDocument.v2';

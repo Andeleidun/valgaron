@@ -1,14 +1,14 @@
 import { Alert } from 'react-native';
 import {
-  mobileDestructiveActionCopy,
-  type MobileDestructiveActionId,
-} from '../state/mobileDestructiveActions';
+  destructiveActionCopy,
+  type DestructiveActionId,
+} from '@valgaron/core';
 
 export function confirmMobileDestructiveAction(
-  actionId: MobileDestructiveActionId,
+  actionId: DestructiveActionId,
   onConfirm: () => void
 ) {
-  const copy = mobileDestructiveActionCopy[actionId];
+  const copy = destructiveActionCopy[actionId];
   Alert.alert(copy.title, copy.message, [
     { text: 'Cancel', style: 'cancel' },
     {

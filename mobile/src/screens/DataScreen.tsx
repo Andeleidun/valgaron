@@ -6,18 +6,23 @@ import {
   codexDataHelpSummary,
   dataExportCopy,
   dataExportOptions,
+  dataHelpCopy,
   dataImportCopy,
   dataResetCopy,
-  formatUpdatedAt,
+  dataExportSectionIds,
+  dataStorageCopy,
   getCodexExportOption,
   getCodexHelpRoute,
   getCodexScreenIntro,
+  getDataDiagnosticsSummaryText,
   getDataExportDraftState,
   getDataExportSharePayload,
   getDataImportPreviewText,
   getDataImportReviewState,
   getDataRecoverySnapshotModel,
+  getDataRouteFocusTargetId,
   getDataStorageStatusModel,
+  getFeedbackTone,
   getNextVisibleExportText,
   getWorldDocumentDiagnostics,
   isCodexExportMode,
@@ -31,7 +36,6 @@ import {
 } from '../navigation/mobileRoutes';
 import { getMobileRouteParam } from '../navigation/mobileRouteParams';
 import { getMobileExportText } from '../state/mobileDataExport';
-import { getMobileFeedbackTone } from '../state/mobileFeedback';
 import { parseMobileWorldImport } from '../storage/mobileStorage';
 import {
   ActionButton,
@@ -45,7 +49,7 @@ import {
   StatusText,
 } from './screenPrimitives';
 import { confirmMobileDestructiveAction } from './mobileConfirm';
-import { confirmMobileDiscardUnsavedChanges } from './mobileUnsavedChanges';
+import { confirmDiscardUnsavedChangesOnMobile } from './unsavedChangesConfirm';
 
 export function DataScreen() {
   const controller = useMobileCodex();
@@ -56,6 +60,10 @@ export function DataScreen() {
   }>();
   const routeFocusId = getMobileRouteParam(routeParams[mobileRouteFocusParam]);
   const routeModeParam = getMobileRouteParam(routeParams.mode);
+  const routeFocusTargetId = getDataRouteFocusTargetId({
+    focusId: routeFocusId,
+    mode: routeModeParam,
+  });
   const routeExportMode = isCodexExportMode(routeModeParam)
     ? routeModeParam
     : null;
@@ -96,14 +104,12 @@ export function DataScreen() {
     () => getWorldDocumentDiagnostics(controller.document),
     [controller.document]
   );
-  const importPreview = useMemo(
-    () =>
-      importText.trim().length > 0 ? parseMobileWorldImport(importText) : null,
-    [importText]
-  );
+  const [importResult, setImportResult] = useState<ReturnType<
+    typeof parseMobileWorldImport
+  > | null>(null);
   const importReview = useMemo(
-    () => getDataImportReviewState(importText, importPreview),
-    [importPreview, importText]
+    () => getDataImportReviewState(importText, importResult),
+    [importResult, importText]
   );
   const recoverySnapshotSummaries = useMemo(
     () => summarizeRecoverySnapshots(controller.recoverySnapshots),
@@ -114,9 +120,11 @@ export function DataScreen() {
     [recoverySnapshotSummaries]
   );
   const storageStatus = getDataStorageStatusModel({
+    currentWorkspaceName: controller.activeWorld.name,
     lastRecoverySnapshot: controller.lastRecoverySnapshot,
     loadStatus: controller.loadStatus,
     recoverySnapshotCount: controller.recoverySnapshots.length,
+    savedAt: controller.document.savedAt,
     saveMessage: controller.saveMessage,
   });
   const lastImportPreviewText = controller.importResult?.ok
@@ -136,10 +144,10 @@ export function DataScreen() {
   }, [currentExportText]);
 
   useEffect(() => {
-    if (!routeFocusId) {
+    if (!routeFocusTargetId) {
       return undefined;
     }
-    const focusedOffset = focusedSectionOffsets.current[routeFocusId];
+    const focusedOffset = focusedSectionOffsets.current[routeFocusTargetId];
     if (focusedOffset === undefined) {
       return undefined;
     }
@@ -150,7 +158,7 @@ export function DataScreen() {
       });
     }, 0);
     return () => clearTimeout(timeout);
-  }, [focusedSectionLayoutVersion, routeFocusId]);
+  }, [focusedSectionLayoutVersion, routeFocusTargetId]);
 
   useEffect(() => {
     if (!routeExportMode || routeExportMode === exportMode) {
@@ -175,11 +183,20 @@ export function DataScreen() {
     setFocusedSectionLayoutVersion((version) => version + 1);
   }
 
+  function setFocusedSectionOffsets(
+    focusIds: readonly string[],
+    offset: number
+  ) {
+    for (const focusId of focusIds) {
+      setFocusedSectionOffset(focusId, offset);
+    }
+  }
+
   function selectExportMode(mode: DataExportMode) {
     if (mode === exportMode) {
       return;
     }
-    confirmMobileDiscardUnsavedChanges(
+    confirmDiscardUnsavedChangesOnMobile(
       exportDraftState.isEdited,
       () => {
         setExportMode(mode);
@@ -202,7 +219,7 @@ export function DataScreen() {
   }
 
   function refreshExportText() {
-    confirmMobileDiscardUnsavedChanges(
+    confirmDiscardUnsavedChangesOnMobile(
       exportDraftState.isEdited,
       () => {
         setExportText(currentExportText);
@@ -217,27 +234,29 @@ export function DataScreen() {
   }
 
   function clearImportText() {
-    confirmMobileDiscardUnsavedChanges(
+    confirmDiscardUnsavedChangesOnMobile(
       hasImportText,
       () => {
         setImportText('');
+        setImportResult(null);
         setShareMessage('');
       },
       undefined,
       {
-        message: 'The pasted import text will be cleared from this screen.',
-        title: 'Clear import text?',
+        message: dataImportCopy.clearEditedMessage,
+        title: dataImportCopy.clearEditedTitle,
       }
     );
   }
 
   function clearTransientDataDrafts() {
     setImportText('');
+    setImportResult(null);
     setShareMessage('');
   }
 
   function openDataHelp() {
-    confirmMobileDiscardUnsavedChanges(
+    confirmDiscardUnsavedChangesOnMobile(
       hasImportText || exportDraftState.isEdited,
       () =>
         router.push({
@@ -245,16 +264,14 @@ export function DataScreen() {
         }),
       undefined,
       {
-        message:
-          'The pasted import text or edited export text may not be preserved after leaving Data.',
-        title: 'Open Help?',
+        message: dataHelpCopy.leaveWithDraftMessage,
+        title: dataHelpCopy.leaveWithDraftTitle,
       }
     );
   }
 
   function requestImport() {
-    const importResult = parseMobileWorldImport(importText);
-    if (!importResult.ok) {
+    if (!importResult?.ok) {
       return;
     }
     confirmMobileDestructiveAction('import-document', () => {
@@ -263,11 +280,15 @@ export function DataScreen() {
     });
   }
 
+  function previewImport() {
+    setImportResult(parseMobileWorldImport(importText));
+  }
+
   function replaceDocumentAfterConfirm(
     actionId: 'reset-document' | 'restore-snapshot',
     replaceDocument: () => void
   ) {
-    confirmMobileDiscardUnsavedChanges(
+    confirmDiscardUnsavedChangesOnMobile(
       hasImportText,
       () =>
         confirmMobileDestructiveAction(actionId, () => {
@@ -276,9 +297,8 @@ export function DataScreen() {
         }),
       undefined,
       {
-        message:
-          'The pasted import text will be cleared after this document replacement.',
-        title: 'Clear import text?',
+        message: dataImportCopy.clearAfterReplacementMessage,
+        title: dataImportCopy.clearEditedTitle,
       }
     );
   }
@@ -296,27 +316,25 @@ export function DataScreen() {
     <ScreenScroll scrollRef={scrollRef}>
       <ScreenHeader title={intro.title} detail={intro.detail} />
 
-      <SectionBlock title="Local Storage">
+      <SectionBlock title={dataStorageCopy.title}>
         <BodyText>{storageStatus.saveLine}</BodyText>
         {controller.formMessage ? (
-          <StatusText tone={getMobileFeedbackTone(controller.formMessage)}>
+          <StatusText tone={getFeedbackTone(controller.formMessage)}>
             {controller.formMessage}
           </StatusText>
         ) : null}
         <MutedText>{storageStatus.loadLine}</MutedText>
         <MutedText>{storageStatus.recoveryLine}</MutedText>
+        {storageStatus.currentWorkspaceLine ? (
+          <MutedText>{storageStatus.currentWorkspaceLine}</MutedText>
+        ) : null}
         <MutedText>
-          Current workspace: {controller.activeWorld.name}. Saved timestamp:{' '}
-          {formatUpdatedAt(controller.document.savedAt)}.
-        </MutedText>
-        <MutedText>
-          Diagnostics: {diagnostics.workspaceCount} workspace(s),{' '}
-          {diagnostics.totalEntryCount} entries, {diagnostics.relationshipCount}{' '}
-          relationships, {diagnostics.archivedEntryCount} archived entries.
+          {dataStorageCopy.diagnosticsLabel}:{' '}
+          {getDataDiagnosticsSummaryText(diagnostics)}
         </MutedText>
         {lastImportPreviewText ? (
           <MutedText>
-            Last import: {lastImportPreviewText.title}.{' '}
+            {dataImportCopy.lastImportLabel}: {lastImportPreviewText.title}.{' '}
             {lastImportPreviewText.detail}
           </MutedText>
         ) : null}
@@ -325,7 +343,10 @@ export function DataScreen() {
       <SectionBlock
         title={dataExportCopy.title}
         onLayout={(event) => {
-          setFocusedSectionOffset('export', event.nativeEvent.layout.y);
+          setFocusedSectionOffsets(
+            Object.values(dataExportSectionIds),
+            event.nativeEvent.layout.y
+          );
         }}
       >
         <ButtonRow>
@@ -349,9 +370,7 @@ export function DataScreen() {
           onChangeText={updateExportText}
         />
         {exportDraftState.statusMessage ? (
-          <StatusText
-            tone={getMobileFeedbackTone(exportDraftState.statusMessage)}
-          >
+          <StatusText tone={getFeedbackTone(exportDraftState.statusMessage)}>
             {exportDraftState.statusMessage}
           </StatusText>
         ) : null}
@@ -372,7 +391,7 @@ export function DataScreen() {
           ) : null}
         </ButtonRow>
         {shareMessage ? (
-          <StatusText tone={getMobileFeedbackTone(shareMessage)}>
+          <StatusText tone={getFeedbackTone(shareMessage)}>
             {shareMessage}
           </StatusText>
         ) : null}
@@ -392,8 +411,8 @@ export function DataScreen() {
         ) : null}
         {importReview.previewText ? (
           <MutedText>
-            Preview: {importReview.previewText.title}.{' '}
-            {importReview.previewText.detail}
+            {dataImportCopy.previewStatusLabel}:{' '}
+            {importReview.previewText.title}. {importReview.previewText.detail}
           </MutedText>
         ) : null}
         <Field
@@ -403,9 +422,17 @@ export function DataScreen() {
           value={importText}
           multiline
           placeholder={dataImportCopy.placeholder}
-          onChangeText={setImportText}
+          onChangeText={(text) => {
+            setImportText(text);
+            setImportResult(null);
+          }}
         />
         <ButtonRow>
+          <ActionButton
+            label={dataImportCopy.previewLabel}
+            disabled={!hasImportText}
+            onPress={previewImport}
+          />
           <ActionButton
             label={dataImportCopy.importLabel}
             tone="accent"
@@ -433,7 +460,7 @@ export function DataScreen() {
                 </MutedText>
                 <ButtonRow>
                   <ActionButton
-                    accessibilityHint="Restores this saved recovery snapshot after confirmation."
+                    accessibilityHint={snapshot.restoreAccessibilityHint}
                     label={snapshot.restoreLabel}
                     onPress={() =>
                       replaceDocumentAfterConfirm('restore-snapshot', () =>
@@ -442,7 +469,7 @@ export function DataScreen() {
                     }
                   />
                   <ActionButton
-                    accessibilityHint="Deletes this recovery snapshot after confirmation."
+                    accessibilityHint={snapshot.deleteAccessibilityHint}
                     label={snapshot.deleteLabel}
                     tone="danger"
                     onPress={() =>
@@ -478,9 +505,12 @@ export function DataScreen() {
         />
       </SectionBlock>
 
-      <SectionBlock title="Help">
+      <SectionBlock title={dataHelpCopy.title}>
         <BodyText>{codexDataHelpSummary}</BodyText>
-        <ActionButton label="Open Help" onPress={openDataHelp} />
+        <ActionButton
+          label={dataHelpCopy.openHelpLabel}
+          onPress={openDataHelp}
+        />
         {codexDataHelpTopics.map((topic) => (
           <MutedText key={topic.title}>
             {topic.title}: {topic.items.join(' ')}

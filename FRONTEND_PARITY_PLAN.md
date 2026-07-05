@@ -21,13 +21,15 @@ The repo already has the most important foundation for parity:
 The main risk is now presentation and orchestration drift:
 
 - Web pages and mobile screens independently compose filters, forms, limits, labels, control types, confirmation flows, and visible sections.
-- Mobile has `mobileCodexViewModels.ts`, which repeats a platform-specific view-model layer over core logic rather than sharing that layer with web.
+- The former mobile-only `mobileCodexViewModels.ts` layer has been retired; its entry, relationship, timeline, overview, and draft derivations now live in shared core models.
 - Web state and mobile state both wire the same core mutations, but they differ in save semantics, validation display, recovery feedback, and action messages.
 - Several initial mobile gaps have been closed, including notes preview, copy
   name feedback, relationship source/target selects, full relationship status
-  selection, and data interchange contracts. Remaining differences are tracked
-  in the debt ledger and feature matrix.
-- Some mobile behaviors are not present on web, including list search in Workspaces and Help quick actions.
+  selection, Data help, Help quick actions, and data interchange contracts.
+  Remaining differences are tracked in the debt ledger and feature matrix.
+- Remaining mobile-only presentation differences are responsive adaptations,
+  such as compact list search and picker layouts, and should stay backed by
+  shared model data and copy.
 
 The recommended path is not a full rewrite into one UI implementation. The lowest-risk, lowest-long-term-duplication approach is:
 
@@ -158,7 +160,6 @@ Primary files:
 - `mobile/src/screens/HelpScreen.tsx`
 - `mobile/src/screens/screenPrimitives.tsx`
 - `mobile/src/state/MobileCodexContext.tsx`
-- `mobile/src/state/mobileCodexViewModels.ts`
 - `mobile/src/state/mobileDataExport.ts`
 - `mobile/src/storage/mobileStorage.ts`
 
@@ -247,7 +248,7 @@ The mobile screens use `@valgaron/ui-tokens`. The web CSS appears to use the sam
 
 1. Screen model duplication.
 
-   Web pages compute view state directly in page components. Mobile computes similar state in screen components and `mobileCodexViewModels.ts`. There is no shared "entries screen model", "relationships screen model", or "data screen model" consumed by both.
+   Web pages and mobile screens still compose some view state directly in page/screen components. The old mobile-only `mobileCodexViewModels.ts` layer has been deleted, and shared core models now cover Data, Overview, Relationship diagnostics/list/graph/pickers, Entry list/drafts, and Timeline browsing.
 
 2. Control taxonomy drift.
 
@@ -255,9 +256,9 @@ The mobile screens use `@valgaron/ui-tokens`. The web CSS appears to use the sam
    control types. Entry status/sort/updated filters, entry status/pinned,
    relationship source/target, relationship status/directional, and
    relationship status/type filters are now covered by shared descriptors and
-   matching mobile select/checkbox primitives. Remaining control-model work is
-   focused on a shared decision for section/tag filters and moving full screen
-   models into shared code.
+   matching mobile select/checkbox primitives. Section navigation and tag
+   filter options now come from shared entry list models. Remaining
+   control-model work is focused on moving full screen models into shared code.
 
 3. Limit and truncation drift.
 
@@ -273,13 +274,11 @@ The mobile screens use `@valgaron/ui-tokens`. The web CSS appears to use the sam
 
 4. Dirty state and confirmation drift.
 
-   Web and mobile both warn before losing drafts, but the logic and copy are implemented separately:
-
-   - `src/Utlilities/unsavedChanges.ts`
-   - `mobile/src/screens/mobileUnsavedChanges.ts`
-   - `mobile/src/screens/mobileConfirm.ts`
-
-   The platform-specific confirmation mechanism can differ, but the triggers, copy, and expected outcomes should come from shared contracts.
+   Web and mobile both warn before losing drafts. Shared core now owns the
+   discard-confirmation title, message, action labels, and dirty/clean decision
+   through `getDiscardUnsavedChangesConfirmation`. Web and mobile keep thin
+   platform presenters for browser confirm/beforeunload and React Native alert
+   behavior. Destructive action copy also lives in shared core.
 
 5. Save behavior drift.
 
@@ -300,10 +299,11 @@ The mobile screens use `@valgaron/ui-tokens`. The web CSS appears to use the sam
 8. Accessibility drift.
 
    Web has skip links, dialog focus trapping, form labels, and keyboard flows.
-   Mobile has React Native accessibility labels, roles, and states in some
-   primitives. There is no shared accessibility contract that proves the same
-   user-facing controls have the same accessible names, states, destructive
-   hints, and error announcements.
+   Mobile has React Native accessibility labels, roles, and states in shared
+   primitives. Shared control descriptors now provide an accessibility
+   inventory for parity-critical entry and relationship controls, including
+   accessible names and expected checked, expanded, disabled, selected-value,
+   and required state coverage.
 
 9. Runtime recovery drift.
 
@@ -331,7 +331,10 @@ The mobile screens use `@valgaron/ui-tokens`. The web CSS appears to use the sam
     The repo contains web utility wrappers that re-export `@valgaron/core` and
     mobile-specific view models that duplicate shared derivation. These are
     useful during migration but should not become permanent alternate sources of
-    truth.
+    truth. `useWorldDocumentState.ts` now imports domain operations directly
+    from `@valgaron/core`, and the pure web core re-export wrappers plus the
+    obsolete `src/types.ts` type barrel have been deleted. Storage, download,
+    focus, and browser-specific helpers remain web-local adapters.
 
 ### Overview
 
@@ -397,11 +400,13 @@ Mobile current behavior:
 
 Gaps:
 
-- Control types differ for status, sort, show archived, entry status, and pinned.
+- Control types now align for status, sort, show archived, entry status, and
+  pinned controls through shared descriptors.
 - Mobile now includes notes preview, copy-name feedback, and detail-field
   suggestions. The next step is to move those editor controls into a shared
   headless entry editor model.
-- Mobile section selection is acceptable as a responsive section-navigation adaptation, but should be governed by a shared section nav model.
+- Mobile section selection is acceptable as a responsive section-navigation
+  adaptation and is now governed by shared section navigation options.
 - Timeline visual density differs. Mobile does not need the same table layout, but it should expose the same diagnostics, highlights, era grouping, order moves, filters, and involved-entry navigation.
 
 Plan:
@@ -444,14 +449,14 @@ Mobile current behavior:
 
 Gaps:
 
-- Relationship source/target controls now use the same select kind, but the
-  mobile picker should gain search for large worlds.
-- Relationship status and directional controls now match the web control kind.
-- Graph status/type filters now match the web control kind; section/tag filters
-  still need a shared model decision.
-- Type suggestions use datalist on web and a seven-item button row on mobile.
-- Relationship health is richer on web through cards; mobile gives summaries but should expose the same concepts.
-- Entry picker is useful on mobile, but it should be the mobile rendering of the same source/target select/autocomplete control, not a separate workflow.
+- Relationship source/target controls now share entry option labels and mobile
+  retains searchable picker presentation for large worlds.
+- Relationship status, directional, type, note, list type, and graph status/type
+  controls now use shared descriptors or shared option helpers.
+- Relationship diagnostics, list rows, and named graph rows now come from shared
+  core models.
+- Remaining relationship drift is rendered interaction coverage rather than
+  headless model parity.
 
 Plan:
 
@@ -501,6 +506,8 @@ Gaps:
   `workspaceFeatureActions`, including permanent delete labels.
 - Workspace and custom entry type form fields now derive from shared
   `workspaceDraftFields` and `entryTypeDraftFields`.
+- Workspace draft defaults and custom entry type blank drafts now derive from
+  shared core factories on both web and mobile.
 
 Plan:
 
@@ -508,6 +515,8 @@ Plan:
   counts, and workspace action states in `getWorkspaceFeatureModel`.
 - Keep workspace metadata, custom entry type, and in-fiction world form field
   labels in shared draft descriptors.
+- Keep workspace and custom entry type draft defaults in shared core factories
+  so dirty-state comparisons stay aligned.
 - Keep remaining Workspaces screen copy in `workspaceFeatureCopy`,
   `workspaceFeatureActions`, shared draft descriptors, or the list model.
 - Keep platform-specific layout, but make all fields and actions derive from the same model.
@@ -599,7 +608,9 @@ Gaps:
 - Web supports file import; mobile supports paste import.
 - Web supports direct downloads; mobile supports share sheet.
 - Mobile includes Help content inside Data; web links to Help.
-- Web header has a Data Menu; mobile shell does not expose equivalent fast export/save access.
+- Web header Data Menu export shortcuts now use shared
+  `dataShellExportActions`; mobile exposes Data as a persistent tab reachable
+  from every tab and uses the shared Data export model inside that screen.
 - Export text generation, export draft state, share payloads, visible-export
   refresh behavior, export workflow action/status copy, import preview text,
   and import review state now live in `dataFeatureModel.ts`.
@@ -624,8 +635,10 @@ Plan:
   - Mobile renderer: share sheet, paste textarea, copy/selectable text.
 - Use the same `CodexExportMode` list, same option metadata, same generated
   text functions, and same import preview state.
-- Add a mobile shell Data action, reachable from every tab, with the same modes as the web header Data Menu.
-- Decide whether Data help appears inline on both platforms or only in Help; do not keep it mobile-only by accident.
+- Keep mobile Data reachable from every tab through the shell tab, and keep web
+  header export shortcuts sourced from shared `dataShellExportActions`.
+- Keep shared Data help content visible inline on both platforms and in the
+  Help screen so backup guidance does not drift.
 
 ### Help
 
@@ -657,17 +670,18 @@ Mobile current behavior:
 
 Gaps:
 
-- Mobile has Quick Actions and Help Topics navigation that web lacks.
-- Web has explicit version text; mobile does not show version here.
+- Quick Actions now come from the shared Help model and render on both web and
+  mobile.
+- Version text now comes from the shared Help model and renders on both web and
+  mobile.
 - Offline/installable app limits now use shared copy and render on both web and
   mobile.
 
 Plan:
 
-- Define one shared help section list.
-- Add quick topic navigation to web or remove the mobile-only quick topic navigation.
-- Add version text and any remaining platform-specific install/storage
-  limitations through shared platform copy slots.
+- Keep the shared Help model as the source of truth for help sections, quick
+  actions, focused topics, version text, and platform storage/install limits.
+- Add rendered Help interaction tests once the frontend harness exists.
 
 ### Navigation, Routes, And Intent Preservation
 
@@ -675,6 +689,8 @@ Current behavior:
 
 - Core defines route strings such as `/entries?sectionId=places&intent=new`,
   `/relationships?entryId=...`, and `/help?topic=...`.
+- Core classifies shared routes into typed workflow intents for Overview,
+  Entries browse/create/edit, Relationships, Workspaces, Data, and Help.
 - Web uses those strings directly through React Router.
 - Mobile converts those strings into Expo Router `pathname` and `params` with
   `getMobileRouteHref`.
@@ -686,28 +702,22 @@ Current behavior:
 Gaps:
 
 - A route can encode workflow intent: open an entry for edit, start a new entry,
-  prefill relationship source, focus Help, or focus Data import.
-- Hashes and focus targets are only consumed by Data today; additional focused
-  workflows should opt into the same route-intent contract as they are added.
+  prefill relationship source, focus Help, or focus Data import. These now have
+  typed shared workflow-intent classification.
+- Additional rendered focused-workflow consumers should opt into the typed
+  route-intent contract as they are added.
 - Mobile label aliases are now deliberate shared metadata, but icon choices
   remain mobile-local.
 
 Plan:
 
-- Add shared `RouteIntent` types for:
-  - Overview.
-  - Entries section browse.
-  - Entry create.
-  - Entry edit.
-  - Relationship browse.
-  - Relationship create/edit with source/target preselection.
-  - Workspaces.
-  - Data export mode focus.
-  - Data import focus.
-  - Help topic focus.
-- Make web and mobile route helpers convert between route strings and
-  `RouteIntent` objects.
-- Represent focused sections as intent fields instead of raw hashes.
+- Keep shared `RouteIntent` parsing and typed workflow-intent classification
+  current for Overview, Entries section browse, Entry create/edit,
+  Relationships, Workspaces, Data export/import focus, and Help topic focus.
+- Keep web and mobile route helpers converting route strings into the same
+  intent fields.
+- Keep focused sections represented through parsed intent fields rather than
+  platform-local hash handling.
 - Keep platform tab labels as aliases attached to the shared route id.
 - Add tests that every route generated by core can be consumed by web and
   mobile, and that every mobile route can be converted back to the same intent.
@@ -727,34 +737,31 @@ Current behavior:
   before-unload prompts.
 - Mobile primitives provide accessibility labels, roles, selected/disabled
   state, and live-region-like status behavior in some places.
-- There is no shared accessibility inventory.
+- Shared control descriptors provide an accessibility inventory for
+  parity-critical entry and relationship controls.
 
 Gaps:
 
-- Matching visible controls can still be non-parity if accessible names, error
+- Matching visible controls can still be non-parity if rendered error
   announcements, destructive hints, or focus order differ.
-- Mobile button-row substitutes currently make some selectable values appear as
-  separate actions rather than one field with one accessible value.
+- Mobile button-row substitutes have been reduced for core entry and
+  relationship controls; remaining layout adaptations should keep their shared
+  accessible names and state expectations.
 - Web keyboard behavior has no mobile equivalent requirement for hardware
   keyboards or screen reader navigation.
 
 Plan:
 
-- Extend control descriptors with:
-  - `accessibleName`.
-  - `accessibleHint`.
-  - `required`.
-  - `invalid`.
-  - `errorMessage`.
-  - `role`.
-  - `state` for selected, checked, expanded, disabled, and busy.
+- Keep shared accessibility inventory coverage for accessible name, control
+  kind, required state, checked state, expanded state, disabled state, and
+  selected value expectations.
 - Define focus behavior for every dialog and destructive confirmation.
 - Define announcement behavior for validation errors, save failures, import
   previews, successful exports/shares, and recovery snapshot operations.
 - Add web tests or smoke checks for visible labels, dialog focus, and keyboard
   order on critical workflows.
-- Add mobile tests for accessibility labels/states on the same control ids once
-  mobile control descriptors are introduced.
+- Add rendered mobile tests for accessibility labels/states on the same control
+  ids once the mobile interaction harness exists.
 
 Acceptance criteria:
 
@@ -770,27 +777,25 @@ Current behavior:
 
 - Web runtime recovery receives document, active world, route, load status,
   save status, and recovery snapshot status.
-- Mobile runtime recovery presents retry and Data actions through a simpler
-  error boundary.
-- Web local diagnostics and mobile diagnostics use related but not identical
-  runtime context.
+- Mobile runtime recovery presents retry and Data actions through the same
+  shared recovery copy.
+- Web and mobile diagnostics serialize through the shared core diagnostics
+  report, with platform runtime fields modeled as optional context.
 
 Gaps:
 
-- A render failure can leave users with different recovery choices depending on
-  platform.
-- Diagnostics could drift in schema shape or content-safety guarantees.
+- Render recovery still lacks a rendered web/mobile interaction harness.
+- Diagnostics can still drift if future platform adapters bypass the shared
+  report helpers.
 - Support docs and Help copy need to describe the same recovery evidence users
   can actually collect.
 
 Plan:
 
-- Create a shared `RuntimeRecoveryModel` with title, detail, backup hint,
-  retry action, Data action, and diagnostics action availability.
-- Create a shared diagnostics schema contract with platform-specific runtime
-  fields nested under a clearly named key.
-- Add tests that diagnostics never include world names, entry names, summaries,
-  notes, tags, relationship notes, or ids by default.
+- Keep shared runtime recovery copy in `@valgaron/core` and retire
+  platform-only fallback copy as screens move to shared models.
+- Keep diagnostics schema and content-exclusion tests in core, with platform
+  adapters limited to runtime context collection.
 - Add manual QA steps that intentionally trigger web and mobile render recovery
   and verify the same actions are available.
 
@@ -810,6 +815,8 @@ Current behavior:
 - Web supports legacy local codex migration.
 - Mobile has its own storage keys and recovery snapshot storage.
 - PWA/offline wording exists for web; mobile has local device storage wording.
+- Web and mobile tests cover corrupt saved data and failed write outcomes for
+  the current storage adapters.
 
 Gaps:
 
@@ -822,19 +829,21 @@ Gaps:
 
 Plan:
 
-- Add a storage matrix covering:
-  - Web current key.
-  - Web legacy key.
-  - Mobile current key.
-  - Mobile legacy snapshot keys.
-  - Recovery snapshot list keys.
-  - Retention limits.
-  - Corrupt-read behavior.
-  - Failed-write behavior.
+- Keep this storage matrix current:
+
+| Surface                   | Key                                    | Retention           | Corrupt-read behavior                                            | Failed-write behavior                              |
+| ------------------------- | -------------------------------------- | ------------------- | ---------------------------------------------------------------- | -------------------------------------------------- |
+| Web current document      | `valgaron.worldDocument.v2`            | One document        | Falls back to legacy codex when valid, otherwise starter data    | Save returns `false`; UI keeps recovery/save state |
+| Web legacy codex          | `valgaron.worldCodex.v1`               | Migration fallback  | Ignored when invalid; current document or starter data is used   | Read-only migration source                         |
+| Web recovery snapshots    | `valgaron.recoverySnapshots.v1`        | 12 latest snapshots | Invalid snapshots are ignored; valid snapshots remain loadable   | Snapshot write returns failed status               |
+| Mobile current document   | `valgaron.mobile.worldDocument.v2`     | One document        | Opens starter data with recovered status until valid save/import | Save returns `false`; controller reports failure   |
+| Mobile recovery snapshots | `valgaron.mobile.recoverySnapshots.v2` | 8 latest snapshots  | Invalid snapshot lists are ignored                               | Snapshot write returns `false`                     |
+| Mobile legacy snapshot    | `valgaron.mobile.recoverySnapshot.v1`  | Migration fallback  | Valid legacy snapshot is migrated into the snapshot list model   | Removed after successful v2 snapshot write         |
+
 - Use shared copy slots for local-only, no-account, no-sync, backup, storage
   risk, and offline limits.
-- Add tests for corrupt storage and legacy migration through the shared storage
-  adapter where possible.
+- Keep tests for corrupt storage, failed writes, and legacy migration current as
+  storage adapters evolve.
 - Add release checklist items comparing README, Help, Privacy, Data UI, and
   mobile Data wording.
 
@@ -849,29 +858,33 @@ Acceptance criteria:
 Current behavior:
 
 - Web has a synthetic large-world performance test.
-- Mobile uses display limits and non-virtualized scroll views for several
-  screens.
+- Mobile uses shared display limits for list, picker, relationship, overview,
+  timeline, and diagnostics summaries.
 - Export/import performance is tested for large web fixtures, but mobile
   rendered performance is not covered equivalently.
+- Mobile large-world model tests verify that capped lists keep records
+  reachable through search, selection retention, or explicit hidden counts.
 
 Gaps:
 
 - Mobile can meet parity logically while still being unusable for realistic
   large worlds.
-- Truncation limits can hide records on mobile that remain visible or filterable
-  on web.
-- Shared feature models need to define when truncation, pagination, search
-  refinement, or virtualization is required.
+- Rendered mobile performance is still not measured by automation.
+- Shared scale policy now defines when capped displays graduate from simple
+  display limits to explicit pagination or virtualization.
 
 Plan:
 
-- Define shared large-world budgets:
+- Keep shared large-world budgets current:
   - Maximum fixture size for routine tests.
   - Target time for search/filter/model derivation.
   - Target time for export/import parse/serialize.
   - Maximum initial render row count per screen before virtualization or paging.
-- Move result-limit policy into shared feature model metadata.
-- Add mobile-focused large-world model tests before adding native UI automation.
+- Keep result-limit policy in shared feature model metadata.
+- Keep the shared scale policy thresholds current as larger fixtures and
+  rendered tests are added.
+- Expand mobile-focused large-world model tests before adding native UI
+  automation.
 - Prefer virtualization or explicit pagination over silent truncation when a
   user needs access to every matching record.
 - Add manual mobile large-world QA until automated rendered mobile performance
@@ -1187,18 +1200,31 @@ Create this as a living checklist in `docs/qa/web-mobile-parity-checklist.md`
 or a dedicated planning document. Each debt must be closed, intentionally
 accepted as a platform capability difference, or removed from supported scope.
 
-| Debt                              | Root Cause                           | Source Of Truth       | Web Status                 | Mobile Status                            | Close In | Acceptance Test                          |
-| --------------------------------- | ------------------------------------ | --------------------- | -------------------------- | ---------------------------------------- | -------- | ---------------------------------------- |
-| In-fiction worlds/planets         | Domain/controller support lacks UI   | README and core model | No visible workflow found  | No visible workflow found                | Phase 3  | Create/edit/archive/delete/export/import |
-| Relationship source/target        | Resolved with shared descriptors     | Web relationship form | Selects                    | Selects plus supplemental picker rows    | Closed   | Same control kind and valid options      |
-| Relationship status               | Resolved with shared descriptors     | Web relationship form | Full status select         | Full status select                       | Closed   | All statuses selectable                  |
-| Entry status/sort/filter controls | Resolved with shared descriptors     | Web section page      | Selects/checks/chips       | Selects/checks/chips                     | Closed   | Matching control descriptors             |
-| Entry notes preview/copy name     | Resolved with mobile editor controls | Web entry form        | Present                    | Present with guarded clipboard feedback  | Closed   | Same actions and feedback                |
-| Route focused workflows           | Hash/query handling can drift        | Core route intents    | Query/hash routes          | Route focus param and Data scroll target | Phase 2  | `routeIntents` and `mobileRoutes` tests  |
-| Diagnostics schema                | Platform runtime contexts diverge    | Core diagnostics      | Local diagnostics adapter  | Mobile export diagnostics                | Phase 1  | Same schema, no content leakage          |
-| Runtime recovery                  | Separate fallback components         | Web fallback behavior | Rich context and Data path | Retry/Data fallback                      | Phase 4  | Same recovery actions                    |
-| Large-world mobile behavior       | Mobile truncates lists manually      | Shared feature model  | Performance smoke exists   | Limits without shared budgets            | Phase 7  | Records remain findable/editable         |
-| Duplicate derivation helpers      | Migration wrappers and mobile models | Shared feature layer  | `src/Utlilities` wrappers  | `mobileCodexViewModels`                  | Phase 4+ | Import-boundary/deletion checklist       |
+| Debt                              | Root Cause                              | Source Of Truth        | Web Status                 | Mobile Status                            | Close In | Acceptance Test                             |
+| --------------------------------- | --------------------------------------- | ---------------------- | -------------------------- | ---------------------------------------- | -------- | ------------------------------------------- |
+| In-fiction worlds/planets         | Resolved with shared field descriptors  | README and core model  | Visible workspace workflow | Visible workspace workflow               | Closed   | Create/edit/archive/delete/export/import    |
+| Workspace list/search model       | Resolved with shared feature model      | Core workspace model   | Shared rows and search     | Shared rows and search                   | Closed   | Same row copy, filters, and hidden counts   |
+| Workspace section headings        | Resolved with shared feature copy       | Core workspace model   | Shared section headings    | Shared section headings                  | Closed   | Same screen and form heading source         |
+| Workspace form field labels       | Resolved with shared draft descriptors  | Core workspace model   | Shared field descriptors   | Shared field descriptors                 | Closed   | Same labels, placeholders, multiline fields |
+| Workspace action labels           | Resolved with shared action copy        | Core workspace model   | Shared command labels      | Shared command labels                    | Closed   | Same command names and destructive wording  |
+| Relationship source/target        | Resolved with shared descriptors        | Web relationship form  | Selects                    | Selects plus supplemental picker rows    | Closed   | Same control kind and valid options         |
+| Relationship status               | Resolved with shared descriptors        | Web relationship form  | Full status select         | Full status select                       | Closed   | All statuses selectable                     |
+| Entry status/sort/filter controls | Resolved with shared descriptors        | Web section page       | Selects/checks/chips       | Selects/checks/chips                     | Closed   | Matching control descriptors                |
+| Place relationship fields         | Resolved with shared place field model  | Core place taxonomy    | Linked field controls      | Linked field controls                    | Closed   | Same targets, warnings, and lazy expansion  |
+| Entry notes preview/copy name     | Resolved with mobile editor controls    | Web entry form         | Present                    | Present with guarded clipboard feedback  | Closed   | Same actions and feedback                   |
+| Data export/import review state   | Resolved with shared Data model         | Core data model        | Shared export/import logic | Shared export/import logic               | Closed   | Same export text, preview, and review state |
+| Data export workflow copy         | Resolved with shared Data model         | Core data model        | Shared export option copy  | Shared export action/status copy         | Closed   | Same export/share labels and draft prompts  |
+| Data import copy                  | Resolved with shared Data model         | Core data model        | Shared import copy         | Shared import copy                       | Closed   | Same import labels, placeholder, actions    |
+| Data recovery snapshot rows       | Resolved with shared Data model         | Core data model        | Shared recovery row model  | Shared recovery row model                | Closed   | Same snapshot text, empty state, actions    |
+| Data reset copy                   | Resolved with shared Data model         | Core data model        | Shared reset copy          | Shared reset copy                        | Closed   | Same reset title, description, action label |
+| Data storage status               | Resolved with shared Data model         | Core data model        | Storage status copy        | Shared storage status copy               | Closed   | Same load/save/recovery status semantics    |
+| Help offline/install limits       | Resolved with shared Help copy          | Core help topics       | Shared offline section     | Shared offline section                   | Closed   | Same install/offline limitation copy        |
+| Route focused workflows           | Resolved with shared route samples      | Core route intents     | Query/hash routes          | Route focus param and Data scroll target | Closed   | `routeIntents` and `mobileRoutes` tests     |
+| Diagnostics schema                | Resolved with shared diagnostics report | Core diagnostics       | Shared diagnostics export  | Shared diagnostics export                | Closed   | Same schema, no content leakage             |
+| Runtime recovery                  | Resolved with shared recovery copy      | Core recovery model    | Retry/Data/diagnostics     | Retry/Data recovery path                 | Closed   | Same recovery copy and recovery actions     |
+| Save status affordance            | Resolved with shared save model         | Web save button/status | Header Save button         | Overview Save Status section             | Closed   | Shared save status model                    |
+| Large-world mobile behavior       | Resolved with shared mobile budgets     | Shared feature model   | Performance smoke exists   | Shared limits with reachability tests    | Closed   | Records remain findable/editable            |
+| Duplicate derivation helpers      | Resolved with shared feature models     | Shared feature layer   | Retired duplicate wrappers | Retired `mobileCodexViewModels`          | Closed   | Boundary test plus deletion checklist       |
 
 ## Implementation Plan
 
@@ -1214,16 +1240,29 @@ Tasks:
 - Create a parity debt ledger with one row per known web/mobile mismatch,
   including owner, source-of-truth behavior, current web status, current mobile
   status, planned phase, and acceptance test.
-- Add explicit debt entries for in-fiction worlds/planets, route focus/hash
-  handling, mobile raw relationship ids, mobile incomplete relationship status,
-  mobile button-row field substitutes, mobile missing notes preview, mobile
-  missing copy name, diagnostics schema drift, and large-world mobile behavior.
+- Add explicit debt entries for unresolved route focus/hash handling,
+  diagnostics/runtime recovery UX parity, large-world mobile behavior, and
+  duplicate derivation helper retirement, then close those rows as each shared
+  contract lands.
 - Add a "no platform-only export/import serializer" rule to code review.
 - Add a search-based lint/test guard that fails if `JSON.stringify` export backup logic appears outside `@valgaron/core` except diagnostics adapters.
 - Record current parity debts as intentional backlog items.
 - Add import-boundary rules that prevent new feature derivation helpers in
   `mobile/src/state` or `src/Utlilities` when an equivalent shared feature model
   exists.
+
+Current status:
+
+- The baseline checklist exists in `docs/qa/web-mobile-parity-checklist.md`.
+- The current debt ledger is synchronized with implemented work: in-fiction
+  worlds/planets, workspace models, core entry/relationship controls, Data
+  models, Help offline/install copy, and save status are closed.
+- A focused boundary test prevents reintroducing retired web diagnostics,
+  mobile runtime recovery, mobile screen view-model helpers, duplicate app
+  metadata, pure web core re-export wrappers, the obsolete web type barrel, and
+  domain-wrapper imports in `useWorldDocumentState.ts`.
+- Remaining open debt is extracting the screen composition still embedded in
+  web pages and mobile screens into shared screen-model descriptors.
 
 Deliverable:
 
@@ -1248,6 +1287,24 @@ Tasks:
 - Add tests for diagnostics content exclusion on both platforms.
 - Add storage migration/corrupt-read tests through shared fixtures where the
   storage adapter allows it.
+
+Current status:
+
+- A rich frontend parity fixture exists in `@valgaron/core`.
+- Full JSON, active JSON, malformed import rejection, diagnostics content
+  exclusion, custom entry type, archived record, timeline, relationship, and
+  in-fiction world round-trip coverage exists in core and mobile tests.
+- Web and mobile Data diagnostics now serialize through the shared core
+  diagnostics report, with platform runtime context represented as optional
+  report fields.
+- Web and mobile runtime recovery now use shared core recovery copy and the
+  same content-safe diagnostics report path.
+- Web storage tests cover legacy migration, invalid JSON, schema mismatch,
+  read failure, and failed writes. Mobile storage tests cover corrupt saved
+  JSON, schema mismatch recovery, failed document writes, failed snapshot
+  writes, and legacy snapshot migration.
+- Remaining work: keep storage corruption/migration coverage current as
+  storage adapters evolve.
 
 Deliverable:
 
@@ -1286,6 +1343,46 @@ Tasks:
   selected/checked states, and destructive hints.
 - Add route-intent tests proving web and mobile route adapters preserve focused
   workflow state.
+
+Current status:
+
+- `ControlDescriptor`, entry control descriptors, relationship control
+  descriptors, and route-intent parsing/formatting exist in `@valgaron/core`.
+- Shared route sample tests cover shell routes, entry edit/new workflows,
+  relationship filters, Data import focus, Data export mode focus, and Help
+  topic routes through the mobile route adapter. Shared Data focus helpers map
+  `#export` aliases to concrete export targets for both web and mobile.
+- Shared typed workflow-intent tests classify focused entry, relationship,
+  Data, Workspaces, Help, and Overview routes.
+- Data, Workspaces, and save-status shared models are implemented and consumed
+  by both frontends; Workspaces list rows, count labels, draft descriptors,
+  action copy, and action accessibility labels now come from shared models.
+- Overview summary, search, highlight, and incomplete-entry queues now flow
+  through a shared composite overview model consumed by web and mobile.
+- Overview section-count routes, quick-create labels/routes, and entry edit
+  routes now flow through the shared overview model.
+- Entry, overview, relationship, timeline, and Data renderers now consume
+  shared display text for status labels, summaries, updated/date labels, and
+  mobile storage timestamp lines instead of importing formatting helpers in
+  platform renderers.
+- Runtime recovery copy and mobile display limits are implemented in shared
+  core modules and covered by focused tests.
+- Unsaved draft discard confirmation copy and dirty/clean decision now live in
+  `@valgaron/core`, with web and mobile adapters limited to platform
+  presentation.
+- Entry section navigation, tag filter options, and section list filtering and
+  sorting now derive from shared entry list models, with web and mobile
+  preserving their own layout.
+- Accessibility inventories for parity-critical entry and relationship
+  controls now derive from shared control descriptors, and web/mobile entry and
+  relationship editors consume the same status, pinned, source/target, type,
+  note, directional, and filter descriptors.
+- Help screen structure, quick actions, focused topics, focused-topic routes,
+  and section headers now derive from the shared Help model.
+- Remaining work: extract explicit Entries screen models where they still have
+  meaningful duplicated derivation, add any additional Overview route/action
+  descriptors that rendered parity tests require, and add rendered
+  control-consumption tests once the frontend test harness is available.
 
 Deliverable:
 
@@ -1336,42 +1433,74 @@ Suggested order:
    - Export/import review state and export generation now have a shared core
      model, including mobile export workflow action/status copy.
    - Recovery snapshot review rows now have a shared core model.
-   - Continue with platform display models for inline Help and broader web
-     storage status.
+   - Shared storage status, reset copy, import copy, export draft state, and
+     route-mode handling now cover both frontends. Mobile current-workspace
+     and saved-timestamp text now come from the shared storage status model.
+   - Remaining platform-specific Data behavior is capability-based: downloads
+     on web, share sheet on mobile, file import on web, paste import on mobile.
 
 2. Help model.
 
-   - Mostly shared copy already.
-   - Low risk.
-   - Good proof point for shared section models.
+   - Shared help screen model now packages focus topics, first-use copy,
+     quick actions, workflow topics, Data help, offline limits, support,
+     privacy, release limits, and version text for both web and mobile.
+   - Remaining work is limited to rendered interaction tests once the frontend
+     harness exists.
 
 3. Overview model.
 
-   - Mostly derived data and navigation actions.
-   - Clarifies list limits and section counts.
+   - Shared summary, search, highlight, incomplete-entry queues, list limits,
+     section counts, entry lists, timeline browse models, linked-record
+     summaries, relationship pickers, and draft/template helpers now feed both
+     web and mobile.
+   - Remaining work is limited to additional route/action descriptors if future
+     rendered parity tests need them.
 
 4. Relationships model.
 
    - High drift and high user value.
-   - Move graph, filters, health, form controls, and list row models.
+   - Shared diagnostics, list row models, named graph row projection,
+     filter/suggestion option derivation, and relationship editor control
+     descriptors now feed web and mobile.
+   - Relationship entry-open and manage-link routes now come from the shared
+     relationship model instead of platform-local route construction.
+   - Place relationship target display policy now comes from the shared model,
+     including lazy unusual expansion and soft fields that show unusual targets
+     from the beginning.
+   - Remaining work: add rendered interaction tests once the frontend harness
+     exists.
 
 5. Entries model.
 
    - Biggest screen.
-   - Move filters, timeline browser, entry editor controls, detail panel, and linked-record summary incrementally.
+   - Shared entry list filtering, ordering, row display text, timeline browser,
+     draft/template helpers, status/pinned descriptors, linked-record summaries,
+     web detail display models, editor base field descriptors, detail-field
+     suggestion models, notes preview state, hidden-detail cleanup rows, and
+     selected-entry action labels/accessibility text are now implemented. Web
+     and mobile renderers no longer import entry/timeline/date formatting
+     helpers directly for list and timeline display rows.
+   - Remaining work: add rendered detail-panel interaction coverage once the
+     frontend harness exists and continue extracting deeper place-linked-field
+     submodels only where duplication reappears.
 
 6. Workspaces model.
 
-   - Move workspace list, actions, custom type form, search, and delete gating.
+   - Shared workspace list rows, custom type rows, in-fiction world rows,
+     searches, draft field descriptors, draft factories, action copy, delete
+     gating, and action accessibility labels now feed web and mobile.
+   - Remaining work: add rendered interaction tests once the frontend harness
+     exists.
 
 7. In-fiction worlds/planets model.
 
    - Move the list, form controls, status, notes, tags, archive/restore/delete,
      diagnostics counts, and recovery snapshot hooks.
 
-8. Runtime recovery model.
+8. Runtime recovery copy and diagnostics path.
 
-   - Move retry/Data/diagnostics actions and content-safe fallback copy.
+   - Keep shared retry/Data/diagnostics copy and content-safe diagnostics
+     adapters covered while broader screen models are extracted.
 
 For each screen:
 
@@ -1419,6 +1548,21 @@ Tasks:
 - Add controller tests that run the same workflow under web and mobile save policies and compare final documents.
 - Add controller tests for corrupt storage, failed saves, snapshot retention,
   in-fiction world destructive actions, and reset/import/restore recovery.
+
+Current status:
+
+- Shared active-workspace mutation commands now live in `@valgaron/core` for
+  entry save/archive/delete, relationship save/delete, timeline moves,
+  in-fiction world save/archive/delete, and custom entry type create/delete.
+- Web and mobile controllers consume those commands while preserving their
+  platform save policies: web marks manual-save dirty state, and mobile commits
+  through device autosave with recovery snapshots.
+- Focused core tests cover the shared mutation semantics and package export
+  contract.
+- A parity boundary test prevents the web and mobile controllers from
+  reintroducing the retired direct active-workspace mutation helpers.
+- Remaining work: extract a broader document controller around validation,
+  import/reset/restore, snapshots, storage adapters, and save-policy injection.
 
 Deliverable:
 
@@ -1472,13 +1616,16 @@ Tasks:
   - Export full JSON.
   - Import on the other platform.
   - Assert equivalent normalized document.
+- The shared core data contract now includes this standard workflow as an
+  automated export/import gate built from the same entry, workspace,
+  relationship, and serializer helpers used by web and mobile.
 - Keep `npm run typecheck`, `npm run typecheck:mobile`, `npm test`, and `npm run test:mobile`.
 - Add focused mobile screen tests around picker/control behavior once the primitives exist.
 - Add a small browser/mobile manual QA checklist until automated mobile UI coverage exists.
 - Add route-intent parity tests.
 - Add accessibility descriptor parity tests.
-- Add large-world mobile model tests and, when tooling is available, rendered
-  mobile large-world smoke tests.
+- Keep large-world mobile model tests current and, when tooling is available,
+  add rendered mobile large-world smoke tests.
 - Add diagnostics schema and content-exclusion tests.
 - Add import-boundary tests preventing new duplicate feature derivation helpers
   after a shared model exists.
@@ -1489,34 +1636,35 @@ Deliverable:
 
 ## Feature Matrix
 
-| Area                       | Web Source State                                                                  | Mobile Current State                                                              | Parity Action                                                         |
-| -------------------------- | --------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
-| Navigation                 | Top nav plus direct section routes                                                | Tabs plus section selector                                                        | Share route model; keep responsive section selector as nav adaptation |
-| Save                       | Manual header Save                                                                | Autosave messages                                                                 | Add mobile save/status affordance; share save state model             |
-| Overview counts            | Section count cards                                                               | Aggregate stats                                                                   | Shared overview model with section counts on both                     |
-| Global search              | Search field and result cards                                                     | Search field and result rows                                                      | Share search model and limits                                         |
-| Quick create               | Links for every section                                                           | Buttons for every section                                                         | Share quick-create action model                                       |
-| Entry filters              | Search, tag chips, status select, sort select, updated select, archived checkbox  | Search, tag chips, status select, sort select, updated select, archived checkbox  | Keep covered by shared control descriptors                            |
-| Entry editor               | Full form, notes preview, suggestions, copy name                                  | Full form with notes preview, suggestions, and copy-name feedback                 | Move editor model shared                                              |
-| Entry status               | Select with all statuses                                                          | Select with all statuses                                                          | Keep covered by shared control descriptors                            |
-| Pinned                     | Checkbox                                                                          | Checkbox                                                                          | Keep covered by shared control descriptors                            |
-| Timeline                   | Diagnostics, highlights, table, era groups, filters, moves                        | Diagnostics text, groups, filters, moves                                          | Share timeline model; layout can differ                               |
-| Relationship source/target | Selects                                                                           | Searchable selects plus supplemental picker rows                                  | Move picker/search model shared                                       |
-| Relationship status        | Select with all statuses                                                          | Select with all statuses                                                          | Keep covered by shared control descriptors                            |
-| Relationship directional   | Checkbox                                                                          | Checkbox                                                                          | Keep covered by shared control descriptors                            |
-| Relationship graph filters | Selects                                                                           | Status/type selects plus section/tag buttons/search                               | Convert section filter or mark as navigation adaptation               |
-| Workspaces                 | Shared list/search/action-state model, headings, draft fields, and command labels | Shared list/search/action-state model, headings, draft fields, and command labels | Continue broader screen-model extraction as needed                    |
-| Custom entry types         | List/form/delete                                                                  | List/search/form/delete                                                           | Share labels and search policy                                        |
-| In-fiction worlds/planets  | Visible workspace list/form/actions using shared draft field descriptors          | Visible workspace list/form/actions using shared draft field descriptors          | Move remaining list/search policy into shared workspace model         |
-| Route intents              | React Router paths, query params, and hash focus                                  | Expo Router params plus route focus param                                         | Expand focused workflow consumers beyond Data                         |
-| Accessibility              | Labels, skip link, focus trap, keyboard flows                                     | Labels/roles/states in primitives                                                 | Add shared accessibility descriptors and parity tests                 |
-| Runtime recovery           | Context-rich fallback and Data path                                               | Retry/Data fallback                                                               | Share recovery model and diagnostics path                             |
-| Storage recovery           | Manual save, localStorage recovery, snapshots                                     | Autosave, AsyncStorage recovery, snapshots                                        | Share storage/recovery state model and copy                           |
-| Large-world behavior       | Synthetic performance test, browser smoke                                         | List limits and simple scroll views                                               | Shared budgets, limits, virtualization/pagination policy              |
-| Export JSON                | Shared core serializer, download                                                  | Shared core serializer, share                                                     | Keep capability adaptation; test same generated data                  |
-| Import JSON                | File chooser plus paste                                                           | Paste                                                                             | Keep capability adaptation; shared validation/preview                 |
-| Recovery snapshots         | Restore/delete list                                                               | Restore/delete list                                                               | Shared recovery model and copy                                        |
-| Help                       | Full sections with version/offline                                                | Full sections plus quick actions/topic buttons                                    | Shared help section model; align version/offline/quick actions        |
+| Area                       | Web Source State                                                                                               | Mobile Current State                                                                                           | Parity Action                                                         |
+| -------------------------- | -------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| Navigation                 | Top nav plus direct section routes                                                                             | Tabs plus section selector                                                                                     | Share route model; keep responsive section selector as nav adaptation |
+| Save                       | Manual header Save                                                                                             | Overview Save Status section                                                                                   | Keep covered by shared save state model                               |
+| Overview counts            | Section count cards                                                                                            | Aggregate stats                                                                                                | Keep covered by shared overview model                                 |
+| Global search              | Search field and result cards                                                                                  | Search field and result rows                                                                                   | Keep covered by shared overview search model and limits               |
+| Quick create               | Shared quick-create action labels/routes rendered as links                                                     | Shared quick-create action labels/routes rendered as buttons                                                   | Keep covered by shared overview model                                 |
+| Entry filters              | Search, tag chips, status select, sort select, updated select, archived checkbox                               | Search, tag chips, status select, sort select, updated select, archived checkbox                               | Keep covered by shared control descriptors                            |
+| Entry editor               | Full form, notes preview, suggestions, copy name                                                               | Full form with notes preview, suggestions, and copy-name feedback                                              | Move editor model shared                                              |
+| Place relationship fields  | Linked controls, target warnings, lazy unusual expansion, cleanup suggestions                                  | Linked controls, target warnings, lazy unusual expansion, cleanup suggestions                                  | Keep covered by shared place relationship helpers                     |
+| Entry status               | Select with all statuses                                                                                       | Select with all statuses                                                                                       | Keep covered by shared control descriptors                            |
+| Pinned                     | Checkbox                                                                                                       | Checkbox                                                                                                       | Keep covered by shared control descriptors                            |
+| Timeline                   | Diagnostics, highlights, table, era groups, filters, moves                                                     | Diagnostics text, groups, filters, moves                                                                       | Share timeline model; layout can differ                               |
+| Relationship source/target | Selects                                                                                                        | Searchable selects plus supplemental picker rows                                                               | Keep covered by shared entry option model                             |
+| Relationship status        | Select with all statuses                                                                                       | Select with all statuses                                                                                       | Keep covered by shared control descriptors                            |
+| Relationship directional   | Checkbox                                                                                                       | Checkbox                                                                                                       | Keep covered by shared control descriptors                            |
+| Relationship graph filters | Selects                                                                                                        | Status/type selects plus section/tag buttons/search                                                            | Keep status/type/options shared; section/tag layout can differ        |
+| Workspaces                 | Shared list/search/action-state model, headings, draft fields, command labels, and action accessibility labels | Shared list/search/action-state model, headings, draft fields, command labels, and action accessibility labels | Add rendered interaction tests once available                         |
+| Custom entry types         | List/form/delete                                                                                               | List/search/form/delete                                                                                        | Share labels and search policy                                        |
+| In-fiction worlds/planets  | Visible workspace list/form/actions using shared rows, search, draft fields, and action labels                 | Visible workspace list/form/actions using shared rows, search, draft fields, and action labels                 | Keep covered by shared workspace model                                |
+| Route intents              | React Router paths, query params, and hash focus                                                               | Expo Router params plus route focus param                                                                      | Keep shared route intents and Data focus targets current              |
+| Accessibility              | Labels, skip link, focus trap, keyboard flows                                                                  | Labels/roles/states in primitives                                                                              | Keep shared accessibility inventory; add rendered focus tests later   |
+| Runtime recovery           | Context-rich fallback and Data path                                                                            | Retry/Data fallback using shared copy                                                                          | Keep recovery copy and diagnostics path shared                        |
+| Storage recovery           | Manual save, localStorage recovery, snapshots                                                                  | Autosave, AsyncStorage recovery, snapshots                                                                     | Share storage/recovery state model and copy                           |
+| Large-world behavior       | Synthetic performance test, browser smoke                                                                      | Shared list limits and reachability tests                                                                      | Expand virtualization/pagination policy when rendered tests exist     |
+| Export JSON                | Shared core serializer, download                                                                               | Shared core serializer, share                                                                                  | Keep capability adaptation; test same generated data                  |
+| Import JSON                | File chooser plus paste                                                                                        | Paste                                                                                                          | Keep capability adaptation; shared validation/preview                 |
+| Recovery snapshots         | Restore/delete list                                                                                            | Restore/delete list                                                                                            | Shared recovery model and copy                                        |
+| Help                       | Full sections with version/offline/quick actions                                                               | Full sections with version/offline/quick actions                                                               | Keep shared Help screen model and section headers current             |
 
 ## Standard Workflow Parity Target
 
@@ -1593,26 +1741,25 @@ Highest priority:
 - Extend shared control descriptors into shared screen models.
 - Extend shared route-intent and accessibility descriptors beyond the current
   Data focus consumer.
-- Move mobile relationship source/target picker search into a shared model.
-- Move mobile notes preview, copy-name behavior, and detail suggestions into a
-  shared entry editor model.
+- Extend shared entry and relationship screen descriptors beyond the extracted
+  list, picker, timeline, linked-record, and draft models.
 - Keep diagnostics content-exclusion tests green as diagnostics change.
 
 Next:
 
-- Extract Data and Help shared models.
-- Extract Overview shared model.
-- Add web Workspaces search or document it as an intentional responsive affordance.
-- Add mobile save/status shell affordance.
-- Add runtime recovery and storage recovery shared models.
-- Add large-world mobile model tests.
+- Keep duplicate-helper retirement enforced through boundary tests.
+- Extract Overview shared model if remaining overview derivation starts to
+  drift.
+- Keep Entries shared model coverage current as editor and linked-field
+  workflows evolve.
+- Keep storage recovery coverage current as storage adapters evolve.
 
 Then:
 
-- Extract Relationships shared model.
-- Extract Entries shared model.
-- Extract Workspaces shared model.
-- Extract in-fiction worlds/planets shared model if supported.
+- Extract remaining deep Entries linked-field descriptors only where the
+  existing shared place-relationship helpers do not already cover behavior.
+- Keep Workspaces and in-fiction worlds/planets shared model coverage current
+  as those workflows change.
 - Extract shared document controller.
 - Delete or mark remaining duplicate web utility wrappers and mobile view-model
   helpers after each shared model migration.

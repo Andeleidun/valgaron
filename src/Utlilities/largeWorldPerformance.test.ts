@@ -1,27 +1,21 @@
 import { describe, expect, it } from '@jest/globals';
 import {
-  parseWorldImport,
-  serializeActiveWorldBackup,
-} from './codexDataPortability';
-import { getEntries } from './codexEntries';
-import {
+  filterSectionEntries,
+  filterTimelineEvents,
+  getActiveWorld,
   getBrokenRelationships,
+  getEntries,
   getOrphanedEntries,
   getRelationshipGraph,
-} from './codexRelationships';
-import {
-  filterSectionEntries,
   getSearchableEntries,
-  searchEntries,
-  sortEntries,
-} from './codexSearch';
-import {
-  filterTimelineEvents,
   getTimelineDiagnostics,
   groupTimelineEventsByEra,
-} from './codexTimeline';
+  parseWorldImport,
+  searchEntries,
+  serializeActiveWorldBackup,
+  sortEntries,
+} from '@valgaron/core';
 import { createLargeWorldDocument } from './largeWorldFixtures';
-import { getActiveWorld } from './worldDocument';
 
 function measure<TResult>(operation: () => TResult): {
   durationMs: number;

@@ -2,6 +2,7 @@ import { describe, expect, it } from '@jest/globals';
 import {
   createWorldDocumentDiagnosticsReport,
   getWorldDocumentDiagnostics,
+  sanitizeDiagnosticsRoute,
   serializeWorldDocumentDiagnosticsReport,
 } from './documentDiagnostics';
 import { createSeedWorldDocument } from './seedCodex';
@@ -72,20 +73,43 @@ describe('document diagnostics', () => {
       runtime: {
         loadState: 'recovered',
         loadCheckedAt: '2026-06-01T00:00:00.000Z',
+        loadMessage: 'Loaded starter data after recovery.',
+        loadIssueCount: 1,
+        route: sanitizeDiagnosticsRoute(
+          '/entries?sectionId=characters&query=Mira%20Rowan'
+        ),
+        userAgent: 'Test Browser',
         saveState: 'Saved to this device.',
         recoverySnapshotAvailable: true,
+        recoverySnapshotCount: 2,
+        recoverySnapshotState: 'saved',
         recoverySnapshotReason: 'import',
         recoverySnapshotCreatedAt: '2026-06-01T00:00:00.000Z',
+        runtimeErrorName: 'RenderError',
       },
       storageTarget: 'this device',
     });
 
     expect(report.runtime).toMatchObject({
       loadState: 'recovered',
+      loadIssueCount: 1,
+      route: '/entries?sectionId=redacted&query=redacted',
       recoverySnapshotAvailable: true,
+      recoverySnapshotCount: 2,
+      recoverySnapshotState: 'saved',
       recoverySnapshotReason: 'import',
+      runtimeErrorName: 'RenderError',
     });
     expect(JSON.stringify(report)).not.toContain('Sample Atlas');
     expect(JSON.stringify(report)).not.toContain('Mira Rowan');
+  });
+
+  it('redacts diagnostics route query values in the shared diagnostics model', () => {
+    expect(sanitizeDiagnosticsRoute('/data')).toBe('/data');
+    expect(
+      sanitizeDiagnosticsRoute(
+        '/relationships?entryQuery=Secret%20Name&entryId=secret-entry-id'
+      )
+    ).toBe('/relationships?entryQuery=redacted&entryId=redacted');
   });
 });

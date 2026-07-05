@@ -6,34 +6,40 @@ import {
   useSearchParams,
 } from 'react-router-dom';
 import {
-  draftFromEntry,
-  duplicateEntry,
-  filterSectionEntries,
-  filterTimelineEvents,
   buildPlaceRelationshipTextReviewBatchMigration,
   buildPlaceRelationshipTextReviewMigration,
+  buildPlaceRelationshipTextReviewSuggestionMigration,
+  draftFromEntry,
+  duplicateEntry,
+  entryListCopy,
+  entryShowArchivedControl,
+  entrySortControl,
+  entryStatusFilterControl,
+  entryUpdatedFilterControl,
   getCodexHelpRoute,
+  getEntryListEmptyStateModel,
+  getEntryListModel,
+  getEntrySortControlOptions,
+  getEntryTagFilterOptions,
   getEntries,
   getPlaceRelationshipTextReviewExactMatchLabel,
   getPlaceRelationshipTextReviewItems,
+  getPlaceRelationshipTextReviewSummary,
   getPlaceRelationshipTextReviewSuggestionLabels,
   getPlaceRelationshipTextReviewUnresolvedLabel,
   getRelationshipEntries,
   getSectionById,
-  getSectionTags,
   getTimelineEras,
   getTimelineInvolvedEntryIds,
-  sortEntries,
-  sortTimelineEvents,
+  placeRelationshipTextReviewCopy,
   placeRelationshipFieldConfigs,
   type PlaceRelationshipTextReviewItem,
   type EntryDraft,
-  type EntrySortKey,
+  type EntrySortControlValue,
   type WorldCodex,
   type WorldEntry,
   type WorldRelationship,
   type WorldSectionConfig,
-  worldEntryStatusOptions,
 } from '@valgaron/core';
 import { confirmDiscardUnsavedChanges } from '../Utlilities/unsavedChanges';
 import {
@@ -43,8 +49,6 @@ import {
   EntryForm,
   TimelineOverview,
 } from '../Components/Codex/CodexEntryViews';
-
-type SectionSortKey = EntrySortKey | 'timeline-order';
 
 export function SectionPage({
   codex,
@@ -84,7 +88,7 @@ export function SectionPage({
   const [updatedWithinDays, setUpdatedWithinDays] = useState<number | null>(
     null
   );
-  const [sortKey, setSortKey] = useState<SectionSortKey>('updated-desc');
+  const [sortKey, setSortKey] = useState<EntrySortControlValue>('updated-desc');
   const [eraFilter, setEraFilter] = useState('');
   const [involvedEntryFilter, setInvolvedEntryFilter] = useState('');
   const [showArchived, setShowArchived] = useState(false);
@@ -176,7 +180,14 @@ export function SectionPage({
     () => (section ? getEntries(codex, section.id) : []),
     [codex, section]
   );
-  const availableTags = useMemo(() => getSectionTags(entries), [entries]);
+  const entryById = useMemo(
+    () => new Map(entries.map((entry) => [entry.id, entry])),
+    [entries]
+  );
+  const tagFilterOptions = useMemo(
+    () => getEntryTagFilterOptions(entries, activeTag),
+    [activeTag, entries]
+  );
   const timelineEras = useMemo(
     () => (section?.id === 'timeline' ? getTimelineEras(entries) : []),
     [entries, section]
@@ -194,46 +205,61 @@ export function SectionPage({
       .filter((entry) => involvedIds.has(entry.id))
       .sort((first, second) => first.name.localeCompare(second.name));
   }, [codex, entries, relationships, section, sections]);
-  const filteredEntries = useMemo(() => {
+  const entrySortOptions = useMemo(
+    () =>
+      getEntrySortControlOptions({
+        includeTimelineOrder: section?.id === 'timeline',
+      }),
+    [section]
+  );
+  const filteredEntryItems = useMemo(() => {
     if (!section) {
       return [];
     }
-    const sectionFilteredEntries = filterSectionEntries(entries, section, {
+    return getEntryListModel(
+      {
+        codex,
+        entryTypes: sections,
+        relationships,
+      },
+      section,
       query,
-      activeTag,
-      status: statusFilter,
-      showArchived,
-      updatedWithinDays,
-    });
-    const timelineFilteredEntries =
-      section.id === 'timeline'
-        ? filterTimelineEvents(
-            sectionFilteredEntries,
-            {
-              era: eraFilter,
-              tag: '',
-              status: '',
-              involvedEntryId: involvedEntryFilter,
-            },
-            relationships
-          )
-        : sectionFilteredEntries;
-    return sortKey === 'timeline-order'
-      ? sortTimelineEvents(timelineFilteredEntries)
-      : sortEntries(timelineFilteredEntries, sortKey);
+      {
+        activeTag,
+        showArchived,
+        sortKey,
+        status: statusFilter,
+        timelineEra: eraFilter,
+        timelineInvolvedEntryId: involvedEntryFilter,
+        updatedWithinDays,
+      }
+    );
   }, [
     activeTag,
+    codex,
     eraFilter,
-    entries,
     involvedEntryFilter,
     query,
     relationships,
     section,
+    sections,
     showArchived,
     sortKey,
     statusFilter,
     updatedWithinDays,
   ]);
+  const filteredEntryRows = useMemo(
+    () =>
+      filteredEntryItems.flatMap((entryItem) => {
+        const entry = entryById.get(entryItem.id);
+        return entry ? [{ entry, entryItem }] : [];
+      }),
+    [entryById, filteredEntryItems]
+  );
+  const filteredEntries = useMemo(
+    () => filteredEntryRows.map((row) => row.entry),
+    [filteredEntryRows]
+  );
   const selectedEntry = entries.find((entry) => entry.id === selectedEntryId);
   const archivedEntryCount = entries.filter(
     (entry) => entry.status === 'archived'
@@ -281,8 +307,15 @@ export function SectionPage({
     setShowArchived(false);
     setUpdatedWithinDays(null);
   };
-  const hasOnlyArchivedEntries =
-    entries.length > 0 && archivedEntryCount === entries.length;
+  const emptyState = section
+    ? getEntryListEmptyStateModel({
+        archivedCount: archivedEntryCount,
+        hasActiveFilters,
+        section,
+        showArchived,
+        totalCount: entries.length,
+      })
+    : null;
   const sectionHelpRoute = getCodexHelpRoute(
     section.id === 'timeline' ? 'timeline' : 'entries'
   );
@@ -317,6 +350,45 @@ export function SectionPage({
       item,
       relationships,
     });
+    migration.relationshipIdsToDelete.forEach(onDeleteRelationship);
+    migration.relationshipsToSave.forEach(({ relationship }) =>
+      onSaveRelationship(relationship)
+    );
+    onSaveEntry({
+      ...entry,
+      fields: migration.fields,
+      updatedAt: new Date().toISOString(),
+    });
+  };
+
+  const migrateReviewItemSuggestion = (
+    item: PlaceRelationshipTextReviewItem,
+    fragment: string,
+    targetEntryId: string
+  ) => {
+    if (isEntryFormDirty) {
+      return;
+    }
+    const entry = entries.find((candidate) => candidate.id === item.entryId);
+    const config = placeRelationshipFieldConfigs.find(
+      (candidate) => candidate.fieldKey === item.fieldKey
+    );
+    if (!entry || !config) {
+      return;
+    }
+
+    const migration = buildPlaceRelationshipTextReviewSuggestionMigration({
+      config,
+      entry,
+      fragment,
+      item,
+      relationships,
+      targetEntryId,
+    });
+    if (!migration) {
+      return;
+    }
+
     migration.relationshipIdsToDelete.forEach(onDeleteRelationship);
     migration.relationshipsToSave.forEach(({ relationship }) =>
       onSaveRelationship(relationship)
@@ -381,7 +453,9 @@ export function SectionPage({
             }
           }}
         >
-          {section.id === 'timeline' ? 'Timeline Help' : 'Entry Help'}
+          {section.id === 'timeline'
+            ? entryListCopy.timelineHelpLabel
+            : entryListCopy.entryHelpLabel}
         </NavLink>
       </section>
 
@@ -409,17 +483,17 @@ export function SectionPage({
                 {placeRelationshipTextReviewItems.length === 1 ? '' : 's'} to
                 review
               </p>
-              <h2>Legacy Link Text</h2>
+              <h2>{placeRelationshipTextReviewCopy.title}</h2>
             </div>
           </div>
           <p>
-            These relationship-backed fields still contain text that exact-match
-            migration cannot fully resolve.
+            {getPlaceRelationshipTextReviewSummary(
+              placeRelationshipTextReviewItems.length
+            )}
           </p>
           {isEntryFormDirty ? (
             <p className="vwb-inline-status">
-              Save or discard the current entry draft before migrating exact
-              matches.
+              {placeRelationshipTextReviewCopy.draftBlockedMessage}
             </p>
           ) : null}
           {placeRelationshipTextReviewExactItems.length > 0 ? (
@@ -429,7 +503,7 @@ export function SectionPage({
               type="button"
               onClick={migrateAllReviewExactMatches}
             >
-              Migrate All Exact Matches
+              {placeRelationshipTextReviewCopy.batchExactMatchLabel}
             </button>
           ) : null}
           <div className="vwb-relationship-list">
@@ -454,12 +528,33 @@ export function SectionPage({
                   {getPlaceRelationshipTextReviewExactMatchLabel(item)}
                 </p>
                 {item.suggestedTargets.length > 0 ? (
-                  <p>
-                    Suggestions:{' '}
-                    {getPlaceRelationshipTextReviewSuggestionLabels(item).join(
-                      '; '
+                  <div>
+                    <p>
+                      Suggestions:{' '}
+                      {getPlaceRelationshipTextReviewSuggestionLabels(
+                        item
+                      ).join('; ')}
+                    </p>
+                    {item.suggestedTargets.map((suggestion) =>
+                      suggestion.targets.map((target) => (
+                        <button
+                          className="vwb-secondary-button"
+                          disabled={isEntryFormDirty}
+                          key={`${suggestion.fragment}-${target.id}`}
+                          type="button"
+                          onClick={() =>
+                            migrateReviewItemSuggestion(
+                              item,
+                              suggestion.fragment,
+                              target.id
+                            )
+                          }
+                        >
+                          Link {suggestion.fragment} to {target.name}
+                        </button>
+                      ))
                     )}
-                  </p>
+                  </div>
                 ) : null}
                 {item.exactMatchCount > 0 ? (
                   <button
@@ -508,23 +603,19 @@ export function SectionPage({
               type="search"
             />
           </label>
-          {availableTags.length > 0 ? (
+          {tagFilterOptions.length > 0 ? (
             <div className="vwb-tag-filter-group" aria-label="Filter by tag">
-              {availableTags.map((tag) => (
+              {tagFilterOptions.map((option) => (
                 <button
                   className={`vwb-tag-filter ${
-                    activeTag === tag ? 'is-active' : ''
+                    option.isActive ? 'is-active' : ''
                   }`}
-                  key={tag}
+                  key={option.value}
                   type="button"
-                  onClick={() =>
-                    setActiveTag((currentTag) =>
-                      currentTag === tag ? '' : tag
-                    )
-                  }
-                  aria-pressed={activeTag === tag}
+                  onClick={() => setActiveTag(option.nextValue)}
+                  aria-pressed={option.isActive}
                 >
-                  {tag}
+                  {option.label}
                 </button>
               ))}
             </div>
@@ -535,20 +626,24 @@ export function SectionPage({
               type="button"
               onClick={clearFilters}
             >
-              Clear Filters
+              {entryListCopy.clearFiltersLabel}
             </button>
           ) : null}
           <div className="vwb-filter-row">
             <label>
-              Status
+              {entryStatusFilterControl.label}
               <select
+                aria-label={entryStatusFilterControl.accessibilityLabel}
                 value={statusFilter}
-                onChange={(event) =>
-                  setStatusFilter(event.target.value as typeof statusFilter)
-                }
+                onChange={(event) => {
+                  const nextStatus = event.target.value as typeof statusFilter;
+                  setStatusFilter(nextStatus);
+                  if (nextStatus === 'archived') {
+                    setShowArchived(true);
+                  }
+                }}
               >
-                <option value="">Any status</option>
-                {worldEntryStatusOptions.map((option) => (
+                {entryStatusFilterControl.options.map((option) => (
                   <option value={option.value} key={option.value}>
                     {option.label}
                   </option>
@@ -556,25 +651,25 @@ export function SectionPage({
               </select>
             </label>
             <label>
-              Sort
+              {entrySortControl.label}
               <select
+                aria-label={entrySortControl.accessibilityLabel}
                 value={sortKey}
                 onChange={(event) =>
-                  setSortKey(event.target.value as SectionSortKey)
+                  setSortKey(event.target.value as EntrySortControlValue)
                 }
               >
-                <option value="updated-desc">Recently updated</option>
-                <option value="created-desc">Recently created</option>
-                {section.id === 'timeline' ? (
-                  <option value="timeline-order">Timeline order</option>
-                ) : null}
-                <option value="name">Name</option>
-                <option value="status">Status</option>
+                {entrySortOptions.map((option) => (
+                  <option value={option.value} key={option.value}>
+                    {option.label}
+                  </option>
+                ))}
               </select>
             </label>
             <label>
-              Updated
+              {entryUpdatedFilterControl.label}
               <select
+                aria-label={entryUpdatedFilterControl.accessibilityLabel}
                 value={updatedWithinDays ?? ''}
                 onChange={(event) =>
                   setUpdatedWithinDays(
@@ -582,10 +677,11 @@ export function SectionPage({
                   )
                 }
               >
-                <option value="">Any time</option>
-                <option value="7">Last 7 days</option>
-                <option value="30">Last 30 days</option>
-                <option value="365">Last year</option>
+                {entryUpdatedFilterControl.options.map((option) => (
+                  <option value={option.value} key={option.value}>
+                    {option.label}
+                  </option>
+                ))}
               </select>
             </label>
           </div>
@@ -625,18 +721,20 @@ export function SectionPage({
           ) : null}
           <label className="vwb-inline-toggle">
             <input
+              aria-label={entryShowArchivedControl.accessibilityLabel}
               checked={showArchived}
               onChange={(event) => setShowArchived(event.target.checked)}
               type="checkbox"
             />
-            Show archived
+            {entryShowArchivedControl.label}
           </label>
         </div>
         <div className="vwb-entry-list">
           {filteredEntries.length > 0 ? (
-            filteredEntries.map((entry) => (
+            filteredEntryRows.map(({ entry, entryItem }) => (
               <EntryCard
                 entry={entry}
+                entryListItem={entryItem}
                 isSelected={entry.id === selectedEntryId}
                 key={entry.id}
                 onSelect={() => selectEntry(entry.id)}
@@ -645,21 +743,9 @@ export function SectionPage({
             ))
           ) : (
             <div className="vwb-empty-results" role="status">
-              <strong>
-                {entries.length === 0
-                  ? `No ${section.title.toLowerCase()} saved yet.`
-                  : hasOnlyArchivedEntries && !showArchived
-                  ? 'Only archived entries are in this section.'
-                  : 'No entries found.'}
-              </strong>
-              <p>
-                {entries.length === 0
-                  ? `Create a ${section.singularTitle.toLowerCase()} when you are ready to draft this part of the world.`
-                  : hasOnlyArchivedEntries && !showArchived
-                  ? 'Show archived entries to review or restore them.'
-                  : 'Try a different search term or clear the active filters.'}
-              </p>
-              {hasOnlyArchivedEntries && !showArchived ? (
+              <strong>{emptyState?.title}</strong>
+              <p>{emptyState?.detail}</p>
+              {emptyState?.showArchivedAction ? (
                 <button
                   className="vwb-secondary-button"
                   type="button"
@@ -674,7 +760,7 @@ export function SectionPage({
                   type="button"
                   onClick={clearFilters}
                 >
-                  Clear Filters
+                  {entryListCopy.clearFiltersLabel}
                 </button>
               ) : null}
             </div>

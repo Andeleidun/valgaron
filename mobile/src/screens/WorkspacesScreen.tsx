@@ -11,10 +11,13 @@ import type {
 import {
   getCodexHelpRoute,
   getCodexScreenIntro,
+  emptyEntryTypeDraft,
+  formatWorkspaceFeatureAccessibilityLabel,
   getWorkspaceFormKicker,
   getWorkspaceFormTitle,
   getWorkspaceFeatureModel,
   entryTypeDraftFields,
+  getFeedbackTone,
   hasUnsavedChanges,
   lastActiveWorkspaceArchiveMessage,
   normalizePlanetaryWorldDraft,
@@ -22,6 +25,7 @@ import {
   planetaryWorldDraftFrom,
   planetaryWorldDraftFields,
   workspaceDraftFields,
+  workspaceDraftFrom,
   workspaceFeatureActions,
   workspaceFeatureCopy,
 } from '@valgaron/core';
@@ -43,30 +47,8 @@ import {
   StatusText,
 } from './screenPrimitives';
 import { confirmMobileDestructiveAction } from './mobileConfirm';
-import { confirmMobileDiscardUnsavedChanges } from './mobileUnsavedChanges';
-import { getMobileFeedbackTone } from '../state/mobileFeedback';
+import { confirmDiscardUnsavedChangesOnMobile } from './unsavedChangesConfirm';
 import { getMobileRouteHref } from '../navigation/mobileRoutes';
-
-const blankWorkspaceDraft: WorkspaceDraft = {
-  name: '',
-  summary: '',
-  defaultEra: '',
-};
-
-const blankEntryTypeDraft: EntryTypeDraft = {
-  title: '',
-  singularTitle: '',
-  description: '',
-  fields: '',
-};
-
-function workspaceDraftFrom(workspace?: WorldWorkspace): WorkspaceDraft {
-  return {
-    name: workspace?.name ?? '',
-    summary: workspace?.summary ?? '',
-    defaultEra: workspace?.defaultEra ?? '',
-  };
-}
 
 export function WorkspacesScreen() {
   const controller = useMobileCodex();
@@ -78,8 +60,9 @@ export function WorkspacesScreen() {
   const [workspaceDraft, setWorkspaceDraft] = useState<WorkspaceDraft>(() =>
     workspaceDraftFrom(controller.activeWorld)
   );
-  const [entryTypeDraft, setEntryTypeDraft] =
-    useState<EntryTypeDraft>(blankEntryTypeDraft);
+  const [entryTypeDraft, setEntryTypeDraft] = useState<EntryTypeDraft>(() =>
+    emptyEntryTypeDraft()
+  );
   const [selectedPlanetaryWorldId, setSelectedPlanetaryWorldId] = useState<
     string | null
   >(null);
@@ -108,7 +91,7 @@ export function WorkspacesScreen() {
       )
     ) {
       setSelectedWorkspaceId(null);
-      setWorkspaceDraft(blankWorkspaceDraft);
+      setWorkspaceDraft(workspaceDraftFrom());
     }
   }, [controller.document.worlds, selectedWorkspaceId]);
 
@@ -154,7 +137,7 @@ export function WorkspacesScreen() {
     workspaceDraft
   );
   const isEntryTypeDraftDirty = hasUnsavedChanges(
-    blankEntryTypeDraft,
+    emptyEntryTypeDraft(),
     entryTypeDraft
   );
   const selectedPlanetaryWorld = selectedPlanetaryWorldId
@@ -178,7 +161,7 @@ export function WorkspacesScreen() {
     if (selectedWorkspaceId === workspace.id) {
       return;
     }
-    confirmMobileDiscardUnsavedChanges(hasDirtyDraft, () => {
+    confirmDiscardUnsavedChangesOnMobile(hasDirtyDraft, () => {
       setSelectedWorkspaceId(workspace.id);
       setWorkspaceDraft(workspaceDraftFrom(workspace));
     });
@@ -187,13 +170,13 @@ export function WorkspacesScreen() {
   function resetWorkspaceDraft(force = false) {
     const reset = () => {
       setSelectedWorkspaceId(null);
-      setWorkspaceDraft(blankWorkspaceDraft);
+      setWorkspaceDraft(workspaceDraftFrom());
     };
     if (force) {
       reset();
       return;
     }
-    confirmMobileDiscardUnsavedChanges(hasDirtyDraft, reset);
+    confirmDiscardUnsavedChangesOnMobile(hasDirtyDraft, reset);
   }
 
   function shouldConfirmWorkspaceAction(workspaceId: string) {
@@ -205,7 +188,7 @@ export function WorkspacesScreen() {
   }
 
   function archiveWorkspace(workspace: WorldWorkspace) {
-    confirmMobileDiscardUnsavedChanges(
+    confirmDiscardUnsavedChangesOnMobile(
       shouldConfirmWorkspaceAction(workspace.id),
       () => {
         const wasActiveWorkspace = workspace.id === controller.activeWorld.id;
@@ -221,13 +204,13 @@ export function WorkspacesScreen() {
   }
 
   function duplicateWorkspace(workspaceId: string) {
-    confirmMobileDiscardUnsavedChanges(hasDirtyDraft, () =>
+    confirmDiscardUnsavedChangesOnMobile(hasDirtyDraft, () =>
       controller.duplicateWorkspace(workspaceId)
     );
   }
 
   function deleteWorkspace(workspaceId: string) {
-    confirmMobileDiscardUnsavedChanges(
+    confirmDiscardUnsavedChangesOnMobile(
       shouldConfirmWorkspaceAction(workspaceId),
       () =>
         confirmMobileDestructiveAction('delete-workspace', () =>
@@ -240,7 +223,7 @@ export function WorkspacesScreen() {
     if (selectedPlanetaryWorldId === planetaryWorld.id) {
       return;
     }
-    confirmMobileDiscardUnsavedChanges(hasDirtyDraft, () => {
+    confirmDiscardUnsavedChangesOnMobile(hasDirtyDraft, () => {
       setSelectedPlanetaryWorldId(planetaryWorld.id);
       setPlanetaryWorldDraft(planetaryWorldDraftFrom(planetaryWorld));
     });
@@ -255,7 +238,7 @@ export function WorkspacesScreen() {
       reset();
       return;
     }
-    confirmMobileDiscardUnsavedChanges(hasDirtyDraft, reset);
+    confirmDiscardUnsavedChangesOnMobile(hasDirtyDraft, reset);
   }
 
   function savePlanetaryWorld() {
@@ -274,7 +257,7 @@ export function WorkspacesScreen() {
   }
 
   function archivePlanetaryWorld(planetaryWorld: InFictionWorld) {
-    confirmMobileDiscardUnsavedChanges(
+    confirmDiscardUnsavedChangesOnMobile(
       selectedPlanetaryWorldId === planetaryWorld.id &&
         isPlanetaryWorldDraftDirty,
       () =>
@@ -286,7 +269,7 @@ export function WorkspacesScreen() {
   }
 
   function deletePlanetaryWorld(planetaryWorld: InFictionWorld) {
-    confirmMobileDiscardUnsavedChanges(
+    confirmDiscardUnsavedChangesOnMobile(
       selectedPlanetaryWorldId === planetaryWorld.id &&
         isPlanetaryWorldDraftDirty,
       () =>
@@ -330,17 +313,18 @@ export function WorkspacesScreen() {
     <ScreenScroll>
       <ScreenHeader title={intro.title} detail={intro.detail} />
       {controller.formMessage ? (
-        <StatusText tone={getMobileFeedbackTone(controller.formMessage)}>
+        <StatusText tone={getFeedbackTone(controller.formMessage)}>
           {controller.formMessage}
         </StatusText>
       ) : null}
 
       <SectionBlock title={workspaceFeatureCopy.sections.workspaces}>
+        <MutedText>{workspaceModel.workspaces.countLabel}</MutedText>
         <ButtonRow>
           <ActionButton
             label={workspaceFeatureActions.workspaceHelp}
             onPress={() =>
-              confirmMobileDiscardUnsavedChanges(hasDirtyDraft, () =>
+              confirmDiscardUnsavedChangesOnMobile(hasDirtyDraft, () =>
                 router.push({
                   ...getMobileRouteHref(getCodexHelpRoute('workspaces')),
                 })
@@ -366,7 +350,10 @@ export function WorkspacesScreen() {
                 <MutedText>{workspaceRow.summaryText}</MutedText>
                 <ButtonRow>
                   <ActionButton
-                    accessibilityLabel={`Edit workspace ${workspace.name}`}
+                    accessibilityLabel={formatWorkspaceFeatureAccessibilityLabel(
+                      'edit-workspace',
+                      workspace.name
+                    )}
                     label={workspaceFeatureActions.edit}
                     selected={workspace.id === selectedWorkspaceId}
                     tone={
@@ -387,7 +374,7 @@ export function WorkspacesScreen() {
                     }
                     disabled={!actionState.canSwitch}
                     onPress={() =>
-                      confirmMobileDiscardUnsavedChanges(hasDirtyDraft, () =>
+                      confirmDiscardUnsavedChangesOnMobile(hasDirtyDraft, () =>
                         controller.switchWorkspace(workspace.id)
                       )
                     }
@@ -395,8 +382,14 @@ export function WorkspacesScreen() {
                   <ActionButton
                     accessibilityLabel={
                       workspace.status === 'archived'
-                        ? `Restore workspace ${workspace.name}`
-                        : `Archive workspace ${workspace.name}`
+                        ? formatWorkspaceFeatureAccessibilityLabel(
+                            'restore-workspace',
+                            workspace.name
+                          )
+                        : formatWorkspaceFeatureAccessibilityLabel(
+                            'archive-workspace',
+                            workspace.name
+                          )
                     }
                     label={
                       workspace.status === 'archived'
@@ -407,13 +400,19 @@ export function WorkspacesScreen() {
                     onPress={() => archiveWorkspace(workspace)}
                   />
                   <ActionButton
-                    accessibilityLabel={`Duplicate workspace ${workspace.name}`}
+                    accessibilityLabel={formatWorkspaceFeatureAccessibilityLabel(
+                      'duplicate-workspace',
+                      workspace.name
+                    )}
                     label={workspaceFeatureActions.duplicate}
                     onPress={() => duplicateWorkspace(workspace.id)}
                   />
                   <ActionButton
                     accessibilityHint="Deletes this workspace after confirmation."
-                    accessibilityLabel={`Delete workspace ${workspace.name}`}
+                    accessibilityLabel={formatWorkspaceFeatureAccessibilityLabel(
+                      'delete-workspace',
+                      workspace.name
+                    )}
                     label={workspaceFeatureActions.deletePermanently}
                     tone="danger"
                     disabled={!actionState.canDelete}
@@ -442,7 +441,9 @@ export function WorkspacesScreen() {
         )}: ${getWorkspaceFormTitle(selectedWorkspace?.name)}`}
       >
         {isWorkspaceDraftDirty ? (
-          <StatusText tone="warning">Unsaved workspace draft.</StatusText>
+          <StatusText tone="warning">
+            {workspaceFeatureCopy.draftStatus.workspace}
+          </StatusText>
         ) : null}
         {workspaceDraftFields.map((field) => (
           <Field
@@ -487,9 +488,10 @@ export function WorkspacesScreen() {
       </SectionBlock>
 
       <SectionBlock title={workspaceFeatureCopy.sections.planetaryWorlds}>
+        <MutedText>{workspaceModel.planetaryWorlds.countLabel}</MutedText>
         {isPlanetaryWorldDraftDirty ? (
           <StatusText tone="warning">
-            Unsaved in-fiction world draft.
+            {workspaceFeatureCopy.draftStatus.planetaryWorld}
           </StatusText>
         ) : null}
         <Field
@@ -513,7 +515,10 @@ export function WorkspacesScreen() {
                 <MutedText>{planetaryWorldRow.tagsText}</MutedText>
                 <ButtonRow>
                   <ActionButton
-                    accessibilityLabel={`Edit in-fiction world ${planetaryWorld.name}`}
+                    accessibilityLabel={formatWorkspaceFeatureAccessibilityLabel(
+                      'edit-planetary-world',
+                      planetaryWorld.name
+                    )}
                     label={workspaceFeatureActions.edit}
                     selected={planetaryWorld.id === selectedPlanetaryWorldId}
                     tone={
@@ -526,8 +531,14 @@ export function WorkspacesScreen() {
                   <ActionButton
                     accessibilityLabel={
                       planetaryWorld.status === 'archived'
-                        ? `Restore in-fiction world ${planetaryWorld.name}`
-                        : `Archive in-fiction world ${planetaryWorld.name}`
+                        ? formatWorkspaceFeatureAccessibilityLabel(
+                            'restore-planetary-world',
+                            planetaryWorld.name
+                          )
+                        : formatWorkspaceFeatureAccessibilityLabel(
+                            'archive-planetary-world',
+                            planetaryWorld.name
+                          )
                     }
                     label={
                       planetaryWorld.status === 'archived'
@@ -538,7 +549,10 @@ export function WorkspacesScreen() {
                   />
                   <ActionButton
                     accessibilityHint="Deletes this in-fiction world after confirmation."
-                    accessibilityLabel={`Delete in-fiction world ${planetaryWorld.name}`}
+                    accessibilityLabel={formatWorkspaceFeatureAccessibilityLabel(
+                      'delete-planetary-world',
+                      planetaryWorld.name
+                    )}
                     label={workspaceFeatureActions.deletePermanently}
                     tone="danger"
                     onPress={() => deletePlanetaryWorld(planetaryWorld)}
@@ -585,8 +599,11 @@ export function WorkspacesScreen() {
       </SectionBlock>
 
       <SectionBlock title={workspaceFeatureCopy.sections.customEntryTypes}>
+        <MutedText>{workspaceModel.customEntryTypes.countLabel}</MutedText>
         {isEntryTypeDraftDirty ? (
-          <StatusText tone="warning">Unsaved custom type draft.</StatusText>
+          <StatusText tone="warning">
+            {workspaceFeatureCopy.draftStatus.customEntryType}
+          </StatusText>
         ) : null}
         <Field
           autoCapitalize="none"
@@ -601,10 +618,13 @@ export function WorkspacesScreen() {
             <View key={entryTypeRow.id} style={styles.workspaceRow}>
               <Text style={styles.itemTitle}>{entryTypeRow.title}</Text>
               <MutedText>{entryTypeRow.descriptionText}</MutedText>
-              <MutedText>Fields: {entryTypeRow.fieldsText}</MutedText>
+              <MutedText>{entryTypeRow.fieldsLine}</MutedText>
               <ActionButton
                 accessibilityHint="Deletes this custom entry type, its entries, and its relationships after confirmation."
-                accessibilityLabel={`Delete custom entry type ${entryTypeRow.title}`}
+                accessibilityLabel={formatWorkspaceFeatureAccessibilityLabel(
+                  'delete-custom-entry-type',
+                  entryTypeRow.title
+                )}
                 label={workspaceFeatureActions.deleteType}
                 tone="danger"
                 onPress={() =>
@@ -639,7 +659,7 @@ export function WorkspacesScreen() {
             tone="accent"
             onPress={() => {
               if (controller.createEntryType(entryTypeDraft)) {
-                setEntryTypeDraft(blankEntryTypeDraft);
+                setEntryTypeDraft(emptyEntryTypeDraft());
               }
             }}
           />

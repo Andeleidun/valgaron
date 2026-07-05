@@ -1,9 +1,13 @@
 import { describe, expect, it } from '@jest/globals';
 import { createSeedWorldDocument } from '@valgaron/core';
-import { createMemoryStringStorage } from '@valgaron/platform';
+import {
+  createMemoryStringStorage,
+  type AsyncStringStorageAdapter,
+} from '@valgaron/platform';
 import {
   MOBILE_RECOVERY_SNAPSHOT_STORAGE_KEY,
   MOBILE_RECOVERY_SNAPSHOTS_STORAGE_KEY,
+  MOBILE_WORLD_DOCUMENT_STORAGE_KEY,
   createMobileRecoverySnapshot,
   deleteMobileRecoverySnapshot,
   deleteMobileRecoverySnapshotById,
@@ -36,6 +40,63 @@ describe('mobile storage', () => {
       status: { source: 'saved' },
       document,
     });
+  });
+
+  it('recovers to starter data when saved mobile JSON is corrupt', async () => {
+    const storage = createMemoryStringStorage({
+      [MOBILE_WORLD_DOCUMENT_STORAGE_KEY]: '{not valid json',
+    });
+
+    await expect(loadMobileWorldDocument(storage)).resolves.toMatchObject({
+      status: {
+        source: 'recovered',
+        message:
+          'This is not valid JSON. Starter data is open until a valid import or save replaces it.',
+      },
+      document: createSeedWorldDocument(),
+    });
+  });
+
+  it('recovers to starter data when saved mobile data fails schema validation', async () => {
+    const storage = createMemoryStringStorage({
+      [MOBILE_WORLD_DOCUMENT_STORAGE_KEY]: JSON.stringify({
+        schemaVersion: 999,
+      }),
+    });
+
+    await expect(loadMobileWorldDocument(storage)).resolves.toMatchObject({
+      status: {
+        source: 'recovered',
+        message:
+          'Saved data is not a valid Valgaron World Codex document. Starter data is open until a valid import or save replaces it.',
+      },
+      document: createSeedWorldDocument(),
+    });
+  });
+
+  it('reports failed mobile document and snapshot writes', async () => {
+    const document = createSeedWorldDocument();
+    const failingStorage: AsyncStringStorageAdapter = {
+      async read() {
+        return null;
+      },
+      async write() {
+        return false;
+      },
+      async remove() {
+        return true;
+      },
+    };
+
+    await expect(
+      saveMobileWorldDocument(failingStorage, document)
+    ).resolves.toBe(false);
+    await expect(
+      saveMobileRecoverySnapshot(
+        failingStorage,
+        createMobileRecoverySnapshot(document, 'reset')
+      )
+    ).resolves.toBe(false);
   });
 
   it('parses pasted JSON imports and rejects invalid text', () => {

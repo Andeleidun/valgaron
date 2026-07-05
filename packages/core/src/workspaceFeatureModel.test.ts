@@ -7,6 +7,8 @@ import {
   updateActiveWorkspace,
 } from './workspaceManagement';
 import {
+  formatCustomEntryTypeFieldsLine,
+  formatWorkspaceFeatureAccessibilityLabel,
   getPlanetaryWorldFormKicker,
   getPlanetaryWorldFormTitle,
   getWorkspaceFormKicker,
@@ -36,6 +38,19 @@ describe('workspace feature model', () => {
       planetaryWorlds: 'In-fiction worlds and planets',
       customEntryTypes: 'Custom entry types',
     });
+    expect(workspaceFeatureCopy.status).toEqual({
+      active: 'Active',
+      unsaved: 'Unsaved',
+    });
+    expect(workspaceFeatureCopy.customEntryTypes).toEqual({
+      kindLabel: 'Custom codex section',
+      fieldsPrefix: 'Fields',
+    });
+    expect(workspaceFeatureCopy.draftStatus).toEqual({
+      workspace: 'Unsaved workspace draft.',
+      planetaryWorld: 'Unsaved in-fiction world draft.',
+      customEntryType: 'Unsaved custom type draft.',
+    });
     expect(getWorkspaceFormKicker()).toBe('New workspace metadata');
     expect(getWorkspaceFormTitle()).toBe('Create project/universe');
     expect(getWorkspaceFormKicker('Parity Atlas')).toBe('Edit workspace');
@@ -44,6 +59,21 @@ describe('workspace feature model', () => {
     expect(getPlanetaryWorldFormTitle()).toBe('Create in-fiction world');
     expect(getPlanetaryWorldFormKicker('Aurelia')).toBe('Edit world');
     expect(getPlanetaryWorldFormTitle('Aurelia')).toBe('Aurelia');
+    expect(formatCustomEntryTypeFieldsLine('Origin, Power')).toBe(
+      'Fields: Origin, Power'
+    );
+    expect(
+      formatWorkspaceFeatureAccessibilityLabel(
+        'archive-planetary-world',
+        'Aurelia'
+      )
+    ).toBe('Archive in-fiction world Aurelia');
+    expect(
+      formatWorkspaceFeatureAccessibilityLabel(
+        'delete-custom-entry-type',
+        'Artifacts'
+      )
+    ).toBe('Delete custom entry type Artifacts');
   });
 
   it('builds shared workspace rows with action state and search', () => {
@@ -63,6 +93,7 @@ describe('workspace feature model', () => {
     expect(model.selectedWorkspace?.id).toBe(seed.activeWorldId);
     expect(model.selectedWorkspaceActionState?.switchLabel).toBe('Switch');
     expect(model.activeWorkspaceCount).toBe(2);
+    expect(model.workspaces.countLabel).toBe('1 project workspace');
     expect(model.workspaces.rows).toHaveLength(1);
     expect(model.workspaces.rows[0]).toMatchObject({
       name: 'Archive Candidate',
@@ -93,10 +124,13 @@ describe('workspace feature model', () => {
 
     expect(model.customEntryTypes.rows[0]).toMatchObject({
       title: 'Artifacts',
+      kindLabel: 'Custom codex section',
       descriptionText: 'Objects with worldbuilding importance.',
       fieldsText: 'Origin, Power, Current keeper',
+      fieldsLine: 'Fields: Origin, Power, Current keeper',
       entryCountLabel: '1 entry',
     });
+    expect(model.customEntryTypes.countLabel).toBe('1 custom type');
     expect(model.planetaryWorlds.rows[0]).toMatchObject({
       name: 'Veil Moon',
       kindLabel: 'Archived in-fiction world',
@@ -106,6 +140,7 @@ describe('workspace feature model', () => {
       terrainText: 'Terrain: Ice shelves',
       tagsText: 'Tags: archived-world',
     });
+    expect(model.planetaryWorlds.countLabel).toBe('1 in-fiction world');
   });
 
   it('uses the shared result limit and empty text for large lists', () => {
@@ -136,6 +171,7 @@ describe('workspace feature model', () => {
       'Relics',
     ]);
     expect(model.customEntryTypes.hiddenCount).toBe(1);
+    expect(model.customEntryTypes.countLabel).toBe('3 custom types');
     expect(model.customEntryTypes.hiddenText).toBe(
       'Refine custom type search to show 1 more type.'
     );

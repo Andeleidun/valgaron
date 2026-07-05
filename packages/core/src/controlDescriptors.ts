@@ -24,6 +24,21 @@ export type ControlDescriptor<TValue extends string = string> = {
   required?: boolean;
 };
 
+export type AccessibilityStateExpectation =
+  | 'checked'
+  | 'disabled'
+  | 'expanded'
+  | 'required'
+  | 'selectedValue';
+
+export type ControlAccessibilityInventoryItem = {
+  accessibleName: string;
+  controlId: string;
+  controlKind: ControlKind;
+  expectedStates: readonly AccessibilityStateExpectation[];
+  label: string;
+};
+
 export type EntrySortControlValue = EntrySortKey | 'timeline-order';
 export type EntryStatusFilterValue = WorldEntryStatus | '';
 export type EntryUpdatedFilterValue = '' | '7' | '30' | '365';
@@ -125,11 +140,26 @@ export const relationshipTargetControl = {
   required: true,
 } as const satisfies ControlDescriptor;
 
+export const relationshipTypeControl = {
+  id: 'relationships.editor.type',
+  kind: 'text-field',
+  label: 'Type',
+  accessibilityLabel: 'Relationship type',
+  required: true,
+} as const satisfies ControlDescriptor;
+
 export const relationshipDirectionalControl = {
   id: 'relationships.editor.directional',
   kind: 'checkbox',
   label: 'Directional',
   accessibilityLabel: 'Directional relationship',
+} as const satisfies ControlDescriptor;
+
+export const relationshipNoteControl = {
+  id: 'relationships.editor.note',
+  kind: 'textarea',
+  label: 'Note',
+  accessibilityLabel: 'Relationship note',
 } as const satisfies ControlDescriptor;
 
 export const relationshipListTypeFilterControl = {
@@ -166,9 +196,42 @@ export const entryScreenControlDescriptors = [
 export const relationshipScreenControlDescriptors = [
   relationshipSourceControl,
   relationshipTargetControl,
+  relationshipTypeControl,
   relationshipDraftStatusControl,
   relationshipDirectionalControl,
+  relationshipNoteControl,
   relationshipListTypeFilterControl,
   relationshipGraphStatusFilterControl,
   relationshipGraphTypeFilterControl,
 ] as const satisfies readonly ControlDescriptor[];
+
+export function getControlAccessibilityInventory(
+  controls: readonly ControlDescriptor[]
+): ControlAccessibilityInventoryItem[] {
+  return controls.map((control) => {
+    const expectedStates: AccessibilityStateExpectation[] = ['disabled'];
+    if (control.kind === 'checkbox') {
+      expectedStates.push('checked');
+    }
+    if (control.kind === 'select') {
+      expectedStates.push('expanded', 'selectedValue');
+    }
+    if (control.required) {
+      expectedStates.push('required');
+    }
+
+    return {
+      accessibleName: control.accessibilityLabel,
+      controlId: control.id,
+      controlKind: control.kind,
+      expectedStates,
+      label: control.label,
+    };
+  });
+}
+
+export const entryScreenAccessibilityInventory =
+  getControlAccessibilityInventory(entryScreenControlDescriptors);
+
+export const relationshipScreenAccessibilityInventory =
+  getControlAccessibilityInventory(relationshipScreenControlDescriptors);

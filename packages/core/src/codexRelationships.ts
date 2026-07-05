@@ -4,8 +4,13 @@ import type {
   WorldEntryStatus,
   WorldRelationship,
   WorldSectionConfig,
+  WorldWorkspace,
 } from './types';
-import { getEntries } from './codexEntries';
+import {
+  entryDisplayCopy,
+  getEntries,
+  getEntryStatusLabel,
+} from './codexEntries';
 import { makeLocalIdSuffix } from './ids';
 import {
   getPlaceCategoryFromFields,
@@ -13,6 +18,7 @@ import {
   placeRelationshipTypeOptions,
   type PlaceRelationshipGroupId,
 } from './placeTaxonomy';
+import { getCodexEntriesRoute, getCodexRelationshipsRoute } from './shell';
 
 const baseRelationshipTypeOptions: readonly string[] = [
   'member of',
@@ -28,6 +34,67 @@ const baseRelationshipTypeOptions: readonly string[] = [
 export const relationshipTypeOptions: readonly string[] = Array.from(
   new Set([...baseRelationshipTypeOptions, ...placeRelationshipTypeOptions])
 );
+
+export const relationshipFeatureCopy = {
+  clearFiltersLabel: 'Clear Filters',
+  clearGraphFiltersLabel: 'Clear Graph Filters',
+  savedSectionTitle: 'Saved Relationships',
+  selectedEntrySectionTitle: 'Linked Records',
+  selectedEntryEmptyTitle: 'No relationships yet.',
+  selectedEntryEmptyDetail:
+    'Use the Relationships page to connect this record to the world.',
+  manageLinksLabel: 'Manage Links',
+  helpLabel: 'Relationship Help',
+  healthSectionTitle: 'Relationship Health',
+  diagnosticsTitle: 'Diagnostics',
+  brokenReferencesLabel: 'Broken references',
+  brokenReferencesDetail:
+    'Relationships with a missing source or target after imports or deletes.',
+  orphanedRecordsLabel: 'Orphaned records',
+  orphanedRecordsDetail: 'Entries with no saved relationship links yet.',
+  noBrokenRelationshipsTitle: 'No broken relationships.',
+  noBrokenRelationshipsDetail:
+    'Every saved relationship currently resolves to existing records.',
+  noOrphanedRecordsMessage: 'Every relationship-capable record is connected.',
+  graphViewTitle: 'Graph view',
+  graphBrowserTitle: 'Graph Browser',
+  noGraphTitle: 'No graph yet.',
+  noGraphDetail:
+    'Graph rows appear once saved relationships have valid endpoints.',
+  repairBrokenLinksTitle: 'Repair Broken Links',
+  noGraphSearchMatchesMessage: 'No graph records match this search.',
+  noConnectedGraphMatchesMessage:
+    'No connected graph records match these filters.',
+  filterListLabel: 'Filter List',
+  minimumEntriesTitle: 'Create at least two entries first.',
+  minimumEntriesDetail: 'Relationships need a source and a target record.',
+  openEntryLabel: 'Open Entry',
+  openSourceLabel: 'Open Source',
+  openTargetLabel: 'Open Target',
+  relationshipFormTitle: 'Relationship Form',
+  saveRelationshipLabel: 'Save Relationship',
+  clearTypeFilterLabel: 'Clear Type Filter',
+  clearEntryFilterLabel: 'Clear Entry Filter',
+  clearSearchLabel: 'Clear Search',
+  clearDraftLabel: 'Clear',
+  anySectionLabel: 'Any Section',
+  allTagsLabel: 'All Tags',
+  deleteLabel: 'Delete',
+  editLabel: 'Edit',
+  entryPickersTitle: 'Entry Pickers',
+  noEntryPickerMatchesMessage: 'No entries match this picker search.',
+  repairLabel: 'Repair',
+  searchEntriesLabel: 'Search entries',
+  searchGraphRecordsLabel: 'Search graph records',
+  searchRelationshipsLabel: 'Search relationships',
+  sourcePickerLabel: 'Source',
+  targetPickerLabel: 'Target',
+  unsavedDraftMessage: 'Unsaved relationship draft.',
+  noMatchesTitle: 'No relationships match the filters.',
+  noMatchesDetail: 'Clear filters or choose a different type or entry.',
+  emptyTitle: 'No relationships yet.',
+  emptyDetail: 'Add a link to start building the world graph.',
+} as const;
 
 export type RelationshipDraft = {
   sourceEntryId: string;
@@ -72,6 +139,8 @@ export type RelationshipGraphNode = {
   sectionId: string;
   sectionTitle: string;
   status: WorldEntryStatus;
+  statusLabel: string;
+  summaryText: string;
   tags: string[];
 };
 
@@ -88,12 +157,117 @@ export type RelationshipGraph = {
   edges: RelationshipGraphEdge[];
 };
 
+export type RelationshipGraphViewEdge = {
+  id: string;
+  label: string;
+  sourceId: string;
+  sourceName: string;
+  targetId: string;
+  targetName: string;
+  directionLabel: '->' | '<->';
+};
+
+export type RelationshipGraphViewModel = {
+  nodes: RelationshipGraphNode[];
+  edges: RelationshipGraphViewEdge[];
+};
+
+export type RelationshipListItem = {
+  id: string;
+  type: string;
+  status: WorldEntryStatus;
+  statusLabel: string;
+  sourceEntryId: string;
+  sourceSectionId: string;
+  sourceSectionTitle: string;
+  sourceName: string;
+  targetEntryId: string;
+  targetSectionId: string;
+  targetSectionTitle: string;
+  targetName: string;
+  directionLabel: '->' | '<->';
+  note: string;
+};
+
+export type RelationshipEntryRouteTarget = {
+  entryId: string;
+  name: string;
+  sectionId: string;
+};
+
+export type RelationshipManagementRouteTarget = {
+  entryId: string;
+  name: string;
+};
+
+export type RelationshipListModelFilters = {
+  entryId?: string;
+  type?: string;
+  query?: string;
+};
+
+type RelationshipWorkspaceModelSource = {
+  codex: WorldCodex;
+  entryTypes: readonly WorldSectionConfig[];
+  relationships: readonly WorldRelationship[];
+};
+
+export type RelationshipSelectOption = {
+  value: string;
+  label: string;
+};
+
+export type RelationshipEditorOptionsModel = {
+  entries: RelationshipGraphNode[];
+  entryOptions: RelationshipSelectOption[];
+  selectedEntryFilter: RelationshipGraphNode | null;
+  selectedSourceEntry: RelationshipGraphNode | null;
+  selectedTargetEntry: RelationshipGraphNode | null;
+  savedRelationshipTypes: string[];
+  relationshipTypeSuggestions: string[];
+  relationshipTypeFilterOptions: RelationshipSelectOption[];
+  graphTagOptions: string[];
+};
+
 export type BrokenRelationship = RelationshipWithEntries & {
   missingSource: boolean;
   missingTarget: boolean;
 };
 
 export type OrphanedEntry = RelationshipGraphNode;
+
+export type RelationshipDiagnosticsBrokenItem = {
+  id: string;
+  type: string;
+  sourceEntryId: string;
+  sourceName: string;
+  targetEntryId: string;
+  targetName: string;
+  missingSource: boolean;
+  missingTarget: boolean;
+};
+
+export type RelationshipDiagnosticsModel = {
+  healthSummary: RelationshipHealthSummary;
+  brokenRelationships: RelationshipDiagnosticsBrokenItem[];
+  orphanedEntries: OrphanedEntry[];
+};
+
+export type EntryRelationshipItemModel = {
+  id: string;
+  type: string;
+  directionLabel: 'To' | 'From' | 'Linked with';
+  relatedEntryId: string;
+  relatedEntryName: string;
+  relatedSectionId: string;
+  note: string;
+};
+
+export type EntryRelationshipGroupModel = {
+  id: string;
+  label: string;
+  relationships: EntryRelationshipItemModel[];
+};
 
 export type RelationshipHealthSummary = {
   brokenRelationshipCount: number;
@@ -149,6 +323,7 @@ const placeRelationshipGroupRules: Record<
     { type: 'connected to', perspective: 'either' },
     { type: 'route between', perspective: 'either' },
     { type: 'flows through', perspective: 'either' },
+    { type: 'has watercourse', perspective: 'either' },
     { type: 'flows into', perspective: 'either' },
     { type: 'receives flow from', perspective: 'either' },
   ],
@@ -172,7 +347,9 @@ const placeRelationshipGroupRules: Record<
     { type: 'founded by', perspective: 'either' },
     { type: 'founded', perspective: 'either' },
     { type: 'built by', perspective: 'either' },
+    { type: 'built', perspective: 'either' },
     { type: 'created by', perspective: 'either' },
+    { type: 'created', perspective: 'either' },
   ],
 };
 
@@ -225,8 +402,41 @@ export function getRelationshipEntries(
       sectionId: section.id,
       sectionTitle: section.title,
       status: entry.status,
+      statusLabel: getEntryStatusLabel(entry.status),
+      summaryText: entry.summary || entryDisplayCopy.emptySummary,
       tags: [...entry.tags],
     }))
+  );
+}
+
+export function filterRelationshipEntryPickerItems(
+  entries: readonly RelationshipGraphNode[],
+  query: string
+): RelationshipGraphNode[] {
+  const normalizedQuery = query.trim().toLowerCase();
+  if (!normalizedQuery) {
+    return [...entries];
+  }
+  return entries.filter((entry) =>
+    [
+      entry.name,
+      entry.id,
+      entry.sectionTitle,
+      entry.sectionId,
+      entry.status,
+      ...entry.tags,
+    ].some((value) => value.toLowerCase().includes(normalizedQuery))
+  );
+}
+
+export function getRelationshipEntryPickerItems(
+  codex: WorldCodex,
+  sections: readonly WorldSectionConfig[],
+  query: string
+): RelationshipGraphNode[] {
+  return filterRelationshipEntryPickerItems(
+    getRelationshipEntries(codex, sections),
+    query
   );
 }
 
@@ -266,6 +476,44 @@ export function relationshipFromDraft(
     createdAt: existingRelationship?.createdAt ?? timestamp,
     updatedAt: timestamp,
   };
+}
+
+export function getRelationshipEntryRoute(
+  target: RelationshipEntryRouteTarget
+): string {
+  return getCodexEntriesRoute({
+    entryId: target.entryId,
+    intent: 'edit',
+    query: target.name,
+    sectionId: target.sectionId,
+  });
+}
+
+export function getRelationshipManagementRoute(
+  target: RelationshipManagementRouteTarget
+): string {
+  return getCodexRelationshipsRoute({
+    entryId: target.entryId,
+    entryQuery: target.name,
+    relationshipQuery: target.name,
+  });
+}
+
+export function getRelationshipEntryRouteById(
+  codex: WorldCodex,
+  sections: readonly WorldSectionConfig[],
+  entryId: string
+): string {
+  const section = sections.find((candidate) =>
+    getEntries(codex, candidate.id).some((entry) => entry.id === entryId)
+  );
+  return section
+    ? getCodexEntriesRoute({
+        entryId,
+        intent: 'edit',
+        sectionId: section.id,
+      })
+    : getCodexRelationshipsRoute();
 }
 
 /** Add or replace one relationship in a relationship collection. */
@@ -341,6 +589,149 @@ export function filterRelationships(
   });
 }
 
+export function getRelationshipListModel(
+  workspace: RelationshipWorkspaceModelSource,
+  filters: RelationshipListModelFilters = {}
+): RelationshipListItem[] {
+  const relationshipEntries = getRelationshipEntries(
+    workspace.codex,
+    workspace.entryTypes
+  );
+  const relationshipEntryById = new Map(
+    relationshipEntries.map((entry) => [entry.id, entry])
+  );
+  const filteredRelationships = filterRelationships(workspace.relationships, {
+    type: filters.type ?? '',
+    entryId: filters.entryId ?? '',
+    query: filters.query ?? '',
+    entryById: relationshipEntryById,
+  });
+
+  return filteredRelationships.map((relationship) => {
+    const sourceEntry = relationshipEntryById.get(relationship.sourceEntryId);
+    const targetEntry = relationshipEntryById.get(relationship.targetEntryId);
+    return {
+      id: relationship.id,
+      type: relationship.type,
+      status: relationship.status,
+      statusLabel: getEntryStatusLabel(relationship.status),
+      sourceEntryId: relationship.sourceEntryId,
+      sourceSectionId: sourceEntry?.sectionId ?? '',
+      sourceSectionTitle: sourceEntry?.sectionTitle ?? '',
+      sourceName: sourceEntry?.name ?? relationship.sourceEntryId,
+      targetEntryId: relationship.targetEntryId,
+      targetSectionId: targetEntry?.sectionId ?? '',
+      targetSectionTitle: targetEntry?.sectionTitle ?? '',
+      targetName: targetEntry?.name ?? relationship.targetEntryId,
+      directionLabel: relationship.directional ? '->' : '<->',
+      note: relationship.note,
+    };
+  });
+}
+
+export function getSavedRelationshipTypes(
+  relationships: readonly WorldRelationship[]
+): string[] {
+  return Array.from(
+    new Set(
+      relationships
+        .map((relationship) => relationship.type.trim())
+        .filter(Boolean)
+    )
+  ).sort((first, second) => first.localeCompare(second));
+}
+
+export function getRelationshipTypeSuggestions(
+  relationships: readonly WorldRelationship[]
+): string[] {
+  return Array.from(
+    new Set([
+      ...relationshipTypeOptions,
+      ...getSavedRelationshipTypes(relationships),
+    ])
+  ).sort((first, second) => first.localeCompare(second));
+}
+
+export function getRelationshipTypeFilterOptions(
+  relationships: readonly WorldRelationship[],
+  emptyLabel = 'Any type'
+): RelationshipSelectOption[] {
+  return [
+    { value: '', label: emptyLabel },
+    ...getSavedRelationshipTypes(relationships).map((type) => ({
+      value: type,
+      label: type,
+    })),
+  ];
+}
+
+export function getRelationshipGraphTagOptions(workspace: {
+  codex: WorldCodex;
+  entryTypes: readonly WorldSectionConfig[];
+}): string[] {
+  return Array.from(
+    new Set(
+      getRelationshipEntries(workspace.codex, workspace.entryTypes).flatMap(
+        (entry) => entry.tags
+      )
+    )
+  )
+    .filter(Boolean)
+    .sort((first, second) => first.localeCompare(second));
+}
+
+export function getRelationshipEntrySelectOptions(
+  workspace: {
+    codex: WorldCodex;
+    entryTypes: readonly WorldSectionConfig[];
+  },
+  emptyLabel = 'Choose entry'
+): RelationshipSelectOption[] {
+  return [
+    { value: '', label: emptyLabel },
+    ...getRelationshipEntries(workspace.codex, workspace.entryTypes).map(
+      (entry) => ({
+        value: entry.id,
+        label: `${entry.name} (${entry.sectionTitle})`,
+      })
+    ),
+  ];
+}
+
+export function getRelationshipEditorOptionsModel(
+  workspace: {
+    codex: WorldCodex;
+    entryTypes: readonly WorldSectionConfig[];
+    relationships: readonly WorldRelationship[];
+  },
+  draft: RelationshipDraft,
+  entryFilter = ''
+): RelationshipEditorOptionsModel {
+  const entries = getRelationshipEntries(workspace.codex, workspace.entryTypes);
+  const entryById = new Map(entries.map((entry) => [entry.id, entry]));
+  return {
+    entries,
+    entryOptions: getRelationshipEntrySelectOptions(workspace),
+    selectedEntryFilter: entryFilter
+      ? entryById.get(entryFilter) ?? null
+      : null,
+    selectedSourceEntry: draft.sourceEntryId
+      ? entryById.get(draft.sourceEntryId) ?? null
+      : null,
+    selectedTargetEntry: draft.targetEntryId
+      ? entryById.get(draft.targetEntryId) ?? null
+      : null,
+    savedRelationshipTypes: getSavedRelationshipTypes(workspace.relationships),
+    relationshipTypeSuggestions: getRelationshipTypeSuggestions(
+      workspace.relationships
+    ),
+    relationshipTypeFilterOptions: getRelationshipTypeFilterOptions(
+      workspace.relationships
+    ),
+    graphTagOptions: getRelationshipGraphTagOptions(workspace),
+  };
+}
+
 export function getBrokenRelationships(
   relationships: readonly WorldRelationship[],
   codex: WorldCodex,
@@ -394,6 +785,117 @@ export function getRelationshipHealthSummary(
     orphanedEntryCount: getOrphanedEntries(relationships, codex, sections)
       .length,
   };
+}
+
+export function getRelationshipDiagnosticsModel(
+  workspace: RelationshipWorkspaceModelSource
+): RelationshipDiagnosticsModel {
+  const brokenRelationships = getBrokenRelationships(
+    workspace.relationships,
+    workspace.codex,
+    workspace.entryTypes
+  ).map((relationship) => ({
+    id: relationship.id,
+    type: relationship.type,
+    sourceEntryId: relationship.sourceEntryId,
+    sourceName: relationship.sourceEntry?.name ?? relationship.sourceEntryId,
+    targetEntryId: relationship.targetEntryId,
+    targetName: relationship.targetEntry?.name ?? relationship.targetEntryId,
+    missingSource: relationship.missingSource,
+    missingTarget: relationship.missingTarget,
+  }));
+  const orphanedEntries = getOrphanedEntries(
+    workspace.relationships,
+    workspace.codex,
+    workspace.entryTypes
+  );
+  return {
+    healthSummary: {
+      brokenRelationshipCount: brokenRelationships.length,
+      orphanedEntryCount: orphanedEntries.length,
+    },
+    brokenRelationships,
+    orphanedEntries,
+  };
+}
+
+function toEntryRelationshipItemModel(
+  relationship: RelationshipWithEntries,
+  entryId: string,
+  entryById: ReadonlyMap<string, RelationshipGraphNode>
+): EntryRelationshipItemModel {
+  const isSource = relationship.sourceEntryId === entryId;
+  const relatedEntry = isSource
+    ? relationship.targetEntry
+    : relationship.sourceEntry;
+  const relatedEntryNode = relatedEntry
+    ? entryById.get(relatedEntry.id) ?? null
+    : null;
+  return {
+    id: relationship.id,
+    type: relationship.type,
+    directionLabel: relationship.directional
+      ? isSource
+        ? 'To'
+        : 'From'
+      : 'Linked with',
+    relatedEntryId: relatedEntry?.id ?? '',
+    relatedEntryName: relatedEntry?.name ?? 'Missing entry',
+    relatedSectionId: relatedEntryNode?.sectionId ?? '',
+    note: relationship.note,
+  };
+}
+
+export function getEntryRelationshipSummaryModel(
+  workspace: Pick<WorldWorkspace, 'codex' | 'entryTypes' | 'relationships'>,
+  entryId: string
+): EntryRelationshipItemModel[] {
+  const relationshipEntryById = new Map(
+    getRelationshipEntries(workspace.codex, workspace.entryTypes).map(
+      (entry) => [entry.id, entry]
+    )
+  );
+  return getEntryRelationships(
+    workspace.relationships,
+    workspace.codex,
+    workspace.entryTypes,
+    entryId
+  ).map((relationship) =>
+    toEntryRelationshipItemModel(relationship, entryId, relationshipEntryById)
+  );
+}
+
+export function getEntryRelationshipGroupsModel(
+  workspace: Pick<WorldWorkspace, 'codex' | 'entryTypes' | 'relationships'>,
+  entry: WorldEntry
+): EntryRelationshipGroupModel[] {
+  const relationshipEntryById = new Map(
+    getRelationshipEntries(workspace.codex, workspace.entryTypes).map(
+      (item) => [item.id, item]
+    )
+  );
+  if (entry.kind !== 'place') {
+    const relationships = getEntryRelationshipSummaryModel(workspace, entry.id);
+    return relationships.length > 0
+      ? [{ id: 'linked-records', label: 'Linked records', relationships }]
+      : [];
+  }
+  return getPlaceRelationshipGroups(
+    entry,
+    workspace.relationships,
+    workspace.codex,
+    workspace.entryTypes
+  ).map((group) => ({
+    id: group.id,
+    label: group.label,
+    relationships: group.relationships.map((relationship) =>
+      toEntryRelationshipItemModel(
+        relationship,
+        entry.id,
+        relationshipEntryById
+      )
+    ),
+  }));
 }
 
 /** Return all relationships attached to an entry, preserving source/target data. */
@@ -530,5 +1032,30 @@ export function getRelationshipGraph(
   return {
     nodes: filteredEntryNodes.filter((node) => connectedIds.has(node.id)),
     edges,
+  };
+}
+
+export function getRelationshipGraphViewModel(
+  workspace: RelationshipWorkspaceModelSource,
+  filters: RelationshipGraphFilters
+): RelationshipGraphViewModel {
+  const graph = getRelationshipGraph(
+    workspace.relationships,
+    workspace.codex,
+    workspace.entryTypes,
+    filters
+  );
+  const nodeById = new Map(graph.nodes.map((node) => [node.id, node]));
+  return {
+    nodes: graph.nodes,
+    edges: graph.edges.map((edge) => ({
+      id: edge.id,
+      label: edge.label,
+      sourceId: edge.sourceId,
+      sourceName: nodeById.get(edge.sourceId)?.name ?? edge.sourceId,
+      targetId: edge.targetId,
+      targetName: nodeById.get(edge.targetId)?.name ?? edge.targetId,
+      directionLabel: edge.directional ? '->' : '<->',
+    })),
   };
 }

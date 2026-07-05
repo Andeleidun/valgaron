@@ -24,7 +24,7 @@ The relationship system is currently generic. It can connect any two entries wit
 
 The artifact is intentionally broader than the current runtime. Some target hints mention aspirational categories such as bridges, markets, oases, or craters that are not selectable place categories today. That is acceptable in a planning document, but runtime code should constrain itself to the current category list until new categories are intentionally added.
 
-The markdown explanation correctly frames the JSON as a planning artifact rather than a committed schema. It also identifies the key implementation direction: derive inverse relationship displays and avoid duplicated text once relationship-backed field widgets exist.
+The markdown explanation now frames the JSON as the canonical taxonomy source for the current prototype. It also identifies the key implementation direction: derive inverse relationship displays and avoid duplicated text once relationship-backed field widgets exist.
 
 ## Implementation Strategy
 
@@ -36,9 +36,11 @@ Stage 2 is now implemented: existing saved relationships are grouped under place
 
 Stage 3 is implemented for the current place-link model: the web and mobile entry editors now expose searchable relationship-backed controls for saved place entries when the entry has no unsaved detail changes. The implemented controls cover parent place, capital, settlements, child places, regions, districts, landmarks, waters, neighbors, route connections, trade partners, controlling powers, claimants, inhabitants, founders, builders, notable events, related lore, river sources, river mouths, and tributaries. Text values from older drafts remain visible as read-only saved text link notes with explicit clear actions.
 
-Stage 4 should decide whether the planning JSON becomes canonical generated source or remains a product/data design artifact with runtime coverage tests. The current implementation keeps runtime metadata in TypeScript because the JSON includes intentionally aspirational categories and relationship concepts beyond the current prototype's editor controls.
+Stage 4 is now implemented: `place-relationship-tree.json` is the canonical source for place categories, relationship vocabulary, field catalog labels, profile-to-field mappings, category-to-profile mappings, relationship-backed field configs, target categories, current-entry relationship roles, and soft target behavior. `npm run generate:place-taxonomy` generates `packages/core/src/placeRelationshipTree.generated.ts`, and `placeTaxonomy.ts` consumes that generated metadata instead of maintaining a parallel hand-written taxonomy.
 
-Runtime guard tests now cover both artifact drift and relationship-config integrity: category nodes must match supported runtime categories, relationship-backed fields must be documented by the planning field catalog, relationship configs must point only at configured section kinds and supported place categories, and every configured relationship-backed field must be visible for at least one supported place category.
+Runtime guard tests now cover both artifact drift and relationship-config integrity: category nodes must match supported runtime categories, relationship-backed fields must match the planning field catalog, relationship vocabularies must align between runtime and the artifact, tree field/profile/category references must stay valid, relationship configs must point only at configured section kinds and supported place categories, and every configured relationship-backed field must be visible for at least one supported place category.
+
+The JSON remains intentionally lightweight as a schema. It owns editor taxonomy and relationship metadata, but saved place values still use flexible string fields. That is the right level of polish for this local creative-drafting prototype: the editor gets a coherent, testable taxonomy without turning every conceptual field into a strict database contract before the product needs that rigidity.
 
 ## Stage 1 Changes
 
@@ -116,7 +118,8 @@ Web and mobile editors now:
 - Replace those fields with relationship controls for saved place entries.
 - Gate relationship edits while entry details are dirty, because available link fields can depend on an unsaved category.
 - Search target options per field while keeping already-selected targets visible.
-- Cap visible target matches in large lists and prompt the user to refine search for hidden matches.
+- Apply target categories as soft guidance rather than blanket hard filters: preferred fields show primary matches first and lazy-load unusual targets on request, while soft fields such as capital, source, and mouth show unusual targets immediately below primary matches.
+- Cap visible preferred target matches in large lists and prompt the user to refine search for hidden preferred matches.
 - Keep relationship-backed text values visible as read-only notes with explicit clear actions.
 - Offer exact-match migration for legacy text notes: unambiguous target names are converted into relationships, unresolved text remains, and the cleaned field value is saved with the migration action.
 - Let users clear preserved hidden place detail values deliberately.
@@ -129,26 +132,45 @@ Shared core helpers now own the relationship-backed field behaviors both fronten
 - Source/target role-aware relationship matching.
 - Relationship construction for direct and inverse fields.
 - Search filtering that retains selected records.
-- Visible result capping that keeps selected records in view.
+- Preferred-versus-unusual target metadata, non-closing unusual-target expansion, and visible result capping that keeps selected records in view.
 - Workspace-level review items for legacy relationship text that exact-match migration cannot fully resolve.
 - Pure migration operations for applying exact matches from review items without duplicating source/target relationship logic in web and mobile.
 - Batch migration operations for applying exact matches across multiple review items without overwriting same-entry field cleanup.
 - Conservative candidate suggestions for unresolved fragments based on eligible target record names, with category/section context for review; suggestions are displayed for review only and are not automatically migrated.
+- Manual suggestion migration for unresolved fragments, where the writer explicitly links one suggested target and only that fragment is removed from the preserved legacy text.
 - Shared display helpers for unresolved fragment labels, exact-match status text, and suggestion labels so web and mobile cleanup queues describe the same review state.
 
-Focused tests cover those shared interaction behaviors without adding a browser or React Native rendering harness to the prototype.
+Focused tests cover those shared interaction behaviors without adding a browser or React Native rendering harness to the prototype. As the behavior matures, the next testing priority should be unit and interaction coverage for the shared models and the rendered editor controls, not broad end-to-end infrastructure.
 
 This deliberately stops short of fuzzy or bulk relationship-backed migration. The current controls create and remove relationships, including inverse/source-side water links, and can migrate exact legacy text matches. They intentionally do not guess at partial prose, misspellings, or duplicate record names.
 
 ## Reviewed Gaps And Fix Plan
 
-Gap: legacy relationship-backed text migration is exact-match only.
-Root cause: legacy values are free text and may contain names, prose, multiple entities, duplicate names, or unresolved concepts that do not map safely to existing entry IDs.
-Best path: keep exact-match migration as the safe default. Core exposes review items plus per-item and batch exact-match migration operations for unresolved fragments, and web/mobile place sections now show a compact cleanup queue with read-only candidate suggestions instead of fuzzy auto-linking.
+Gap: legacy relationship-backed text migration is conservative.
+Root cause: legacy values are free text, not structured references. A value like `Old capital near Reed, formerly claimed by the river cult` may contain a real place name, prose, multiple entities, historical context, and concepts that do not exist as entries yet. Duplicate names are also common in worldbuilding. Automatically converting that text into links can silently create false facts, remove useful prose, or connect the wrong entry.
+Current behavior: exact, unambiguous target names can be migrated into relationships. Unresolved text remains visible. Candidate suggestions are shown only as review aids, and manual suggestion migration only links the target the writer explicitly chooses.
+Recommended default: keep automatic migration exact-match only. This preserves user intent and avoids surprising graph changes while still removing the tedious cleanup for obvious matches.
 
-Gap: the planning JSON is not imported directly by runtime code.
-Root cause: the repo uses TypeScript project references without JSON module imports, and the planning JSON contains documentation-only details.
-Best path: keep runtime taxonomy as typed TypeScript and treat `place-relationship-tree.json` as a planning artifact. Coverage tests now verify that runtime place categories match JSON category nodes and that runtime relationship-backed fields are documented in the JSON field catalog. If the JSON becomes canonical later, add a build-time generation script rather than importing root JSON into core.
+Migration options:
+
+1. Keep current conservative migration.
+   This is safest and already implemented. Exact matches migrate; ambiguous, partial, or prose fragments stay visible. This is best for a creative drafting tool where preserving notes matters more than aggressive normalization.
+
+2. Add confidence-scored fuzzy suggestions without auto-apply.
+   Core could rank possible targets using normalized names, aliases, category fit, section kind, and token overlap. The UI would show "Suggested matches" with confidence labels. The writer still chooses. This improves cleanup speed without risking silent bad links.
+
+3. Add batch review for high-confidence suggestions.
+   The system could group suggestions above a strict threshold and let the writer approve several at once. This is useful after interaction tests cover the review flow. It should still require explicit confirmation and show exactly which text will be removed.
+
+4. Add aliases to improve exact matching.
+   If entries gain an alias/alternate-name index, exact migration can match known alternate names without fuzzy guessing. This is a good middle ground because it expands deterministic migration while keeping the rule understandable.
+
+5. Add automatic fuzzy migration.
+   This is not recommended for the current prototype. It creates the highest risk of false graph edges and lost notes. It would only make sense with undo history, strong review UI, confidence reporting, and a larger test harness.
+
+Gap: the JSON is canonical but runtime imports generated TypeScript.
+Root cause: the repo uses TypeScript project references without JSON module imports, and direct root-JSON imports would complicate build settings across web, mobile, and core.
+Best path: keep `place-relationship-tree.json` canonical and generate `packages/core/src/placeRelationshipTree.generated.ts` with `npm run generate:place-taxonomy`. Coverage tests verify that generated metadata matches the JSON source.
 
 Gap: relationship types in the current app remain a broad string list.
 Root cause: existing relationships are intentionally generic and user-extensible.
@@ -156,10 +178,11 @@ Best path: extend relationship suggestions with place-tree types while preservin
 
 Gap: full rendered frontend interaction tests are still thin.
 Root cause: Jest currently runs in a Node environment without React DOM or React Native testing-library setup. Shared relationship-field behavior is now covered in core, but actual rendered control clicks and form dirty-state messages are not exercised through a component harness.
-Best path: keep shared behavior covered in core. Add rendered web/mobile interaction tests later only if the project adopts a stable frontend test harness.
+Best path: focus next on unit and interaction tests. Keep pure core unit tests for taxonomy, target filtering, migration operations, and route/state models. Add rendered interaction tests for the web and mobile place editors once the behavior stabilizes: category changes should update visible fields, linked-field controls should preserve selected targets, unusual-target expansion should not close the option list, dirty drafts should block relationship edits, and migration buttons should leave unresolved text intact.
 
 ## Next Implementation Plan
 
-1. Add rendered web/mobile interaction tests if the project adopts a stable frontend test harness.
-2. Revisit generated taxonomy only if the planning JSON becomes a product-owned canonical schema.
-3. Consider click-to-fill unresolved suggestions only after the editor has a clear manual confirmation flow; keep automatic migration exact-match only.
+1. Keep `place-relationship-tree.json` canonical and run `npm run generate:place-taxonomy` after taxonomy edits.
+2. Add unit coverage for any new migration heuristics before adding rendered interaction coverage.
+3. Add rendered web/mobile interaction tests after the place editor behavior stabilizes.
+4. Keep automatic migration exact-match only unless a future review UI explicitly supports confidence-scored batch approvals.

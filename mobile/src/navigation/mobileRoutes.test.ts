@@ -1,5 +1,5 @@
 import { describe, expect, it } from '@jest/globals';
-import { getCodexHelpRoute } from '@valgaron/core';
+import { codexWorkflowRouteSamples, getCodexHelpRoute } from '@valgaron/core';
 import {
   getMobileRouteHref,
   getMobileTabHref,
@@ -92,5 +92,19 @@ describe('mobile route model', () => {
         topic: 'timeline',
       },
     });
+  });
+
+  it('adapts every shared workflow route sample without dropping intent params', () => {
+    for (const route of codexWorkflowRouteSamples) {
+      const href = getMobileRouteHref(route);
+
+      expect(href.pathname).toMatch(
+        /^\/(?:entries|relationships|workspaces|data|help)?$/
+      );
+      expect(Object.values(href.params)).not.toContain('');
+      if (route.includes('#')) {
+        expect(href.params[mobileRouteFocusParam]).toBeDefined();
+      }
+    }
   });
 });

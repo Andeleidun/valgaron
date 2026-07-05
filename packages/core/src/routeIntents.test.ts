@@ -1,7 +1,10 @@
 import { describe, expect, it } from '@jest/globals';
-import { getCodexHelpRoute } from './helpTopics';
-import { getCodexEntriesRoute, getCodexRelationshipsRoute } from './shell';
-import { formatCodexRouteIntent, parseCodexRouteIntent } from './routeIntents';
+import {
+  codexWorkflowRouteSamples,
+  formatCodexRouteIntent,
+  getCodexWorkflowIntent,
+  parseCodexRouteIntent,
+} from './routeIntents';
 
 describe('codex route intents', () => {
   it('parses shared routes into stable workflow intents', () => {
@@ -62,31 +65,82 @@ describe('codex route intents', () => {
   });
 
   it('round trips source-of-truth workflow routes without dropping focus', () => {
-    const routes = [
-      getCodexEntriesRoute({
-        entryId: 'character-mira-rowan',
-        intent: 'edit',
-        query: 'Mira Rowan',
-        sectionId: 'characters',
-      }),
-      getCodexEntriesRoute({ sectionId: 'places', intent: 'new' }),
-      getCodexRelationshipsRoute({
-        entryId: 'character-mira-rowan',
-        entryQuery: 'Mira Rowan',
-        relationshipQuery: 'oath=broken & owed',
-      }),
-      '/data#import-json-backup',
-      '/data?mode=full-json#export',
-      getCodexHelpRoute('timeline'),
-    ];
-
-    for (const route of routes) {
+    for (const route of codexWorkflowRouteSamples) {
       expect(
         parseCodexRouteIntent(
           formatCodexRouteIntent(parseCodexRouteIntent(route))
         )
       ).toEqual(parseCodexRouteIntent(route));
     }
+  });
+
+  it('classifies shared routes into typed workflow intents', () => {
+    expect(getCodexWorkflowIntent('/')).toEqual({ kind: 'overview' });
+    expect(getCodexWorkflowIntent('/workspaces')).toEqual({
+      kind: 'workspaces',
+    });
+    expect(
+      getCodexWorkflowIntent('/entries?sectionId=places&query=harbor')
+    ).toEqual({
+      kind: 'entries-browse',
+      query: 'harbor',
+      sectionId: 'places',
+    });
+    expect(
+      getCodexWorkflowIntent('/entries?sectionId=places&intent=new')
+    ).toEqual({
+      kind: 'entry-create',
+      query: '',
+      sectionId: 'places',
+    });
+    expect(
+      getCodexWorkflowIntent(
+        '/entries?sectionId=characters&entryId=character-mira-rowan&intent=edit&query=Mira%20Rowan'
+      )
+    ).toEqual({
+      entryId: 'character-mira-rowan',
+      kind: 'entry-edit',
+      query: 'Mira Rowan',
+      sectionId: 'characters',
+    });
+    expect(
+      getCodexWorkflowIntent(
+        '/relationships?entryId=character-mira-rowan&entryQuery=Mira%20Rowan&relationshipQuery=oath%3Dbroken'
+      )
+    ).toEqual({
+      entryId: 'character-mira-rowan',
+      entryQuery: 'Mira Rowan',
+      kind: 'relationships',
+      relationshipQuery: 'oath=broken',
+    });
+    expect(getCodexWorkflowIntent('/data?mode=full-json#export')).toEqual({
+      focusId: 'export',
+      kind: 'data',
+      mode: 'full-json',
+    });
+    expect(getCodexWorkflowIntent('/data?mode=not-real#export')).toEqual({
+      focusId: 'export',
+      kind: 'data',
+      mode: '',
+    });
+    expect(getCodexWorkflowIntent('/help?topic=timeline')).toEqual({
+      kind: 'help',
+      topic: 'timeline',
+    });
+    expect(getCodexWorkflowIntent('/help?topic=missing')).toEqual({
+      kind: 'help',
+      topic: '',
+    });
+  });
+
+  it('classifies parsed route intents without reparsing', () => {
+    expect(
+      getCodexWorkflowIntent(parseCodexRouteIntent('/data#import-json-backup'))
+    ).toEqual({
+      focusId: 'import-json-backup',
+      kind: 'data',
+      mode: '',
+    });
   });
 
   it('rejects unsupported paths so parity gaps are explicit', () => {

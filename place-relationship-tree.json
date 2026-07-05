@@ -3,7 +3,7 @@
   "purpose": "Planning artifact for Valgaron place category relationships, category-specific fields, and linkable cross-entry fields.",
   "scope": {
     "entryKind": "place",
-    "sourceCategorySet": "Current supportedPlaceCategoryOptions in packages/core/src/placeTaxonomy.ts",
+    "sourceCategorySet": "Canonical category nodes in this artifact's tree section",
     "nonPlaceLinkTargets": ["character", "faction", "lore", "timeline"],
     "notes": [
       "Fields marked link should become relationship-backed selectors rather than plain text when the editor supports typed fields.",
@@ -147,6 +147,24 @@
       "description": "Founder, founding culture, parent colony, or founding event."
     },
     {
+      "id": "built_by",
+      "label": "built by",
+      "directional": true,
+      "inverseLabel": "built",
+      "sourceKinds": ["place"],
+      "targetKinds": ["character", "faction", "place", "timeline"],
+      "description": "Builder, engineering faction, original culture, patron, or construction event."
+    },
+    {
+      "id": "created_by",
+      "label": "created by",
+      "directional": true,
+      "inverseLabel": "created",
+      "sourceKinds": ["place"],
+      "targetKinds": ["character", "faction", "place", "timeline", "lore"],
+      "description": "Creator, maker, originating event, spell, technology, or mythic cause."
+    },
+    {
       "id": "uses_lore",
       "label": "references",
       "directional": true,
@@ -172,6 +190,21 @@
       "valueType": "enum",
       "description": "One of the supported place categories."
     },
+    "region": {
+      "label": "Region",
+      "valueType": "string",
+      "description": "Loose regional label for early drafting before a place has more specific parent links."
+    },
+    "climate": {
+      "label": "Climate",
+      "valueType": "string",
+      "description": "Quick climate or environmental note."
+    },
+    "significance": {
+      "label": "Significance",
+      "valueType": "markdown",
+      "description": "Why the place matters in the world, plot, culture, or geography."
+    },
     "summary": {
       "label": "Summary",
       "valueType": "markdown",
@@ -191,9 +224,10 @@
       "label": "Located in",
       "valueType": "link",
       "targetEntryKinds": ["place"],
-      "relationshipType": "located_in",
+      "relationshipType": "located in",
       "cardinality": "zeroOrOne",
-      "description": "Immediate containing place."
+      "description": "Immediate containing place.",
+      "currentEntryRole": "source"
     },
     "childPlaces": {
       "label": "Contains",
@@ -201,7 +235,8 @@
       "targetEntryKinds": ["place"],
       "relationshipType": "contains",
       "cardinality": "zeroOrMany",
-      "description": "Important directly contained places."
+      "description": "Important directly contained places.",
+      "currentEntryRole": "source"
     },
     "capital": {
       "label": "Capital",
@@ -210,7 +245,9 @@
       "targetCategories": ["Capital", "City", "Town", "Fortress", "Castle"],
       "relationshipType": "has capital",
       "cardinality": "zeroOrOne",
-      "description": "Primary seat of government."
+      "description": "Primary seat of government.",
+      "currentEntryRole": "source",
+      "targetCategoryBehavior": "soft"
     },
     "settlements": {
       "label": "Settlements",
@@ -227,7 +264,8 @@
       ],
       "relationshipType": "contains",
       "cardinality": "zeroOrMany",
-      "description": "Named inhabited places within this place."
+      "description": "Named inhabited places within this place.",
+      "currentEntryRole": "source"
     },
     "regions": {
       "label": "Regions",
@@ -253,15 +291,17 @@
       ],
       "relationshipType": "contains",
       "cardinality": "zeroOrMany",
-      "description": "Major subdivisions or named areas."
+      "description": "Major subdivisions or named areas.",
+      "currentEntryRole": "source"
     },
     "neighbors": {
       "label": "Neighbors or borders",
       "valueType": "linkList",
       "targetEntryKinds": ["place"],
-      "relationshipType": "bordered_by",
+      "relationshipType": "bordered by",
       "cardinality": "zeroOrMany",
-      "description": "Adjacent places, shared borders, nearby astronomical bodies, or neighboring realms."
+      "description": "Adjacent places, shared borders, nearby astronomical bodies, or neighboring realms.",
+      "currentEntryRole": "source"
     },
     "routeConnections": {
       "label": "Connected routes",
@@ -281,65 +321,73 @@
         "Space station",
         "Asteroid belt"
       ],
-      "relationshipType": "connected_to",
+      "relationshipType": "connected to",
       "cardinality": "zeroOrMany",
-      "description": "Roads, passes, waterways, sea lanes, or space routes that connect this place to others."
+      "description": "Roads, passes, waterways, sea lanes, or space routes that connect this place to others.",
+      "currentEntryRole": "source"
     },
     "tradePartners": {
       "label": "Trade partners",
       "valueType": "linkList",
       "targetEntryKinds": ["place", "faction"],
-      "relationshipType": "connected_to",
+      "relationshipType": "connected to",
       "cardinality": "zeroOrMany",
-      "description": "Places or factions with active exchange."
+      "description": "Places or factions with active exchange.",
+      "currentEntryRole": "source"
     },
     "controllingPowers": {
       "label": "Controlled by",
       "valueType": "linkList",
       "targetEntryKinds": ["faction", "character", "place"],
-      "relationshipType": "controlled_by",
+      "relationshipType": "controlled by",
       "cardinality": "zeroOrMany",
-      "description": "Current powers able to govern, police, tax, occupy, or restrict the place."
+      "description": "Current powers able to govern, police, tax, occupy, or restrict the place.",
+      "currentEntryRole": "source"
     },
     "claimants": {
       "label": "Claimed by",
       "valueType": "linkList",
       "targetEntryKinds": ["faction", "character", "place"],
-      "relationshipType": "claimed_by",
+      "relationshipType": "claimed by",
       "cardinality": "zeroOrMany",
-      "description": "Competing claims, inherited rights, occupation claims, or disputed sovereignty."
+      "description": "Competing claims, inherited rights, occupation claims, or disputed sovereignty.",
+      "currentEntryRole": "source"
     },
     "inhabitants": {
       "label": "Inhabitants",
       "valueType": "linkList",
       "targetEntryKinds": ["character", "faction"],
-      "relationshipType": "home_of",
+      "relationshipType": "home of",
       "cardinality": "zeroOrMany",
-      "description": "Notable residents, species, cultures, or population groups modeled as entries."
+      "description": "Notable residents, species, cultures, or population groups modeled as entries.",
+      "currentEntryRole": "source"
     },
     "founders": {
       "label": "Founded by",
       "valueType": "linkList",
       "targetEntryKinds": ["character", "faction", "place", "timeline"],
-      "relationshipType": "founded_by",
+      "relationshipType": "founded by",
       "cardinality": "zeroOrMany",
-      "description": "Founders, source colony, founding event, or patron power."
+      "description": "Founders, source colony, founding event, or patron power.",
+      "currentEntryRole": "source"
     },
     "notableEvents": {
       "label": "Notable events",
       "valueType": "linkList",
       "targetEntryKinds": ["timeline"],
-      "relationshipType": "site_of",
+      "relationshipType": "site of",
       "cardinality": "zeroOrMany",
-      "description": "Timeline events that happened here or materially changed the place."
+      "description": "Timeline events that happened here or materially changed the place.",
+      "currentEntryRole": "source"
     },
     "relatedLore": {
       "label": "Related lore",
       "valueType": "linkList",
       "targetEntryKinds": ["lore"],
-      "relationshipType": "uses_lore",
+      "relationshipType": "references",
       "cardinality": "zeroOrMany",
-      "description": "Magic, laws, customs, myths, ecology, artifacts, technologies, or hazards tied to this place."
+      "description": "Magic, laws, customs, myths, ecology, artifacts, technologies, or hazards tied to this place.",
+      "currentEntryRole": "source"
     },
     "scale": {
       "label": "Scale",
@@ -398,7 +446,8 @@
       ],
       "relationshipType": "contains",
       "cardinality": "zeroOrMany",
-      "description": "Named districts, wards, enclaves, complexes, or local subareas."
+      "description": "Named districts, wards, enclaves, complexes, or local subareas.",
+      "currentEntryRole": "source"
     },
     "climate": {
       "label": "Climate",
@@ -475,7 +524,8 @@
       ],
       "relationshipType": "contains",
       "cardinality": "zeroOrMany",
-      "description": "Important named landmarks located in this place."
+      "description": "Important named landmarks located in this place.",
+      "currentEntryRole": "source"
     },
     "waters": {
       "label": "Waters",
@@ -488,44 +538,71 @@
         "Sea",
         "Bay",
         "Gulf",
-        "Coast"
+        "Coast",
+        "Swamp",
+        "Wetland",
+        "Glacier"
       ],
       "relationshipType": "contains",
       "cardinality": "zeroOrMany",
-      "description": "Named water bodies related to this place."
+      "description": "Named water bodies related to this place.",
+      "currentEntryRole": "source"
     },
     "source": {
       "label": "Source or origin",
       "valueType": "link",
-      "targetEntryKinds": ["place", "lore", "timeline"],
-      "relationshipType": "part_of",
+      "targetEntryKinds": ["place"],
+      "targetCategories": [
+        "River",
+        "Lake",
+        "Mountain",
+        "Mountain range",
+        "Valley",
+        "Cave",
+        "Glacier",
+        "Swamp",
+        "Wetland",
+        "Forest",
+        "Jungle",
+        "Plateau",
+        "Volcano"
+      ],
+      "relationshipType": "flows into",
       "cardinality": "zeroOrOne",
-      "description": "Origin place, parent phenomenon, source event, spring, crater, gate, or myth."
+      "description": "Origin place, parent phenomenon, source event, spring, crater, gate, or myth.",
+      "currentEntryRole": "target",
+      "targetCategoryBehavior": "soft"
     },
     "mouth": {
       "label": "Mouth or terminus",
       "valueType": "link",
       "targetEntryKinds": ["place"],
-      "relationshipType": "flows_into",
+      "targetCategories": [
+        "River",
+        "Lake",
+        "Sea",
+        "Ocean",
+        "Bay",
+        "Gulf",
+        "Swamp",
+        "Wetland",
+        "Valley"
+      ],
+      "relationshipType": "flows into",
       "cardinality": "zeroOrOne",
-      "description": "Where a flow, path, or route ends."
+      "description": "Where a flow, path, or route ends.",
+      "currentEntryRole": "source",
+      "targetCategoryBehavior": "soft"
     },
     "tributaries": {
       "label": "Tributaries or feeders",
       "valueType": "linkList",
       "targetEntryKinds": ["place"],
-      "targetCategories": [
-        "River",
-        "Lake",
-        "Glacier",
-        "Swamp",
-        "Wetland",
-        "Mountain",
-        "Volcano"
-      ],
-      "relationshipType": "flows_into",
+      "targetCategories": ["River", "Lake", "Glacier", "Swamp", "Wetland"],
+      "relationshipType": "flows into",
       "cardinality": "zeroOrMany",
-      "description": "Inputs feeding a river, lake, sea, bay, glacier, magical current, or system."
+      "description": "Inputs feeding a river, lake, sea, bay, glacier, magical current, or system.",
+      "currentEntryRole": "target"
     },
     "floraFauna": {
       "label": "Flora and fauna",
@@ -546,9 +623,10 @@
       "label": "Built by",
       "valueType": "linkList",
       "targetEntryKinds": ["character", "faction", "place", "timeline"],
-      "relationshipType": "founded_by",
+      "relationshipType": "built by",
       "cardinality": "zeroOrMany",
-      "description": "Builders, engineers, original culture, patron, or construction event."
+      "description": "Builders, engineers, original culture, patron, or construction event.",
+      "currentEntryRole": "source"
     },
     "function": {
       "label": "Function",
@@ -736,7 +814,10 @@
           "field": "controllingPowers",
           "targetEntryKinds": ["faction", "character"]
         },
-        { "field": "relatedLore", "targetEntryKinds": ["lore"] }
+        {
+          "field": "relatedLore",
+          "targetEntryKinds": ["lore"]
+        }
       ],
       "notes": "Use for a campaign world, known world, hollow world, or setting-scale map even when it is not a planet."
     },
@@ -807,7 +888,10 @@
             "Space station"
           ]
         },
-        { "field": "tradePartners", "targetEntryKinds": ["place", "faction"] }
+        {
+          "field": "tradePartners",
+          "targetEntryKinds": ["place", "faction"]
+        }
       ],
       "notes": "Track political sectors as Region entries if they matter more than astronomical detail."
     },
@@ -832,12 +916,18 @@
         "Region"
       ],
       "importantLinks": [
-        { "field": "hazards", "targetEntryKinds": [] },
+        {
+          "field": "hazards",
+          "targetEntryKinds": []
+        },
         {
           "field": "routeConnections",
           "targetCategories": ["Space station", "Asteroid belt"]
         },
-        { "field": "relatedLore", "targetEntryKinds": ["lore"] }
+        {
+          "field": "relatedLore",
+          "targetEntryKinds": ["lore"]
+        }
       ],
       "notes": "Useful for navigation hazards, concealment, rare resources, or divine/cosmic phenomena."
     },
@@ -888,7 +978,10 @@
           "field": "childPlaces",
           "targetCategories": ["Planet", "Asteroid belt", "Space station"]
         },
-        { "field": "relatedLore", "targetEntryKinds": ["lore"] }
+        {
+          "field": "relatedLore",
+          "targetEntryKinds": ["lore"]
+        }
       ],
       "notes": "Fields should capture spectral, divine, magical, or navigational significance as appropriate."
     },
@@ -949,13 +1042,20 @@
       "typicalChildCategories": [
         "Region",
         "Mountain",
-        "Crater",
+        "Canyon",
+        "Valley",
         "Sea",
         "Space station"
       ],
       "importantLinks": [
-        { "field": "parentPlace", "targetCategories": ["Planet"] },
-        { "field": "relatedLore", "targetEntryKinds": ["lore"] },
+        {
+          "field": "parentPlace",
+          "targetCategories": ["Planet"]
+        },
+        {
+          "field": "relatedLore",
+          "targetEntryKinds": ["lore"]
+        },
         {
           "field": "settlements",
           "targetCategories": ["City", "Town", "Space station"]
@@ -973,12 +1073,18 @@
       "primaryParentCategories": ["Solar system", "Planet", "Galaxy", "Nebula"],
       "typicalChildCategories": ["Mine", "Space station", "Region", "Ruin"],
       "importantLinks": [
-        { "field": "resources", "targetEntryKinds": [] },
+        {
+          "field": "resources",
+          "targetEntryKinds": []
+        },
         {
           "field": "settlements",
           "targetCategories": ["Space station", "Mine"]
         },
-        { "field": "hazards", "targetEntryKinds": [] }
+        {
+          "field": "hazards",
+          "targetEntryKinds": []
+        }
       ],
       "notes": "Can also stand in for planetary rings if ring detail matters."
     },
@@ -1024,7 +1130,10 @@
           "field": "controllingPowers",
           "targetEntryKinds": ["faction", "character"]
         },
-        { "field": "inhabitants", "targetEntryKinds": ["character", "faction"] }
+        {
+          "field": "inhabitants",
+          "targetEntryKinds": ["character", "faction"]
+        }
       ],
       "notes": "Treat docking rings or internal wards as Port or Region entries when needed."
     },
@@ -1058,7 +1167,10 @@
             "Ruin"
           ]
         },
-        { "field": "relatedLore", "targetEntryKinds": ["lore"] }
+        {
+          "field": "relatedLore",
+          "targetEntryKinds": ["lore"]
+        }
       ],
       "notes": "Grouping node used to separate cosmology from political geography."
     },
@@ -1092,8 +1204,14 @@
             "Kingdom"
           ]
         },
-        { "field": "access", "targetEntryKinds": [] },
-        { "field": "relatedLore", "targetEntryKinds": ["lore"] }
+        {
+          "field": "access",
+          "targetEntryKinds": []
+        },
+        {
+          "field": "relatedLore",
+          "targetEntryKinds": ["lore"]
+        }
       ],
       "notes": "Use access fields for gates, rituals, technologies, or conditions required to enter."
     },
@@ -1129,7 +1247,10 @@
           "field": "controllingPowers",
           "targetEntryKinds": ["faction", "character"]
         },
-        { "field": "relatedLore", "targetEntryKinds": ["lore"] }
+        {
+          "field": "relatedLore",
+          "targetEntryKinds": ["lore"]
+        }
       ],
       "notes": "Use for rule-bearing cosmological spaces whose physics or magic differs from the material world."
     },
@@ -1470,7 +1591,10 @@
             "Mine"
           ]
         },
-        { "field": "relatedLore", "targetEntryKinds": ["lore"] }
+        {
+          "field": "relatedLore",
+          "targetEntryKinds": ["lore"]
+        }
       ],
       "notes": "This is the safest category for fuzzy or early-draft geography before a more precise category is known."
     },
@@ -1619,7 +1743,10 @@
           "field": "routeConnections",
           "targetCategories": ["Road", "River", "Harbor", "Port", "Pass"]
         },
-        { "field": "inhabitants", "targetEntryKinds": ["character", "faction"] }
+        {
+          "field": "inhabitants",
+          "targetEntryKinds": ["character", "faction"]
+        }
       ],
       "notes": "Cities benefit from direct links to ruling factions, resident characters, districts, trade routes, nearby water, and founding events."
     },
@@ -1661,8 +1788,14 @@
           "field": "routeConnections",
           "targetCategories": ["Road", "River", "Harbor", "Port", "Pass"]
         },
-        { "field": "tradePartners", "targetEntryKinds": ["place", "faction"] },
-        { "field": "inhabitants", "targetEntryKinds": ["character", "faction"] }
+        {
+          "field": "tradePartners",
+          "targetEntryKinds": ["place", "faction"]
+        },
+        {
+          "field": "inhabitants",
+          "targetEntryKinds": ["character", "faction"]
+        }
       ],
       "notes": "Towns often need sharper economic fields than cities because one industry or route usually defines them."
     },
@@ -1707,7 +1840,10 @@
           "field": "routeConnections",
           "targetCategories": ["Road", "River", "Pass"]
         },
-        { "field": "relatedLore", "targetEntryKinds": ["lore"] }
+        {
+          "field": "relatedLore",
+          "targetEntryKinds": ["lore"]
+        }
       ],
       "notes": "Villages should expose local customs, secrets, nearby hazards, notable families, and dependence on larger places."
     },
@@ -1741,8 +1877,14 @@
           "field": "inhabitants",
           "targetEntryKinds": ["character", "faction"]
         },
-        { "field": "access", "targetEntryKinds": [] },
-        { "field": "hazards", "targetEntryKinds": [] }
+        {
+          "field": "access",
+          "targetEntryKinds": []
+        },
+        {
+          "field": "hazards",
+          "targetEntryKinds": []
+        }
       ],
       "notes": "Hamlets may be seasonal, abandoned, hidden, or known only because a key character lives there."
     },
@@ -1814,7 +1956,7 @@
         "River",
         "Sea"
       ],
-      "typicalChildCategories": ["Port", "Fortress", "Road", "Market", "Ruin"],
+      "typicalChildCategories": ["Port", "Fortress", "Road", "Town", "Ruin"],
       "importantLinks": [
         {
           "field": "parentPlace",
@@ -1841,7 +1983,10 @@
             "Coast"
           ]
         },
-        { "field": "tradePartners", "targetEntryKinds": ["place", "faction"] },
+        {
+          "field": "tradePartners",
+          "targetEntryKinds": ["place", "faction"]
+        },
         {
           "field": "controllingPowers",
           "targetEntryKinds": ["faction", "character"]
@@ -1911,7 +2056,10 @@
           "field": "controllingPowers",
           "targetEntryKinds": ["faction", "character"]
         },
-        { "field": "tradePartners", "targetEntryKinds": ["place", "faction"] }
+        {
+          "field": "tradePartners",
+          "targetEntryKinds": ["place", "faction"]
+        }
       ],
       "notes": "Ports should link to the authorities, customs rules, route endpoints, cargo sources, and hazards that shape traffic."
     },
@@ -1948,7 +2096,10 @@
           "field": "controllingPowers",
           "targetEntryKinds": ["faction", "character"]
         },
-        { "field": "relatedLore", "targetEntryKinds": ["lore"] }
+        {
+          "field": "relatedLore",
+          "targetEntryKinds": ["lore"]
+        }
       ],
       "notes": "Grouping node; not selectable in the current category list."
     },
@@ -2000,7 +2151,10 @@
           "field": "routeConnections",
           "targetCategories": ["Road", "Pass", "Harbor", "Port"]
         },
-        { "field": "notableEvents", "targetEntryKinds": ["timeline"] }
+        {
+          "field": "notableEvents",
+          "targetEntryKinds": ["timeline"]
+        }
       ],
       "notes": "Fortresses are often relationship hubs for armies, commanders, sieges, roads, borders, and disputed claims."
     },
@@ -2085,8 +2239,14 @@
           "field": "controllingPowers",
           "targetEntryKinds": ["faction", "character"]
         },
-        { "field": "relatedLore", "targetEntryKinds": ["lore"] },
-        { "field": "notableEvents", "targetEntryKinds": ["timeline"] }
+        {
+          "field": "relatedLore",
+          "targetEntryKinds": ["lore"]
+        },
+        {
+          "field": "notableEvents",
+          "targetEntryKinds": ["timeline"]
+        }
       ],
       "notes": "Temple records should surface deity, rite, taboo, relic, faction, pilgrimage route, and access restrictions through lore and faction links."
     },
@@ -2137,8 +2297,14 @@
           "field": "builders",
           "targetEntryKinds": ["faction", "character", "timeline"]
         },
-        { "field": "notableEvents", "targetEntryKinds": ["timeline"] },
-        { "field": "relatedLore", "targetEntryKinds": ["lore"] }
+        {
+          "field": "notableEvents",
+          "targetEntryKinds": ["timeline"]
+        },
+        {
+          "field": "relatedLore",
+          "targetEntryKinds": ["lore"]
+        }
       ],
       "notes": "Ruin fields should capture original function, fall event, current occupants, salvage, hazards, and false histories."
     },
@@ -2172,7 +2338,10 @@
             "Planet"
           ]
         },
-        { "field": "resources", "targetEntryKinds": [] },
+        {
+          "field": "resources",
+          "targetEntryKinds": []
+        },
         {
           "field": "controllingPowers",
           "targetEntryKinds": ["faction", "character"]
@@ -2212,12 +2381,18 @@
         "Port"
       ],
       "importantLinks": [
-        { "field": "routeConnections", "targetEntryKinds": ["place"] },
+        {
+          "field": "routeConnections",
+          "targetEntryKinds": ["place"]
+        },
         {
           "field": "controllingPowers",
           "targetEntryKinds": ["faction", "character"]
         },
-        { "field": "hazards", "targetEntryKinds": [] }
+        {
+          "field": "hazards",
+          "targetEntryKinds": []
+        }
       ],
       "notes": "Grouping node; not selectable in the current category list."
     },
@@ -2239,14 +2414,7 @@
         "Desert",
         "Mountain range"
       ],
-      "typicalChildCategories": [
-        "Pass",
-        "Bridge",
-        "Fortress",
-        "Town",
-        "Village",
-        "Ruin"
-      ],
+      "typicalChildCategories": ["Pass", "Fortress", "Town", "Village", "Ruin"],
       "importantLinks": [
         {
           "field": "routeConnections",
@@ -2267,7 +2435,10 @@
           "field": "controllingPowers",
           "targetEntryKinds": ["faction", "character"]
         },
-        { "field": "relatedLore", "targetEntryKinds": ["lore"] }
+        {
+          "field": "relatedLore",
+          "targetEntryKinds": ["lore"]
+        }
       ],
       "notes": "There is no Bridge category yet; model important bridges as Road, Pass, or Landmark-style Region entries."
     },
@@ -2322,7 +2493,10 @@
           "field": "controllingPowers",
           "targetEntryKinds": ["faction", "character"]
         },
-        { "field": "hazards", "targetEntryKinds": [] }
+        {
+          "field": "hazards",
+          "targetEntryKinds": []
+        }
       ],
       "notes": "Passes should expose seasonality, tolls, military control, closures, ambush sites, and alternate routes."
     },
@@ -2381,7 +2555,10 @@
             "Cave"
           ]
         },
-        { "field": "relatedLore", "targetEntryKinds": ["lore"] }
+        {
+          "field": "relatedLore",
+          "targetEntryKinds": ["lore"]
+        }
       ],
       "notes": "Grouping node; not selectable in the current category list."
     },
@@ -2423,7 +2600,10 @@
           "field": "landmarks",
           "targetCategories": ["Temple", "Ruin", "Lake", "Cave"]
         },
-        { "field": "relatedLore", "targetEntryKinds": ["lore"] }
+        {
+          "field": "relatedLore",
+          "targetEntryKinds": ["lore"]
+        }
       ],
       "notes": "Forests need paths, canopy/light, ownership, taboos, resources, monsters, and border settlements."
     },
@@ -2460,8 +2640,14 @@
           "field": "landmarks",
           "targetCategories": ["Temple", "Ruin", "Cave", "Mountain"]
         },
-        { "field": "hazards", "targetEntryKinds": [] },
-        { "field": "relatedLore", "targetEntryKinds": ["lore"] }
+        {
+          "field": "hazards",
+          "targetEntryKinds": []
+        },
+        {
+          "field": "relatedLore",
+          "targetEntryKinds": ["lore"]
+        }
       ],
       "notes": "Use Jungle instead of Forest when climate, density, disease, rivers, canopy, and hidden ruins are defining traits."
     },
@@ -2483,7 +2669,8 @@
       ],
       "typicalChildCategories": [
         "Road",
-        "Oasis",
+        "Lake",
+        "Wetland",
         "Town",
         "Village",
         "Ruin",
@@ -2503,9 +2690,18 @@
             "Ruin"
           ]
         },
-        { "field": "resources", "targetEntryKinds": [] },
-        { "field": "hazards", "targetEntryKinds": [] },
-        { "field": "relatedLore", "targetEntryKinds": ["lore"] }
+        {
+          "field": "resources",
+          "targetEntryKinds": []
+        },
+        {
+          "field": "hazards",
+          "targetEntryKinds": []
+        },
+        {
+          "field": "relatedLore",
+          "targetEntryKinds": ["lore"]
+        }
       ],
       "notes": "There is no Oasis category yet; model important oases as Lake, Wetland, Village, or Region entries."
     },
@@ -2542,8 +2738,14 @@
           "field": "settlements",
           "targetCategories": ["Village", "Hamlet", "Town"]
         },
-        { "field": "hazards", "targetEntryKinds": [] },
-        { "field": "relatedLore", "targetEntryKinds": ["lore"] }
+        {
+          "field": "hazards",
+          "targetEntryKinds": []
+        },
+        {
+          "field": "relatedLore",
+          "targetEntryKinds": ["lore"]
+        }
       ],
       "notes": "Swamps should capture water level, navigability, disease, concealment, guides, spirits, and seasonal change."
     },
@@ -2575,9 +2777,18 @@
           "field": "waters",
           "targetCategories": ["River", "Lake", "Swamp", "Coast", "Bay"]
         },
-        { "field": "floraFauna", "targetEntryKinds": [] },
-        { "field": "resources", "targetEntryKinds": [] },
-        { "field": "hazards", "targetEntryKinds": [] }
+        {
+          "field": "floraFauna",
+          "targetEntryKinds": []
+        },
+        {
+          "field": "resources",
+          "targetEntryKinds": []
+        },
+        {
+          "field": "hazards",
+          "targetEntryKinds": []
+        }
       ],
       "notes": "Wetland is more ecological; Swamp is more atmospheric and wooded. Both can coexist if the distinction matters."
     },
@@ -2611,8 +2822,14 @@
           "field": "settlements",
           "targetCategories": ["Town", "Village", "Hamlet"]
         },
-        { "field": "routeConnections", "targetCategories": ["Road", "River"] },
-        { "field": "resources", "targetEntryKinds": [] },
+        {
+          "field": "routeConnections",
+          "targetCategories": ["Road", "River"]
+        },
+        {
+          "field": "resources",
+          "targetEntryKinds": []
+        },
         {
           "field": "controllingPowers",
           "targetEntryKinds": ["faction", "character"]
@@ -2652,8 +2869,14 @@
           "field": "inhabitants",
           "targetEntryKinds": ["character", "faction"]
         },
-        { "field": "resources", "targetEntryKinds": [] },
-        { "field": "relatedLore", "targetEntryKinds": ["lore"] }
+        {
+          "field": "resources",
+          "targetEntryKinds": []
+        },
+        {
+          "field": "relatedLore",
+          "targetEntryKinds": ["lore"]
+        }
       ],
       "notes": "Often driven by cultures and routes more than fixed settlement density; link nomadic factions explicitly."
     },
@@ -2682,10 +2905,22 @@
         "Ruin"
       ],
       "importantLinks": [
-        { "field": "climate", "targetEntryKinds": [] },
-        { "field": "settlements", "targetCategories": ["Village", "Hamlet"] },
-        { "field": "waters", "targetCategories": ["Glacier", "Lake", "River"] },
-        { "field": "hazards", "targetEntryKinds": [] }
+        {
+          "field": "climate",
+          "targetEntryKinds": []
+        },
+        {
+          "field": "settlements",
+          "targetCategories": ["Village", "Hamlet"]
+        },
+        {
+          "field": "waters",
+          "targetCategories": ["Glacier", "Lake", "River"]
+        },
+        {
+          "field": "hazards",
+          "targetEntryKinds": []
+        }
       ],
       "notes": "Tundra records should capture seasonality, food, migration, exposure, and what makes travel possible."
     },
@@ -2778,7 +3013,10 @@
             "Mine"
           ]
         },
-        { "field": "waters", "targetCategories": ["River", "Lake", "Glacier"] },
+        {
+          "field": "waters",
+          "targetCategories": ["River", "Lake", "Glacier"]
+        },
         {
           "field": "neighbors",
           "targetCategories": ["Country", "Kingdom", "Province", "Region"]
@@ -2834,7 +3072,10 @@
             "Volcano"
           ]
         },
-        { "field": "relatedLore", "targetEntryKinds": ["lore"] }
+        {
+          "field": "relatedLore",
+          "targetEntryKinds": ["lore"]
+        }
       ],
       "notes": "Mountains often need elevation, route difficulty, sacred status, resource value, and visibility from nearby places."
     },
@@ -2870,7 +3111,10 @@
         "Fortress"
       ],
       "importantLinks": [
-        { "field": "waters", "targetCategories": ["River", "Lake"] },
+        {
+          "field": "waters",
+          "targetCategories": ["River", "Lake"]
+        },
         {
           "field": "settlements",
           "targetCategories": ["Town", "Village", "Hamlet"]
@@ -2903,17 +3147,25 @@
         "Pass",
         "Cave",
         "Mine",
-        "Ruin",
-        "Bridge"
+        "Ruin"
       ],
       "importantLinks": [
-        { "field": "waters", "targetCategories": ["River"] },
+        {
+          "field": "waters",
+          "targetCategories": ["River"]
+        },
         {
           "field": "routeConnections",
           "targetCategories": ["Road", "Pass", "River"]
         },
-        { "field": "landmarks", "targetCategories": ["Cave", "Mine", "Ruin"] },
-        { "field": "hazards", "targetEntryKinds": [] }
+        {
+          "field": "landmarks",
+          "targetCategories": ["Cave", "Mine", "Ruin"]
+        },
+        {
+          "field": "hazards",
+          "targetEntryKinds": []
+        }
       ],
       "notes": "Canyons need vertical access, crossings, sight lines, floods, echoes, hidden routes, and what exposed the rock or ruin."
     },
@@ -2951,8 +3203,14 @@
           "field": "settlements",
           "targetCategories": ["Town", "Village", "Hamlet"]
         },
-        { "field": "resources", "targetEntryKinds": [] },
-        { "field": "hazards", "targetEntryKinds": [] }
+        {
+          "field": "resources",
+          "targetEntryKinds": []
+        },
+        {
+          "field": "hazards",
+          "targetEntryKinds": []
+        }
       ],
       "notes": "Track edge routes and why the plateau is separated culturally, climatically, or militarily from lowlands."
     },
@@ -2991,10 +3249,22 @@
             "Moon"
           ]
         },
-        { "field": "hazards", "targetEntryKinds": [] },
-        { "field": "resources", "targetEntryKinds": [] },
-        { "field": "relatedLore", "targetEntryKinds": ["lore"] },
-        { "field": "notableEvents", "targetEntryKinds": ["timeline"] }
+        {
+          "field": "hazards",
+          "targetEntryKinds": []
+        },
+        {
+          "field": "resources",
+          "targetEntryKinds": []
+        },
+        {
+          "field": "relatedLore",
+          "targetEntryKinds": ["lore"]
+        },
+        {
+          "field": "notableEvents",
+          "targetEntryKinds": ["timeline"]
+        }
       ],
       "notes": "Volcanoes should capture eruption history, warning signs, divine taboos, geothermal resources, and affected settlements."
     },
@@ -3023,8 +3293,14 @@
           "field": "mouth",
           "targetCategories": ["River", "Lake", "Sea", "Ocean", "Valley"]
         },
-        { "field": "hazards", "targetEntryKinds": [] },
-        { "field": "relatedLore", "targetEntryKinds": ["lore"] }
+        {
+          "field": "hazards",
+          "targetEntryKinds": []
+        },
+        {
+          "field": "relatedLore",
+          "targetEntryKinds": ["lore"]
+        }
       ],
       "notes": "Glaciers tie climate, time depth, water sources, hidden ruins, and dangerous travel into one record."
     },
@@ -3054,8 +3330,14 @@
         "Temple"
       ],
       "importantLinks": [
-        { "field": "access", "targetEntryKinds": [] },
-        { "field": "hazards", "targetEntryKinds": [] },
+        {
+          "field": "access",
+          "targetEntryKinds": []
+        },
+        {
+          "field": "hazards",
+          "targetEntryKinds": []
+        },
         {
           "field": "routeConnections",
           "targetCategories": ["Cave", "Mine", "Road", "Pass"]
@@ -3117,7 +3399,10 @@
           "field": "inhabitants",
           "targetEntryKinds": ["character", "faction"]
         },
-        { "field": "relatedLore", "targetEntryKinds": ["lore"] }
+        {
+          "field": "relatedLore",
+          "targetEntryKinds": ["lore"]
+        }
       ],
       "notes": "Caves should capture entrances, depth, maps, air/water, inhabitants, acoustics, treasures, and why people go inside."
     },
@@ -3322,8 +3607,14 @@
           "field": "routeConnections",
           "targetCategories": ["Sea", "Harbor", "Port", "Island", "Archipelago"]
         },
-        { "field": "hazards", "targetEntryKinds": [] },
-        { "field": "relatedLore", "targetEntryKinds": ["lore"] }
+        {
+          "field": "hazards",
+          "targetEntryKinds": []
+        },
+        {
+          "field": "relatedLore",
+          "targetEntryKinds": ["lore"]
+        }
       ],
       "notes": "Oceans are best modeled as route networks plus hazards, currents, cultures, weather, monsters, and trade lanes."
     },
@@ -3426,7 +3717,10 @@
           "field": "routeConnections",
           "targetCategories": ["Road", "Sea", "Ocean", "Harbor", "Port"]
         },
-        { "field": "hazards", "targetEntryKinds": [] }
+        {
+          "field": "hazards",
+          "targetEntryKinds": []
+        }
       ],
       "notes": "Coasts should link land polities to water bodies and expose trade, storms, raids, reefs, cliffs, beaches, and legal borders."
     },
@@ -3772,5 +4066,13 @@
       "summary": "Allow Region as an early placeholder that can later be refined.",
       "details": "Many world records begin as vague regions. The model should preserve relationships when a Region becomes a Province, Forest, Realm, or other more specific category."
     }
-  ]
+  ],
+  "runtime": {
+    "coreEntryFields": ["name", "summary", "status", "tags"],
+    "sharedDetailFields": ["category", "region", "climate", "significance"],
+    "notes": [
+      "Core entry fields are documented in the field catalog but are not rendered as place detail fields.",
+      "Shared detail fields render before a place category is selected."
+    ]
+  }
 }

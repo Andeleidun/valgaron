@@ -7,7 +7,7 @@ This document is the release-operations playbook for Valgaron World Codex.
 Three files must stay aligned:
 
 - `package.json`
-- `src/Utlilities/appMetadata.ts`
+- `packages/core/src/shell.ts`
 - `public/sw.js`
 
 `npm run check:metadata` verifies that the in-app version and diagnostics
@@ -18,7 +18,7 @@ the same package version.
 
 1. Decide the semantic version bump.
 2. Update `package.json` and `package-lock.json`.
-3. Update `src/Utlilities/appMetadata.ts`.
+3. Update `packages/core/src/shell.ts` product version metadata.
 4. Update `public/sw.js` cache version.
 5. Add or update the `CHANGELOG.md` entry.
 6. Review schema migration impact.

@@ -8,6 +8,7 @@ import {
   exportWorldToMarkdown,
   formatWorldImportPreviewText,
   getCodexExportOption,
+  isCodexExportMode,
   serializeActiveWorldBackup,
   serializeWorldDocumentBackup,
   type WorldImportPreviewText,
@@ -15,6 +16,7 @@ import {
 import {
   createWorldDocumentDiagnosticsReport,
   serializeWorldDocumentDiagnosticsReport,
+  type WorldDocumentDiagnostics,
   type WorldDocumentDiagnosticsRuntime,
 } from './documentDiagnostics';
 import type { WorldDocument } from './types';
@@ -22,16 +24,24 @@ import type { RecoverySnapshotSummary } from './types';
 import { localPersistenceCopy } from './shell';
 import { getActiveWorld } from './worldDocument';
 import { formatUpdatedAt } from './codexEntries';
+import { pluralizeCountLabel } from './featureDisplayLimits';
 import {
   getRecoverySnapshotReasonPhrase,
   getRecoverySnapshotReasonTitle,
 } from './recoverySnapshots';
+import type { DestructiveActionId } from './destructiveActions';
 
 export type DataExportMode = CodexExportMode;
 
 export type DataExportOptionModel = {
   mode: DataExportMode;
   label: string;
+};
+
+export type DataShellExportAction = {
+  downloadLabel: string;
+  heading: string;
+  mode: Exclude<DataExportMode, 'diagnostics'>;
 };
 
 export type DataExportSharePayload = {
@@ -65,7 +75,9 @@ export type DataRecoverySnapshotRow = {
   createdAtText: string;
   mobileSummaryText: string;
   restoreLabel: string;
+  restoreAccessibilityHint: string;
   deleteLabel: string;
+  deleteAccessibilityHint: string;
   latestPrefix: string;
 };
 
@@ -79,6 +91,7 @@ export type DataRecoverySnapshotModel = {
 };
 
 export type DataStorageStatusModel = {
+  currentWorkspaceLine: string;
   loadLine: string;
   saveLine: string;
   recoveryLine: string;
@@ -93,6 +106,23 @@ export type DataStorageStatusRecoverySnapshot = Pick<
   RecoverySnapshotSummary,
   'createdAt' | 'reason'
 >;
+
+export type DataActionResultId = Extract<
+  DestructiveActionId,
+  'delete-snapshot' | 'import-document' | 'reset-document' | 'restore-snapshot'
+>;
+
+export const dataExportSectionIds = {
+  'active-json': 'active-json-export',
+  'full-json': 'full-json-export',
+  markdown: 'markdown-export',
+  diagnostics: 'diagnostics-export',
+} as const satisfies Record<DataExportMode, string>;
+
+export const dataRouteFocusTargetIds = {
+  export: 'export',
+  importJsonBackup: 'import-json-backup',
+} as const;
 
 function getRecoverySnapshotCreatedAtTime(
   snapshot: Pick<RecoverySnapshotSummary, 'createdAt'>
@@ -117,6 +147,21 @@ export const dataExportOptions: readonly DataExportOptionModel[] =
     label: option.label,
   }));
 
+const dataShellExportActionModes: readonly Exclude<
+  DataExportMode,
+  'diagnostics'
+>[] = ['active-json', 'full-json', 'markdown'];
+
+export const dataShellExportActions: readonly DataShellExportAction[] =
+  dataShellExportActionModes.map((mode) => {
+    const option = getCodexExportOption(mode);
+    return {
+      downloadLabel: option.downloadLabel,
+      heading: option.heading,
+      mode,
+    };
+  });
+
 export const dataRecoverySnapshotCopy = {
   title: 'Recovery snapshots',
   description:
@@ -125,8 +170,53 @@ export const dataRecoverySnapshotCopy = {
   emptyDetail:
     'A snapshot is created automatically before import, reset, restore, and delete actions.',
   restoreLabel: 'Restore Snapshot',
+  restoreAccessibilityHint:
+    'Restores this saved recovery snapshot after confirmation.',
   deleteLabel: 'Delete Snapshot',
+  deleteAccessibilityHint: 'Deletes this recovery snapshot after confirmation.',
 } as const;
+
+export const dataActionResultMessages: Record<DataActionResultId, string> = {
+  'import-document':
+    'Imported backup on this device. A recovery snapshot was saved first.',
+  'reset-document':
+    'Starter data is open on this device. A recovery snapshot was saved first.',
+  'restore-snapshot':
+    'Restored the selected recovery snapshot. The previous document was saved as a new recovery snapshot first.',
+  'delete-snapshot': 'Deleted the recovery snapshot from this device.',
+};
+
+export const dataRecoverySnapshotSaveFailedMessage =
+  'Could not save the recovery snapshot to this device. Export JSON before continuing destructive edits.';
+export const dataRecoverySnapshotUnavailableMessage =
+  'No recovery snapshot is available on this device.';
+export const dataRecoverySnapshotDeleteFailedMessage =
+  'Could not delete the recovery snapshot from this device.';
+
+export function getDataActionResultMessage(
+  actionId: DataActionResultId
+): string {
+  return dataActionResultMessages[actionId];
+}
+
+export function getDataRouteFocusTargetId({
+  focusId,
+  mode,
+}: {
+  focusId?: string | null;
+  mode?: string | null;
+}): string {
+  const normalizedFocusId = focusId?.trim() ?? '';
+  if (!normalizedFocusId) {
+    return '';
+  }
+  if (normalizedFocusId !== dataRouteFocusTargetIds.export) {
+    return normalizedFocusId;
+  }
+  return isCodexExportMode(mode)
+    ? dataExportSectionIds[mode]
+    : dataExportSectionIds['active-json'];
+}
 
 export const dataImportCopy = {
   title: 'Import JSON backup',
@@ -135,12 +225,21 @@ export const dataImportCopy = {
   textAreaLabel: 'Backup JSON',
   placeholder: 'Paste a Valgaron World Codex JSON backup',
   previewLabel: 'Preview Import',
+  previewStatusLabel: 'Preview',
   importLabel: 'Import Backup',
   clearLabel: 'Clear',
+  unsavedLabel: 'Unsaved',
+  lastImportLabel: 'Last import',
+  clearEditedTitle: 'Clear import text?',
+  clearEditedMessage:
+    'The pasted import text will be cleared from this screen.',
+  clearAfterReplacementMessage:
+    'The pasted import text will be cleared after this document replacement.',
 } as const;
 
 export const dataExportCopy = {
   title: 'Export',
+  localOnlyReportKicker: 'Local-only report',
   shareLabel: 'Share Export',
   refreshLabel: 'Refresh Export',
   refreshedMessage: 'Refreshed the export text.',
@@ -153,6 +252,41 @@ export const dataExportCopy = {
   refreshEditedTitle: 'Refresh export text?',
   refreshEditedMessage:
     'The visible export text has local edits that will be replaced by the latest generated export.',
+} as const;
+
+export const dataDownloadCopy = {
+  exportUnavailableMessage:
+    'Download is unavailable in this runtime; copy the export text instead.',
+  diagnosticsUnavailableMessage:
+    'Download is unavailable in this runtime; copy the diagnostics text instead.',
+} as const;
+
+export function formatDataDownloadSuccessMessage(filename: string): string {
+  return `Downloaded ${filename}.`;
+}
+
+export const dataStorageCopy = {
+  kicker: 'Storage status',
+  title: 'Manual local save',
+  manualSaveGuidance:
+    'Edits stay in this session until you use the header Save button. Export JSON backups before clearing browser data, switching browsers, or changing devices.',
+  mobileCurrentWorkspaceLabel: 'Current workspace',
+  mobileSavedTimestampLabel: 'Saved timestamp',
+  diagnosticsLabel: 'Diagnostics',
+  noRecoveryIssueMessage: 'No local storage recovery issue was found.',
+  recoveryGuidance:
+    'Recovery snapshots are saved before import, reset, permanent entry delete, relationship delete, and snapshot restore actions. Keep JSON exports as your device-independent backup.',
+  storageLoadIssuesLabel: 'Storage load issues',
+} as const;
+
+export const dataHelpCopy = {
+  kicker: 'Backup guidance',
+  title: 'Help',
+  backupHelpLabel: 'Backup Help',
+  openHelpLabel: 'Open Help',
+  leaveWithDraftTitle: 'Open Help?',
+  leaveWithDraftMessage:
+    'The pasted import text or edited export text may not be preserved after leaving Data.',
 } as const;
 
 export const dataResetCopy = {
@@ -233,6 +367,32 @@ export function getDataImportPreviewText(
   return formatWorldImportPreviewText(preview);
 }
 
+export function getDataDiagnosticsSummaryText(
+  diagnostics: Pick<
+    WorldDocumentDiagnostics,
+    | 'archivedEntryCount'
+    | 'relationshipCount'
+    | 'totalEntryCount'
+    | 'workspaceCount'
+  >
+): string {
+  return `${diagnostics.workspaceCount} ${pluralizeCountLabel(
+    diagnostics.workspaceCount,
+    'workspace'
+  )}, ${diagnostics.totalEntryCount} ${pluralizeCountLabel(
+    diagnostics.totalEntryCount,
+    'entry',
+    'entries'
+  )}, ${diagnostics.relationshipCount} ${pluralizeCountLabel(
+    diagnostics.relationshipCount,
+    'relationship'
+  )}, ${diagnostics.archivedEntryCount} ${pluralizeCountLabel(
+    diagnostics.archivedEntryCount,
+    'archived entry',
+    'archived entries'
+  )}.`;
+}
+
 export function getDataImportReviewState(
   importText: string,
   importResult: WorldImportResult | null
@@ -276,7 +436,11 @@ export function getDataRecoverySnapshotModel(
         createdAtText,
         mobileSummaryText: `Recovery snapshot ${reasonPhrase}: ${snapshot.activeWorldName}, ${snapshot.entryCount} entries, ${snapshot.relationshipCount} relationships, saved ${createdAtText}.`,
         restoreLabel: dataRecoverySnapshotCopy.restoreLabel,
+        restoreAccessibilityHint:
+          dataRecoverySnapshotCopy.restoreAccessibilityHint,
         deleteLabel: dataRecoverySnapshotCopy.deleteLabel,
+        deleteAccessibilityHint:
+          dataRecoverySnapshotCopy.deleteAccessibilityHint,
         latestPrefix: index === 0 ? 'Latest: ' : 'Older: ',
       };
     });
@@ -294,17 +458,21 @@ export function getDataRecoverySnapshotModel(
 }
 
 export function getDataStorageStatusModel({
+  currentWorkspaceName,
   lastRecoverySnapshot,
   loadStatus,
   recoverySnapshotCount,
   recoverySnapshots,
+  savedAt,
   saveLineLabel = 'Device save',
   saveMessage,
 }: {
+  currentWorkspaceName?: string;
   lastRecoverySnapshot?: DataStorageStatusRecoverySnapshot | null;
   loadStatus: DataStorageStatusLoadState;
   recoverySnapshotCount?: number;
   recoverySnapshots?: readonly DataStorageStatusRecoverySnapshot[];
+  savedAt?: string;
   saveLineLabel?: string;
   saveMessage: string;
 }): DataStorageStatusModel {
@@ -320,6 +488,14 @@ export function getDataStorageStatusModel({
   const snapshotLabel =
     snapshotCount === 1 ? '1 snapshot' : `${snapshotCount} snapshots`;
   return {
+    currentWorkspaceLine:
+      currentWorkspaceName && savedAt
+        ? `${
+            dataStorageCopy.mobileCurrentWorkspaceLabel
+          }: ${currentWorkspaceName}. ${
+            dataStorageCopy.mobileSavedTimestampLabel
+          }: ${formatUpdatedAt(savedAt)}.`
+        : '',
     loadLine: `Load state: ${loadStatus.source}, checked ${formatUpdatedAt(
       loadStatus.checkedAt
     )}.`,

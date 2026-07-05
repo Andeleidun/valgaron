@@ -2,28 +2,22 @@ import { describe, expect, it } from '@jest/globals';
 import {
   applyEntry,
   createEmptyDraft,
+  createCustomEntryType,
+  createSeedWorldDocument,
+  createWorkspace,
   deleteEntry,
-  entryFromDraft,
-  getEntries,
-  setEntryArchived,
-} from './codexEntries';
-import {
   deleteRelationshipsForEntry,
+  entryFromDraft,
   findEntryById,
+  getActiveWorld,
+  getEntries,
   relationshipFromDraft,
-  upsertRelationship,
-} from './codexRelationships';
-import {
   parseWorldImport,
   serializeActiveWorldBackup,
-} from './codexDataPortability';
-import { createSeedWorldDocument } from './seedCodex';
-import { getActiveWorld } from './worldDocument';
-import {
-  createCustomEntryType,
-  createWorkspace,
+  setEntryArchived,
   updateActiveWorkspace,
-} from './workspaceManagement';
+  upsertRelationship,
+} from '@valgaron/core';
 
 describe('release-critical workflows', () => {
   it('supports entry create, archive, restore, relationship link, and safe delete cleanup', () => {

@@ -3,28 +3,32 @@ import { NavLink, useSearchParams } from 'react-router-dom';
 import {
   createEmptyRelationshipDraft,
   draftFromRelationship,
-  filterRelationships,
   formatDestructiveActionTitle,
   formatDraftValidationErrors,
   getCodexHelpRoute,
-  getBrokenRelationships,
   getCodexScreenIntro,
   getDestructiveActionCopy,
-  getEntryStatusLabel,
-  getOrphanedEntries,
-  getRelationshipEntries,
-  getRelationshipGraph,
-  getRelationshipHealthSummary,
-  getSectionTags,
+  getRelationshipDiagnosticsModel,
+  getRelationshipEditorOptionsModel,
+  getRelationshipGraphViewModel,
+  getRelationshipListModel,
+  relationshipDirectionalControl,
+  relationshipDraftStatusControl,
+  relationshipFeatureCopy,
+  relationshipGraphStatusFilterControl,
+  relationshipGraphTypeFilterControl,
+  relationshipListTypeFilterControl,
+  relationshipNoteControl,
+  relationshipSourceControl,
+  relationshipTargetControl,
+  relationshipTypeControl,
   relationshipFromDraft,
-  relationshipTypeOptions,
   validateRelationshipDraft,
   type RelationshipDraft,
   type RelationshipGraphFilters,
   type WorldCodex,
   type WorldRelationship,
   type WorldSectionConfig,
-  worldEntryStatusOptions,
 } from '@valgaron/core';
 import {
   confirmDiscardUnsavedChanges,
@@ -108,10 +112,6 @@ export function RelationshipsPage({
   const requestedEntryQuery = searchParams.get('entryQuery');
   const requestedRelationshipQuery = searchParams.get('relationshipQuery');
   const appliedRouteKeyRef = useRef('');
-  const entries = useMemo(
-    () => getRelationshipEntries(codex, sections),
-    [codex, sections]
-  );
   const [draft, setDraft] = useState<RelationshipDraft>(() =>
     createEmptyRelationshipDraft()
   );
@@ -153,69 +153,68 @@ export function RelationshipsPage({
     [editingRelationship]
   );
   const isDraftDirty = hasUnsavedChanges(baselineDraft, draft);
+  const relationshipOptions = useMemo(
+    () =>
+      getRelationshipEditorOptionsModel(
+        { codex, entryTypes: sections, relationships },
+        draft,
+        entryFilter
+      ),
+    [
+      codex,
+      draft.sourceEntryId,
+      draft.targetEntryId,
+      entryFilter,
+      relationships,
+      sections,
+    ]
+  );
+  const entries = relationshipOptions.entries;
+  const relationshipEntryOptions = relationshipOptions.entryOptions;
   const entryById = useMemo(
     () => new Map(entries.map((entry) => [entry.id, entry])),
     [entries]
   );
-  const fullEntryById = useMemo(
+  const relationshipById = useMemo(
     () =>
       new Map(
-        sections.flatMap((section) =>
-          (codex[section.id] ?? []).map((entry) => [entry.id, entry] as const)
-        )
+        relationships.map((relationship) => [relationship.id, relationship])
       ),
-    [codex, sections]
+    [relationships]
   );
-  const availableRelationshipTypes = Array.from(
-    new Set(relationships.map((relationship) => relationship.type))
-  ).sort((first, second) => first.localeCompare(second));
-  const relationshipTypeSuggestions = Array.from(
-    new Set([...relationshipTypeOptions, ...availableRelationshipTypes])
-  ).sort((first, second) => first.localeCompare(second));
-  const availableTags = useMemo(
-    () =>
-      getSectionTags(sections.flatMap((section) => codex[section.id] ?? [])),
-    [codex, sections]
+  const relationshipTypeSuggestions =
+    relationshipOptions.relationshipTypeSuggestions;
+  const relationshipTypeFilterOptions =
+    relationshipOptions.relationshipTypeFilterOptions;
+  const availableTags = relationshipOptions.graphTagOptions;
+  const workspaceModel = useMemo(
+    () => ({ codex, entryTypes: sections, relationships }),
+    [codex, relationships, sections]
   );
   const displayedRelationships = useMemo(
     () =>
-      filterRelationships(relationships, {
+      getRelationshipListModel(workspaceModel, {
         type: typeFilter,
         entryId: entryFilter,
         query: relationshipQuery,
-        entryById,
       }),
-    [entryById, entryFilter, relationshipQuery, relationships, typeFilter]
+    [entryFilter, relationshipQuery, typeFilter, workspaceModel]
   );
   const graph = useMemo(
-    () =>
-      getRelationshipGraph(
-        displayedRelationships,
-        codex,
-        sections,
-        graphFilters
-      ),
-    [codex, displayedRelationships, graphFilters, sections]
+    () => getRelationshipGraphViewModel(workspaceModel, graphFilters),
+    [graphFilters, workspaceModel]
   );
-  const brokenRelationships = useMemo(
-    () => getBrokenRelationships(relationships, codex, sections),
-    [codex, relationships, sections]
+  const relationshipDiagnostics = useMemo(
+    () => getRelationshipDiagnosticsModel(workspaceModel),
+    [workspaceModel]
   );
-  const orphanedEntries = useMemo(
-    () => getOrphanedEntries(relationships, codex, sections),
-    [codex, relationships, sections]
-  );
-  const relationshipHealth = useMemo(
-    () => getRelationshipHealthSummary(relationships, codex, sections),
-    [codex, relationships, sections]
-  );
+  const brokenRelationships = relationshipDiagnostics.brokenRelationships;
+  const orphanedEntries = relationshipDiagnostics.orphanedEntries;
+  const relationshipHealth = relationshipDiagnostics.healthSummary;
   const selectedGraphNode = useMemo(
     () => graph.nodes.find((node) => node.id === selectedGraphNodeId) ?? null,
     [graph.nodes, selectedGraphNodeId]
   );
-  const selectedGraphEntry = selectedGraphNode
-    ? fullEntryById.get(selectedGraphNode.id) ?? null
-    : null;
 
   const updateGraphFilter = <TKey extends keyof RelationshipGraphFilters>(
     key: TKey,
@@ -351,6 +350,20 @@ export function RelationshipsPage({
     });
   };
 
+  const startEditingById = (relationshipId: string) => {
+    const relationship = relationshipById.get(relationshipId);
+    if (relationship) {
+      startEditing(relationship);
+    }
+  };
+
+  const requestDeleteRelationshipById = (relationshipId: string) => {
+    const relationship = relationshipById.get(relationshipId);
+    if (relationship) {
+      requestDeleteRelationship(relationship);
+    }
+  };
+
   const confirmDeleteRelationship = () => {
     if (!pendingDelete) {
       return;
@@ -381,7 +394,7 @@ export function RelationshipsPage({
             }
           }}
         >
-          Relationship Help
+          {relationshipFeatureCopy.helpLabel}
         </NavLink>
       </section>
 
@@ -391,23 +404,28 @@ export function RelationshipsPage({
       >
         <div className="vwb-section-heading">
           <div>
-            <p className="vwb-kicker">Relationship health</p>
-            <h2 id="relationship-health-title">Diagnostics</h2>
+            <p className="vwb-kicker">
+              {relationshipFeatureCopy.healthSectionTitle}
+            </p>
+            <h2 id="relationship-health-title">
+              {relationshipFeatureCopy.diagnosticsTitle}
+            </h2>
           </div>
         </div>
         <div className="vwb-diagnostics-grid">
           <article className="vwb-diagnostic-card">
-            <span className="vwb-entry-kind">Broken references</span>
+            <span className="vwb-entry-kind">
+              {relationshipFeatureCopy.brokenReferencesLabel}
+            </span>
             <strong>{relationshipHealth.brokenRelationshipCount}</strong>
-            <p>
-              Relationships with a missing source or target after imports or
-              deletes.
-            </p>
+            <p>{relationshipFeatureCopy.brokenReferencesDetail}</p>
           </article>
           <article className="vwb-diagnostic-card">
-            <span className="vwb-entry-kind">Orphaned records</span>
+            <span className="vwb-entry-kind">
+              {relationshipFeatureCopy.orphanedRecordsLabel}
+            </span>
             <strong>{relationshipHealth.orphanedEntryCount}</strong>
-            <p>Entries with no saved relationship links yet.</p>
+            <p>{relationshipFeatureCopy.orphanedRecordsDetail}</p>
           </article>
         </div>
         {brokenRelationships.length > 0 ? (
@@ -423,40 +441,40 @@ export function RelationshipsPage({
                     {relationship.missingTarget ? 'Missing target' : ''}
                   </span>
                   <strong>
-                    {relationship.sourceEntry?.name ??
-                      relationship.sourceEntryId}{' '}
-                    <span>{relationship.type}</span>{' '}
-                    {relationship.targetEntry?.name ??
-                      relationship.targetEntryId}
+                    {relationship.sourceName} <span>{relationship.type}</span>{' '}
+                    {relationship.targetName}
                   </strong>
                 </div>
                 <button
                   className="vwb-secondary-button"
                   type="button"
-                  onClick={() => startEditing(relationship)}
+                  onClick={() => startEditingById(relationship.id)}
                 >
-                  Edit Link
+                  {relationshipFeatureCopy.repairLabel}
                 </button>
                 <button
                   className="vwb-secondary-button vwb-danger-button"
                   type="button"
-                  onClick={() => requestDeleteRelationship(relationship)}
+                  onClick={() => requestDeleteRelationshipById(relationship.id)}
                 >
-                  Delete Broken Link
+                  {relationshipFeatureCopy.deleteLabel}
                 </button>
               </article>
             ))}
           </div>
         ) : (
           <div className="vwb-empty-results" role="status">
-            <strong>No broken relationships.</strong>
-            <p>
-              Every saved relationship currently resolves to existing records.
-            </p>
+            <strong>
+              {relationshipFeatureCopy.noBrokenRelationshipsTitle}
+            </strong>
+            <p>{relationshipFeatureCopy.noBrokenRelationshipsDetail}</p>
           </div>
         )}
         {orphanedEntries.length > 0 ? (
-          <div className="vwb-orphan-list" aria-label="Orphaned records">
+          <div
+            className="vwb-orphan-list"
+            aria-label={relationshipFeatureCopy.orphanedRecordsLabel}
+          >
             {orphanedEntries.slice(0, 10).map((entry) => (
               <span className="vwb-tag" key={entry.id}>
                 {entry.name} ({entry.sectionTitle})
@@ -477,7 +495,9 @@ export function RelationshipsPage({
             <p className="vwb-kicker">
               {editingRelationship ? 'Edit link' : 'New link'}
             </p>
-            <h2 id="relationship-form-title">Relationship editor</h2>
+            <h2 id="relationship-form-title">
+              {relationshipFeatureCopy.relationshipFormTitle}
+            </h2>
           </div>
           {isDraftDirty ? (
             <span className="vwb-status-pill">Unsaved</span>
@@ -485,47 +505,48 @@ export function RelationshipsPage({
         </div>
         {entries.length < 2 ? (
           <div className="vwb-empty-results" role="status">
-            <strong>Create at least two entries first.</strong>
-            <p>Relationships need a source and a target record.</p>
+            <strong>{relationshipFeatureCopy.minimumEntriesTitle}</strong>
+            <p>{relationshipFeatureCopy.minimumEntriesDetail}</p>
           </div>
         ) : (
           <form className="vwb-form" onSubmit={handleSubmit}>
             <div className="vwb-form-grid">
               <label>
-                Source
+                {relationshipSourceControl.label}
                 <select
+                  aria-label={relationshipSourceControl.accessibilityLabel}
                   value={draft.sourceEntryId}
                   onChange={(event) =>
                     updateDraft('sourceEntryId', event.target.value)
                   }
                 >
-                  <option value="">Choose source</option>
-                  {entries.map((entry) => (
-                    <option value={entry.id} key={entry.id}>
-                      {entry.name} ({entry.sectionTitle})
+                  {relationshipEntryOptions.map((option) => (
+                    <option value={option.value} key={option.value}>
+                      {option.label}
                     </option>
                   ))}
                 </select>
               </label>
               <label>
-                Target
+                {relationshipTargetControl.label}
                 <select
+                  aria-label={relationshipTargetControl.accessibilityLabel}
                   value={draft.targetEntryId}
                   onChange={(event) =>
                     updateDraft('targetEntryId', event.target.value)
                   }
                 >
-                  <option value="">Choose target</option>
-                  {entries.map((entry) => (
-                    <option value={entry.id} key={entry.id}>
-                      {entry.name} ({entry.sectionTitle})
+                  {relationshipEntryOptions.map((option) => (
+                    <option value={option.value} key={option.value}>
+                      {option.label}
                     </option>
                   ))}
                 </select>
               </label>
               <label>
-                Type
+                {relationshipTypeControl.label}
                 <input
+                  aria-label={relationshipTypeControl.accessibilityLabel}
                   list="relationship-type-suggestions"
                   value={draft.type}
                   onChange={(event) => updateDraft('type', event.target.value)}
@@ -538,8 +559,9 @@ export function RelationshipsPage({
                 </datalist>
               </label>
               <label>
-                Status
+                {relationshipDraftStatusControl.label}
                 <select
+                  aria-label={relationshipDraftStatusControl.accessibilityLabel}
                   value={draft.status}
                   onChange={(event) =>
                     updateDraft(
@@ -548,7 +570,7 @@ export function RelationshipsPage({
                     )
                   }
                 >
-                  {worldEntryStatusOptions.map((option) => (
+                  {relationshipDraftStatusControl.options.map((option) => (
                     <option value={option.value} key={option.value}>
                       {option.label}
                     </option>
@@ -556,8 +578,9 @@ export function RelationshipsPage({
                 </select>
               </label>
               <label className="vwb-wide-field">
-                Note
+                {relationshipNoteControl.label}
                 <textarea
+                  aria-label={relationshipNoteControl.accessibilityLabel}
                   rows={4}
                   value={draft.note}
                   onChange={(event) => updateDraft('note', event.target.value)}
@@ -567,13 +590,14 @@ export function RelationshipsPage({
             </div>
             <label className="vwb-inline-toggle">
               <input
+                aria-label={relationshipDirectionalControl.accessibilityLabel}
                 checked={draft.directional}
                 onChange={(event) =>
                   updateDraft('directional', event.target.checked)
                 }
                 type="checkbox"
               />
-              Directional relationship
+              {relationshipDirectionalControl.label}
             </label>
             {error ? (
               <p className="vwb-form-error" role="alert">
@@ -582,9 +606,7 @@ export function RelationshipsPage({
             ) : null}
             <div className="vwb-form-actions">
               <button className="vwb-primary-button" type="submit">
-                {editingRelationship
-                  ? 'Update Relationship'
-                  : 'Add Relationship'}
+                {relationshipFeatureCopy.saveRelationshipLabel}
               </button>
               {editingRelationship ? (
                 <button
@@ -592,7 +614,7 @@ export function RelationshipsPage({
                   type="button"
                   onClick={() => resetForm()}
                 >
-                  Cancel Edit
+                  {relationshipFeatureCopy.clearDraftLabel}
                 </button>
               ) : null}
             </div>
@@ -606,7 +628,9 @@ export function RelationshipsPage({
             <p className="vwb-kicker">
               {displayedRelationships.length} of {relationships.length} links
             </p>
-            <h2 id="relationship-list-title">Relationship list</h2>
+            <h2 id="relationship-list-title">
+              {relationshipFeatureCopy.savedSectionTitle}
+            </h2>
           </div>
         </div>
         {relationships.length > 0 ? (
@@ -614,7 +638,7 @@ export function RelationshipsPage({
             <div className="vwb-filter-panel" aria-label="Relationship filters">
               <div className="vwb-filter-row">
                 <label>
-                  Search links
+                  {relationshipFeatureCopy.searchRelationshipsLabel}
                   <input
                     value={relationshipQuery}
                     onChange={(event) =>
@@ -625,15 +649,17 @@ export function RelationshipsPage({
                   />
                 </label>
                 <label>
-                  Type
+                  {relationshipListTypeFilterControl.label}
                   <select
+                    aria-label={
+                      relationshipListTypeFilterControl.accessibilityLabel
+                    }
                     value={typeFilter}
                     onChange={(event) => setTypeFilter(event.target.value)}
                   >
-                    <option value="">Any type</option>
-                    {availableRelationshipTypes.map((type) => (
-                      <option value={type} key={type}>
-                        {type}
+                    {relationshipTypeFilterOptions.map((option) => (
+                      <option value={option.value} key={option.value}>
+                        {option.label}
                       </option>
                     ))}
                   </select>
@@ -663,7 +689,7 @@ export function RelationshipsPage({
                     setRelationshipQuery('');
                   }}
                 >
-                  Clear Filters
+                  {relationshipFeatureCopy.clearFiltersLabel}
                 </button>
               ) : null}
             </div>
@@ -676,13 +702,15 @@ export function RelationshipsPage({
                   >
                     <div>
                       <span className="vwb-entry-kind">
-                        {relationship.directional ? 'Directional' : 'Mutual'} -{' '}
-                        {getEntryStatusLabel(relationship.status)}
+                        {relationship.directionLabel === '->'
+                          ? 'Directional'
+                          : 'Mutual'}{' '}
+                        - {relationship.statusLabel}
                       </span>
                       <strong>
-                        {getEntryLabel(relationship.sourceEntryId)}{' '}
+                        {relationship.sourceName}{' '}
                         <span>{relationship.type}</span>{' '}
-                        {getEntryLabel(relationship.targetEntryId)}
+                        {relationship.targetName}
                       </strong>
                     </div>
                     {relationship.note ? <p>{relationship.note}</p> : null}
@@ -690,16 +718,18 @@ export function RelationshipsPage({
                       <button
                         className="vwb-secondary-button"
                         type="button"
-                        onClick={() => startEditing(relationship)}
+                        onClick={() => startEditingById(relationship.id)}
                       >
-                        Edit
+                        {relationshipFeatureCopy.editLabel}
                       </button>
                       <button
                         className="vwb-secondary-button vwb-danger-button"
                         type="button"
-                        onClick={() => requestDeleteRelationship(relationship)}
+                        onClick={() =>
+                          requestDeleteRelationshipById(relationship.id)
+                        }
                       >
-                        Delete
+                        {relationshipFeatureCopy.deleteLabel}
                       </button>
                     </div>
                   </article>
@@ -707,15 +737,15 @@ export function RelationshipsPage({
               </div>
             ) : (
               <div className="vwb-empty-results" role="status">
-                <strong>No relationships match the filters.</strong>
-                <p>Clear filters or choose a different type or entry.</p>
+                <strong>{relationshipFeatureCopy.noMatchesTitle}</strong>
+                <p>{relationshipFeatureCopy.noMatchesDetail}</p>
               </div>
             )}
           </>
         ) : (
           <div className="vwb-empty-results" role="status">
-            <strong>No relationships yet.</strong>
-            <p>Add a link to start building the world graph.</p>
+            <strong>{relationshipFeatureCopy.emptyTitle}</strong>
+            <p>{relationshipFeatureCopy.emptyDetail}</p>
           </div>
         )}
       </section>
@@ -724,7 +754,9 @@ export function RelationshipsPage({
         <div className="vwb-section-heading">
           <div>
             <p className="vwb-kicker">{graph.nodes.length} connected records</p>
-            <h2 id="relationship-graph-title">Graph view</h2>
+            <h2 id="relationship-graph-title">
+              {relationshipFeatureCopy.graphViewTitle}
+            </h2>
           </div>
         </div>
         <div className="vwb-filter-panel" aria-label="Graph filters">
@@ -737,7 +769,9 @@ export function RelationshipsPage({
                   updateGraphFilter('sectionId', event.target.value)
                 }
               >
-                <option value="">Any section</option>
+                <option value="">
+                  {relationshipFeatureCopy.anySectionLabel}
+                </option>
                 {sections.map((section) => (
                   <option value={section.id} key={section.id}>
                     {section.title}
@@ -746,8 +780,11 @@ export function RelationshipsPage({
               </select>
             </label>
             <label>
-              Status
+              {relationshipGraphStatusFilterControl.label}
               <select
+                aria-label={
+                  relationshipGraphStatusFilterControl.accessibilityLabel
+                }
                 value={graphFilters.status}
                 onChange={(event) =>
                   updateGraphFilter(
@@ -756,8 +793,7 @@ export function RelationshipsPage({
                   )
                 }
               >
-                <option value="">Any status</option>
-                {worldEntryStatusOptions.map((option) => (
+                {relationshipGraphStatusFilterControl.options.map((option) => (
                   <option value={option.value} key={option.value}>
                     {option.label}
                   </option>
@@ -772,7 +808,7 @@ export function RelationshipsPage({
                   updateGraphFilter('tag', event.target.value)
                 }
               >
-                <option value="">Any tag</option>
+                <option value="">{relationshipFeatureCopy.allTagsLabel}</option>
                 {availableTags.map((tag) => (
                   <option value={tag} key={tag}>
                     {tag}
@@ -781,17 +817,19 @@ export function RelationshipsPage({
               </select>
             </label>
             <label>
-              Link type
+              {relationshipGraphTypeFilterControl.label}
               <select
+                aria-label={
+                  relationshipGraphTypeFilterControl.accessibilityLabel
+                }
                 value={graphFilters.type}
                 onChange={(event) =>
                   updateGraphFilter('type', event.target.value)
                 }
               >
-                <option value="">Any type</option>
-                {availableRelationshipTypes.map((type) => (
-                  <option value={type} key={type}>
-                    {type}
+                {relationshipTypeFilterOptions.map((option) => (
+                  <option value={option.value} key={option.value}>
+                    {option.label}
                   </option>
                 ))}
               </select>
@@ -806,7 +844,7 @@ export function RelationshipsPage({
               type="button"
               onClick={clearGraphFilters}
             >
-              Clear Graph Filters
+              {relationshipFeatureCopy.clearGraphFiltersLabel}
             </button>
           ) : null}
         </div>
@@ -824,7 +862,7 @@ export function RelationshipsPage({
                 >
                   <strong>{node.name}</strong>
                   <small>
-                    {node.sectionTitle} - {getEntryStatusLabel(node.status)}
+                    {node.sectionTitle} - {node.statusLabel}
                   </small>
                 </button>
               ))}
@@ -832,21 +870,21 @@ export function RelationshipsPage({
             <div className="vwb-graph-edges" aria-label="Graph edges">
               {graph.edges.map((edge) => (
                 <div className="vwb-graph-edge" key={edge.id}>
-                  <span>{getEntryLabel(edge.sourceId)}</span>
+                  <span>{edge.sourceName}</span>
                   <strong>
-                    {edge.directional ? '->' : '<->'} {edge.label}
+                    {edge.directionLabel} {edge.label}
                   </strong>
-                  <span>{getEntryLabel(edge.targetId)}</span>
+                  <span>{edge.targetName}</span>
                 </div>
               ))}
             </div>
-            {selectedGraphNode && selectedGraphEntry ? (
+            {selectedGraphNode ? (
               <article className="vwb-graph-detail" aria-live="polite">
                 <span className="vwb-entry-kind">
                   {selectedGraphNode.sectionTitle}
                 </span>
                 <h3>{selectedGraphNode.name}</h3>
-                <p>{selectedGraphEntry.summary || 'No summary yet.'}</p>
+                <p>{selectedGraphNode.summaryText}</p>
                 {selectedGraphNode.tags.length > 0 ? (
                   <div className="vwb-tag-row" aria-label="Graph node tags">
                     {selectedGraphNode.tags.map((tag) => (
@@ -861,10 +899,8 @@ export function RelationshipsPage({
           </div>
         ) : (
           <div className="vwb-empty-results" role="status">
-            <strong>No graph yet.</strong>
-            <p>
-              Graph rows appear once saved relationships have valid endpoints.
-            </p>
+            <strong>{relationshipFeatureCopy.noGraphTitle}</strong>
+            <p>{relationshipFeatureCopy.noGraphDetail}</p>
           </div>
         )}
       </section>

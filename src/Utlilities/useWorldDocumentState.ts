@@ -1,23 +1,37 @@
 import { useMemo, useState } from 'react';
-import { localPersistenceCopy } from '@valgaron/core';
-import type {
-  RecoverySnapshot,
-  RecoverySnapshotReason,
-  RecoverySnapshotSummary,
-  InFictionWorld,
-  WorldCodex,
-  WorldDocument,
-  WorldEntry,
-  WorldRelationship,
-  WorldSectionConfig,
-  WorldWorkspace,
-} from '../types';
-import { applyEntry, deleteEntry, setEntryArchived } from './codexEntries';
 import {
-  deleteRelationship,
-  deleteRelationshipsForEntry,
-  upsertRelationship,
-} from './codexRelationships';
+  archiveEntryInActiveWorkspace,
+  archivePlanetaryWorldInActiveWorkspace,
+  createEntryTypeInActiveWorkspace,
+  createWorkspace,
+  deleteEntryTypeFromActiveWorkspace,
+  deleteEntryFromActiveWorkspace,
+  deletePlanetaryWorldFromActiveWorkspace,
+  deleteRelationshipFromActiveWorkspace,
+  deleteWorkspace,
+  duplicateWorkspace,
+  getActiveWorld,
+  localPersistenceCopy,
+  saveEntryInActiveWorkspace,
+  savePlanetaryWorldInActiveWorkspace,
+  saveRelationshipInActiveWorkspace,
+  setActiveWorkspace,
+  setWorkspaceArchived,
+  updateWorkspaceMetadata,
+  type EntryTypeDraft,
+  type InFictionWorld,
+  type PlanetaryWorldDraft,
+  type RecoverySnapshot,
+  type RecoverySnapshotReason,
+  type RecoverySnapshotSummary,
+  type WorldCodex,
+  type WorldDocument,
+  type WorldEntry,
+  type WorldRelationship,
+  type WorldSectionConfig,
+  type WorldWorkspace,
+  type WorkspaceDraft,
+} from '@valgaron/core';
 import {
   addRecoverySnapshot,
   deleteRecoverySnapshot,
@@ -30,24 +44,6 @@ import {
   saveWorldDocument,
   type WorldDocumentLoadStatus,
 } from './codexStorage';
-import {
-  createCustomEntryType,
-  createWorkspace,
-  deleteCustomEntryType,
-  deletePlanetaryWorld,
-  deleteWorkspace,
-  duplicateWorkspace,
-  setActiveWorkspace,
-  setPlanetaryWorldArchived,
-  setWorkspaceArchived,
-  updateActiveWorkspace,
-  updateWorkspaceMetadata,
-  upsertPlanetaryWorld,
-  type EntryTypeDraft,
-  type PlanetaryWorldDraft,
-  type WorkspaceDraft,
-} from './workspaceManagement';
-import { getActiveWorld, updateActiveWorld } from './worldDocument';
 
 export type WorldDocumentSaveStatus = {
   state: 'saved' | 'unsaved' | 'dirty' | 'failed' | 'paused';
@@ -179,56 +175,42 @@ export function useWorldDocumentState(): WorldDocumentState {
 
   const saveEntry = (entry: WorldEntry) => {
     setUnsavedDocument((currentDocument) =>
-      updateActiveWorld(currentDocument, (world) => ({
-        ...world,
-        codex: applyEntry(world.codex, entry, world.entryTypes),
-        updatedAt: new Date().toISOString(),
-      }))
+      saveEntryInActiveWorkspace({ document: currentDocument, entry })
     );
   };
 
   const archiveEntry = (entry: WorldEntry, archived: boolean) => {
     setUnsavedDocument((currentDocument) =>
-      updateActiveWorld(currentDocument, (world) => ({
-        ...world,
-        codex: setEntryArchived(world.codex, entry, archived, world.entryTypes),
-        updatedAt: new Date().toISOString(),
-      }))
+      archiveEntryInActiveWorkspace({
+        archived,
+        document: currentDocument,
+        entry,
+      })
     );
   };
 
   const permanentlyDeleteEntry = (entry: WorldEntry) => {
     captureSnapshot(document, 'permanent-delete');
     setUnsavedDocument((currentDocument) =>
-      updateActiveWorld(currentDocument, (world) => ({
-        ...world,
-        codex: deleteEntry(world.codex, entry, world.entryTypes),
-        relationships: deleteRelationshipsForEntry(
-          world.relationships,
-          entry.id
-        ),
-        updatedAt: new Date().toISOString(),
-      }))
+      deleteEntryFromActiveWorkspace({ document: currentDocument, entry })
     );
   };
 
   const saveRelationship = (relationship: WorldRelationship) => {
     setUnsavedDocument((currentDocument) =>
-      updateActiveWorld(currentDocument, (world) => ({
-        ...world,
-        relationships: upsertRelationship(world.relationships, relationship),
-        updatedAt: new Date().toISOString(),
-      }))
+      saveRelationshipInActiveWorkspace({
+        document: currentDocument,
+        relationship,
+      })
     );
   };
 
   const unlinkRelationship = (relationshipId: string) => {
     setUnsavedDocument((currentDocument) =>
-      updateActiveWorld(currentDocument, (world) => ({
-        ...world,
-        relationships: deleteRelationship(world.relationships, relationshipId),
-        updatedAt: new Date().toISOString(),
-      }))
+      deleteRelationshipFromActiveWorkspace({
+        document: currentDocument,
+        relationshipId,
+      })
     );
   };
 
@@ -341,9 +323,11 @@ export function useWorldDocumentState(): WorldDocumentState {
     existingPlanetaryWorld?: InFictionWorld
   ) => {
     setUnsavedDocument((currentDocument) =>
-      updateActiveWorkspace(currentDocument, (workspace) =>
-        upsertPlanetaryWorld(workspace, draft, existingPlanetaryWorld)
-      )
+      savePlanetaryWorldInActiveWorkspace({
+        document: currentDocument,
+        draft,
+        existingPlanetaryWorld,
+      })
     );
   };
 
@@ -352,35 +336,37 @@ export function useWorldDocumentState(): WorldDocumentState {
     archived: boolean
   ) => {
     setUnsavedDocument((currentDocument) =>
-      updateActiveWorkspace(currentDocument, (workspace) =>
-        setPlanetaryWorldArchived(workspace, planetaryWorldId, archived)
-      )
+      archivePlanetaryWorldInActiveWorkspace({
+        archived,
+        document: currentDocument,
+        planetaryWorldId,
+      })
     );
   };
 
   const permanentlyDeletePlanetaryWorld = (planetaryWorldId: string) => {
     captureSnapshot(document, 'planetary-world-delete');
     setUnsavedDocument((currentDocument) =>
-      updateActiveWorkspace(currentDocument, (workspace) =>
-        deletePlanetaryWorld(workspace, planetaryWorldId)
-      )
+      deletePlanetaryWorldFromActiveWorkspace({
+        document: currentDocument,
+        planetaryWorldId,
+      })
     );
   };
 
   const createEntryType = (draft: EntryTypeDraft) => {
     setUnsavedDocument((currentDocument) =>
-      updateActiveWorkspace(currentDocument, (workspace) =>
-        createCustomEntryType(workspace, draft)
-      )
+      createEntryTypeInActiveWorkspace({ document: currentDocument, draft })
     );
   };
 
   const permanentlyDeleteEntryType = (sectionId: string) => {
     captureSnapshot(document, 'entry-type-delete');
     setUnsavedDocument((currentDocument) =>
-      updateActiveWorkspace(currentDocument, (workspace) =>
-        deleteCustomEntryType(workspace, sectionId)
-      )
+      deleteEntryTypeFromActiveWorkspace({
+        document: currentDocument,
+        sectionId,
+      })
     );
   };
 

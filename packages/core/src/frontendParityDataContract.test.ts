@@ -6,15 +6,24 @@ import {
   serializeWorldDocumentBackup,
   summarizeWorldDocument,
 } from './codexDataPortability';
+import { entryFromDraft, getSectionById } from './codexEntries';
+import { relationshipFromDraft } from './codexRelationships';
 import {
   createWorldDocumentDiagnosticsReport,
   serializeWorldDocumentDiagnosticsReport,
 } from './documentDiagnostics';
 import {
+  saveEntryInActiveWorkspace,
+  savePlanetaryWorldInActiveWorkspace,
+  saveRelationshipInActiveWorkspace,
+} from './documentMutations';
+import {
   createFrontendParityWorldDocument,
   frontendParityForbiddenDiagnosticContent,
 } from './frontendParityFixture';
+import { createSeedWorldDocument } from './seedCodex';
 import type { WorldDocument } from './types';
+import { getActiveWorld } from './worldDocument';
 
 function expectValidImport(text: string): WorldDocument {
   const result = parseWorldImport(text);
@@ -54,6 +63,95 @@ describe('frontend parity data contract', () => {
     expect(
       imported.worlds[0].planetaryWorlds.map((world) => world.status)
     ).toEqual(['draft', 'archived']);
+  });
+
+  it('preserves the standard creative workflow through export and import', () => {
+    let document = createSeedWorldDocument();
+    const activeWorkspace = getActiveWorld(document);
+    const placeSection = getSectionById('places', activeWorkspace.entryTypes);
+    const characterSection = getSectionById(
+      'characters',
+      activeWorkspace.entryTypes
+    );
+
+    if (!placeSection || !characterSection) {
+      throw new Error('Expected seed place and character sections.');
+    }
+
+    const place = entryFromDraft(placeSection, {
+      name: 'Glassfen Crossing',
+      summary: 'A flooded trade post where mirrored reeds mark safe paths.',
+      notes: 'The old ferry bell rings before fog rolls in.',
+      tags: 'wetland, trade',
+      status: 'canon',
+      pinned: true,
+      details: {
+        category: 'Town',
+        region: 'Lowwater March',
+        climate: 'Mist and spring floods',
+        significance: 'Controls the safest road through the southern marsh.',
+      },
+    });
+    document = saveEntryInActiveWorkspace({ document, entry: place });
+
+    const character = entryFromDraft(characterSection, {
+      name: 'Sera Venn',
+      summary: 'A guide who knows which reed mirrors are false.',
+      notes: 'Keeps a tide calendar in a waterproof leather tube.',
+      tags: 'guide, marsh',
+      status: 'canon',
+      pinned: false,
+      details: {
+        role: 'Marsh guide',
+        home: 'Glassfen Crossing',
+        affiliation: 'Ferrywardens',
+        statusNote: 'Available during low-water season',
+      },
+    });
+    document = saveEntryInActiveWorkspace({ document, entry: character });
+
+    document = savePlanetaryWorldInActiveWorkspace({
+      document,
+      draft: {
+        name: 'Asterwake',
+        summary: 'A tide-locked moon that shapes Glassfen flood seasons.',
+        classification: 'Moon',
+        climate: 'Cold tidal air',
+        dominantTerrain: 'Silver marshes',
+        notes: 'Visible as a broken crescent above the crossing.',
+        tags: 'moon, tides',
+      },
+    });
+
+    const relationship = relationshipFromDraft({
+      sourceEntryId: character.id,
+      targetEntryId: place.id,
+      type: 'located in',
+      directional: true,
+      note: 'Sera guides travelers from the Glassfen ferry house.',
+      status: 'canon',
+    });
+    document = saveRelationshipInActiveWorkspace({
+      document,
+      relationship,
+    });
+
+    const fullImport = expectValidImport(
+      serializeWorldDocumentBackup(document)
+    );
+    const activeImport = expectValidImport(
+      serializeActiveWorldBackup(document)
+    );
+
+    expect(fullImport).toEqual(document);
+    expect(activeImport).toEqual(createActiveWorldBackup(document));
+    expect(summarizeWorldDocument(fullImport)).toMatchObject({
+      activeWorldName: 'Sample Atlas',
+      worldCount: 1,
+      planetaryWorldCount: 1,
+      entryCount: 12,
+      relationshipCount: 6,
+    });
   });
 
   it('rejects orphaned relationships in the shared fixture shape', () => {

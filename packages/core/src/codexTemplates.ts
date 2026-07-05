@@ -1,5 +1,9 @@
 import type { WorldEntry, WorldSectionConfig } from './types';
-import type { EntryDraft } from './codexEntries';
+import {
+  createEmptyDraft,
+  draftFromEntry,
+  type EntryDraft,
+} from './codexEntries';
 import { getEntryDetailFields, getDraftDetailFields } from './placeTaxonomy';
 
 export type EntryTemplateDraft = Pick<
@@ -60,6 +64,43 @@ export function createTemplateDraft(
     details: Object.fromEntries(
       getDraftDetailFields(section).map((field) => [field.key, ''])
     ),
+  };
+}
+
+export function createSectionEntryDraft(
+  section: WorldSectionConfig
+): EntryDraft {
+  return {
+    ...createEmptyDraft(),
+    tags: section.kind,
+    details: Object.fromEntries(
+      getDraftDetailFields(section).map((field) => [field.key, ''])
+    ),
+  };
+}
+
+export function createEntryTemplateDraft(
+  entry: WorldEntry,
+  section: WorldSectionConfig
+): EntryDraft {
+  return {
+    ...draftFromEntry(entry, section),
+    name: `${entry.name} Template`,
+    status: 'draft',
+  };
+}
+
+export function applyEntrySectionTemplate(
+  draft: EntryDraft,
+  section: WorldSectionConfig
+): EntryDraft {
+  const template = createTemplateDraft(section);
+  return {
+    ...draft,
+    summary: draft.summary || template.summary,
+    notes: draft.notes || template.notes,
+    tags: draft.tags || template.tags,
+    details: { ...template.details, ...draft.details },
   };
 }
 

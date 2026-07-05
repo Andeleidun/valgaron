@@ -14,15 +14,16 @@ import { ErrorBoundary } from './Components/Common/ErrorBoundary/ErrorBoundary';
 import { RuntimeErrorFallback } from './Components/Common/RuntimeErrorFallback';
 import {
   codexShellRoutes,
+  dataShellExportActions,
   exportWorldToMarkdown,
   getCodexExportFilename,
-  getCodexExportOption,
   getCodexShellRoutes,
   localPersistenceCopy,
   serializeActiveWorldBackup,
   serializeWorldDocumentBackup,
   valgaronProduct,
   webPrimaryRouteOrder,
+  type DataShellExportAction,
   type WorldSectionConfig,
 } from '@valgaron/core';
 import { downloadTextFile, slugFilename } from './Utlilities/fileDownloads';
@@ -44,7 +45,6 @@ const webOverviewRoute = codexShellRoutes.overview;
 const webSecondaryRoutes = webPrimaryRoutes.filter(
   (route) => route.id !== 'overview'
 );
-const headerExportModes = ['active-json', 'full-json', 'markdown'] as const;
 
 function saveButtonText(
   state: 'saved' | 'unsaved' | 'dirty' | 'failed' | 'paused'
@@ -157,7 +157,7 @@ function AppShell() {
   const isSaveButtonDisabled = saveStatus.state === 'saved';
   useBeforeUnloadWarning(hasUnsavedDocumentChanges);
 
-  const getHeaderExportText = (mode: (typeof headerExportModes)[number]) => {
+  const getHeaderExportText = (mode: DataShellExportAction['mode']) => {
     switch (mode) {
       case 'active-json':
         return serializeActiveWorldBackup(document);
@@ -263,21 +263,20 @@ function AppShell() {
                 id={headerDataMenuId}
                 aria-label="Data actions"
               >
-                {headerExportModes.map((mode) => {
-                  const option = getCodexExportOption(mode);
+                {dataShellExportActions.map((action) => {
                   return (
                     <button
-                      key={mode}
+                      key={action.mode}
                       type="button"
                       onClick={() =>
                         downloadHeaderExport(
-                          getCodexExportFilename(mode, filenameBase),
-                          getHeaderExportText(mode),
-                          option.heading
+                          getCodexExportFilename(action.mode, filenameBase),
+                          getHeaderExportText(action.mode),
+                          action.heading
                         )
                       }
                     >
-                      {option.downloadLabel}
+                      {action.downloadLabel}
                     </button>
                   );
                 })}
@@ -300,7 +299,6 @@ function AppShell() {
         <ErrorBoundary
           fallback={({ error, resetErrorBoundary }) => (
             <RuntimeErrorFallback
-              activeWorld={activeWorld}
               basePath={appBasePath}
               document={document}
               error={error}

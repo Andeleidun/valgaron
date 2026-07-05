@@ -2,43 +2,45 @@ import { useEffect, useMemo, useState, type ChangeEvent } from 'react';
 import { NavLink } from 'react-router-dom';
 import {
   type DestructiveActionId,
+  codexDataHelpSummary,
+  codexDataHelpTopics,
   exportWorldToMarkdown,
   formatDestructiveActionTitle,
-  formatUpdatedAt,
-  formatWorldImportPreviewText,
   getCodexExportFilename,
   getCodexExportOption,
   getCodexHelpRoute,
   getCodexScreenIntro,
+  getDataImportReviewState,
   getDataRecoverySnapshotModel,
+  getDataRouteFocusTargetId,
   getDataStorageStatusModel,
+  getLocalSaveStatusModel,
   getDestructiveActionCopy,
-  isCodexExportMode,
+  dataDownloadCopy,
+  dataExportCopy,
+  dataHelpCopy,
   dataImportCopy,
   dataResetCopy,
+  dataExportSectionIds,
+  dataStorageCopy,
+  formatDataDownloadSuccessMessage,
+  getDataExportText,
   localPersistenceCopy,
   parseWorldImport,
+  sanitizeDiagnosticsRoute,
   serializeActiveWorldBackup,
   serializeWorldDocumentBackup,
   type WorldImportResult,
-  type CodexExportMode,
+  type RecoverySnapshotSummary,
+  type WorldDocument,
+  type WorldWorkspace,
 } from '@valgaron/core';
 import { downloadTextFile, slugFilename } from '../Utlilities/fileDownloads';
-import {
-  createLocalDiagnosticsReport,
-  serializeLocalDiagnosticsReport,
-  type LocalDiagnosticMessage,
-} from '../Utlilities/localDiagnostics';
 import {
   confirmDiscardUnsavedChanges,
   useUnsavedChangesWarning,
 } from '../Utlilities/unsavedChanges';
 import { useDialogFocus } from '../Utlilities/dialogFocus';
-import type {
-  RecoverySnapshotSummary,
-  WorldDocument,
-  WorldWorkspace,
-} from '../types';
 import type { WorldDocumentLoadStatus } from '../Utlilities/codexStorage';
 import type {
   RecoverySnapshotStatus,
@@ -53,25 +55,14 @@ type PendingSnapshotAction = {
   snapshotId: string;
 };
 
-const dataExportSectionIds = {
-  'active-json': 'active-json-export',
-  'full-json': 'full-json-export',
-  markdown: 'markdown-export',
-  diagnostics: 'diagnostics-export',
-} as const satisfies Record<CodexExportMode, string>;
-
-function getDataRouteFocusTargetId(): string {
+function getWindowDataRouteFocusTargetId(): string {
   if (typeof window === 'undefined') {
     return '';
   }
-  const hash = decodeURIComponent(window.location.hash.replace(/^#/, ''));
-  if (hash !== 'export') {
-    return hash;
-  }
-  const mode = new URLSearchParams(window.location.search).get('mode');
-  return isCodexExportMode(mode)
-    ? dataExportSectionIds[mode]
-    : dataExportSectionIds['active-json'];
+  return getDataRouteFocusTargetId({
+    focusId: decodeURIComponent(window.location.hash.replace(/^#/, '')),
+    mode: new URLSearchParams(window.location.search).get('mode'),
+  });
 }
 
 function DataActionConfirmationDialog({
@@ -182,7 +173,7 @@ export function DataPage({
     [activeWorld]
   );
   useEffect(() => {
-    const focusTargetId = getDataRouteFocusTargetId();
+    const focusTargetId = getWindowDataRouteFocusTargetId();
     if (!focusTargetId) {
       return;
     }
@@ -191,64 +182,47 @@ export function DataPage({
     focusedSection?.focus({ preventScroll: true });
   }, []);
   const diagnosticsText = useMemo(() => {
-    const recentMessages: LocalDiagnosticMessage[] = [
-      {
-        level: loadStatus.state === 'recovered' ? 'warning' : 'info',
-        source: 'storage-load',
-        message: loadStatus.message,
-        occurredAt: loadStatus.checkedAt,
-      },
-    ];
-    if (saveStatus.state === 'failed') {
-      recentMessages.push({
-        level: 'error',
-        source: 'storage-save',
-        message:
-          'The most recent local browser save failed. Export JSON before continuing risky edits.',
-        occurredAt: saveStatus.savedAt,
-      });
-    }
-    if (saveStatus.state === 'paused') {
-      recentMessages.push({
-        level: 'warning',
-        source: 'storage-save',
-        message:
-          'Local storage recovery loaded starter data. Use the Save button only after exporting anything you may need.',
-        occurredAt: saveStatus.savedAt,
-      });
-    }
-    if (recoverySnapshotStatus.state === 'failed') {
-      recentMessages.push({
-        level: 'error',
-        source: 'recovery-snapshot',
-        message: recoverySnapshotStatus.message,
-        occurredAt: recoverySnapshotStatus.updatedAt,
-      });
-    }
-    return serializeLocalDiagnosticsReport(
-      createLocalDiagnosticsReport({
-        activeWorld,
-        document,
-        loadStatus,
-        recentMessages,
-        recoverySnapshotCount: recoverySnapshots.length,
-        recoverySnapshotStatus,
-        route:
+    const latestRecoverySnapshot =
+      recoverySnapshots.reduce<RecoverySnapshotSummary | null>(
+        (latestSnapshot, snapshot) => {
+          if (!latestSnapshot) {
+            return snapshot;
+          }
+          return Date.parse(snapshot.createdAt) >
+            Date.parse(latestSnapshot.createdAt)
+            ? snapshot
+            : latestSnapshot;
+        },
+        null
+      );
+    return getDataExportText(document, 'diagnostics', {
+      diagnosticsRuntime: {
+        route: sanitizeDiagnosticsRoute(
           typeof window === 'undefined'
             ? '/data'
-            : `${window.location.pathname}${window.location.search}`,
-        saveStatus,
+            : `${window.location.pathname}${window.location.search}`
+        ),
         userAgent:
           typeof navigator === 'undefined'
             ? 'Unavailable'
             : navigator.userAgent,
-      })
-    );
+        loadState: loadStatus.source,
+        loadCheckedAt: loadStatus.checkedAt,
+        loadMessage: loadStatus.message,
+        loadIssueCount: loadStatus.issues.length,
+        saveState: saveStatus.state,
+        recoverySnapshotAvailable: recoverySnapshots.length > 0,
+        recoverySnapshotCount: recoverySnapshots.length,
+        recoverySnapshotState: recoverySnapshotStatus.state,
+        recoverySnapshotReason: latestRecoverySnapshot?.reason,
+        recoverySnapshotCreatedAt: latestRecoverySnapshot?.createdAt,
+      },
+      diagnosticsStorageTarget: localPersistenceCopy.browserSaveTarget,
+    });
   }, [
-    activeWorld,
     document,
     loadStatus,
-    recoverySnapshots.length,
+    recoverySnapshots,
     recoverySnapshotStatus,
     saveStatus,
   ]);
@@ -261,42 +235,24 @@ export function DataPage({
     () => getDataRecoverySnapshotModel(recoverySnapshots),
     [recoverySnapshots]
   );
-  const importPreviewText = importResult?.ok
-    ? formatWorldImportPreviewText(importResult.preview)
-    : null;
-  const saveStatusLabel =
-    saveStatus.state === 'saved'
-      ? 'Saved'
-      : saveStatus.state === 'paused'
-      ? 'Save Paused'
-      : saveStatus.state === 'unsaved'
-      ? 'Needs Save'
-      : saveStatus.state === 'dirty'
-      ? 'Unsaved'
-      : 'Save Failed';
-  const saveStatusDescription =
-    saveStatus.state === 'paused'
-      ? `Manual save paused after local storage recovery: ${formatUpdatedAt(
-          saveStatus.savedAt
-        )}.`
-      : saveStatus.state === 'unsaved'
-      ? `This document is loaded in the session but has not been saved to current ${
-          localPersistenceCopy.browserSaveTarget
-        } yet. Last document timestamp: ${formatUpdatedAt(saveStatus.savedAt)}.`
-      : saveStatus.state === 'dirty'
-      ? `Unsaved session changes. Last ${
-          localPersistenceCopy.browserSaveTarget
-        } save: ${formatUpdatedAt(saveStatus.savedAt)}.`
-      : `Last save attempt: ${formatUpdatedAt(saveStatus.savedAt)}.`;
+  const importReview = useMemo(
+    () => getDataImportReviewState(importText, importResult),
+    [importResult, importText]
+  );
+  const saveStatusModel = getLocalSaveStatusModel({
+    savedAt: saveStatus.savedAt,
+    state: saveStatus.state,
+    targetLabel: localPersistenceCopy.browserSaveTarget,
+  });
   const storageStatus = useMemo(
     () =>
       getDataStorageStatusModel({
         loadStatus,
         recoverySnapshots,
         saveLineLabel: 'Manual save',
-        saveMessage: saveStatusDescription,
+        saveMessage: saveStatusModel.detail,
       }),
-    [loadStatus, recoverySnapshots, saveStatusDescription]
+    [loadStatus, recoverySnapshots, saveStatusModel.detail]
   );
 
   const downloadExport = (
@@ -306,8 +262,8 @@ export function DataPage({
   ) => {
     const didDownload = downloadTextFile(filename, text);
     const message = didDownload
-      ? `Downloaded ${filename}.`
-      : 'Download is unavailable in this runtime; copy the export text instead.';
+      ? formatDataDownloadSuccessMessage(filename)
+      : dataDownloadCopy.exportUnavailableMessage;
     setDownloadMessages((currentMessages) => ({
       ...currentMessages,
       [key]: message,
@@ -322,8 +278,8 @@ export function DataPage({
     const didDownload = downloadTextFile(diagnosticsFilename, diagnosticsText);
     setDiagnosticsDownloadMessage(
       didDownload
-        ? `Downloaded ${diagnosticsFilename}.`
-        : 'Download is unavailable in this runtime; copy the diagnostics text instead.'
+        ? formatDataDownloadSuccessMessage(diagnosticsFilename)
+        : dataDownloadCopy.diagnosticsUnavailableMessage
     );
   };
 
@@ -418,15 +374,15 @@ export function DataPage({
             }
           }}
         >
-          Backup Help
+          {dataHelpCopy.backupHelpLabel}
         </NavLink>
       </section>
 
       <section className="vwb-panel" aria-labelledby="save-status-title">
         <div className="vwb-section-heading">
           <div>
-            <p className="vwb-kicker">Storage status</p>
-            <h2 id="save-status-title">Manual local save</h2>
+            <p className="vwb-kicker">{dataStorageCopy.kicker}</p>
+            <h2 id="save-status-title">{dataStorageCopy.title}</h2>
           </div>
           <span
             className={`vwb-status-pill ${
@@ -437,13 +393,11 @@ export function DataPage({
                 : ''
             }`}
           >
-            {saveStatusLabel}
+            {saveStatusModel.label}
           </span>
         </div>
         <p>
-          {storageStatus.saveLine} Edits stay in this session until you use the
-          header Save button. Export JSON backups before clearing browser data,
-          switching browsers, or changing devices.
+          {storageStatus.saveLine} {dataStorageCopy.manualSaveGuidance}
         </p>
         {saveStatus.state === 'paused' ? (
           <p className="vwb-inline-status is-danger" role="status">
@@ -458,20 +412,20 @@ export function DataPage({
             ? `${loadStatus.issues.length} local storage issue${
                 loadStatus.issues.length === 1 ? '' : 's'
               } found.`
-            : 'No local storage recovery issue was found.'}
+            : dataStorageCopy.noRecoveryIssueMessage}
         </p>
         {loadStatus.issues.length > 0 ? (
-          <ul className="vwb-compact-list" aria-label="Storage load issues">
+          <ul
+            className="vwb-compact-list"
+            aria-label={dataStorageCopy.storageLoadIssuesLabel}
+          >
             {loadStatus.issues.map((issue) => (
               <li key={issue}>{issue}</li>
             ))}
           </ul>
         ) : null}
         <p>
-          {storageStatus.recoveryLine} Recovery snapshots are saved before
-          import, reset, permanent entry delete, relationship delete, and
-          snapshot restore actions. Keep JSON exports as your device-independent
-          backup.
+          {storageStatus.recoveryLine} {dataStorageCopy.recoveryGuidance}
         </p>
       </section>
 
@@ -483,7 +437,7 @@ export function DataPage({
       >
         <div className="vwb-section-heading">
           <div>
-            <p className="vwb-kicker">Local-only report</p>
+            <p className="vwb-kicker">{dataExportCopy.localOnlyReportKicker}</p>
             <h2 id="diagnostics-title">{diagnosticsExportOption.heading}</h2>
           </div>
           <button
@@ -641,7 +595,9 @@ export function DataPage({
             <h2 id="import-title">{dataImportCopy.title}</h2>
           </div>
           {isImportDirty ? (
-            <span className="vwb-status-pill">Unsaved</span>
+            <span className="vwb-status-pill">
+              {dataImportCopy.unsavedLabel}
+            </span>
           ) : null}
         </div>
         <div className="vwb-form">
@@ -678,7 +634,7 @@ export function DataPage({
             >
               {dataImportCopy.previewLabel}
             </button>
-            {importResult?.ok ? (
+            {importReview.canImport ? (
               <button
                 className="vwb-secondary-button"
                 type="button"
@@ -688,15 +644,15 @@ export function DataPage({
               </button>
             ) : null}
           </div>
-          {importPreviewText ? (
+          {importReview.previewText ? (
             <div className="vwb-import-preview" role="status">
-              <strong>{importPreviewText.title}</strong>
-              <span>{importPreviewText.detail}</span>
+              <strong>{importReview.previewText.title}</strong>
+              <span>{importReview.previewText.detail}</span>
             </div>
           ) : null}
-          {importResult && !importResult.ok ? (
+          {importReview.error ? (
             <p className="vwb-form-error" role="alert">
-              {importResult.error}
+              {importReview.error}
             </p>
           ) : null}
         </div>
@@ -809,6 +765,34 @@ export function DataPage({
           </button>
         </div>
         <p>{dataResetCopy.description}</p>
+      </section>
+
+      <section className="vwb-panel" aria-labelledby="data-help-title">
+        <div className="vwb-section-heading">
+          <div>
+            <p className="vwb-kicker">{dataHelpCopy.kicker}</p>
+            <h2 id="data-help-title">{dataHelpCopy.title}</h2>
+          </div>
+          <NavLink
+            className="vwb-secondary-button"
+            to={getCodexHelpRoute('data')}
+            onClick={(event) => {
+              if (!confirmDiscardUnsavedChanges(isImportDirty)) {
+                event.preventDefault();
+              }
+            }}
+          >
+            {dataHelpCopy.openHelpLabel}
+          </NavLink>
+        </div>
+        <p>{codexDataHelpSummary}</p>
+        <ul className="vwb-compact-list">
+          {codexDataHelpTopics.map((topic) => (
+            <li key={topic.title}>
+              <strong>{topic.title}:</strong> {topic.items.join(' ')}
+            </li>
+          ))}
+        </ul>
       </section>
     </main>
   );

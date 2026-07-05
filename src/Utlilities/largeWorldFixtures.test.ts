@@ -1,8 +1,6 @@
 import { describe, expect, it } from '@jest/globals';
-import { getEntries } from './codexEntries';
+import { getActiveWorld, getEntries, worldSections } from '@valgaron/core';
 import { createLargeWorldDocument } from './largeWorldFixtures';
-import { worldSections } from './seedCodex';
-import { getActiveWorld } from './worldDocument';
 
 describe('large world fixtures', () => {
   it('creates deterministic entries, relationships, and in-fiction worlds for every section', () => {

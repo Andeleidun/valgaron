@@ -31,7 +31,7 @@ Schema changes must include:
 Before a public release:
 
 1. update `package.json` version;
-2. update `src/Utlilities/appMetadata.ts`;
+2. update `packages/core/src/shell.ts` product version metadata;
 3. add a `CHANGELOG.md` entry;
 4. run `npm run check:release`;
 5. run the manual release checklist;

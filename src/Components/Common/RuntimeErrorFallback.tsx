@@ -1,18 +1,19 @@
 import { useMemo, useState } from 'react';
-import type { WorldDocument, WorldWorkspace } from '../../types';
+import {
+  getDataExportText,
+  getRuntimeRecoveryCopy,
+  localPersistenceCopy,
+  sanitizeDiagnosticsRoute,
+  type WorldDocument,
+} from '@valgaron/core';
 import type { WorldDocumentLoadStatus } from '../../Utlilities/codexStorage';
 import { downloadTextFile } from '../../Utlilities/fileDownloads';
-import {
-  createLocalDiagnosticsReport,
-  serializeLocalDiagnosticsReport,
-} from '../../Utlilities/localDiagnostics';
 import type {
   RecoverySnapshotStatus,
   WorldDocumentSaveStatus,
 } from '../../Utlilities/useWorldDocumentState';
 
 export function RuntimeErrorFallback({
-  activeWorld,
   basePath,
   document,
   error,
@@ -23,7 +24,6 @@ export function RuntimeErrorFallback({
   route,
   saveStatus,
 }: {
-  activeWorld: WorldWorkspace;
   basePath: string;
   document: WorldDocument;
   error: Error | null;
@@ -35,31 +35,28 @@ export function RuntimeErrorFallback({
   saveStatus: WorldDocumentSaveStatus;
 }) {
   const [downloadMessage, setDownloadMessage] = useState('');
+  const copy = getRuntimeRecoveryCopy();
   const diagnosticsText = useMemo(() => {
-    const report = createLocalDiagnosticsReport({
-      activeWorld,
-      document,
-      loadStatus,
-      recentMessages: [
-        {
-          level: 'error',
-          source: 'runtime',
-          message: error
-            ? `${error.name}: ${error.message}`
-            : 'Unknown rendering error.',
-          occurredAt: new Date().toISOString(),
-        },
-      ],
-      recoverySnapshotCount,
-      recoverySnapshotStatus,
-      route,
-      saveStatus,
-      userAgent:
-        typeof navigator === 'undefined' ? 'Unavailable' : navigator.userAgent,
+    return getDataExportText(document, 'diagnostics', {
+      diagnosticsRuntime: {
+        route: sanitizeDiagnosticsRoute(route),
+        userAgent:
+          typeof navigator === 'undefined'
+            ? 'Unavailable'
+            : navigator.userAgent,
+        loadState: loadStatus.source,
+        loadCheckedAt: loadStatus.checkedAt,
+        loadMessage: loadStatus.message,
+        loadIssueCount: loadStatus.issues.length,
+        saveState: saveStatus.state,
+        recoverySnapshotAvailable: recoverySnapshotCount > 0,
+        recoverySnapshotCount,
+        recoverySnapshotState: recoverySnapshotStatus.state,
+        runtimeErrorName: error?.name ?? 'UnknownError',
+      },
+      diagnosticsStorageTarget: localPersistenceCopy.browserSaveTarget,
     });
-    return serializeLocalDiagnosticsReport(report);
   }, [
-    activeWorld,
     document,
     error,
     loadStatus,
@@ -76,8 +73,8 @@ export function RuntimeErrorFallback({
     );
     setDownloadMessage(
       didDownload
-        ? 'Diagnostics downloaded.'
-        : 'Download is unavailable in this runtime; copy the diagnostics text instead.'
+        ? copy.diagnosticsDownloadedMessage
+        : copy.diagnosticsUnavailableMessage
     );
   };
 
@@ -88,12 +85,9 @@ export function RuntimeErrorFallback({
       tabIndex={-1}
     >
       <section className="vwb-panel">
-        <p className="vwb-kicker">Recovery</p>
-        <h1>Something went wrong</h1>
-        <p>
-          The app caught a rendering failure before the page went blank. Your
-          local document was not deleted by this recovery screen.
-        </p>
+        <p className="vwb-kicker">{copy.kicker}</p>
+        <h1>{copy.title}</h1>
+        <p>{copy.detail}</p>
         {error ? (
           <p className="vwb-form-error" role="alert">
             {error.name}: {error.message}
@@ -105,17 +99,17 @@ export function RuntimeErrorFallback({
             type="button"
             onClick={onRetry}
           >
-            Retry
+            {copy.retryLabel}
           </button>
           <a className="vwb-secondary-link" href={`${basePath}data`}>
-            Open Data
+            {copy.dataLabel}
           </a>
           <button
             className="vwb-secondary-button"
             type="button"
             onClick={() => window.location.reload()}
           >
-            Reload App
+            {copy.reloadLabel}
           </button>
         </div>
       </section>
@@ -127,26 +121,23 @@ export function RuntimeErrorFallback({
         <div className="vwb-section-heading">
           <div>
             <p className="vwb-kicker">Local-only report</p>
-            <h2 id="runtime-diagnostics-title">Diagnostics</h2>
+            <h2 id="runtime-diagnostics-title">{copy.diagnosticsTitle}</h2>
           </div>
           <button
             className="vwb-primary-button"
             type="button"
             onClick={downloadDiagnostics}
           >
-            Download Diagnostics
+            {copy.downloadDiagnosticsLabel}
           </button>
         </div>
-        <p>
-          This report excludes world names, entry names, notes, summaries, tags,
-          and ids by default.
-        </p>
+        <p>{copy.diagnosticsDescription}</p>
         <textarea
           className="vwb-export-textarea"
           readOnly
           rows={10}
           value={diagnosticsText}
-          aria-label="Runtime diagnostics JSON"
+          aria-label={copy.diagnosticsTextAreaLabel}
         />
         {downloadMessage ? (
           <p className="vwb-inline-status" role="status">

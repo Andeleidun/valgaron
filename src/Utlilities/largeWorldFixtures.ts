@@ -7,9 +7,8 @@ import type {
   WorldRelationship,
   WorldSectionConfig,
   WorldWorkspace,
-} from '../types';
-import { worldSections } from './seedCodex';
-import { CURRENT_WORLD_SCHEMA_VERSION } from './worldDocument';
+} from '@valgaron/core';
+import { CURRENT_WORLD_SCHEMA_VERSION, worldSections } from '@valgaron/core';
 
 export type LargeWorldFixtureOptions = {
   entriesPerSection?: number;

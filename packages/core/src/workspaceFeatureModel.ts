@@ -4,7 +4,8 @@ import type {
   WorldSectionConfig,
   WorldWorkspace,
 } from './types';
-import { formatUpdatedAt, getEntries } from './codexEntries';
+import { entryDisplayCopy, formatUpdatedAt, getEntries } from './codexEntries';
+import { pluralizeCountLabel } from './featureDisplayLimits';
 import {
   getWorkspaceActionState,
   type WorkspaceActionState,
@@ -36,6 +37,14 @@ export const workspaceFeatureCopy = {
     planetaryWorlds: 'In-fiction worlds and planets',
     customEntryTypes: 'Custom entry types',
   },
+  status: {
+    active: 'Active',
+    unsaved: 'Unsaved',
+  },
+  customEntryTypes: {
+    kindLabel: 'Custom codex section',
+    fieldsPrefix: 'Fields',
+  },
   forms: {
     editWorkspace: 'Edit workspace',
     newWorkspace: 'New workspace metadata',
@@ -45,6 +54,11 @@ export const workspaceFeatureCopy = {
     createWorld: 'Create in-fiction world',
     newCustomSection: 'New custom section',
     createEntryType: 'Create entry type',
+  },
+  draftStatus: {
+    workspace: 'Unsaved workspace draft.',
+    planetaryWorld: 'Unsaved in-fiction world draft.',
+    customEntryType: 'Unsaved custom type draft.',
   },
 } as const;
 
@@ -70,8 +84,10 @@ export type CustomEntryTypeRowModel = {
   section: WorldSectionConfig;
   id: string;
   title: string;
+  kindLabel: string;
   descriptionText: string;
   fieldsText: string;
+  fieldsLine: string;
   entryCount: number;
   entryCountLabel: string;
 };
@@ -92,6 +108,7 @@ export type PlanetaryWorldRowModel = {
 export type WorkspaceFeatureListModel<TRow> = {
   query: string;
   label: string;
+  countLabel: string;
   placeholder: string;
   rows: TRow[];
   totalCount: number;
@@ -129,6 +146,45 @@ export function getPlanetaryWorldFormKicker(worldName?: string): string {
     : workspaceFeatureCopy.forms.newWorld;
 }
 
+export type WorkspaceFeatureAccessibilityAction =
+  | 'edit-workspace'
+  | 'restore-workspace'
+  | 'archive-workspace'
+  | 'duplicate-workspace'
+  | 'delete-workspace'
+  | 'edit-planetary-world'
+  | 'restore-planetary-world'
+  | 'archive-planetary-world'
+  | 'delete-planetary-world'
+  | 'delete-custom-entry-type';
+
+const workspaceFeatureAccessibilityTemplates: Record<
+  WorkspaceFeatureAccessibilityAction,
+  string
+> = {
+  'edit-workspace': 'Edit workspace',
+  'restore-workspace': 'Restore workspace',
+  'archive-workspace': 'Archive workspace',
+  'duplicate-workspace': 'Duplicate workspace',
+  'delete-workspace': 'Delete workspace',
+  'edit-planetary-world': 'Edit in-fiction world',
+  'restore-planetary-world': 'Restore in-fiction world',
+  'archive-planetary-world': 'Archive in-fiction world',
+  'delete-planetary-world': 'Delete in-fiction world',
+  'delete-custom-entry-type': 'Delete custom entry type',
+};
+
+export function formatWorkspaceFeatureAccessibilityLabel(
+  action: WorkspaceFeatureAccessibilityAction,
+  name: string
+): string {
+  return `${workspaceFeatureAccessibilityTemplates[action]} ${name}`;
+}
+
+export function formatCustomEntryTypeFieldsLine(fieldsText: string): string {
+  return `${workspaceFeatureCopy.customEntryTypes.fieldsPrefix}: ${fieldsText}`;
+}
+
 function matchesQuery(values: readonly string[], query: string): boolean {
   const normalizedQuery = query.trim().toLowerCase();
   return (
@@ -137,15 +193,13 @@ function matchesQuery(values: readonly string[], query: string): boolean {
   );
 }
 
-function pluralize(count: number, singular: string, plural = `${singular}s`) {
-  return count === 1 ? singular : plural;
-}
-
 function createListModel<TRow>({
   emptyText,
   hiddenUnit,
   hiddenTextLabel,
   label,
+  countUnit,
+  countUnitPlural,
   placeholder,
   query,
   rows,
@@ -155,6 +209,8 @@ function createListModel<TRow>({
   hiddenUnit: string;
   hiddenTextLabel: string;
   label: string;
+  countUnit: string;
+  countUnitPlural?: string;
   placeholder: string;
   query: string;
   rows: TRow[];
@@ -165,6 +221,11 @@ function createListModel<TRow>({
   return {
     query,
     label,
+    countLabel: `${rows.length} ${pluralizeCountLabel(
+      rows.length,
+      countUnit,
+      countUnitPlural
+    )}`,
     placeholder,
     rows: visibleRows,
     totalCount: rows.length,
@@ -172,7 +233,7 @@ function createListModel<TRow>({
     emptyText,
     hiddenText:
       hiddenCount > 0
-        ? `Refine ${hiddenTextLabel} to show ${hiddenCount} more ${pluralize(
+        ? `Refine ${hiddenTextLabel} to show ${hiddenCount} more ${pluralizeCountLabel(
             hiddenCount,
             hiddenUnit
           )}.`
@@ -230,7 +291,7 @@ export function getWorkspaceFeatureModel({
       statusLine: `${workspace.status} - ${
         workspace.defaultEra || 'No default era'
       }`,
-      summaryText: workspace.summary || 'No summary yet.',
+      summaryText: workspace.summary || entryDisplayCopy.emptySummary,
       updatedText: `Updated ${formatUpdatedAt(workspace.updatedAt)}`,
       isActive: workspace.id === activeWorld.id,
       actionState: getWorkspaceActionState({
@@ -257,17 +318,23 @@ export function getWorkspaceFeatureModel({
     )
     .map((section) => {
       const entryCount = getEntries(activeWorld.codex, section.id).length;
+      const fieldsText =
+        section.detailFields.length > 0
+          ? section.detailFields.map((field) => field.label).join(', ')
+          : 'No custom fields';
       return {
         section,
         id: section.id,
         title: section.title,
+        kindLabel: workspaceFeatureCopy.customEntryTypes.kindLabel,
         descriptionText: section.description || 'No description yet.',
-        fieldsText:
-          section.detailFields.length > 0
-            ? section.detailFields.map((field) => field.label).join(', ')
-            : 'No custom fields',
+        fieldsText,
         entryCount,
-        entryCountLabel: `${entryCount} ${pluralize(entryCount, 'entry')}`,
+        entryCountLabel: `${entryCount} ${pluralizeCountLabel(
+          entryCount,
+          'entry'
+        )}`,
+        fieldsLine: formatCustomEntryTypeFieldsLine(fieldsText),
       };
     });
 
@@ -302,7 +369,7 @@ export function getWorkspaceFeatureModel({
       classificationLabel: planetaryWorld.classification || 'Unclassified',
       climateText: `Climate: ${planetaryWorld.climate || 'Not set'}`,
       terrainText: `Terrain: ${planetaryWorld.dominantTerrain || 'Not set'}`,
-      summaryText: planetaryWorld.summary || 'No summary yet.',
+      summaryText: planetaryWorld.summary || entryDisplayCopy.emptySummary,
       tagsText: `Tags: ${
         planetaryWorld.tags.length > 0
           ? planetaryWorld.tags.join(', ')
@@ -328,6 +395,7 @@ export function getWorkspaceFeatureModel({
       hiddenUnit: 'workspace',
       hiddenTextLabel: 'workspace search',
       label: 'Search workspaces',
+      countUnit: 'project workspace',
       placeholder: 'Name, summary, era, status, or id',
       query: workspaceQuery,
       rows: workspaceRows,
@@ -340,6 +408,7 @@ export function getWorkspaceFeatureModel({
       hiddenUnit: 'type',
       hiddenTextLabel: 'custom type search',
       label: 'Search custom entry types',
+      countUnit: 'custom type',
       placeholder: 'Title, field, description, or id',
       query: customEntryTypeQuery,
       rows: customEntryTypeRows,
@@ -352,6 +421,7 @@ export function getWorkspaceFeatureModel({
       hiddenUnit: 'world',
       hiddenTextLabel: 'in-fiction world search',
       label: 'Search in-fiction worlds',
+      countUnit: 'in-fiction world',
       placeholder: 'Name, climate, terrain, tag, status, or id',
       query: planetaryWorldQuery,
       rows: planetaryWorldRows,

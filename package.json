@@ -26,6 +26,7 @@
     "check:metadata": "node scripts/checkAppMetadata.cjs",
     "check:audit": "node scripts/checkRuntimeAudit.cjs",
     "mobile:doctor": "node scripts/mobileDoctor.cjs",
+    "generate:place-taxonomy": "node scripts/generatePlaceTaxonomy.cjs",
     "check:performance": "jest src/Utlilities/largeWorldPerformance.test.ts --runInBand",
     "check:pwa": "npm run build:pages && node scripts/verifyPwaBuild.cjs",
     "check:browser": "node scripts/browserSmoke.cjs",

@@ -17,35 +17,40 @@ import type {
 } from '@valgaron/core';
 import {
   applyEntry,
-  createCustomEntryType,
+  archiveEntryInActiveWorkspace,
+  archivePlanetaryWorldInActiveWorkspace,
+  createEntryTypeInActiveWorkspace,
   createEmptyRelationshipDraft,
   createSeedWorldDocument,
   createWorkspace as createCoreWorkspace,
-  deleteCustomEntryType,
-  deleteEntry,
-  deletePlanetaryWorld,
-  deleteRelationship,
-  deleteRelationshipsForEntry,
+  deleteEntryTypeFromActiveWorkspace,
+  deleteEntryFromActiveWorkspace,
+  deletePlanetaryWorldFromActiveWorkspace,
+  deleteRelationshipFromActiveWorkspace,
   deleteWorkspace as deleteCoreWorkspace,
   duplicateEntry as duplicateCoreEntry,
   duplicateWorkspace as duplicateCoreWorkspace,
   entryFromDraft,
   formatDraftValidationErrors,
   getActiveWorld,
-  getEntries,
+  getDataActionResultMessage,
+  dataRecoverySnapshotDeleteFailedMessage,
+  dataRecoverySnapshotSaveFailedMessage,
+  dataRecoverySnapshotUnavailableMessage,
   getRelationshipEntries,
-  getTimelineOrderUpdates,
+  getDeviceCommitPendingMessage,
+  getDeviceCommitResolvedMessage,
+  getDeviceCommitResultMessage,
   localPersistenceCopy,
+  moveTimelineEventInActiveWorkspace,
   relationshipFromDraft,
+  saveEntryInActiveWorkspace,
+  savePlanetaryWorldInActiveWorkspace,
+  saveRelationshipInActiveWorkspace,
   setActiveWorkspace,
-  setEntryArchived,
-  setPlanetaryWorldArchived,
   setWorkspaceArchived,
-  updateActiveWorkspace,
   updateActiveWorld,
   updateWorkspaceMetadata,
-  upsertPlanetaryWorld,
-  upsertRelationship,
   validateEntryDraft,
   validateEntryTypeDraft,
   validatePlanetaryWorldDraft,
@@ -72,14 +77,6 @@ import {
   type MobileRecoverySnapshot,
   type MobileRecoverySnapshotReason,
 } from '../storage/mobileStorage';
-import {
-  getMobileDataActionResultMessage,
-  mobileRecoverySnapshotSaveFailedMessage,
-} from './mobileDestructiveActions';
-import {
-  getMobileCommitPendingMessage,
-  getMobileCommitResolvedMessage,
-} from './mobileCommitFeedback';
 type MobileCodexState = {
   document: WorldDocument;
   loadStatus: MobileDocumentLoadStatus;
@@ -212,7 +209,7 @@ export function MobileCodexProvider({ children }: { children: ReactNode }) {
                 }
                 return {
                   ...latest,
-                  formMessage: mobileRecoverySnapshotSaveFailedMessage,
+                  formMessage: dataRecoverySnapshotSaveFailedMessage,
                   lastRecoverySnapshot:
                     latest.lastRecoverySnapshot?.id === snapshot.id
                       ? nextRecoverySnapshots[0] ?? null
@@ -232,7 +229,9 @@ export function MobileCodexProvider({ children }: { children: ReactNode }) {
                     saveMessage: didSave
                       ? localPersistenceCopy.deviceSaved
                       : localPersistenceCopy.deviceSaveFailed,
-                    formMessage: getMobileCommitResolvedMessage({
+                    formMessage: getDeviceCommitResolvedMessage({
+                      blockingFailureMessage:
+                        dataRecoverySnapshotSaveFailedMessage,
                       currentFormMessage: latest.formMessage,
                       didSave,
                       savedFormMessage,
@@ -246,7 +245,7 @@ export function MobileCodexProvider({ children }: { children: ReactNode }) {
           ...current,
           document: nextDocument,
           saveMessage: localPersistenceCopy.deviceSaving,
-          formMessage: getMobileCommitPendingMessage(savedFormMessage),
+          formMessage: getDeviceCommitPendingMessage(savedFormMessage),
           lastRecoverySnapshot: snapshot ?? current.lastRecoverySnapshot,
           recoverySnapshots: snapshot
             ? [
@@ -291,30 +290,24 @@ export function MobileCodexProvider({ children }: { children: ReactNode }) {
         const entry = entryFromDraft(section, draft, existingEntry);
         commitDocument(
           (currentDocument) =>
-            updateActiveWorld(currentDocument, (world) => ({
-              ...world,
-              codex: applyEntry(world.codex, entry, world.entryTypes),
-              updatedAt: new Date().toISOString(),
-            })),
+            saveEntryInActiveWorkspace({
+              document: currentDocument,
+              entry,
+            }),
           undefined,
           existingEntry
-            ? 'Updated entry on this device.'
-            : 'Saved entry on this device.'
+            ? getDeviceCommitResultMessage('entry-updated')
+            : getDeviceCommitResultMessage('entry-saved')
         );
         return entry;
       },
       archiveEntry(entry, archived) {
         commitDocument((currentDocument) =>
-          updateActiveWorld(currentDocument, (world) => ({
-            ...world,
-            codex: setEntryArchived(
-              world.codex,
-              entry,
-              archived,
-              world.entryTypes
-            ),
-            updatedAt: new Date().toISOString(),
-          }))
+          archiveEntryInActiveWorkspace({
+            archived,
+            document: currentDocument,
+            entry,
+          })
         );
       },
       duplicateEntry(section, entry) {
@@ -330,38 +323,20 @@ export function MobileCodexProvider({ children }: { children: ReactNode }) {
       },
       moveTimelineEvent(eventId, direction) {
         commitDocument((currentDocument) =>
-          updateActiveWorld(currentDocument, (world) => {
-            const updates = getTimelineOrderUpdates(
-              getEntries(world.codex, 'timeline'),
-              eventId,
-              direction
-            );
-            if (updates.length === 0) {
-              return world;
-            }
-            return {
-              ...world,
-              codex: updates.reduce(
-                (codex, event) => applyEntry(codex, event, world.entryTypes),
-                world.codex
-              ),
-              updatedAt: new Date().toISOString(),
-            };
+          moveTimelineEventInActiveWorkspace({
+            direction,
+            document: currentDocument,
+            eventId,
           })
         );
       },
       permanentlyDeleteEntry(entry) {
         commitDocument(
           (currentDocument) =>
-            updateActiveWorld(currentDocument, (world) => ({
-              ...world,
-              codex: deleteEntry(world.codex, entry, world.entryTypes),
-              relationships: deleteRelationshipsForEntry(
-                world.relationships,
-                entry.id
-              ),
-              updatedAt: new Date().toISOString(),
-            })),
+            deleteEntryFromActiveWorkspace({
+              document: currentDocument,
+              entry,
+            }),
           'permanent-delete'
         );
       },
@@ -380,44 +355,32 @@ export function MobileCodexProvider({ children }: { children: ReactNode }) {
         const relationship = relationshipFromDraft(draft, existingRelationship);
         commitDocument(
           (currentDocument) =>
-            updateActiveWorld(currentDocument, (world) => ({
-              ...world,
-              relationships: upsertRelationship(
-                world.relationships,
-                relationship
-              ),
-              updatedAt: new Date().toISOString(),
-            })),
+            saveRelationshipInActiveWorkspace({
+              document: currentDocument,
+              relationship,
+            }),
           undefined,
           existingRelationship
-            ? 'Updated relationship on this device.'
-            : 'Saved relationship on this device.'
+            ? getDeviceCommitResultMessage('relationship-updated')
+            : getDeviceCommitResultMessage('relationship-saved')
         );
         return true;
       },
       unlinkRelationship(relationshipId) {
         commitDocument((currentDocument) =>
-          updateActiveWorld(currentDocument, (world) => ({
-            ...world,
-            relationships: deleteRelationship(
-              world.relationships,
-              relationshipId
-            ),
-            updatedAt: new Date().toISOString(),
-          }))
+          deleteRelationshipFromActiveWorkspace({
+            document: currentDocument,
+            relationshipId,
+          })
         );
       },
       removeRelationship(relationshipId) {
         commitDocument(
           (currentDocument) =>
-            updateActiveWorld(currentDocument, (world) => ({
-              ...world,
-              relationships: deleteRelationship(
-                world.relationships,
-                relationshipId
-              ),
-              updatedAt: new Date().toISOString(),
-            })),
+            deleteRelationshipFromActiveWorkspace({
+              document: currentDocument,
+              relationshipId,
+            }),
           'relationship-delete'
         );
       },
@@ -430,7 +393,7 @@ export function MobileCodexProvider({ children }: { children: ReactNode }) {
         commitDocument(
           (currentDocument) => createCoreWorkspace(currentDocument, draft),
           undefined,
-          'Created workspace on this device.'
+          getDeviceCommitResultMessage('workspace-created')
         );
         return true;
       },
@@ -444,7 +407,7 @@ export function MobileCodexProvider({ children }: { children: ReactNode }) {
           (currentDocument) =>
             updateWorkspaceMetadata(currentDocument, workspaceId, draft),
           undefined,
-          'Updated workspace on this device.'
+          getDeviceCommitResultMessage('workspace-updated')
         );
         return true;
       },
@@ -478,29 +441,34 @@ export function MobileCodexProvider({ children }: { children: ReactNode }) {
         }
         commitDocument(
           (currentDocument) =>
-            updateActiveWorkspace(currentDocument, (workspace) =>
-              upsertPlanetaryWorld(workspace, draft, existingPlanetaryWorld)
-            ),
+            savePlanetaryWorldInActiveWorkspace({
+              document: currentDocument,
+              draft,
+              existingPlanetaryWorld,
+            }),
           undefined,
           existingPlanetaryWorld
-            ? 'Updated in-fiction world on this device.'
-            : 'Saved in-fiction world on this device.'
+            ? getDeviceCommitResultMessage('planetary-world-updated')
+            : getDeviceCommitResultMessage('planetary-world-saved')
         );
         return true;
       },
       archivePlanetaryWorld(planetaryWorldId, archived) {
         commitDocument((currentDocument) =>
-          updateActiveWorkspace(currentDocument, (workspace) =>
-            setPlanetaryWorldArchived(workspace, planetaryWorldId, archived)
-          )
+          archivePlanetaryWorldInActiveWorkspace({
+            archived,
+            document: currentDocument,
+            planetaryWorldId,
+          })
         );
       },
       permanentlyDeletePlanetaryWorld(planetaryWorldId) {
         commitDocument(
           (currentDocument) =>
-            updateActiveWorkspace(currentDocument, (workspace) =>
-              deletePlanetaryWorld(workspace, planetaryWorldId)
-            ),
+            deletePlanetaryWorldFromActiveWorkspace({
+              document: currentDocument,
+              planetaryWorldId,
+            }),
           'planetary-world-delete'
         );
       },
@@ -512,20 +480,22 @@ export function MobileCodexProvider({ children }: { children: ReactNode }) {
         }
         commitDocument(
           (currentDocument) =>
-            updateActiveWorkspace(currentDocument, (workspace) =>
-              createCustomEntryType(workspace, draft)
-            ),
+            createEntryTypeInActiveWorkspace({
+              document: currentDocument,
+              draft,
+            }),
           undefined,
-          'Created entry type on this device.'
+          getDeviceCommitResultMessage('entry-type-created')
         );
         return true;
       },
       permanentlyDeleteEntryType(sectionId) {
         commitDocument(
           (currentDocument) =>
-            updateActiveWorkspace(currentDocument, (workspace) =>
-              deleteCustomEntryType(workspace, sectionId)
-            ),
+            deleteEntryTypeFromActiveWorkspace({
+              document: currentDocument,
+              sectionId,
+            }),
           'entry-type-delete'
         );
       },
@@ -543,7 +513,7 @@ export function MobileCodexProvider({ children }: { children: ReactNode }) {
         commitDocument(
           () => importResult.document,
           'import',
-          getMobileDataActionResultMessage('import-document')
+          getDataActionResultMessage('import-document')
         );
       },
       restoreRecoverySnapshot(snapshotId) {
@@ -553,14 +523,14 @@ export function MobileCodexProvider({ children }: { children: ReactNode }) {
         if (!snapshot) {
           setState((current) => ({
             ...current,
-            formMessage: 'No recovery snapshot is available on this device.',
+            formMessage: dataRecoverySnapshotUnavailableMessage,
           }));
           return;
         }
         commitDocument(
           () => snapshot.document,
           'restore',
-          getMobileDataActionResultMessage('restore-snapshot')
+          getDataActionResultMessage('restore-snapshot')
         );
         setState((current) => ({ ...current, importResult: null }));
       },
@@ -572,8 +542,8 @@ export function MobileCodexProvider({ children }: { children: ReactNode }) {
           setState((current) => ({
             ...current,
             formMessage: didDelete
-              ? 'Deleted the recovery snapshot from this device.'
-              : 'Could not delete the recovery snapshot from this device.',
+              ? getDataActionResultMessage('delete-snapshot')
+              : dataRecoverySnapshotDeleteFailedMessage,
             recoverySnapshots: didDelete
               ? current.recoverySnapshots.filter(
                   (snapshot) => snapshot.id !== snapshotId
@@ -591,7 +561,7 @@ export function MobileCodexProvider({ children }: { children: ReactNode }) {
         commitDocument(
           () => createSeedWorldDocument(),
           'reset',
-          getMobileDataActionResultMessage('reset-document')
+          getDataActionResultMessage('reset-document')
         );
         setState((current) => ({ ...current, importResult: null }));
       },

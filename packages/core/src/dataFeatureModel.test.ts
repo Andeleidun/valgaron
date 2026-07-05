@@ -3,15 +3,29 @@ import { createSeedWorldDocument } from './seedCodex';
 import { valgaronProduct } from './shell';
 import {
   dataExportCopy,
+  dataDownloadCopy,
   dataExportOptions,
+  dataExportSectionIds,
+  dataShellExportActions,
+  dataHelpCopy,
   dataImportCopy,
+  dataActionResultMessages,
+  dataRecoverySnapshotDeleteFailedMessage,
+  dataRecoverySnapshotSaveFailedMessage,
+  dataRecoverySnapshotUnavailableMessage,
+  dataRouteFocusTargetIds,
   dataResetCopy,
+  dataStorageCopy,
+  getDataActionResultMessage,
+  getDataDiagnosticsSummaryText,
   getDataExportDraftState,
   getDataExportSharePayload,
   getDataExportText,
+  formatDataDownloadSuccessMessage,
   getDataImportPreviewText,
   getDataImportReviewState,
   getDataRecoverySnapshotModel,
+  getDataRouteFocusTargetId,
   getDataStorageStatusModel,
   getNextVisibleExportText,
   type DataExportMode,
@@ -29,6 +43,26 @@ describe('data feature model', () => {
     expect(isCodexExportMode('full-json')).toBe(true);
     expect(isCodexExportMode('markdown')).toBe(true);
     expect(isCodexExportMode('unknown')).toBe(false);
+  });
+
+  it('defines shared shell export shortcuts for compact Data menus', () => {
+    expect(dataShellExportActions).toEqual([
+      {
+        downloadLabel: 'Download Active JSON',
+        heading: 'Active workspace JSON',
+        mode: 'active-json',
+      },
+      {
+        downloadLabel: 'Download All JSON',
+        heading: 'Full document JSON',
+        mode: 'full-json',
+      },
+      {
+        downloadLabel: 'Download Markdown',
+        heading: 'Markdown export',
+        mode: 'markdown',
+      },
+    ]);
   });
 
   it.each<DataExportMode>([
@@ -97,6 +131,62 @@ describe('data feature model', () => {
     expect(dataExportCopy.shareUnavailableMessage).toContain(
       'export text is still ready'
     );
+    expect(dataDownloadCopy.exportUnavailableMessage).toContain(
+      'copy the export text'
+    );
+    expect(dataDownloadCopy.diagnosticsUnavailableMessage).toContain(
+      'copy the diagnostics text'
+    );
+    expect(formatDataDownloadSuccessMessage('sample.json')).toBe(
+      'Downloaded sample.json.'
+    );
+  });
+
+  it('resolves shared Data route focus aliases', () => {
+    expect(
+      getDataRouteFocusTargetId({
+        focusId: dataRouteFocusTargetIds.export,
+        mode: 'full-json',
+      })
+    ).toBe(dataExportSectionIds['full-json']);
+    expect(
+      getDataRouteFocusTargetId({
+        focusId: dataRouteFocusTargetIds.export,
+        mode: 'unknown',
+      })
+    ).toBe(dataExportSectionIds['active-json']);
+    expect(
+      getDataRouteFocusTargetId({
+        focusId: dataRouteFocusTargetIds.importJsonBackup,
+      })
+    ).toBe(dataRouteFocusTargetIds.importJsonBackup);
+    expect(getDataRouteFocusTargetId({ focusId: '' })).toBe('');
+  });
+
+  it('centralizes recovery-aware Data action result messages', () => {
+    expect(Object.keys(dataActionResultMessages).sort()).toEqual([
+      'delete-snapshot',
+      'import-document',
+      'reset-document',
+      'restore-snapshot',
+    ]);
+    expect(getDataActionResultMessage('delete-snapshot')).toContain(
+      'recovery snapshot'
+    );
+    expect(getDataActionResultMessage('import-document')).toContain(
+      'on this device'
+    );
+    expect(getDataActionResultMessage('reset-document')).toContain(
+      'recovery snapshot'
+    );
+    expect(getDataActionResultMessage('restore-snapshot')).toContain(
+      'previous document'
+    );
+    expect(dataRecoverySnapshotSaveFailedMessage).toContain('Export JSON');
+    expect(dataRecoverySnapshotUnavailableMessage).toContain('No recovery');
+    expect(dataRecoverySnapshotDeleteFailedMessage).toContain(
+      'Could not delete'
+    );
   });
 
   it('flags edited or empty visible export text before sharing', () => {
@@ -144,7 +234,7 @@ describe('data feature model', () => {
 
     expect(previewText.title).toBe('Sample Atlas');
     expect(previewText.detail).toContain(
-      '1 workspace(s), 10 entries, 5 relationships.'
+      '1 workspace, 10 entries, 5 relationships.'
     );
     expect(previewText.detail).toContain('Jun 1, 2026');
   });
@@ -195,8 +285,36 @@ describe('data feature model', () => {
       fileLabel: 'Choose JSON file',
       textAreaLabel: 'Backup JSON',
       previewLabel: 'Preview Import',
+      previewStatusLabel: 'Preview',
       importLabel: 'Import Backup',
       clearLabel: 'Clear',
+      unsavedLabel: 'Unsaved',
+      lastImportLabel: 'Last import',
+      clearEditedTitle: 'Clear import text?',
+      clearEditedMessage:
+        'The pasted import text will be cleared from this screen.',
+      clearAfterReplacementMessage:
+        'The pasted import text will be cleared after this document replacement.',
+    });
+    expect(dataStorageCopy).toMatchObject({
+      kicker: 'Storage status',
+      title: 'Manual local save',
+      manualSaveGuidance:
+        'Edits stay in this session until you use the header Save button. Export JSON backups before clearing browser data, switching browsers, or changing devices.',
+      mobileCurrentWorkspaceLabel: 'Current workspace',
+      mobileSavedTimestampLabel: 'Saved timestamp',
+      diagnosticsLabel: 'Diagnostics',
+      noRecoveryIssueMessage: 'No local storage recovery issue was found.',
+      recoveryGuidance:
+        'Recovery snapshots are saved before import, reset, permanent entry delete, relationship delete, and snapshot restore actions. Keep JSON exports as your device-independent backup.',
+      storageLoadIssuesLabel: 'Storage load issues',
+    });
+    expect(dataHelpCopy).toMatchObject({
+      kicker: 'Backup guidance',
+      title: 'Help',
+      backupHelpLabel: 'Backup Help',
+      openHelpLabel: 'Open Help',
+      leaveWithDraftTitle: 'Open Help?',
     });
   });
 
@@ -236,7 +354,11 @@ describe('data feature model', () => {
       activeWorldName: 'Sample Atlas',
       countSummary: '2 worlds, 12 entries, 7 relationships',
       restoreLabel: 'Restore Snapshot',
+      restoreAccessibilityHint:
+        'Restores this saved recovery snapshot after confirmation.',
       deleteLabel: 'Delete Snapshot',
+      deleteAccessibilityHint:
+        'Deletes this recovery snapshot after confirmation.',
       latestPrefix: 'Latest: ',
     });
     expect(model.rows[0].mobileSummaryText).toContain(
@@ -247,6 +369,25 @@ describe('data feature model', () => {
       countSummary: '1 world, 10 entries, 5 relationships',
       latestPrefix: 'Older: ',
     });
+  });
+
+  it('formats compact Data diagnostics summaries', () => {
+    expect(
+      getDataDiagnosticsSummaryText({
+        archivedEntryCount: 1,
+        relationshipCount: 5,
+        totalEntryCount: 10,
+        workspaceCount: 1,
+      })
+    ).toBe('1 workspace, 10 entries, 5 relationships, 1 archived entry.');
+    expect(
+      getDataDiagnosticsSummaryText({
+        archivedEntryCount: 2,
+        relationshipCount: 1,
+        totalEntryCount: 1,
+        workspaceCount: 2,
+      })
+    ).toBe('2 workspaces, 1 entry, 1 relationship, 2 archived entries.');
   });
 
   it('centralizes reset section copy and action label', () => {
@@ -272,12 +413,41 @@ describe('data feature model', () => {
       recoverySnapshotCount: 3,
     });
 
+    expect(status.currentWorkspaceLine).toBe('');
     expect(status.loadLine).toContain('Load state: saved');
     expect(status.saveLine).toBe('Device save: Saved to this device.');
     expect(status.recoveryLine).toContain('3 snapshots saved');
     expect(status.recoveryLine).toContain('before import');
     expect(JSON.stringify(status)).not.toContain('Sample Atlas');
     expect(JSON.stringify(status)).not.toContain('Mira Rowan');
+  });
+
+  it('summarizes Data current workspace and saved timestamp when provided', () => {
+    expect(
+      getDataStorageStatusModel({
+        currentWorkspaceName: 'Sample Atlas',
+        loadStatus: {
+          checkedAt: '2026-06-01T09:00:00.000Z',
+          source: 'saved',
+        },
+        savedAt: '2026-06-02T09:00:00.000Z',
+        saveMessage: 'Saved to this device.',
+      }).currentWorkspaceLine
+    ).toBe(
+      'Current workspace: Sample Atlas. Saved timestamp: Jun 2, 2026, 2:00 AM.'
+    );
+  });
+
+  it('omits Data current workspace text when workspace metadata is unavailable', () => {
+    expect(
+      getDataStorageStatusModel({
+        loadStatus: {
+          checkedAt: '2026-06-01T09:00:00.000Z',
+          source: 'saved',
+        },
+        saveMessage: 'Saved to this device.',
+      }).currentWorkspaceLine
+    ).toBe('');
   });
 
   it('summarizes the latest Data storage recovery snapshot by timestamp', () => {

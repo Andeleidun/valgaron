@@ -1,19 +1,6 @@
-import {
-  codexDataHelpDetails,
-  codexDataHelpSummary,
-  codexFirstUseHelp,
-  codexHelpFocusTopics,
-  codexHelpSectionTitles,
-  codexOfflineHelp,
-  codexPrivacyHelp,
-  codexReleaseLimitsHelp,
-  codexSupportHelp,
-  codexWorkflowHelpTopics,
-  getCodexHelpFocus,
-  getCodexScreenIntro,
-} from '@valgaron/core';
+import { getCodexHelpScreenModel, getCodexScreenIntro } from '@valgaron/core';
 import { router, useLocalSearchParams } from 'expo-router';
-import { getMobileTabHref, type MobileTabId } from '../navigation/mobileRoutes';
+import { getMobileRouteHref } from '../navigation/mobileRoutes';
 import { getMobileRouteParam } from '../navigation/mobileRouteParams';
 import {
   ActionButton,
@@ -25,66 +12,60 @@ import {
   SectionBlock,
 } from './screenPrimitives';
 
-const helpQuickActions: Array<{ id: MobileTabId; label: string }> = [
-  { id: 'entries', label: 'Open Entries' },
-  { id: 'relationships', label: 'Open Links' },
-  { id: 'workspaces', label: 'Open Worlds' },
-  { id: 'data', label: 'Open Data' },
-];
-
 export function HelpScreen() {
   const intro = getCodexScreenIntro('help');
   const routeParams = useLocalSearchParams<{ topic?: string }>();
-  const focusedTopic = getCodexHelpFocus(
+  const helpModel = getCodexHelpScreenModel(
     getMobileRouteParam(routeParams.topic)
   );
+  const { focusedTopic } = helpModel;
 
   return (
     <ScreenScroll>
-      <ScreenHeader title={intro.title} detail={intro.detail} />
+      <ScreenHeader
+        title={helpModel.app.title}
+        detail={`${intro.detail} ${helpModel.app.versionText}`}
+      />
 
       {focusedTopic ? (
-        <SectionBlock title={`Focused Help: ${focusedTopic.title}`}>
+        <SectionBlock
+          title={`${helpModel.sections.focused.title}: ${focusedTopic.title}`}
+        >
           <BodyText>{focusedTopic.detail}</BodyText>
         </SectionBlock>
       ) : null}
 
-      <SectionBlock title="Start With One Workspace">
-        <BodyText>{codexFirstUseHelp}</BodyText>
+      <SectionBlock title={helpModel.sections.firstUse.title}>
+        <BodyText>{helpModel.firstUse}</BodyText>
       </SectionBlock>
 
-      <SectionBlock title="Quick Actions">
+      <SectionBlock title={helpModel.sections.quickActions.title}>
         <ButtonRow>
-          {helpQuickActions.map((action) => (
+          {helpModel.quickActions.map((action) => (
             <ActionButton
               key={action.id}
               label={action.label}
-              onPress={() => router.push(getMobileTabHref(action.id))}
+              onPress={() => router.push(getMobileRouteHref(action.path))}
             />
           ))}
         </ButtonRow>
       </SectionBlock>
 
-      <SectionBlock title="Help Topics">
+      <SectionBlock title={helpModel.sections.focusTopics.title}>
         <ButtonRow>
-          {codexHelpFocusTopics.map((topic) => (
+          {helpModel.focusTopics.map((topic) => (
             <ActionButton
               key={topic.id}
               label={topic.title}
               selected={focusedTopic?.id === topic.id}
               tone={focusedTopic?.id === topic.id ? 'accent' : 'neutral'}
-              onPress={() =>
-                router.push({
-                  pathname: '/help',
-                  params: { topic: topic.id },
-                })
-              }
+              onPress={() => router.push(getMobileRouteHref(topic.path))}
             />
           ))}
         </ButtonRow>
       </SectionBlock>
 
-      {codexWorkflowHelpTopics.map((topic) => (
+      {helpModel.workflowTopics.map((topic) => (
         <SectionBlock key={topic.title} title={topic.title}>
           {topic.items.map((item) => (
             <MutedText key={item}>{item}</MutedText>
@@ -92,29 +73,29 @@ export function HelpScreen() {
         </SectionBlock>
       ))}
 
-      <SectionBlock title="Backups And Recovery">
-        <BodyText>{codexDataHelpSummary}</BodyText>
-        {codexDataHelpDetails.map((item) => (
+      <SectionBlock title={helpModel.data.title}>
+        <BodyText>{helpModel.data.summary}</BodyText>
+        {helpModel.data.details.map((item) => (
           <MutedText key={item.term}>
             {item.term}: {item.detail}
           </MutedText>
         ))}
       </SectionBlock>
 
-      <SectionBlock title={codexHelpSectionTitles.offline}>
-        <MutedText>{codexOfflineHelp}</MutedText>
+      <SectionBlock title={helpModel.offline.title}>
+        <MutedText>{helpModel.offline.detail}</MutedText>
       </SectionBlock>
 
-      <SectionBlock title="Support">
-        <MutedText>{codexSupportHelp}</MutedText>
+      <SectionBlock title={helpModel.support.title}>
+        <MutedText>{helpModel.support.detail}</MutedText>
       </SectionBlock>
 
-      <SectionBlock title="No Telemetry Or Remote Account">
-        <MutedText>{codexPrivacyHelp}</MutedText>
+      <SectionBlock title={helpModel.privacy.title}>
+        <MutedText>{helpModel.privacy.detail}</MutedText>
       </SectionBlock>
 
-      <SectionBlock title="Intentionally Out Of Scope">
-        <MutedText>{codexReleaseLimitsHelp}</MutedText>
+      <SectionBlock title={helpModel.releaseLimits.title}>
+        <MutedText>{helpModel.releaseLimits.detail}</MutedText>
       </SectionBlock>
     </ScreenScroll>
   );

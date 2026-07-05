@@ -1,19 +1,20 @@
 import { useEffect } from 'react';
-import { hasUnsavedChanges } from '@valgaron/core';
-
-const UNSAVED_CHANGES_MESSAGE =
-  'You have unsaved changes. Leave without saving them?';
+import {
+  getDiscardUnsavedChangesConfirmation,
+  hasUnsavedChanges,
+} from '@valgaron/core';
 
 export { hasUnsavedChanges };
 
 export function confirmDiscardUnsavedChanges(isDirty: boolean): boolean {
-  if (!isDirty) {
+  const confirmation = getDiscardUnsavedChangesConfirmation({ isDirty });
+  if (confirmation.kind === 'clean') {
     return true;
   }
   if (typeof window === 'undefined' || typeof window.confirm !== 'function') {
     return false;
   }
-  return window.confirm(UNSAVED_CHANGES_MESSAGE);
+  return window.confirm(confirmation.browserMessage);
 }
 
 export function useUnsavedChangesWarning(isDirty: boolean): void {
@@ -62,10 +63,16 @@ export function useBeforeUnloadWarning(isDirty: boolean): void {
     if (!isDirty || typeof window === 'undefined') {
       return undefined;
     }
+    const confirmation = getDiscardUnsavedChangesConfirmation({
+      isDirty: true,
+    });
     const handleBeforeUnload = (event: BeforeUnloadEvent) => {
       event.preventDefault();
-      event.returnValue = UNSAVED_CHANGES_MESSAGE;
-      return UNSAVED_CHANGES_MESSAGE;
+      if (confirmation.kind === 'confirm') {
+        event.returnValue = confirmation.browserMessage;
+        return confirmation.browserMessage;
+      }
+      return undefined;
     };
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => {

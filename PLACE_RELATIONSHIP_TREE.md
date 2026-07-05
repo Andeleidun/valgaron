@@ -1,6 +1,6 @@
 # Place Relationship Tree
 
-This document explains the planning artifact in `place-relationship-tree.json`. It is meant for product and data-model brainstorming, not as a committed runtime schema. The current app stores all place details as flexible string fields, so this tree describes which future fields should display for each place category and which fields should be backed by relationships to other Codex entries.
+This document explains the canonical place taxonomy artifact in `place-relationship-tree.json`. The JSON is the source of truth for supported place categories, category field profiles, relationship-backed place fields, target guidance, and relationship vocabulary. Runtime TypeScript metadata is generated from it by `npm run generate:place-taxonomy`; the app still stores place details flexibly as `Record<string, string>` so the editor can stay easy to evolve.
 
 ## Design Goals
 
@@ -10,13 +10,14 @@ The core data-system rule is that linked facts should not be duplicated as loose
 
 ## Artifact Structure
 
-`place-relationship-tree.json` has five major sections:
+`place-relationship-tree.json` has six major sections:
 
 1. `relationshipTypes`: canonical relationship semantics such as `located in`, `contains`, `controlled by`, `site of`, and `flows into`.
 2. `fieldCatalog`: reusable field definitions, including value type, intended target entries, cardinality, and relationship type where applicable.
 3. `commonFieldProfiles`: reusable bundles of fields for broad groups like political places, settlements, natural terrain, water places, built sites, routes, cosmic places, and otherworldly places.
 4. `tree`: the logical category hierarchy. Every current place category from the app's `supportedPlaceCategoryOptions` appears as a node. Grouping nodes have `category: null` and exist only to organize the tree.
-5. `implementationRecommendations`: practical guidance for turning this artifact into editor behavior.
+5. `runtime`: adapter metadata for the current prototype, including which catalog fields are core entry fields and which detail fields render before category selection.
+6. `implementationRecommendations`: practical guidance for turning this artifact into editor behavior.
 
 ## High-Level Tree
 
@@ -78,9 +79,23 @@ Cosmic and otherworldly places need scale, access rules, hazards, controlling po
 
 Relationship-backed fields should be stored once and displayed from both sides. A `located in` relationship from City to Country should automatically make the Country show that City under settlements or child places. A `flows into` relationship from River to Sea should make the Sea show the River as an incoming watercourse.
 
-The JSON intentionally uses soft target categories. A fantasy world may have a Temple as a capital, a River as a border, a Space station as a port, or a Dimension containing a Kingdom. The editor should suggest likely target categories and show warnings for unusual links, but it should not block creative exceptions during drafting.
+The JSON intentionally uses soft target categories. A fantasy world may have a Temple as a capital, a River as a border, a Space station as a port, or a Dimension containing a Kingdom. The editor should suggest likely target categories, sort primary matches first, and show warnings for unusual links, but it should not block creative exceptions during drafting. Some fields can show unusual targets immediately; others can keep the primary list focused and reveal unusual targets only when the writer expands the target list.
 
 `Region` should remain the safe placeholder category. Many places start as "northern region", "haunted zone", or "imperial district" before becoming a province, forest, realm, or wasteland. Category changes should preserve relationships whenever possible.
+
+## Runtime Generation
+
+The JSON is canonical, but the TypeScript app imports generated metadata rather than parsing the root JSON at runtime. This keeps the TypeScript project-reference setup simple and gives tests a clear drift check.
+
+After changing the JSON, run:
+
+```sh
+npm run generate:place-taxonomy
+```
+
+This updates `packages/core/src/placeRelationshipTree.generated.ts`. Core taxonomy helpers then derive place category options, visible field profiles, relationship-backed field configs, and relationship type suggestions from the generated metadata.
+
+The artifact test suite checks that generated metadata still matches the JSON field catalog, profiles, category tree, shared detail fields, relationship roles, target kinds, target categories, and relationship vocabulary.
 
 ## Suggested Implementation Path
 

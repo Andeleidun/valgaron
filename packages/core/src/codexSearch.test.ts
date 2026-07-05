@@ -2,6 +2,7 @@ import { describe, expect, it } from '@jest/globals';
 import {
   filterSectionEntries,
   getSearchableEntries,
+  getSearchResultContext,
   searchEntries,
   sortEntries,
 } from './codexSearch';
@@ -26,6 +27,12 @@ describe('codex search helpers', () => {
         (entry) => entry.id
       )
     ).toEqual(['place-glassroot-forest']);
+  });
+
+  it('builds shared search result context copy', () => {
+    const [entry] = getSearchableEntries(createSeedCodex(), worldSections);
+
+    expect(getSearchResultContext(entry)).toMatch(/^Characters - Updated /);
   });
 
   it('filters section entries by query, tag, status, and archived visibility', () => {

@@ -1,5 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it } from '@jest/globals';
-import type { WorldDocument } from '../types';
+import {
+  createSeedWorldDocument,
+  getActiveWorld,
+  type WorldDocument,
+} from '@valgaron/core';
 import {
   MAX_RECOVERY_SNAPSHOTS,
   RECOVERY_SNAPSHOT_STORAGE_KEY,
@@ -8,8 +12,6 @@ import {
   loadRecoverySnapshots,
   summarizeRecoverySnapshots,
 } from './codexSnapshots';
-import { createSeedWorldDocument } from './seedCodex';
-import { getActiveWorld } from './worldDocument';
 
 class MemoryStorage {
   private readonly entries = new Map<string, string>();

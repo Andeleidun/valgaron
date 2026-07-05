@@ -3,20 +3,29 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { Text, View, StyleSheet } from 'react-native';
 import {
   draftFromRelationship,
-  getCodexEntriesRoute,
   getCodexHelpRoute,
   getCodexScreenIntro,
-  getEntryStatusLabel,
-  getRelationshipEntries,
+  getFeedbackTone,
+  formatHiddenResultCountMessage,
+  getLimitedResultModel,
+  getRelationshipDiagnosticsModel,
+  getRelationshipEditorOptionsModel,
+  getRelationshipEntryRoute,
+  getRelationshipEntryPickerItems,
+  getRelationshipGraphViewModel,
+  getRelationshipListModel,
   hasUnsavedChanges,
+  mobileFeatureDisplayLimits,
+  relationshipFeatureCopy,
   relationshipDirectionalControl,
   relationshipDraftStatusControl,
   relationshipGraphStatusFilterControl,
   relationshipGraphTypeFilterControl,
   relationshipListTypeFilterControl,
+  relationshipNoteControl,
   relationshipSourceControl,
   relationshipTargetControl,
-  relationshipTypeOptions,
+  relationshipTypeControl,
   type RelationshipDraft,
   type WorldEntryStatus,
 } from '@valgaron/core';
@@ -30,15 +39,6 @@ import { useMobileCodex } from '../state/MobileCodexContext';
 import { getMobileRouteHref } from '../navigation/mobileRoutes';
 import { getMobileRouteParam } from '../navigation/mobileRouteParams';
 import {
-  getMobileBrokenRelationshipList,
-  getMobileOrphanedRelationshipEntries,
-  getMobileRelationshipEntryPickerItems,
-  getMobileRelationshipGraphView,
-  getMobileRelationshipHealthSummary,
-  getMobileRelationshipList,
-} from '../state/mobileCodexViewModels';
-import { getMobileFeedbackTone } from '../state/mobileFeedback';
-import {
   ActionButton,
   ButtonRow,
   CheckboxField,
@@ -51,11 +51,7 @@ import {
   StatusText,
 } from './screenPrimitives';
 import { confirmMobileDestructiveAction } from './mobileConfirm';
-import { confirmMobileDiscardUnsavedChanges } from './mobileUnsavedChanges';
-
-const MOBILE_PICKER_RESULT_LIMIT = 24;
-const MOBILE_RELATIONSHIP_RESULT_LIMIT = 40;
-const MOBILE_ORPHAN_SUMMARY_LIMIT = 12;
+import { confirmDiscardUnsavedChangesOnMobile } from './unsavedChangesConfirm';
 
 export function RelationshipsScreen() {
   const controller = useMobileCodex();
@@ -91,95 +87,59 @@ export function RelationshipsScreen() {
   const [selectedGraphNodeId, setSelectedGraphNodeId] = useState<string | null>(
     null
   );
-  const entries = getMobileRelationshipEntryPickerItems(
-    controller.activeWorld,
+  const entries = getRelationshipEntryPickerItems(
+    controller.activeWorld.codex,
+    controller.activeWorld.entryTypes,
     entryQuery
   );
-  const displayedEntries = entries.slice(0, MOBILE_PICKER_RESULT_LIMIT);
-  const hiddenEntryCount = Math.max(
-    0,
-    entries.length - displayedEntries.length
+  const entryPickerModel = getLimitedResultModel(
+    entries,
+    mobileFeatureDisplayLimits.pickerResults
   );
-  const relationshipItems = getMobileRelationshipList(
-    controller.activeWorld,
-    relationshipQuery,
-    { entryId: entryFilter, type: typeFilter }
+  const displayedEntries = entryPickerModel.visibleItems;
+  const hiddenEntryCount = entryPickerModel.hiddenCount;
+  const relationshipItems = getRelationshipListModel(controller.activeWorld, {
+    entryId: entryFilter,
+    query: relationshipQuery,
+    type: typeFilter,
+  });
+  const relationshipResultModel = getLimitedResultModel(
+    relationshipItems,
+    mobileFeatureDisplayLimits.relationshipResults
   );
-  const displayedRelationshipItems = relationshipItems.slice(
-    0,
-    MOBILE_RELATIONSHIP_RESULT_LIMIT
-  );
-  const hiddenRelationshipCount = Math.max(
-    0,
-    relationshipItems.length - displayedRelationshipItems.length
-  );
-  const relationshipEntries = useMemo(
+  const displayedRelationshipItems = relationshipResultModel.visibleItems;
+  const hiddenRelationshipCount = relationshipResultModel.hiddenCount;
+  const relationshipOptions = useMemo(
     () =>
-      getRelationshipEntries(
-        controller.activeWorld.codex,
-        controller.activeWorld.entryTypes
+      getRelationshipEditorOptionsModel(
+        controller.activeWorld,
+        draft,
+        entryFilter
       ),
-    [controller.activeWorld.codex, controller.activeWorld.entryTypes]
+    [
+      controller.activeWorld,
+      draft.sourceEntryId,
+      draft.targetEntryId,
+      entryFilter,
+    ]
   );
-  const relationshipEntryOptions = useMemo(
-    () => [
-      { value: '', label: 'Choose entry' },
-      ...relationshipEntries.map((entry) => ({
-        value: entry.id,
-        label: `${entry.name} (${entry.sectionTitle})`,
-      })),
-    ],
-    [relationshipEntries]
-  );
-  const selectedEntryFilter = entryFilter
-    ? relationshipEntries.find((entry) => entry.id === entryFilter) ?? null
-    : null;
-  const selectedSourceEntry = draft.sourceEntryId
-    ? relationshipEntries.find((entry) => entry.id === draft.sourceEntryId) ??
-      null
-    : null;
-  const selectedTargetEntry = draft.targetEntryId
-    ? relationshipEntries.find((entry) => entry.id === draft.targetEntryId) ??
-      null
-    : null;
-  const relationshipHealth = getMobileRelationshipHealthSummary(
+  const relationshipEntries = relationshipOptions.entries;
+  const relationshipEntryOptions = relationshipOptions.entryOptions;
+  const selectedEntryFilter = relationshipOptions.selectedEntryFilter;
+  const selectedSourceEntry = relationshipOptions.selectedSourceEntry;
+  const selectedTargetEntry = relationshipOptions.selectedTargetEntry;
+  const relationshipDiagnostics = getRelationshipDiagnosticsModel(
     controller.activeWorld
   );
-  const brokenRelationships = getMobileBrokenRelationshipList(
-    controller.activeWorld
-  );
-  const orphanedEntries = getMobileOrphanedRelationshipEntries(
-    controller.activeWorld
-  );
-  const availableRelationshipTypes = useMemo(
-    () =>
-      Array.from(
-        new Set(
-          controller.activeWorld.relationships.map(
-            (relationship) => relationship.type
-          )
-        )
-      ).sort((first, second) => first.localeCompare(second)),
-    [controller.activeWorld.relationships]
-  );
-  const relationshipTypeFilterOptions = useMemo(
-    () => [
-      { value: '', label: 'Any type' },
-      ...availableRelationshipTypes.map((type) => ({
-        value: type,
-        label: type,
-      })),
-    ],
-    [availableRelationshipTypes]
-  );
-  const availableGraphTags = useMemo(
-    () =>
-      Array.from(new Set(relationshipEntries.flatMap((entry) => entry.tags)))
-        .filter(Boolean)
-        .sort((first, second) => first.localeCompare(second)),
-    [relationshipEntries]
-  );
-  const graphView = getMobileRelationshipGraphView(controller.activeWorld, {
+  const relationshipHealth = relationshipDiagnostics.healthSummary;
+  const brokenRelationships = relationshipDiagnostics.brokenRelationships;
+  const orphanedEntries = relationshipDiagnostics.orphanedEntries;
+  const relationshipTypeFilterOptions =
+    relationshipOptions.relationshipTypeFilterOptions;
+  const availableGraphTags = relationshipOptions.graphTagOptions;
+  const relationshipTypeSuggestions =
+    relationshipOptions.relationshipTypeSuggestions;
+  const graphView = getRelationshipGraphViewModel(controller.activeWorld, {
     sectionId: graphSectionFilter,
     status: graphStatusFilter,
     tag: graphTagFilter,
@@ -200,14 +160,12 @@ export function RelationshipsScreen() {
         )
       )
     : graphView.nodes;
-  const displayedGraphNodes = matchingGraphNodes.slice(
-    0,
-    MOBILE_PICKER_RESULT_LIMIT
+  const graphNodeModel = getLimitedResultModel(
+    matchingGraphNodes,
+    mobileFeatureDisplayLimits.pickerResults
   );
-  const hiddenGraphNodeCount = Math.max(
-    0,
-    matchingGraphNodes.length - displayedGraphNodes.length
-  );
+  const displayedGraphNodes = graphNodeModel.visibleItems;
+  const hiddenGraphNodeCount = graphNodeModel.hiddenCount;
   const selectedGraphNode = selectedGraphNodeId
     ? matchingGraphNodes.find((node) => node.id === selectedGraphNodeId) ?? null
     : null;
@@ -225,14 +183,12 @@ export function RelationshipsScreen() {
       graphTypeFilter ||
       graphNodeQuery
   );
-  const visibleOrphanedEntries = orphanedEntries.slice(
-    0,
-    MOBILE_ORPHAN_SUMMARY_LIMIT
+  const orphanedEntryModel = getLimitedResultModel(
+    orphanedEntries,
+    mobileFeatureDisplayLimits.orphanSummary
   );
-  const hiddenOrphanedEntryCount = Math.max(
-    0,
-    orphanedEntries.length - visibleOrphanedEntries.length
-  );
+  const visibleOrphanedEntries = orphanedEntryModel.visibleItems;
+  const hiddenOrphanedEntryCount = orphanedEntryModel.hiddenCount;
   const editingRelationship = editingRelationshipId
     ? controller.activeWorld.relationships.find(
         (relationship) => relationship.id === editingRelationshipId
@@ -292,7 +248,7 @@ export function RelationshipsScreen() {
       requestedEntryId !== draft.sourceEntryId &&
       isDraftDirty
     ) {
-      confirmMobileDiscardUnsavedChanges(true, applyRouteState, () => {
+      confirmDiscardUnsavedChangesOnMobile(true, applyRouteState, () => {
         appliedRouteKeyRef.current = routeKey;
       });
       return;
@@ -319,7 +275,7 @@ export function RelationshipsScreen() {
       reset();
       return;
     }
-    confirmMobileDiscardUnsavedChanges(isDraftDirty, reset);
+    confirmDiscardUnsavedChangesOnMobile(isDraftDirty, reset);
   }
 
   function editRelationship(relationshipId: string) {
@@ -332,7 +288,7 @@ export function RelationshipsScreen() {
     if (relationship.id === editingRelationshipId) {
       return;
     }
-    confirmMobileDiscardUnsavedChanges(isDraftDirty, () => {
+    confirmDiscardUnsavedChangesOnMobile(isDraftDirty, () => {
       setEditingRelationshipId(relationship.id);
       setDraft(draftFromRelationship(relationship));
     });
@@ -352,7 +308,7 @@ export function RelationshipsScreen() {
   }
 
   function deleteRelationship(relationshipId: string) {
-    confirmMobileDiscardUnsavedChanges(
+    confirmDiscardUnsavedChangesOnMobile(
       editingRelationshipId === relationshipId && isDraftDirty,
       () =>
         confirmMobileDestructiveAction('delete-relationship', () => {
@@ -376,15 +332,10 @@ export function RelationshipsScreen() {
     if (!sectionId) {
       return;
     }
-    confirmMobileDiscardUnsavedChanges(isDraftDirty, () => {
+    confirmDiscardUnsavedChangesOnMobile(isDraftDirty, () => {
       router.push({
         ...getMobileRouteHref(
-          getCodexEntriesRoute({
-            entryId,
-            intent: 'edit',
-            query: name,
-            sectionId,
-          })
+          getRelationshipEntryRoute({ entryId, name, sectionId })
         ),
       });
     });
@@ -394,12 +345,12 @@ export function RelationshipsScreen() {
     <ScreenScroll>
       <ScreenHeader title={intro.title} detail={intro.detail} />
 
-      <SectionBlock title="Relationship Health">
+      <SectionBlock title={relationshipFeatureCopy.healthSectionTitle}>
         <ButtonRow>
           <ActionButton
-            label="Relationship Help"
+            label={relationshipFeatureCopy.helpLabel}
             onPress={() =>
-              confirmMobileDiscardUnsavedChanges(isDraftDirty, () =>
+              confirmDiscardUnsavedChangesOnMobile(isDraftDirty, () =>
                 router.push({
                   ...getMobileRouteHref(getCodexHelpRoute('relationships')),
                 })
@@ -408,16 +359,18 @@ export function RelationshipsScreen() {
           />
         </ButtonRow>
         <MutedText>
-          Broken references: {relationshipHealth.brokenRelationshipCount}.
-          Orphaned records: {relationshipHealth.orphanedEntryCount}.
+          {relationshipFeatureCopy.brokenReferencesLabel}:{' '}
+          {relationshipHealth.brokenRelationshipCount}.{' '}
+          {relationshipFeatureCopy.orphanedRecordsLabel}:{' '}
+          {relationshipHealth.orphanedEntryCount}.
         </MutedText>
         <MutedText>
-          Graph view: {graphView.nodes.length} connected records and{' '}
-          {graphView.edges.length} visible links.
+          {relationshipFeatureCopy.graphViewTitle}: {graphView.nodes.length}{' '}
+          connected records and {graphView.edges.length} visible links.
         </MutedText>
       </SectionBlock>
 
-      <SectionBlock title="Repair Broken Links">
+      <SectionBlock title={relationshipFeatureCopy.repairBrokenLinksTitle}>
         {brokenRelationships.length > 0 ? (
           brokenRelationships.map((relationship) => (
             <View key={relationship.id} style={styles.relationshipRow}>
@@ -433,14 +386,14 @@ export function RelationshipsScreen() {
               <ButtonRow>
                 <ActionButton
                   accessibilityLabel={`Repair ${relationship.type} relationship`}
-                  label="Repair"
+                  label={relationshipFeatureCopy.repairLabel}
                   tone="accent"
                   onPress={() => repairRelationship(relationship.id)}
                 />
                 <ActionButton
                   accessibilityHint="Deletes this broken relationship after confirmation."
                   accessibilityLabel={`Delete broken ${relationship.type} relationship`}
-                  label="Delete"
+                  label={relationshipFeatureCopy.deleteLabel}
                   tone="danger"
                   onPress={() => deleteRelationship(relationship.id)}
                 />
@@ -448,11 +401,13 @@ export function RelationshipsScreen() {
             </View>
           ))
         ) : (
-          <MutedText>No broken relationships.</MutedText>
+          <MutedText>
+            {relationshipFeatureCopy.noBrokenRelationshipsTitle}
+          </MutedText>
         )}
         {orphanedEntries.length > 0 ? (
           <MutedText>
-            Orphaned records:{' '}
+            {relationshipFeatureCopy.orphanedRecordsLabel}:{' '}
             {visibleOrphanedEntries.map((entry) => entry.name).join(', ')}
             {hiddenOrphanedEntryCount > 0
               ? `, and ${hiddenOrphanedEntryCount} more`
@@ -460,22 +415,24 @@ export function RelationshipsScreen() {
             .
           </MutedText>
         ) : (
-          <MutedText>Every relationship-capable record is connected.</MutedText>
+          <MutedText>
+            {relationshipFeatureCopy.noOrphanedRecordsMessage}
+          </MutedText>
         )}
       </SectionBlock>
 
-      <SectionBlock title="Graph Browser">
+      <SectionBlock title={relationshipFeatureCopy.graphBrowserTitle}>
         <Field
           autoCapitalize="none"
           autoCorrect={false}
-          label="Search graph records"
+          label={relationshipFeatureCopy.searchGraphRecordsLabel}
           value={graphNodeQuery}
           onChangeText={setGraphNodeQuery}
           placeholder="Name, section, tag, status, or id"
         />
         <ButtonRow>
           <ActionButton
-            label="Any Section"
+            label={relationshipFeatureCopy.anySectionLabel}
             selected={graphSectionFilter === ''}
             tone={graphSectionFilter === '' ? 'accent' : 'neutral'}
             onPress={() => setGraphSectionFilter('')}
@@ -503,7 +460,7 @@ export function RelationshipsScreen() {
           value={graphStatusFilter}
           onValueChange={setGraphStatusFilter}
         />
-        {availableRelationshipTypes.length > 0 ? (
+        {relationshipTypeFilterOptions.length > 1 ? (
           <SelectField
             accessibilityLabel={
               relationshipGraphTypeFilterControl.accessibilityLabel
@@ -517,7 +474,7 @@ export function RelationshipsScreen() {
         {availableGraphTags.length > 0 ? (
           <ButtonRow>
             <ActionButton
-              label="All Tags"
+              label={relationshipFeatureCopy.allTagsLabel}
               selected={graphTagFilter === ''}
               tone={graphTagFilter === '' ? 'accent' : 'neutral'}
               onPress={() => setGraphTagFilter('')}
@@ -538,7 +495,7 @@ export function RelationshipsScreen() {
         {hasGraphFilters ? (
           <ButtonRow>
             <ActionButton
-              label="Clear Graph Filters"
+              label={relationshipFeatureCopy.clearGraphFiltersLabel}
               onPress={clearGraphFilters}
             />
           </ButtonRow>
@@ -568,12 +525,17 @@ export function RelationshipsScreen() {
                 ))}
               </ButtonRow>
             ) : (
-              <MutedText>No graph records match this search.</MutedText>
+              <MutedText>
+                {relationshipFeatureCopy.noGraphSearchMatchesMessage}
+              </MutedText>
             )}
             {hiddenGraphNodeCount > 0 ? (
               <MutedText>
-                Refine graph search to show {hiddenGraphNodeCount} more record
-                {hiddenGraphNodeCount === 1 ? '' : 's'}.
+                {formatHiddenResultCountMessage({
+                  hiddenCount: hiddenGraphNodeCount,
+                  itemLabel: 'record',
+                  refinementLabel: 'graph search',
+                })}
               </MutedText>
             ) : null}
             {selectedGraphNode ? (
@@ -581,7 +543,7 @@ export function RelationshipsScreen() {
                 <Text style={styles.entryTitle}>{selectedGraphNode.name}</Text>
                 <MutedText>
                   {selectedGraphNode.sectionTitle} -{' '}
-                  {getEntryStatusLabel(selectedGraphNode.status)}
+                  {selectedGraphNode.statusLabel}
                 </MutedText>
                 {selectedGraphEdges.map((edge) => (
                   <MutedText key={edge.id}>
@@ -591,7 +553,7 @@ export function RelationshipsScreen() {
                 ))}
                 <ButtonRow>
                   <ActionButton
-                    label="Open Entry"
+                    label={relationshipFeatureCopy.openEntryLabel}
                     onPress={() =>
                       openEntry({
                         entryId: selectedGraphNode.id,
@@ -601,7 +563,7 @@ export function RelationshipsScreen() {
                     }
                   />
                   <ActionButton
-                    label="Filter List"
+                    label={relationshipFeatureCopy.filterListLabel}
                     onPress={() => setEntryFilter(selectedGraphNode.id)}
                   />
                 </ButtonRow>
@@ -609,15 +571,17 @@ export function RelationshipsScreen() {
             ) : null}
           </>
         ) : (
-          <MutedText>No connected graph records match these filters.</MutedText>
+          <MutedText>
+            {relationshipFeatureCopy.noConnectedGraphMatchesMessage}
+          </MutedText>
         )}
       </SectionBlock>
 
-      <SectionBlock title="Entry Pickers">
+      <SectionBlock title={relationshipFeatureCopy.entryPickersTitle}>
         <Field
           autoCapitalize="none"
           autoCorrect={false}
-          label="Search entries"
+          label={relationshipFeatureCopy.searchEntriesLabel}
           value={entryQuery}
           onChangeText={setEntryQuery}
           placeholder="Name, section, tag, or id"
@@ -635,7 +599,7 @@ export function RelationshipsScreen() {
                 <ButtonRow>
                   <ActionButton
                     accessibilityLabel={`Use ${entry.name} as relationship source`}
-                    label="Source"
+                    label={relationshipFeatureCopy.sourcePickerLabel}
                     selected={draft.sourceEntryId === entry.id}
                     tone={
                       draft.sourceEntryId === entry.id ? 'accent' : 'neutral'
@@ -649,7 +613,7 @@ export function RelationshipsScreen() {
                   />
                   <ActionButton
                     accessibilityLabel={`Use ${entry.name} as relationship target`}
-                    label="Target"
+                    label={relationshipFeatureCopy.targetPickerLabel}
                     selected={draft.targetEntryId === entry.id}
                     tone={
                       draft.targetEntryId === entry.id ? 'accent' : 'neutral'
@@ -666,13 +630,18 @@ export function RelationshipsScreen() {
             ))}
             {hiddenEntryCount > 0 ? (
               <MutedText>
-                Refine entry search to show {hiddenEntryCount} more record
-                {hiddenEntryCount === 1 ? '' : 's'}.
+                {formatHiddenResultCountMessage({
+                  hiddenCount: hiddenEntryCount,
+                  itemLabel: 'record',
+                  refinementLabel: 'entry search',
+                })}
               </MutedText>
             ) : null}
           </>
         ) : (
-          <MutedText>No entries match this picker search.</MutedText>
+          <MutedText>
+            {relationshipFeatureCopy.noEntryPickerMatchesMessage}
+          </MutedText>
         )}
       </SectionBlock>
 
@@ -680,20 +649,23 @@ export function RelationshipsScreen() {
         title={
           editingRelationship
             ? `Edit ${editingRelationship.type}`
-            : 'Relationship Form'
+            : relationshipFeatureCopy.relationshipFormTitle
         }
       >
         {controller.formMessage ? (
-          <StatusText tone={getMobileFeedbackTone(controller.formMessage)}>
+          <StatusText tone={getFeedbackTone(controller.formMessage)}>
             {controller.formMessage}
           </StatusText>
         ) : null}
         {isDraftDirty ? (
-          <StatusText tone="warning">Unsaved relationship draft.</StatusText>
+          <StatusText tone="warning">
+            {relationshipFeatureCopy.unsavedDraftMessage}
+          </StatusText>
         ) : null}
         {relationshipEntries.length < 2 ? (
           <StatusText tone="warning">
-            Create at least two entries before adding relationships.
+            {relationshipFeatureCopy.minimumEntriesTitle}{' '}
+            {relationshipFeatureCopy.minimumEntriesDetail}
           </StatusText>
         ) : (
           <>
@@ -736,25 +708,32 @@ export function RelationshipsScreen() {
               </MutedText>
             ) : null}
             <Field
-              label="Type"
+              label={relationshipTypeControl.label}
               value={draft.type}
               onChangeText={(value) =>
                 setDraft((current) => ({ ...current, type: value }))
               }
             />
             <ButtonRow>
-              {relationshipTypeOptions.slice(0, 7).map((type) => (
-                <ActionButton
-                  key={type}
-                  label={type}
-                  selected={draft.type === type}
-                  tone={draft.type === type ? 'accent' : 'neutral'}
-                  onPress={() => setDraft((current) => ({ ...current, type }))}
-                />
-              ))}
+              {relationshipTypeSuggestions
+                .slice(
+                  0,
+                  mobileFeatureDisplayLimits.relationshipTypeSuggestions
+                )
+                .map((type) => (
+                  <ActionButton
+                    key={type}
+                    label={type}
+                    selected={draft.type === type}
+                    tone={draft.type === type ? 'accent' : 'neutral'}
+                    onPress={() =>
+                      setDraft((current) => ({ ...current, type }))
+                    }
+                  />
+                ))}
             </ButtonRow>
             <Field
-              label="Note"
+              label={relationshipNoteControl.label}
               value={draft.note}
               multiline
               onChangeText={(value) =>
@@ -790,7 +769,7 @@ export function RelationshipsScreen() {
             />
             <ButtonRow>
               <ActionButton
-                label="Save Relationship"
+                label={relationshipFeatureCopy.saveRelationshipLabel}
                 tone="accent"
                 onPress={() => {
                   const didSave = controller.saveRelationshipDraft(
@@ -802,22 +781,25 @@ export function RelationshipsScreen() {
                   }
                 }}
               />
-              <ActionButton label="Clear" onPress={resetDraft} />
+              <ActionButton
+                label={relationshipFeatureCopy.clearDraftLabel}
+                onPress={resetDraft}
+              />
             </ButtonRow>
           </>
         )}
       </SectionBlock>
 
-      <SectionBlock title="Saved Relationships">
+      <SectionBlock title={relationshipFeatureCopy.savedSectionTitle}>
         <Field
           autoCapitalize="none"
           autoCorrect={false}
-          label="Search relationships"
+          label={relationshipFeatureCopy.searchRelationshipsLabel}
           value={relationshipQuery}
           onChangeText={setRelationshipQuery}
           placeholder="Entry, type, note, or id"
         />
-        {availableRelationshipTypes.length > 0 ? (
+        {relationshipTypeFilterOptions.length > 1 ? (
           <SelectField
             accessibilityLabel={
               relationshipListTypeFilterControl.accessibilityLabel
@@ -839,19 +821,19 @@ export function RelationshipsScreen() {
           <ButtonRow>
             {typeFilter ? (
               <ActionButton
-                label="Clear Type Filter"
+                label={relationshipFeatureCopy.clearTypeFilterLabel}
                 onPress={() => setTypeFilter('')}
               />
             ) : null}
             {entryFilter ? (
               <ActionButton
-                label="Clear Entry Filter"
+                label={relationshipFeatureCopy.clearEntryFilterLabel}
                 onPress={() => setEntryFilter('')}
               />
             ) : null}
             {relationshipQuery ? (
               <ActionButton
-                label="Clear Search"
+                label={relationshipFeatureCopy.clearSearchLabel}
                 onPress={() => setRelationshipQuery('')}
               />
             ) : null}
@@ -866,16 +848,14 @@ export function RelationshipsScreen() {
                   {relationship.sourceName} {relationship.directionLabel}{' '}
                   {relationship.targetName}
                 </MutedText>
-                <MutedText>
-                  {getEntryStatusLabel(relationship.status)}
-                </MutedText>
+                <MutedText>{relationship.statusLabel}</MutedText>
                 {relationship.note ? (
                   <MutedText>{relationship.note}</MutedText>
                 ) : null}
                 <ButtonRow>
                   <ActionButton
                     accessibilityLabel={`Open source entry ${relationship.sourceName}`}
-                    label="Open Source"
+                    label={relationshipFeatureCopy.openSourceLabel}
                     disabled={!relationship.sourceSectionId}
                     onPress={() =>
                       openEntry({
@@ -887,7 +867,7 @@ export function RelationshipsScreen() {
                   />
                   <ActionButton
                     accessibilityLabel={`Open target entry ${relationship.targetName}`}
-                    label="Open Target"
+                    label={relationshipFeatureCopy.openTargetLabel}
                     disabled={!relationship.targetSectionId}
                     onPress={() =>
                       openEntry({
@@ -899,13 +879,13 @@ export function RelationshipsScreen() {
                   />
                   <ActionButton
                     accessibilityLabel={`Edit ${relationship.type} relationship between ${relationship.sourceName} and ${relationship.targetName}`}
-                    label="Edit"
+                    label={relationshipFeatureCopy.editLabel}
                     onPress={() => editRelationship(relationship.id)}
                   />
                   <ActionButton
                     accessibilityHint="Deletes this relationship after confirmation."
                     accessibilityLabel={`Delete ${relationship.type} relationship between ${relationship.sourceName} and ${relationship.targetName}`}
-                    label="Delete"
+                    label={relationshipFeatureCopy.deleteLabel}
                     tone="danger"
                     onPress={() => deleteRelationship(relationship.id)}
                   />
@@ -914,18 +894,27 @@ export function RelationshipsScreen() {
             ))}
             {hiddenRelationshipCount > 0 ? (
               <MutedText>
-                Refine relationship search or filters to show{' '}
-                {hiddenRelationshipCount} more link
-                {hiddenRelationshipCount === 1 ? '' : 's'}.
+                {formatHiddenResultCountMessage({
+                  hiddenCount: hiddenRelationshipCount,
+                  itemLabel: 'link',
+                  refinementLabel: 'relationship search or filters',
+                })}
               </MutedText>
             ) : null}
           </>
         ) : (
-          <MutedText>
-            {relationshipQuery.trim() || typeFilter || entryFilter
-              ? 'No relationships match these filters.'
-              : 'No relationships saved in this workspace.'}
-          </MutedText>
+          <>
+            <MutedText>
+              {relationshipQuery.trim() || typeFilter || entryFilter
+                ? relationshipFeatureCopy.noMatchesTitle
+                : relationshipFeatureCopy.emptyTitle}
+            </MutedText>
+            <MutedText>
+              {relationshipQuery.trim() || typeFilter || entryFilter
+                ? relationshipFeatureCopy.noMatchesDetail
+                : relationshipFeatureCopy.emptyDetail}
+            </MutedText>
+          </>
         )}
       </SectionBlock>
     </ScreenScroll>

@@ -40,6 +40,7 @@ export const valgaronProduct = {
   name: 'Valgaron',
   codexTitle: 'World Codex',
   fullTitle: 'Valgaron World Codex',
+  version: '0.0.0',
 } as const;
 
 export const codexShellRoutes = {

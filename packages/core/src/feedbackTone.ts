@@ -1,6 +1,6 @@
-export type MobileFeedbackTone = 'info' | 'success' | 'warning' | 'danger';
+export type FeedbackTone = 'info' | 'success' | 'warning' | 'danger';
 
-export function getMobileFeedbackTone(message: string): MobileFeedbackTone {
+export function getFeedbackTone(message: string): FeedbackTone {
   const normalized = message.trim();
   if (!normalized) {
     return 'info';

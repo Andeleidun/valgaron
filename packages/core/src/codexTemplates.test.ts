@@ -1,5 +1,8 @@
 import { describe, expect, it } from '@jest/globals';
 import {
+  applyEntrySectionTemplate,
+  createEntryTemplateDraft,
+  createSectionEntryDraft,
   createTemplateDraft,
   getEntryCompleteness,
   getIncompleteEntries,
@@ -19,6 +22,41 @@ describe('codex templates and completeness helpers', () => {
       'affiliation',
       'statusNote',
     ]);
+  });
+
+  it('creates compact section entry drafts', () => {
+    const section = worldSections[0];
+    const draft = createSectionEntryDraft(section);
+
+    expect(draft.tags).toBe('character');
+    expect(draft.details).toEqual({
+      role: '',
+      home: '',
+      affiliation: '',
+      statusNote: '',
+    });
+  });
+
+  it('creates reusable template drafts from existing entries', () => {
+    const codex = createSeedCodex();
+    const section = worldSections[0];
+    const draft = createEntryTemplateDraft(codex.characters[0], section);
+
+    expect(draft.name).toBe('Mira Rowan Template');
+    expect(draft.status).toBe('draft');
+    expect(draft.details.role).toBe('Lead surveyor and field guide');
+  });
+
+  it('applies section templates without overwriting existing draft content', () => {
+    const section = worldSections[0];
+    const draft = applyEntrySectionTemplate(
+      { ...createSectionEntryDraft(section), tags: '', notes: '' },
+      section
+    );
+
+    expect(draft.tags).toBe('character');
+    expect(draft.notes).toContain('## Role in the story');
+    expect(draft.details).toHaveProperty('role');
   });
 
   it('scores incomplete entries and returns prompts', () => {

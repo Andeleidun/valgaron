@@ -2,6 +2,8 @@ import {
   codexShellRoutes,
   formatCodexRouteSearch,
   localPersistenceCopy,
+  valgaronProduct,
+  type CodexShellRouteId,
 } from './shell';
 
 export type CodexHelpFocusId =
@@ -24,17 +26,150 @@ export type CodexHelpDetail = {
   detail: string;
 };
 
+export type CodexHelpSectionHeader = {
+  title: string;
+  kicker?: string;
+};
+
+export type CodexHelpQuickAction = {
+  id: Extract<
+    CodexShellRouteId,
+    'entries' | 'relationships' | 'workspaces' | 'data'
+  >;
+  label: string;
+  path: string;
+};
+
 export type CodexHelpFocus = {
   id: CodexHelpFocusId;
   title: string;
   detail: string;
+  path: string;
+};
+
+export type CodexHelpScreenModel = {
+  app: {
+    title: string;
+    version: string;
+    versionText: string;
+  };
+  sections: {
+    focused: CodexHelpSectionHeader;
+    firstUse: CodexHelpSectionHeader;
+    quickActions: CodexHelpSectionHeader;
+    focusTopics: CodexHelpSectionHeader;
+    workflow: CodexHelpSectionHeader & {
+      ariaLabel: string;
+    };
+    data: CodexHelpSectionHeader;
+    offline: CodexHelpSectionHeader;
+    support: CodexHelpSectionHeader;
+    privacy: CodexHelpSectionHeader;
+    releaseLimits: CodexHelpSectionHeader;
+  };
+  focusedTopic: CodexHelpFocus | null;
+  focusTopics: readonly CodexHelpFocus[];
+  firstUse: string;
+  quickActions: readonly CodexHelpQuickAction[];
+  workflowTopics: readonly CodexHelpTopic[];
+  data: {
+    title: string;
+    summary: string;
+    details: readonly CodexHelpDetail[];
+  };
+  offline: {
+    title: string;
+    detail: string;
+  };
+  support: {
+    title: string;
+    detail: string;
+  };
+  privacy: {
+    title: string;
+    detail: string;
+  };
+  releaseLimits: {
+    title: string;
+    detail: string;
+  };
 };
 
 export const codexHelpSectionTitles = {
+  data: 'Backups and recovery',
+  firstUse: 'Start with one workspace',
+  focusTopics: 'Help topics',
+  quickActions: 'Open a workspace area',
   offline: 'Installable app limits',
 } as const;
 
-export const codexHelpFocusTopics: readonly CodexHelpFocus[] = [
+export const codexHelpScreenSections: CodexHelpScreenModel['sections'] = {
+  focused: {
+    kicker: 'Focused help',
+    title: 'Focused help',
+  },
+  firstUse: {
+    kicker: 'First use',
+    title: codexHelpSectionTitles.firstUse,
+  },
+  quickActions: {
+    kicker: 'Quick actions',
+    title: codexHelpSectionTitles.quickActions,
+  },
+  focusTopics: {
+    title: codexHelpSectionTitles.focusTopics,
+  },
+  workflow: {
+    ariaLabel: 'Workflow help',
+    kicker: 'Workflow',
+    title: 'Workflow',
+  },
+  data: {
+    kicker: 'Local storage',
+    title: codexHelpSectionTitles.data,
+  },
+  offline: {
+    kicker: 'Offline',
+    title: codexHelpSectionTitles.offline,
+  },
+  support: {
+    kicker: 'Support',
+    title: 'Report problems without world content',
+  },
+  privacy: {
+    kicker: 'Privacy',
+    title: 'No telemetry or remote account',
+  },
+  releaseLimits: {
+    kicker: 'Release limits',
+    title: 'Intentionally out of scope',
+  },
+};
+
+export const codexHelpQuickActions: readonly CodexHelpQuickAction[] = [
+  {
+    id: 'entries',
+    label: `Open ${codexShellRoutes.entries.title}`,
+    path: codexShellRoutes.entries.path,
+  },
+  {
+    id: 'relationships',
+    label: `Open ${codexShellRoutes.relationships.title}`,
+    path: codexShellRoutes.relationships.path,
+  },
+  {
+    id: 'workspaces',
+    label: `Open ${codexShellRoutes.workspaces.title}`,
+    path: codexShellRoutes.workspaces.path,
+  },
+  {
+    id: 'data',
+    label: `Open ${codexShellRoutes.data.title}`,
+    path: codexShellRoutes.data.path,
+  },
+];
+
+const codexHelpFocusTopicContent: readonly Omit<CodexHelpFocus, 'path'>[] = [
   {
     id: 'start',
     title: 'Start with one workspace',
@@ -84,6 +219,12 @@ export const codexHelpFocusTopics: readonly CodexHelpFocus[] = [
       'This local prototype intentionally excludes accounts, remote sync, collaboration, publishing, AI generation, payments, and localization.',
   },
 ];
+
+export const codexHelpFocusTopics: readonly CodexHelpFocus[] =
+  codexHelpFocusTopicContent.map((topic) => ({
+    ...topic,
+    path: getCodexHelpRoute(topic.id),
+  }));
 
 export const codexWorkflowHelpTopics: readonly CodexHelpTopic[] = [
   {
@@ -179,10 +320,57 @@ export const codexPrivacyHelp =
 export const codexReleaseLimitsHelp =
   'This release does not include accounts, cloud sync, collaboration, sharing, publishing, AI generation, payments, or localization. Keep downloaded JSON backups as the portable copy of work you cannot afford to lose.';
 
+export function isCodexHelpFocusId(
+  value: string | null | undefined
+): value is CodexHelpFocusId {
+  return codexHelpFocusTopics.some((topic) => topic.id === value);
+}
+
 export function getCodexHelpFocus(
   value: string | null | undefined
 ): CodexHelpFocus | null {
-  return codexHelpFocusTopics.find((topic) => topic.id === value) ?? null;
+  return isCodexHelpFocusId(value)
+    ? codexHelpFocusTopics.find((topic) => topic.id === value) ?? null
+    : null;
+}
+
+export function getCodexHelpScreenModel(
+  topic: string | null | undefined
+): CodexHelpScreenModel {
+  return {
+    app: {
+      title: valgaronProduct.fullTitle,
+      version: valgaronProduct.version,
+      versionText: `Version ${valgaronProduct.version}.`,
+    },
+    sections: codexHelpScreenSections,
+    focusedTopic: getCodexHelpFocus(topic),
+    focusTopics: codexHelpFocusTopics,
+    firstUse: codexFirstUseHelp,
+    quickActions: codexHelpQuickActions,
+    workflowTopics: codexWorkflowHelpTopics,
+    data: {
+      title: codexHelpSectionTitles.data,
+      summary: codexDataHelpSummary,
+      details: codexDataHelpDetails,
+    },
+    offline: {
+      title: codexHelpSectionTitles.offline,
+      detail: codexOfflineHelp,
+    },
+    support: {
+      title: codexHelpScreenSections.support.title,
+      detail: codexSupportHelp,
+    },
+    privacy: {
+      title: codexHelpScreenSections.privacy.title,
+      detail: codexPrivacyHelp,
+    },
+    releaseLimits: {
+      title: codexHelpScreenSections.releaseLimits.title,
+      detail: codexReleaseLimitsHelp,
+    },
+  };
 }
 
 export function getCodexHelpRoute(topic?: CodexHelpFocusId): string {

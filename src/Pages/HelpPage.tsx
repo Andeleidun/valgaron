@@ -1,31 +1,19 @@
-import { APP_NAME, APP_VERSION } from '../Utlilities/appMetadata';
-import { useSearchParams } from 'react-router-dom';
-import {
-  codexDataHelpDetails,
-  codexDataHelpSummary,
-  codexFirstUseHelp,
-  codexHelpSectionTitles,
-  codexOfflineHelp,
-  codexPrivacyHelp,
-  codexReleaseLimitsHelp,
-  codexSupportHelp,
-  codexWorkflowHelpTopics,
-  getCodexHelpFocus,
-  getCodexScreenIntro,
-} from '@valgaron/core';
+import { NavLink, useSearchParams } from 'react-router-dom';
+import { getCodexHelpScreenModel, getCodexScreenIntro } from '@valgaron/core';
 
 export function HelpPage() {
   const intro = getCodexScreenIntro('help');
   const [searchParams] = useSearchParams();
-  const focusedTopic = getCodexHelpFocus(searchParams.get('topic'));
+  const helpModel = getCodexHelpScreenModel(searchParams.get('topic'));
+  const { focusedTopic } = helpModel;
 
   return (
     <main className="vwb-main vwb-help-layout" id="main-content" tabIndex={-1}>
       <section className="vwb-panel vwb-section-intro">
         <p className="vwb-kicker">{intro.kicker}</p>
-        <h1>{APP_NAME}</h1>
+        <h1>{helpModel.app.title}</h1>
         <p>
-          {intro.detail} Version {APP_VERSION}.
+          {intro.detail} {helpModel.app.versionText}
         </p>
       </section>
 
@@ -33,7 +21,7 @@ export function HelpPage() {
         <section className="vwb-panel" aria-labelledby="help-focused-title">
           <div className="vwb-section-heading">
             <div>
-              <p className="vwb-kicker">Focused help</p>
+              <p className="vwb-kicker">{helpModel.sections.focused.kicker}</p>
               <h2 id="help-focused-title">{focusedTopic.title}</h2>
             </div>
           </div>
@@ -44,17 +32,44 @@ export function HelpPage() {
       <section className="vwb-panel" aria-labelledby="help-start-title">
         <div className="vwb-section-heading">
           <div>
-            <p className="vwb-kicker">First use</p>
-            <h2 id="help-start-title">Start with one workspace</h2>
+            <p className="vwb-kicker">{helpModel.sections.firstUse.kicker}</p>
+            <h2 id="help-start-title">{helpModel.sections.firstUse.title}</h2>
           </div>
         </div>
-        <p>{codexFirstUseHelp}</p>
+        <p>{helpModel.firstUse}</p>
       </section>
 
-      <section className="vwb-help-grid" aria-label="Workflow help">
-        {codexWorkflowHelpTopics.map((section) => (
+      <section className="vwb-panel" aria-labelledby="help-actions-title">
+        <div className="vwb-section-heading">
+          <div>
+            <p className="vwb-kicker">
+              {helpModel.sections.quickActions.kicker}
+            </p>
+            <h2 id="help-actions-title">
+              {helpModel.sections.quickActions.title}
+            </h2>
+          </div>
+        </div>
+        <div className="vwb-action-row">
+          {helpModel.quickActions.map((action) => (
+            <NavLink
+              className="vwb-secondary-button"
+              key={action.id}
+              to={action.path}
+            >
+              {action.label}
+            </NavLink>
+          ))}
+        </div>
+      </section>
+
+      <section
+        className="vwb-help-grid"
+        aria-label={helpModel.sections.workflow.ariaLabel}
+      >
+        {helpModel.workflowTopics.map((section) => (
           <article className="vwb-panel" key={section.title}>
-            <p className="vwb-kicker">Workflow</p>
+            <p className="vwb-kicker">{helpModel.sections.workflow.kicker}</p>
             <h2>{section.title}</h2>
             <ul className="vwb-compact-list">
               {section.items.map((item) => (
@@ -68,13 +83,13 @@ export function HelpPage() {
       <section className="vwb-panel" aria-labelledby="help-data-title">
         <div className="vwb-section-heading">
           <div>
-            <p className="vwb-kicker">Local storage</p>
-            <h2 id="help-data-title">Backups and recovery</h2>
+            <p className="vwb-kicker">{helpModel.sections.data.kicker}</p>
+            <h2 id="help-data-title">{helpModel.data.title}</h2>
           </div>
         </div>
-        <p>{codexDataHelpSummary}</p>
+        <p>{helpModel.data.summary}</p>
         <dl className="vwb-detail-list">
-          {codexDataHelpDetails.map((item) => (
+          {helpModel.data.details.map((item) => (
             <div key={item.term}>
               <dt>{item.term}</dt>
               <dd>{item.detail}</dd>
@@ -86,43 +101,43 @@ export function HelpPage() {
       <section className="vwb-panel" aria-labelledby="help-offline-title">
         <div className="vwb-section-heading">
           <div>
-            <p className="vwb-kicker">Offline</p>
-            <h2 id="help-offline-title">{codexHelpSectionTitles.offline}</h2>
+            <p className="vwb-kicker">{helpModel.sections.offline.kicker}</p>
+            <h2 id="help-offline-title">{helpModel.offline.title}</h2>
           </div>
         </div>
-        <p>{codexOfflineHelp}</p>
+        <p>{helpModel.offline.detail}</p>
       </section>
 
       <section className="vwb-panel" aria-labelledby="help-support-title">
         <div className="vwb-section-heading">
           <div>
-            <p className="vwb-kicker">Support</p>
-            <h2 id="help-support-title">
-              Report problems without world content
-            </h2>
+            <p className="vwb-kicker">{helpModel.sections.support.kicker}</p>
+            <h2 id="help-support-title">{helpModel.support.title}</h2>
           </div>
         </div>
-        <p>{codexSupportHelp}</p>
+        <p>{helpModel.support.detail}</p>
       </section>
 
       <section className="vwb-panel" aria-labelledby="help-privacy-title">
         <div className="vwb-section-heading">
           <div>
-            <p className="vwb-kicker">Privacy</p>
-            <h2 id="help-privacy-title">No telemetry or remote account</h2>
+            <p className="vwb-kicker">{helpModel.sections.privacy.kicker}</p>
+            <h2 id="help-privacy-title">{helpModel.privacy.title}</h2>
           </div>
         </div>
-        <p>{codexPrivacyHelp}</p>
+        <p>{helpModel.privacy.detail}</p>
       </section>
 
       <section className="vwb-panel" aria-labelledby="help-limits-title">
         <div className="vwb-section-heading">
           <div>
-            <p className="vwb-kicker">Release limits</p>
-            <h2 id="help-limits-title">Intentionally out of scope</h2>
+            <p className="vwb-kicker">
+              {helpModel.sections.releaseLimits.kicker}
+            </p>
+            <h2 id="help-limits-title">{helpModel.releaseLimits.title}</h2>
           </div>
         </div>
-        <p>{codexReleaseLimitsHelp}</p>
+        <p>{helpModel.releaseLimits.detail}</p>
       </section>
     </main>
   );

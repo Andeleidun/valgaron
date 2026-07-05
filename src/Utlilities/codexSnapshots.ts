@@ -1,15 +1,13 @@
-import type {
-  RecoverySnapshot,
-  RecoverySnapshotReason,
-  WorldDocument,
-} from '../types';
 import {
   isRecoverySnapshotReason,
+  parseWorldDocument,
+  type RecoverySnapshot,
+  type RecoverySnapshotReason,
   summarizeRecoverySnapshot,
   summarizeRecoverySnapshots,
+  type WorldDocument,
 } from '@valgaron/core';
 import { browserLocalStorageAdapter } from './storageAdapter';
-import { parseWorldDocument } from './worldDocument';
 
 export { summarizeRecoverySnapshot, summarizeRecoverySnapshots };
 

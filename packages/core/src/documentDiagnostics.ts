@@ -27,12 +27,19 @@ export type WorldDocumentDiagnosticsReport = {
   runtime: {
     generatedAt: string;
     storageTarget: string;
+    route?: string;
+    userAgent?: string;
     loadState?: string;
     loadCheckedAt?: string;
+    loadMessage?: string;
+    loadIssueCount?: number;
     saveState?: string;
     recoverySnapshotAvailable?: boolean;
+    recoverySnapshotCount?: number;
+    recoverySnapshotState?: string;
     recoverySnapshotReason?: string;
     recoverySnapshotCreatedAt?: string;
+    runtimeErrorName?: string;
   };
   document: WorldDocumentDiagnostics;
   contentPolicy: {
@@ -58,6 +65,18 @@ export const contentSafeDiagnosticOmittedFields = [
   'entry ids',
   'relationship ids',
 ] as const;
+
+export function sanitizeDiagnosticsRoute(route: string): string {
+  const [path, search = ''] = route.split('?');
+  if (!search) {
+    return path;
+  }
+  const keys = new URLSearchParams(search);
+  const sanitizedSearch = Array.from(keys.keys())
+    .map((key) => `${encodeURIComponent(key)}=redacted`)
+    .join('&');
+  return sanitizedSearch ? `${path}?${sanitizedSearch}` : path;
+}
 
 export function getWorldDocumentDiagnostics(
   document: WorldDocument,

@@ -1,9 +1,21 @@
-import type { WorldDocument, WorldSectionId, WorldWorkspace } from './types';
+import type {
+  WorldDocument,
+  WorldSectionConfig,
+  WorldSectionId,
+  WorldWorkspace,
+} from './types';
 import { getEntries } from './codexEntries';
-import { getSearchableEntries, type SearchableEntry } from './codexSearch';
-import { getIncompleteEntries } from './codexTemplates';
+import {
+  getSearchableEntries,
+  getSearchResultContext,
+  searchEntries,
+  type SearchableEntry,
+} from './codexSearch';
+import { entryDisplayCopy, formatUpdatedAt } from './codexEntries';
+import { getIncompleteEntries, type EntryCompleteness } from './codexTemplates';
 import { getActiveWorld } from './worldDocument';
 import { getWorkspaceCounts } from './workspaceManagement';
+import { getCodexEntriesRoute } from './shell';
 
 export type CodexOverviewSummary = {
   workspaceName: string;
@@ -19,8 +31,137 @@ export type CodexOverviewSummary = {
 };
 
 export type CodexOverviewEntryHighlights = {
-  pinned: SearchableEntry[];
-  recent: SearchableEntry[];
+  pinned: WorkspaceOverviewDisplayEntry[];
+  recent: WorkspaceOverviewDisplayEntry[];
+};
+
+export type WorkspaceOverviewDisplayEntry = SearchableEntry & {
+  contextText: string;
+  summaryText: string;
+  updatedText: string;
+};
+
+export type WorkspaceOverviewIncompleteEntry = EntryCompleteness & {
+  contextText: string;
+  promptText: string;
+};
+
+export const overviewFeatureCopy = {
+  activeWorkspacesStatLabel: 'Active workspaces',
+  clearSearchLabel: 'Clear Search',
+  codexTotalsLabel: 'Codex totals',
+  currentDraftStateTitle: 'Current Draft State',
+  editLabel: 'Edit',
+  entriesStatLabel: 'Entries',
+  globalSearchKicker: 'Global search',
+  globalSearchTitle: 'Find anything in this world',
+  incompleteKicker: 'Needs attention',
+  incompleteTitle: 'Incomplete records',
+  localDataNoticeDetail:
+    'Use the header Save button to write current progress to this browser profile. Export JSON backups regularly, especially before clearing browser data or changing devices.',
+  localDataNoticeLabel: 'Local data notice',
+  localDataNoticeTitle: 'Local browser data.',
+  noRecentRecordsTitle: 'No recent records yet.',
+  noRecentRecordsDetail:
+    'Create a codex record to start filling this workspace.',
+  noSearchResultsDetail: 'Try another name, tag, note, or world detail.',
+  noSearchResultsTitle: 'No entries found.',
+  noVisibleDraftingPrompts: 'No visible entries need drafting prompts.',
+  openDataLabel: 'Open Data',
+  openLabel: 'Open',
+  pinnedKicker: 'Pinned',
+  pinnedTitle: 'Important records',
+  quickCreateKicker: 'Quick create',
+  quickCreateTitle: 'Start a new record',
+  recentKicker: 'Recently updated',
+  recentTitle: 'Latest codex work',
+  relationshipsStatLabel: 'Relationships',
+  searchEntriesLabel: 'Search entries',
+  searchHelpText: 'Search names, tags, notes, and detail fields.',
+  searchPlaceholder: 'Search codex records',
+  workspaceStatLabel: 'Workspace',
+  workspaceKickerSuffix: 'Workspace',
+} as const;
+
+const incompleteEntryPromptPreviewCount = 2;
+
+export function getWorkspaceOverviewWorkspaceKicker(
+  summary: Pick<CodexOverviewSummary, 'workspaceName'>
+): string {
+  return `${summary.workspaceName} ${overviewFeatureCopy.workspaceKickerSuffix}`;
+}
+
+export function getWorkspaceOverviewDraftingPromptCountLabel(
+  count: number
+): string {
+  return `${count} visible entries still have drafting prompts.`;
+}
+
+export function getWorkspaceOverviewOpenEntryAccessibilityLabel(
+  entry: Pick<SearchableEntry, 'name'>
+): string {
+  return `${overviewFeatureCopy.openLabel} ${entry.name}`;
+}
+
+export function getWorkspaceOverviewEditEntryAccessibilityLabel(
+  entry: Pick<SearchableEntry, 'name'>
+): string {
+  return `${overviewFeatureCopy.editLabel} ${entry.name}`;
+}
+
+export function getWorkspaceOverviewDisplayEntry(
+  entry: SearchableEntry
+): WorkspaceOverviewDisplayEntry {
+  return {
+    ...entry,
+    contextText: getSearchResultContext(entry),
+    summaryText: entry.summary || entryDisplayCopy.emptySummary,
+    updatedText: `${entryDisplayCopy.updatedPrefix} ${formatUpdatedAt(
+      entry.updatedAt
+    )}`,
+  };
+}
+
+export function getWorkspaceOverviewIncompleteEntry(
+  item: EntryCompleteness
+): WorkspaceOverviewIncompleteEntry {
+  return {
+    ...item,
+    contextText: `${item.section.title} - ${item.percent}% complete`,
+    promptText: item.prompts
+      .slice(0, incompleteEntryPromptPreviewCount)
+      .join(' '),
+  };
+}
+
+export type WorkspaceOverviewModel = {
+  summary: CodexOverviewSummary;
+  sections: readonly WorldSectionConfig[];
+  quickCreateActions: readonly WorkspaceOverviewQuickCreateAction[];
+  searchResults: WorkspaceOverviewDisplayEntry[];
+  entryHighlights: CodexOverviewEntryHighlights;
+  incompleteEntries: WorkspaceOverviewIncompleteEntry[];
+};
+
+export type WorkspaceOverviewQuickCreateAction = {
+  id: string;
+  label: string;
+  route: string;
+  sectionId: WorldSectionId;
+};
+
+export type WorkspaceOverviewEntryRouteTarget = Pick<
+  SearchableEntry,
+  'id' | 'name' | 'sectionId'
+>;
+
+export type WorkspaceOverviewModelInput = {
+  workspace: WorldWorkspace;
+  document?: WorldDocument;
+  query?: string;
+  searchLimit?: number;
+  highlightLimit?: number;
+  incompleteLimit?: number;
 };
 
 export function getVisibleWorkspaceEntries(
@@ -37,15 +178,73 @@ export function getWorkspaceOverviewEntryHighlights(
 ): CodexOverviewEntryHighlights {
   const visibleEntries = getVisibleWorkspaceEntries(workspace);
   return {
-    pinned: visibleEntries.filter((entry) => entry.pinned).slice(0, limit),
+    pinned: visibleEntries
+      .filter((entry) => entry.pinned)
+      .slice(0, limit)
+      .map(getWorkspaceOverviewDisplayEntry),
     recent: [...visibleEntries]
       .sort(
         (first, second) =>
           new Date(second.updatedAt).getTime() -
           new Date(first.updatedAt).getTime()
       )
-      .slice(0, limit),
+      .slice(0, limit)
+      .map(getWorkspaceOverviewDisplayEntry),
   };
+}
+
+export function getWorkspaceOverviewSearchResults(
+  workspace: WorldWorkspace,
+  query: string,
+  limit = 8
+): WorkspaceOverviewDisplayEntry[] {
+  return searchEntries(
+    getVisibleWorkspaceEntries(workspace),
+    workspace.entryTypes,
+    query
+  )
+    .slice(0, limit)
+    .map(getWorkspaceOverviewDisplayEntry);
+}
+
+export function getWorkspaceOverviewIncompleteEntries(
+  workspace: WorldWorkspace,
+  limit = 6
+): WorkspaceOverviewIncompleteEntry[] {
+  return getIncompleteEntries(
+    getVisibleWorkspaceEntries(workspace),
+    workspace.entryTypes
+  )
+    .slice(0, limit)
+    .map(getWorkspaceOverviewIncompleteEntry);
+}
+
+export function getWorkspaceOverviewQuickCreateActions(
+  sections: readonly WorldSectionConfig[]
+): WorkspaceOverviewQuickCreateAction[] {
+  return sections.map((section) => ({
+    id: `quick-create-${section.id}`,
+    label: `New ${section.singularTitle}`,
+    route: getCodexEntriesRoute({ sectionId: section.id, intent: 'new' }),
+    sectionId: section.id,
+  }));
+}
+
+export function getWorkspaceOverviewSectionRoute(
+  section: Pick<WorldSectionConfig, 'id'>
+): string {
+  return getCodexEntriesRoute({ sectionId: section.id });
+}
+
+export function getWorkspaceOverviewEntryRoute(
+  entry: WorkspaceOverviewEntryRouteTarget
+): string {
+  return getCodexEntriesRoute({
+    entryId: entry.id,
+    intent: 'edit',
+    query: entry.name,
+    sectionId: entry.sectionId,
+  });
 }
 
 export function getCodexOverviewSummary(
@@ -87,6 +286,36 @@ export function getWorkspaceOverviewSummary(
         section.id,
         getEntries(workspace.codex, section.id).length,
       ])
+    ),
+  };
+}
+
+export function getWorkspaceOverviewModel({
+  workspace,
+  document,
+  query = '',
+  searchLimit = 8,
+  highlightLimit = 4,
+  incompleteLimit = 6,
+}: WorkspaceOverviewModelInput): WorkspaceOverviewModel {
+  return {
+    summary: getWorkspaceOverviewSummary(workspace, document),
+    sections: workspace.entryTypes,
+    quickCreateActions: getWorkspaceOverviewQuickCreateActions(
+      workspace.entryTypes
+    ),
+    searchResults: getWorkspaceOverviewSearchResults(
+      workspace,
+      query,
+      searchLimit
+    ),
+    entryHighlights: getWorkspaceOverviewEntryHighlights(
+      workspace,
+      highlightLimit
+    ),
+    incompleteEntries: getWorkspaceOverviewIncompleteEntries(
+      workspace,
+      incompleteLimit
     ),
   };
 }

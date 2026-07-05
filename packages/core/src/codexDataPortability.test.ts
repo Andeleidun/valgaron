@@ -79,9 +79,17 @@ describe('codexDataPortability', () => {
     expect(formatWorldImportPreviewText(preview)).toMatchObject({
       title: 'Sample Atlas',
       detail: expect.stringContaining(
-        '1 workspace(s), 10 entries, 5 relationships.'
+        '1 workspace, 10 entries, 5 relationships.'
       ),
     });
+    expect(
+      formatWorldImportPreviewText({
+        ...preview,
+        entryCount: 1,
+        relationshipCount: 1,
+        worldCount: 2,
+      }).detail
+    ).toContain('2 workspaces, 1 entry, 1 relationship.');
   });
 
   it('serializes the full document as a multi-workspace JSON backup', () => {

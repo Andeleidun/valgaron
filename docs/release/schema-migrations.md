@@ -22,8 +22,9 @@ Schema version `2` supports:
 The earlier `valgaron.worldCodex.v1` shape is migrated into a schema `2`
 document with one active workspace named `Migrated Workspace`.
 
-The migration is covered by `src/Utlilities/worldDocument.test.ts` and
-`src/Utlilities/codexStorage.test.ts`.
+The core schema migration path is covered by
+`packages/core/src/worldDocument.test.ts`; browser storage fallback and legacy
+load behavior are covered by `src/Utlilities/codexStorage.test.ts`.
 
 ## Adding A Future Schema
 

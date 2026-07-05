@@ -6,7 +6,7 @@ import {
   shouldPauseInitialSaveAfterLoad,
 } from './useWorldDocumentState';
 import type { WorldDocumentLoadStatus } from './codexStorage';
-import { createSeedWorldDocument } from './seedCodex';
+import { createSeedWorldDocument } from '@valgaron/core';
 
 const checkedAt = '2026-06-01T00:00:00.000Z';
 

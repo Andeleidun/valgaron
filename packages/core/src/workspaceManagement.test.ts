@@ -9,6 +9,7 @@ import {
   deletePlanetaryWorld,
   deleteWorkspace,
   duplicateWorkspace,
+  emptyEntryTypeDraft,
   entryTypeDraftFields,
   getWorkspaceActionState,
   lastActiveWorkspaceArchiveMessage,
@@ -22,11 +23,33 @@ import {
   updateActiveWorkspace,
   updateWorkspaceMetadata,
   upsertPlanetaryWorld,
+  workspaceDraftFrom,
   workspaceDraftFields,
 } from './workspaceManagement';
 import { getActiveWorld, parseWorldDocument } from './worldDocument';
 
 describe('workspace management', () => {
+  it('creates shared workspace and entry type drafts', () => {
+    const workspace = getActiveWorld(createSeedWorldDocument());
+
+    expect(workspaceDraftFrom()).toEqual({
+      name: '',
+      summary: '',
+      defaultEra: '',
+    });
+    expect(workspaceDraftFrom(workspace)).toEqual({
+      name: workspace.name,
+      summary: workspace.summary,
+      defaultEra: workspace.defaultEra,
+    });
+    expect(emptyEntryTypeDraft()).toEqual({
+      title: '',
+      singularTitle: '',
+      description: '',
+      fields: '',
+    });
+  });
+
   it('creates, switches, edits, archives, restores, duplicates, and deletes workspaces', () => {
     const document = createSeedWorldDocument();
     const created = createWorkspace(document, {

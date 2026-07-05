@@ -1,5 +1,6 @@
 import type { WorldDocument, WorldEntry, WorldWorkspace } from './types';
 import { formatUpdatedAt, getEntries } from './codexEntries';
+import { pluralizeCountLabel } from './featureDisplayLimits';
 import { valgaronProduct } from './shell';
 import {
   CURRENT_WORLD_SCHEMA_VERSION,
@@ -260,11 +261,17 @@ export function formatWorldImportPreviewText(
 ): WorldImportPreviewText {
   return {
     title: preview.activeWorldName,
-    detail: `${preview.worldCount} workspace(s), ${
-      preview.entryCount
-    } entries, ${
-      preview.relationshipCount
-    } relationships. Saved ${formatUpdatedAt(preview.savedAt)}.`,
+    detail: `${preview.worldCount} ${pluralizeCountLabel(
+      preview.worldCount,
+      'workspace'
+    )}, ${preview.entryCount} ${pluralizeCountLabel(
+      preview.entryCount,
+      'entry',
+      'entries'
+    )}, ${preview.relationshipCount} ${pluralizeCountLabel(
+      preview.relationshipCount,
+      'relationship'
+    )}. Saved ${formatUpdatedAt(preview.savedAt)}.`,
   };
 }
 

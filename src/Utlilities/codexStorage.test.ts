@@ -10,8 +10,11 @@ import {
   saveCodex,
   saveWorldDocument,
 } from './codexStorage';
-import { createSeedCodex, createSeedWorldDocument } from './seedCodex';
-import { getActiveWorld } from './worldDocument';
+import {
+  createSeedCodex,
+  createSeedWorldDocument,
+  getActiveWorld,
+} from '@valgaron/core';
 
 class MemoryStorage {
   private readonly entries = new Map<string, string>();

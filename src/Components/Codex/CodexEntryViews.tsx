@@ -4,41 +4,57 @@ import {
   createEmptyDraft,
   createTemplateDraft,
   draftFromEntry,
+  entryDraftStatusControl,
+  entryEditorCopy,
+  entryNameCopyFeedback,
   entryFromDraft,
-  formatUpdatedAt,
+  entryPinnedControl,
   formatDestructiveActionTitle,
   formatDraftValidationErrors,
   getDetailValue,
-  getCodexEntriesRoute,
-  getCodexRelationshipsRoute,
   getDestructiveActionCopy,
   getDraftDetailFields,
-  getEntries,
-  getEntryDetailFieldSuggestions,
+  getEntryDetailDisplayModel,
+  getEntryEditorBaseFields,
+  getEntryEditorDetailFieldModels,
   getEntryDetailFields,
+  getEntryEditorCreateTitle,
+  getEntryEditorNotesPreviewModel,
+  getEntryEditorSelectedActionModel,
+  getEntryEditorSubmitLabel,
+  getEntryHiddenDetailCleanupModel,
+  getEntryNameCopiedMessage,
+  getEntryNameCopyText,
   getEntryRelationships,
-  getEntryStatusLabel,
-  getHiddenPlaceDetailValues,
   getPlaceRelationshipGroups,
   getRelationshipEntries,
+  getRelationshipEntryRouteById,
+  getRelationshipManagementRoute,
   getTimelineDiagnostics,
+  getTimelineEventItem,
   getTimelineHighlights,
   getTimelineInvolvedEntryIdsByEvent,
   getTimelineOrderUpdates,
+  relationshipFeatureCopy,
   groupTimelineEventsByEra,
-  buildRelationshipTextMigration,
+  buildPlaceRelationshipFieldTextMigrationOperation,
   filterPlaceRelationshipTargetOptions,
   getPlaceRelationshipFieldLinks,
+  getPlaceRelationshipFieldTextMigration,
   getPlaceRelationshipFieldTargetId,
+  getPlaceRelationshipTextMigrationStatus,
+  placeRelationshipFieldCopy,
   placeRelationshipFieldConfigs,
+  placeRelationshipTextReviewCopy,
+  getPlaceRelationshipTargetOptionDisplay,
   getPlaceRelationshipTargetOptions,
-  limitPlaceRelationshipTargetOptions,
   makePlaceFieldRelationship,
   sortTimelineEvents,
+  timelineFeatureCopy,
   validateEntryDraft,
   type EntryDraft,
+  type EntryListItem,
   type PlaceRelationshipFieldConfig,
-  worldEntryStatusOptions,
   type RelationshipWithEntries,
   type WorldCodex,
   type WorldDetailFieldKey,
@@ -65,11 +81,13 @@ function getDetailFieldSuggestionId(
 
 export function EntryCard({
   entry,
+  entryListItem,
   section,
   isSelected,
   onSelect,
 }: {
   entry: WorldEntry;
+  entryListItem: EntryListItem;
   section: WorldSectionConfig;
   isSelected: boolean;
   onSelect: () => void;
@@ -94,9 +112,9 @@ export function EntryCard({
           <span className="vwb-entry-kind">{section.singularTitle}</span>
           <strong>{entry.name}</strong>
         </span>
-        <small>{getEntryStatusLabel(entry.status)}</small>
+        <small>{entryListItem.statusLabel}</small>
       </span>
-      <span>{entry.summary || 'No summary yet.'}</span>
+      <span>{entryListItem.summaryText}</span>
       {detailPreview ? <small>{detailPreview}</small> : null}
       {entry.tags.length > 0 ? (
         <span className="vwb-tag-row" aria-label="Tags">
@@ -124,69 +142,64 @@ export function EntryDetail({
   section: WorldSectionConfig;
   sections: readonly WorldSectionConfig[];
 }) {
-  const visibleDetails = getEntryDetailFields(section, entry)
-    .map((field) => ({
-      label: field.label,
-      value: getDetailValue(entry, field.key),
-    }))
-    .filter((field) => field.value);
-  const hiddenDetails = getHiddenPlaceDetailValues(section, entry.fields);
+  const detailModel = getEntryDetailDisplayModel(section, entry);
 
   return (
     <article className="vwb-detail-panel" aria-labelledby="entry-detail-title">
       <div className="vwb-section-heading">
         <div>
-          <p className="vwb-kicker">{section.singularTitle} detail</p>
-          <h2 id="entry-detail-title">{entry.name}</h2>
+          <p className="vwb-kicker">{detailModel.kicker}</p>
+          <h2 id="entry-detail-title">{detailModel.name}</h2>
         </div>
-        <span className="vwb-status-pill">
-          {getEntryStatusLabel(entry.status)}
-        </span>
+        <span className="vwb-status-pill">{detailModel.statusLabel}</span>
       </div>
-      <p>{entry.summary || 'No summary yet.'}</p>
+      <p>{detailModel.summary}</p>
       <dl className="vwb-detail-list">
         <div>
-          <dt>Updated</dt>
-          <dd>{formatUpdatedAt(entry.updatedAt)}</dd>
+          <dt>{detailModel.updated.label}</dt>
+          <dd>{detailModel.updated.value}</dd>
         </div>
         <div>
-          <dt>Created</dt>
-          <dd>{formatUpdatedAt(entry.createdAt)}</dd>
+          <dt>{detailModel.created.label}</dt>
+          <dd>{detailModel.created.value}</dd>
         </div>
         <div>
-          <dt>Pinned</dt>
-          <dd>{entry.pinned ? 'Yes' : 'No'}</dd>
+          <dt>{detailModel.pinned.label}</dt>
+          <dd>{detailModel.pinned.value}</dd>
         </div>
-        {visibleDetails.map((field) => (
+        {detailModel.visibleDetails.map((field) => (
           <div key={field.label}>
             <dt>{field.label}</dt>
             <dd>{field.value}</dd>
           </div>
         ))}
       </dl>
-      {entry.tags.length > 0 ? (
-        <div className="vwb-tag-row" aria-label="Tags">
-          {entry.tags.map((tag) => (
+      {detailModel.tags.length > 0 ? (
+        <div className="vwb-tag-row" aria-label={detailModel.tagsLabel}>
+          {detailModel.tags.map((tag) => (
             <span className="vwb-tag" key={tag}>
               {tag}
             </span>
           ))}
         </div>
       ) : null}
-      {entry.notes ? (
-        <section className="vwb-notes-block" aria-label="Markdown notes">
-          <h3>Notes</h3>
-          <pre>{entry.notes}</pre>
+      {detailModel.notes ? (
+        <section
+          className="vwb-notes-block"
+          aria-label={entryEditorCopy.notesLabel}
+        >
+          <h3>{entryEditorCopy.notesLabel}</h3>
+          <pre>{detailModel.notes}</pre>
         </section>
       ) : null}
-      {hiddenDetails.length > 0 ? (
+      {detailModel.hiddenDetails.length > 0 ? (
         <section
           className="vwb-hidden-detail-panel"
-          aria-label="Hidden place details"
+          aria-label={placeRelationshipTextReviewCopy.hiddenPlaceDetailsTitle}
         >
-          <h3>Hidden place details</h3>
+          <h3>{placeRelationshipTextReviewCopy.hiddenPlaceDetailsTitle}</h3>
           <dl className="vwb-detail-list">
-            {hiddenDetails.map((field) => (
+            {detailModel.hiddenDetails.map((field) => (
               <div key={field.key}>
                 <dt>{field.label}</dt>
                 <dd>{field.value}</dd>
@@ -203,23 +216,6 @@ export function EntryDetail({
       />
     </article>
   );
-}
-
-function getRelationshipEntryPath(
-  codex: WorldCodex,
-  sections: readonly WorldSectionConfig[],
-  entryId: string
-): string {
-  const section = sections.find((item) =>
-    getEntries(codex, item.id).some((entry) => entry.id === entryId)
-  );
-  return section
-    ? getCodexEntriesRoute({
-        sectionId: section.id,
-        entryId,
-        intent: 'edit',
-      })
-    : '/relationships';
 }
 
 function formatRelationshipDirection(
@@ -274,13 +270,12 @@ function EntryRelationships({
         </div>
         <NavLink
           className="vwb-secondary-button"
-          to={getCodexRelationshipsRoute({
+          to={getRelationshipManagementRoute({
             entryId: entry.id,
-            entryQuery: entry.name,
-            relationshipQuery: entry.name,
+            name: entry.name,
           })}
         >
-          Manage Links
+          {relationshipFeatureCopy.manageLinksLabel}
         </NavLink>
       </div>
       {placeRelationshipGroups.length > 0 ? (
@@ -306,7 +301,7 @@ function EntryRelationships({
                       </span>
                       {relatedEntry ? (
                         <NavLink
-                          to={getRelationshipEntryPath(
+                          to={getRelationshipEntryRouteById(
                             codex,
                             sections,
                             relatedEntry.id
@@ -338,7 +333,7 @@ function EntryRelationships({
                   </span>
                   {relatedEntry ? (
                     <NavLink
-                      to={getRelationshipEntryPath(
+                      to={getRelationshipEntryRouteById(
                         codex,
                         sections,
                         relatedEntry.id
@@ -357,8 +352,8 @@ function EntryRelationships({
         </div>
       ) : (
         <div className="vwb-empty-results" role="status">
-          <strong>No relationships yet.</strong>
-          <p>Use the Relationships page to connect this record to the world.</p>
+          <strong>{relationshipFeatureCopy.selectedEntryEmptyTitle}</strong>
+          <p>{relationshipFeatureCopy.selectedEntryEmptyDetail}</p>
         </div>
       )}
     </section>
@@ -382,6 +377,15 @@ export function TimelineOverview({
   const sortedEvents = sortTimelineEvents(events);
   const diagnostics = getTimelineDiagnostics(events, relationships);
   const highlights = getTimelineHighlights(events);
+  const timelineEventItemById = new Map(
+    events.map((event) => [
+      event.id,
+      getTimelineEventItem(
+        { codex, entryTypes: sections, relationships },
+        event
+      ),
+    ])
+  );
   const involvedEntryIdsByEvent =
     getTimelineInvolvedEntryIdsByEvent(relationships);
   const entryById = new Map(
@@ -404,17 +408,23 @@ export function TimelineOverview({
       </div>
       <div className="vwb-diagnostics-grid">
         <article className="vwb-diagnostic-card">
-          <span className="vwb-entry-kind">Unordered events</span>
+          <span className="vwb-entry-kind">
+            {timelineFeatureCopy.unorderedEventsLabel}
+          </span>
           <strong>{diagnostics.unorderedEvents.length}</strong>
           <p>Events without a numeric sort order.</p>
         </article>
         <article className="vwb-diagnostic-card">
-          <span className="vwb-entry-kind">Duplicate orders</span>
+          <span className="vwb-entry-kind">
+            {timelineFeatureCopy.duplicateOrdersLabel}
+          </span>
           <strong>{diagnostics.duplicateOrderGroups.length}</strong>
           <p>Order values shared by more than one event.</p>
         </article>
         <article className="vwb-diagnostic-card">
-          <span className="vwb-entry-kind">Unlinked events</span>
+          <span className="vwb-entry-kind">
+            {timelineFeatureCopy.unlinkedEventsLabel}
+          </span>
           <strong>{diagnostics.unlinkedEvents.length}</strong>
           <p>Timeline events with no relationship links.</p>
         </article>
@@ -427,11 +437,12 @@ export function TimelineOverview({
           {highlights.map((event) => (
             <article className="vwb-timeline-highlight" key={event.id}>
               <span className="vwb-entry-kind">
-                Order {event.fields.order || 'Unsorted'}
+                {timelineEventItemById.get(event.id)?.contextText}
               </span>
               <strong>{event.name}</strong>
               <p>
-                {event.fields.dateLabel || event.summary || 'No date label.'}
+                {timelineEventItemById.get(event.id)?.summaryText ??
+                  timelineFeatureCopy.noDateLabelSentence}
               </p>
             </article>
           ))}
@@ -455,11 +466,12 @@ export function TimelineOverview({
               {sortedEvents.map((event, index) => {
                 const involvedEntryIds =
                   involvedEntryIdsByEvent.get(event.id) ?? [];
+                const eventItem = timelineEventItemById.get(event.id);
                 return (
                   <tr key={event.id}>
-                    <td>{event.fields.order || 'Unsorted'}</td>
+                    <td>{eventItem?.orderText}</td>
                     <td>{event.name}</td>
-                    <td>{event.fields.dateLabel || 'No date label'}</td>
+                    <td>{eventItem?.dateText}</td>
                     <td>{event.fields.era || 'Unassigned Era'}</td>
                     <td>{involvedEntryIds.length}</td>
                     <td>
@@ -498,16 +510,16 @@ export function TimelineOverview({
                 {group.events.map((event) => {
                   const involvedEntryIds =
                     involvedEntryIdsByEvent.get(event.id) ?? [];
+                  const eventItem = timelineEventItemById.get(event.id);
                   return (
                     <article className="vwb-timeline-event" key={event.id}>
                       <div>
                         <span className="vwb-entry-kind">
-                          Order {event.fields.order || 'Unsorted'} -{' '}
-                          {event.fields.dateLabel || 'No date label'}
+                          {eventItem?.contextText}
                         </span>
                         <h4>{event.name}</h4>
                       </div>
-                      <p>{event.summary || 'No summary yet.'}</p>
+                      <p>{eventItem?.summaryText}</p>
                       {event.fields.consequences ? (
                         <p className="vwb-timeline-consequence">
                           {event.fields.consequences}
@@ -524,7 +536,7 @@ export function TimelineOverview({
                               <NavLink
                                 className="vwb-tag vwb-linked-tag"
                                 key={entryId}
-                                to={getRelationshipEntryPath(
+                                to={getRelationshipEntryRouteById(
                                   codex,
                                   sections,
                                   entryId
@@ -545,8 +557,8 @@ export function TimelineOverview({
         </div>
       ) : (
         <div className="vwb-empty-results" role="status">
-          <strong>No timeline events found.</strong>
-          <p>Clear filters or add a timeline event to build chronology.</p>
+          <strong>{timelineFeatureCopy.noTimelineEventsFoundTitle}</strong>
+          <p>{timelineFeatureCopy.noTimelineEventsFoundDetail}</p>
         </div>
       )}
     </section>
@@ -669,6 +681,7 @@ function PlaceRelationshipFieldControl({
   sections: readonly WorldSectionConfig[];
 }) {
   const [query, setQuery] = useState('');
+  const [expandedUnusualTargets, setExpandedUnusualTargets] = useState(false);
   const fieldRelationships = getPlaceRelationshipFieldLinks(
     relationships,
     entry,
@@ -691,12 +704,15 @@ function PlaceRelationshipFieldControl({
     query,
     selectedTargetIds
   );
-  const visibleOptions = limitPlaceRelationshipTargetOptions(
-    filteredOptions,
+  const optionDisplay = getPlaceRelationshipTargetOptionDisplay({
+    expandedUnusualTargets,
+    limit: RELATIONSHIP_TARGET_RESULT_LIMIT,
+    options: filteredOptions,
     selectedTargetIds,
-    RELATIONSHIP_TARGET_RESULT_LIMIT
-  );
-  const hiddenOptionCount = filteredOptions.length - visibleOptions.length;
+    targetCategoryBehavior: config.targetCategoryBehavior,
+  });
+  const visibleOptions = optionDisplay.visibleOptions;
+  const hiddenPreferredCount = optionDisplay.hiddenPreferredCount;
 
   const saveLink = (
     targetEntryId: string,
@@ -766,33 +782,37 @@ function PlaceRelationshipFieldControl({
             <input
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder="Filter linked record targets"
+              placeholder={placeRelationshipFieldCopy.searchPlaceholder}
               type="search"
             />
           </label>
           {filteredOptions.length > 0 ? (
             config.cardinality === 'one' ? (
-              <label>
-                {config.label}
-                <select
-                  value={
-                    fieldRelationships[0]
-                      ? getPlaceRelationshipFieldTargetId(
-                          fieldRelationships[0],
-                          config
-                        )
-                      : ''
-                  }
-                  onChange={(event) => setSingleTarget(event.target.value)}
-                >
-                  <option value="">No linked record</option>
-                  {visibleOptions.map((option) => (
-                    <option value={option.entry.id} key={option.entry.id}>
-                      {option.entry.name} ({option.section.singularTitle})
-                    </option>
-                  ))}
-                </select>
-              </label>
+              <div className="vwb-linked-field-options">
+                <label className="vwb-inline-toggle">
+                  <input
+                    checked={fieldRelationships.length === 0}
+                    onChange={() => setSingleTarget('')}
+                    name={`place-link-${entry.id}-${config.fieldKey}`}
+                    type="radio"
+                  />
+                  {placeRelationshipFieldCopy.noLinkedRecordLabel}
+                </label>
+                {visibleOptions.map((option) => (
+                  <label className="vwb-inline-toggle" key={option.entry.id}>
+                    <input
+                      checked={selectedTargetIds.has(option.entry.id)}
+                      onChange={() => setSingleTarget(option.entry.id)}
+                      name={`place-link-${entry.id}-${config.fieldKey}`}
+                      type="radio"
+                    />
+                    {option.entry.name} ({option.section.singularTitle})
+                    {option.targetCategoryWarning ? (
+                      <small>{option.targetCategoryWarning}</small>
+                    ) : null}
+                  </label>
+                ))}
+              </div>
             ) : (
               <div className="vwb-linked-field-options">
                 {visibleOptions.map((option) => (
@@ -805,26 +825,36 @@ function PlaceRelationshipFieldControl({
                       type="checkbox"
                     />
                     {option.entry.name} ({option.section.singularTitle})
+                    {option.targetCategoryWarning ? (
+                      <small>{option.targetCategoryWarning}</small>
+                    ) : null}
                   </label>
                 ))}
               </div>
             )
           ) : (
             <p className="vwb-inline-status">
-              No matching records. Clear the search to see all targets.
+              {placeRelationshipFieldCopy.noMatchingTargetsMessage}
             </p>
           )}
-          {hiddenOptionCount > 0 ? (
+          {optionDisplay.canExpandUnusualTargets ? (
+            <button
+              className="vwb-secondary-button"
+              type="button"
+              onClick={() => setExpandedUnusualTargets(true)}
+            >
+              {optionDisplay.showUnusualTargetsLabel}
+            </button>
+          ) : null}
+          {hiddenPreferredCount > 0 ? (
             <p className="vwb-inline-status">
-              Showing {visibleOptions.length} of {filteredOptions.length}{' '}
-              matches. Refine the search to show {hiddenOptionCount} more record
-              {hiddenOptionCount === 1 ? '' : 's'}.
+              {optionDisplay.hiddenPreferredMessage}
             </p>
           ) : null}
         </>
       ) : (
         <p className="vwb-inline-status">
-          Create matching records before linking this field.
+          {placeRelationshipFieldCopy.createMatchingRecordsMessage}
         </p>
       )}
     </section>
@@ -905,11 +935,21 @@ export function EntryForm({
           (field) => !relationshipFieldKeys.has(field.key)
         )
       : visibleDetailFields;
-  const detailFieldSuggestions = useMemo(
-    () => getEntryDetailFieldSuggestions(editableDetailFields, sectionEntries),
-    [editableDetailFields, sectionEntries]
+  const baseFields = getEntryEditorBaseFields(section, draft);
+  const notesPreview = getEntryEditorNotesPreviewModel(draft.notes);
+  const detailFieldModels = useMemo(
+    () =>
+      getEntryEditorDetailFieldModels({
+        draft,
+        fields: editableDetailFields,
+        sectionEntries,
+      }),
+    [draft, editableDetailFields, sectionEntries]
   );
-  const hiddenDetailValues = getHiddenPlaceDetailValues(section, draft.details);
+  const hiddenDetailCleanup = getEntryHiddenDetailCleanupModel(section, draft);
+  const selectedActionModel = selectedEntry
+    ? getEntryEditorSelectedActionModel(selectedEntry)
+    : null;
   const legacyRelationshipTextValues = activeRelationshipFieldConfigs
     .map((config) => ({
       config,
@@ -965,19 +1005,19 @@ export function EntryForm({
   };
 
   const copyEntryName = () => {
-    const name = selectedEntry?.name ?? draft.name;
-    if (!name.trim()) {
-      setCopyStatus('Add a name before copying it.');
+    const name = getEntryNameCopyText(selectedEntry?.name ?? draft.name);
+    if (!name) {
+      setCopyStatus(entryNameCopyFeedback.missingName);
       return;
     }
     if (typeof navigator === 'undefined' || !navigator.clipboard?.writeText) {
-      setCopyStatus('Clipboard copy is unavailable in this runtime.');
+      setCopyStatus(entryNameCopyFeedback.unavailable);
       return;
     }
     navigator.clipboard
       .writeText(name)
-      .then(() => setCopyStatus(`Copied ${name}.`))
-      .catch(() => setCopyStatus('Clipboard copy failed.'));
+      .then(() => setCopyStatus(getEntryNameCopiedMessage(name)))
+      .catch(() => setCopyStatus(entryNameCopyFeedback.failed));
   };
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
@@ -998,20 +1038,13 @@ export function EntryForm({
     if (!selectedEntry || !codex || !sections) {
       return null;
     }
-    const options = getPlaceRelationshipTargetOptions({
+    return getPlaceRelationshipFieldTextMigration({
       codex,
       config,
-      sections,
       currentEntry: selectedEntry,
-    });
-    return buildRelationshipTextMigration(
+      sections,
       value,
-      options.map((option) => ({
-        id: option.entry.id,
-        name: option.entry.name,
-      })),
-      config.cardinality
-    );
+    });
   };
 
   const migrateLegacyRelationshipText = (
@@ -1033,51 +1066,21 @@ export function EntryForm({
     if (!migration || migration.targetIds.length === 0) {
       return;
     }
-    const fieldRelationships = getPlaceRelationshipFieldLinks(
+    const operation = buildPlaceRelationshipFieldTextMigrationOperation({
+      config,
+      entry: selectedEntry,
+      migration,
       relationships,
-      selectedEntry,
-      config
+    });
+    operation.relationshipIdsToDelete.forEach(onDeleteRelationship);
+    operation.relationshipsToSave.forEach(({ relationship }) =>
+      onSaveRelationship(relationship)
     );
-
-    if (config.cardinality === 'one') {
-      const [primaryRelationship, ...extraRelationships] = fieldRelationships;
-      for (const relationship of extraRelationships) {
-        onDeleteRelationship(relationship.id);
-      }
-      const targetEntryId = migration.targetIds[0];
-      if (
-        !primaryRelationship ||
-        getPlaceRelationshipFieldTargetId(primaryRelationship, config) !==
-          targetEntryId
-      ) {
-        onSaveRelationship(
-          makePlaceFieldRelationship(
-            selectedEntry,
-            config,
-            targetEntryId,
-            primaryRelationship
-          )
-        );
-      }
-    } else {
-      for (const targetEntryId of migration.targetIds) {
-        const existingRelationship = fieldRelationships.find(
-          (relationship) =>
-            getPlaceRelationshipFieldTargetId(relationship, config) ===
-            targetEntryId
-        );
-        if (!existingRelationship) {
-          onSaveRelationship(
-            makePlaceFieldRelationship(selectedEntry, config, targetEntryId)
-          );
-        }
-      }
-    }
     const nextDraft = {
       ...draft,
       details: {
         ...draft.details,
-        [config.fieldKey]: migration.remainingText,
+        [config.fieldKey]: operation.fields[config.fieldKey] ?? '',
       },
     };
     setDraft(nextDraft);
@@ -1089,22 +1092,28 @@ export function EntryForm({
       <div className="vwb-section-heading">
         <div>
           <p className="vwb-kicker">
-            {selectedEntry ? 'Edit entry' : 'New entry'}
+            {selectedEntry
+              ? entryEditorCopy.editKicker
+              : entryEditorCopy.createKicker}
           </p>
           <h2>
             {selectedEntry
               ? selectedEntry.name
-              : `Create ${section.singularTitle}`}
+              : getEntryEditorCreateTitle(section)}
           </h2>
         </div>
-        {isDirty ? <span className="vwb-status-pill">Unsaved</span> : null}
+        {isDirty ? (
+          <span className="vwb-status-pill">
+            {entryEditorCopy.unsavedLabel}
+          </span>
+        ) : null}
         {selectedEntry ? (
           <button
             className="vwb-secondary-button"
             type="button"
             onClick={() => discardIfAllowed(onCancel)}
           >
-            New
+            {entryEditorCopy.newLabel}
           </button>
         ) : (
           <button
@@ -1112,80 +1121,85 @@ export function EntryForm({
             type="button"
             onClick={applyTemplate}
           >
-            Apply Template
+            {entryEditorCopy.applyTemplateLabel}
           </button>
         )}
       </div>
 
-      <label>
-        Name
-        <input
-          value={draft.name}
-          onChange={(event) => setDraft({ ...draft, name: event.target.value })}
-          placeholder={`${section.singularTitle} name`}
-        />
-      </label>
+      {baseFields.slice(0, 3).map((field) => (
+        <label key={field.id}>
+          {field.label}
+          {field.multiline ? (
+            <textarea
+              value={field.value}
+              onChange={(event) =>
+                setDraft((currentDraft) => ({
+                  ...currentDraft,
+                  [field.key]: event.target.value,
+                }))
+              }
+              placeholder={field.placeholder}
+              rows={field.rows}
+            />
+          ) : (
+            <input
+              value={field.value}
+              onChange={(event) =>
+                setDraft((currentDraft) => ({
+                  ...currentDraft,
+                  [field.key]: event.target.value,
+                }))
+              }
+              placeholder={field.placeholder}
+            />
+          )}
+        </label>
+      ))}
 
-      <label>
-        Summary
-        <textarea
-          value={draft.summary}
-          onChange={(event) =>
-            setDraft({ ...draft, summary: event.target.value })
-          }
-          placeholder="A short working summary"
-          rows={4}
-        />
-      </label>
-
-      <label>
-        Notes
-        <textarea
-          value={draft.notes}
-          onChange={(event) =>
-            setDraft({ ...draft, notes: event.target.value })
-          }
-          placeholder="Markdown-style drafting notes"
-          rows={5}
-        />
-      </label>
-
-      <section className="vwb-markdown-preview" aria-label="Notes preview">
+      <section className="vwb-markdown-preview" aria-label={notesPreview.title}>
         <div className="vwb-section-heading">
           <div>
-            <p className="vwb-kicker">Markdown preview</p>
-            <h3>Notes preview</h3>
+            <p className="vwb-kicker">{notesPreview.kicker}</p>
+            <h3>{notesPreview.title}</h3>
           </div>
         </div>
-        {draft.notes.trim() ? (
-          <pre>{draft.notes}</pre>
+        {notesPreview.hasContent ? (
+          <pre>{notesPreview.body}</pre>
         ) : (
-          <p>No notes to preview yet.</p>
+          <p>{notesPreview.emptyText}</p>
         )}
       </section>
 
-      <label>
-        Tags
-        <input
-          value={draft.tags}
-          onChange={(event) => setDraft({ ...draft, tags: event.target.value })}
-          placeholder="comma, separated, tags"
-        />
-      </label>
+      {baseFields.slice(3).map((field) => (
+        <label key={field.id}>
+          {field.label}
+          <input
+            value={field.value}
+            onChange={(event) =>
+              setDraft((currentDraft) => ({
+                ...currentDraft,
+                [field.key]: event.target.value,
+              }))
+            }
+            placeholder={field.placeholder}
+          />
+        </label>
+      ))}
 
       <div className="vwb-form-grid">
         <label>
-          Status
+          {entryDraftStatusControl.label}
           <select
+            aria-label={entryDraftStatusControl.accessibilityLabel}
             value={draft.status}
             onChange={(event) =>
-              setDraft({
-                ...draft,
+              setDraft((currentDraft) => ({
+                ...currentDraft,
                 status: event.target.value as EntryDraft['status'],
-              })
+              }))
             }
           >
-            {worldEntryStatusOptions.map((option) => (
+            {entryDraftStatusControl.options.map((option) => (
               <option value={option.value} key={option.value}>
                 {option.label}
               </option>
@@ -1194,20 +1208,23 @@ export function EntryForm({
         </label>
         <label className="vwb-checkbox-field">
           <input
+            aria-label={entryPinnedControl.accessibilityLabel}
             checked={draft.pinned}
             onChange={(event) =>
-              setDraft({ ...draft, pinned: event.target.checked })
+              setDraft((currentDraft) => ({
+                ...currentDraft,
+                pinned: event.target.checked,
+              }))
             }
             type="checkbox"
           />
-          Pin on overview
+          {entryPinnedControl.label}
         </label>
       </div>
 
       <div className="vwb-form-grid">
-        {editableDetailFields.map((field) =>
+        {detailFieldModels.map((field) =>
           (() => {
-            const suggestions = detailFieldSuggestions[field.key] ?? [];
             const suggestionId = getDetailFieldSuggestionId(
               section.id,
               field.key
@@ -1220,24 +1237,26 @@ export function EntryForm({
                 {field.label}
                 {field.multiline ? (
                   <textarea
-                    value={draft.details[field.key] ?? ''}
+                    value={field.value}
                     onChange={(event) =>
                       updateDetail(field.key, event.target.value)
                     }
-                    rows={3}
+                    rows={field.rows}
                   />
                 ) : (
                   <>
                     <input
-                      value={draft.details[field.key] ?? ''}
+                      value={field.value}
                       onChange={(event) =>
                         updateDetail(field.key, event.target.value)
                       }
-                      list={suggestions.length > 0 ? suggestionId : undefined}
+                      list={
+                        field.suggestions.length > 0 ? suggestionId : undefined
+                      }
                     />
-                    {suggestions.length > 0 ? (
+                    {field.suggestions.length > 0 ? (
                       <datalist id={suggestionId}>
-                        {suggestions.map((option) => (
+                        {field.suggestions.map((option) => (
                           <option value={option} key={option} />
                         ))}
                       </datalist>
@@ -1257,11 +1276,8 @@ export function EntryForm({
           aria-label="Relationship-backed place fields"
         >
           <div>
-            <h3>Linked place fields</h3>
-            <p>
-              These fields are saved as relationships so linked records stay
-              navigable from both sides.
-            </p>
+            <h3>{placeRelationshipTextReviewCopy.linkedFieldsTitle}</h3>
+            <p>{placeRelationshipTextReviewCopy.linkedFieldsDescription}</p>
           </div>
           {canEditPlaceRelationships ? (
             activeRelationshipFieldConfigs.map((config) => (
@@ -1278,15 +1294,17 @@ export function EntryForm({
             ))
           ) : (
             <p className="vwb-inline-status">
-              Save this place before editing relationship links.
+              {placeRelationshipTextReviewCopy.linkedFieldsBlockedMessage}
             </p>
           )}
           {legacyRelationshipTextValues.length > 0 ? (
             <section
               className="vwb-hidden-detail-panel"
-              aria-label="Saved text link notes"
+              aria-label={
+                placeRelationshipTextReviewCopy.savedTextLinkNotesTitle
+              }
             >
-              <h4>Saved text link notes</h4>
+              <h4>{placeRelationshipTextReviewCopy.savedTextLinkNotesTitle}</h4>
               <dl className="vwb-detail-list">
                 {legacyRelationshipTextValues.map((field) => {
                   const migration = canEditPlaceRelationships
@@ -1311,7 +1329,9 @@ export function EntryForm({
                               )
                             }
                           >
-                            Migrate Exact Matches
+                            {
+                              placeRelationshipTextReviewCopy.exactMatchMigrationLabel
+                            }
                           </button>
                         ) : null}
                         <button
@@ -1319,18 +1339,11 @@ export function EntryForm({
                           type="button"
                           onClick={() => updateDetail(field.key, '')}
                         >
-                          Clear
+                          {entryEditorCopy.clearLabel}
                         </button>
                         {migration ? (
                           <small>
-                            {migration.targetIds.length > 0
-                              ? `${migration.targetIds.length} exact match${
-                                  migration.targetIds.length === 1 ? '' : 'es'
-                                } found.`
-                              : 'No exact matches found.'}
-                            {migration.remainingText
-                              ? ' Unmatched text will remain.'
-                              : ''}
+                            {getPlaceRelationshipTextMigrationStatus(migration)}
                           </small>
                         ) : null}
                       </dd>
@@ -1343,14 +1356,14 @@ export function EntryForm({
         </section>
       ) : null}
 
-      {hiddenDetailValues.length > 0 ? (
+      {hiddenDetailCleanup.fields.length > 0 ? (
         <section
           className="vwb-hidden-detail-panel"
-          aria-label="Hidden place details"
+          aria-label={hiddenDetailCleanup.title}
         >
-          <h3>Hidden place details</h3>
+          <h3>{hiddenDetailCleanup.title}</h3>
           <dl className="vwb-detail-list">
-            {hiddenDetailValues.map((field) => (
+            {hiddenDetailCleanup.fields.map((field) => (
               <div key={field.key}>
                 <dt>{field.label}</dt>
                 <dd>
@@ -1360,7 +1373,7 @@ export function EntryForm({
                     type="button"
                     onClick={() => updateDetail(field.key, '')}
                   >
-                    Clear
+                    {field.clearLabel}
                   </button>
                 </dd>
               </div>
@@ -1372,56 +1385,57 @@ export function EntryForm({
       {error ? <p className="vwb-form-error">{error}</p> : null}
       <div className="vwb-form-actions">
         <button className="vwb-primary-button" type="submit">
-          {selectedEntry ? 'Save Changes' : `Create ${section.singularTitle}`}
+          {getEntryEditorSubmitLabel({ section, selectedEntry })}
         </button>
-        {selectedEntry ? (
+        {selectedEntry && selectedActionModel ? (
           <>
             <button
+              aria-label={selectedActionModel.duplicateAccessibilityLabel}
               className="vwb-secondary-button"
               type="button"
               onClick={() => discardIfAllowed(() => onDuplicate(selectedEntry))}
             >
-              Duplicate
+              {selectedActionModel.duplicateLabel}
             </button>
             <button
+              aria-label={selectedActionModel.useAsTemplateAccessibilityLabel}
               className="vwb-secondary-button"
               type="button"
               onClick={() =>
                 discardIfAllowed(() => onUseAsTemplate(selectedEntry))
               }
             >
-              Use As Template
+              {selectedActionModel.useAsTemplateLabel}
             </button>
             <button
               className="vwb-secondary-button"
               type="button"
               onClick={copyEntryName}
             >
-              Copy Name
+              {entryNameCopyFeedback.actionLabel}
             </button>
-            {selectedEntry.status === 'archived' ? (
-              <button
-                className="vwb-secondary-button"
-                type="button"
-                onClick={() => discardIfAllowed(() => onRestore(selectedEntry))}
-              >
-                Restore
-              </button>
-            ) : (
-              <button
-                className="vwb-secondary-button"
-                type="button"
-                onClick={() => discardIfAllowed(() => onArchive(selectedEntry))}
-              >
-                Archive
-              </button>
-            )}
             <button
+              aria-label={selectedActionModel.archiveAccessibilityLabel}
+              className="vwb-secondary-button"
+              type="button"
+              onClick={() =>
+                discardIfAllowed(() =>
+                  selectedEntry.status === 'archived'
+                    ? onRestore(selectedEntry)
+                    : onArchive(selectedEntry)
+                )
+              }
+            >
+              {selectedActionModel.archiveLabel}
+            </button>
+            <button
+              aria-label={selectedActionModel.deleteAccessibilityLabel}
               className="vwb-secondary-button vwb-danger-button"
+              title={selectedActionModel.deleteAccessibilityHint}
               type="button"
               onClick={() => discardIfAllowed(() => onDelete(selectedEntry))}
             >
-              Delete Permanently
+              {selectedActionModel.deleteLabel}
             </button>
           </>
         ) : null}

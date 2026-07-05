@@ -1,4 +1,18 @@
-import type { WorldEntry, WorldEntryStatus, WorldRelationship } from './types';
+import { entryDisplayCopy, getEntries } from './codexEntries';
+import {
+  findEntryById,
+  getRelationshipEntries,
+  type RelationshipGraphNode,
+} from './codexRelationships';
+import { getSearchableEntries, searchEntries } from './codexSearch';
+import type {
+  WorldCodex,
+  WorldEntry,
+  WorldEntryStatus,
+  WorldRelationship,
+  WorldSectionConfig,
+  WorldWorkspace,
+} from './types';
 
 export type TimelineFilters = {
   era: string;
@@ -22,6 +36,91 @@ export type TimelineDiagnostics = {
   }>;
   unlinkedEvents: WorldEntry[];
 };
+
+export type TimelineSummaryModel = {
+  highlightNames: string[];
+  unorderedCount: number;
+  duplicateOrderCount: number;
+  unlinkedCount: number;
+};
+
+export type TimelineEventItem = {
+  id: string;
+  name: string;
+  summary: string;
+  summaryText: string;
+  status: WorldEntryStatus;
+  tags: readonly string[];
+  dateLabel: string;
+  dateText: string;
+  era: string;
+  order: string;
+  orderText: string;
+  contextText: string;
+  involvedEntryNames: readonly string[];
+};
+
+export type TimelineEraBrowseGroup = {
+  era: string;
+  events: TimelineEventItem[];
+};
+
+export type TimelineBrowseFilters = TimelineFilters & {
+  query?: string;
+  showArchived?: boolean;
+};
+
+export type TimelineBrowseModel = {
+  eras: readonly string[];
+  involvedEntries: readonly RelationshipGraphNode[];
+  groups: readonly TimelineEraBrowseGroup[];
+  unorderedNames: readonly string[];
+  duplicateOrderLabels: readonly string[];
+  unlinkedNames: readonly string[];
+};
+
+type TimelineEventItemSource = {
+  codex: WorldCodex;
+  entryTypes: readonly WorldSectionConfig[];
+  relationships: readonly WorldRelationship[];
+};
+
+export const timelineFeatureCopy = {
+  anyEraLabel: 'Any Era',
+  anyInvolvedLabel: 'Any Involved',
+  clearTimelineFiltersLabel: 'Clear Timeline Filters',
+  duplicateOrdersLabel: 'Duplicate orders',
+  duplicateOrderGroupsLabel: 'Duplicate order groups',
+  highlightsLabel: 'Highlights',
+  needsOrderLabel: 'Needs order',
+  noDateLabel: 'No date',
+  noDateLabelSentence: 'No date label.',
+  noInvolvedRecordsLabel: 'No involved records',
+  noInvolvedSearchMatches: 'No involved records match this filter search.',
+  noTimelineEventsFoundTitle: 'No timeline events found.',
+  noTimelineEventsFoundDetail:
+    'Clear filters or add a timeline event to build chronology.',
+  noTimelineEventsMatchFilters: 'No timeline events match these filters.',
+  noVisibleTimelineEvents: 'No visible timeline events.',
+  searchInvolvedFiltersLabel: 'Search involved filters',
+  timelineBrowserTitle: 'Timeline Browser',
+  unlinkedEventsLabel: 'Unlinked events',
+  unorderedEventsLabel: 'Unordered events',
+  unorderedLabel: 'Unordered',
+  noOrderLabel: 'No order',
+} as const;
+
+export function getTimelineEventDateLabel(
+  event: Pick<TimelineEventItem, 'dateLabel'>
+): string {
+  return event.dateLabel || timelineFeatureCopy.noDateLabel;
+}
+
+export function getTimelineEventOrderLabel(
+  event: Pick<TimelineEventItem, 'order'>
+): string {
+  return event.order || timelineFeatureCopy.noOrderLabel;
+}
 
 /** Read the optional numeric timeline order field from a timeline event. */
 export function getTimelineOrderValue(event: WorldEntry): number {
@@ -212,4 +311,133 @@ export function getTimelineHighlights(
   return sortTimelineEvents(events)
     .filter((event) => event.status !== 'archived')
     .slice(0, limit);
+}
+
+export function getTimelineSummaryModel(
+  world: WorldWorkspace
+): TimelineSummaryModel {
+  const timelineEvents = getEntries(world.codex, 'timeline');
+  const diagnostics = getTimelineDiagnostics(
+    timelineEvents,
+    world.relationships
+  );
+  return {
+    highlightNames: getTimelineHighlights(timelineEvents).map(
+      (event) => event.name
+    ),
+    unorderedCount: diagnostics.unorderedEvents.length,
+    duplicateOrderCount: diagnostics.duplicateOrderGroups.length,
+    unlinkedCount: diagnostics.unlinkedEvents.length,
+  };
+}
+
+export function getTimelineEventItem(
+  world: TimelineEventItemSource,
+  event: WorldEntry
+): TimelineEventItem {
+  const involvedEntryNames = getTimelineInvolvedEntryIds(
+    event,
+    world.relationships
+  ).map((entryId) => {
+    const entry = findEntryById(world.codex, world.entryTypes, entryId);
+    return entry?.name ?? entryId;
+  });
+  const dateLabel = event.fields.dateLabel ?? '';
+  const order = event.fields.order ?? '';
+  const dateText = getTimelineEventDateLabel({ dateLabel });
+  const orderText = getTimelineEventOrderLabel({ order });
+  return {
+    id: event.id,
+    name: event.name,
+    summary: event.summary,
+    summaryText: event.summary || entryDisplayCopy.emptySummary,
+    status: event.status,
+    tags: event.tags,
+    dateLabel,
+    dateText,
+    era: event.fields.era ?? '',
+    order,
+    orderText,
+    contextText: `${orderText} - ${dateText}`,
+    involvedEntryNames,
+  };
+}
+
+export function getTimelineBrowseModel(
+  world: WorldWorkspace,
+  filters: TimelineBrowseFilters
+): TimelineBrowseModel {
+  const timelineEvents = getEntries(world.codex, 'timeline');
+  const normalizedQuery = filters.query?.trim() ?? '';
+  const queriedEvents =
+    normalizedQuery.length > 0
+      ? searchEntries(
+          getSearchableEntries(world.codex, world.entryTypes),
+          world.entryTypes,
+          normalizedQuery
+        ).filter((entry) => entry.sectionId === 'timeline')
+      : timelineEvents;
+  const visibleEvents = queriedEvents.filter(
+    (event) =>
+      filters.showArchived ||
+      filters.status === 'archived' ||
+      event.status !== 'archived'
+  );
+  const optionBaseEvents = filterTimelineEvents(
+    visibleEvents,
+    {
+      era: '',
+      involvedEntryId: '',
+      status: filters.status,
+      tag: filters.tag,
+    },
+    world.relationships
+  );
+  const involvedOptionBaseEvents = filterTimelineEvents(
+    visibleEvents,
+    {
+      era: filters.era,
+      involvedEntryId: '',
+      status: filters.status,
+      tag: filters.tag,
+    },
+    world.relationships
+  );
+  const involvedEntryIds = new Set(
+    involvedOptionBaseEvents.flatMap((event) =>
+      getTimelineInvolvedEntryIds(event, world.relationships)
+    )
+  );
+  const filteredEvents = filterTimelineEvents(
+    visibleEvents,
+    {
+      era: filters.era,
+      involvedEntryId: filters.involvedEntryId,
+      status: filters.status,
+      tag: filters.tag,
+    },
+    world.relationships
+  );
+  const diagnostics = getTimelineDiagnostics(
+    filteredEvents,
+    world.relationships
+  );
+
+  return {
+    eras: getTimelineEras(optionBaseEvents),
+    involvedEntries: getRelationshipEntries(
+      world.codex,
+      world.entryTypes
+    ).filter((entry) => involvedEntryIds.has(entry.id)),
+    groups: groupTimelineEventsByEra(filteredEvents).map((group) => ({
+      era: group.era,
+      events: group.events.map((event) => getTimelineEventItem(world, event)),
+    })),
+    unorderedNames: diagnostics.unorderedEvents.map((event) => event.name),
+    duplicateOrderLabels: diagnostics.duplicateOrderGroups.map(
+      (group) =>
+        `${group.order}: ${group.events.map((event) => event.name).join(', ')}`
+    ),
+    unlinkedNames: diagnostics.unlinkedEvents.map((event) => event.name),
+  };
 }

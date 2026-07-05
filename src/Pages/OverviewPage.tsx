@@ -1,78 +1,69 @@
 import { useMemo, useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import {
-  formatUpdatedAt,
   getActiveWorld,
-  getCodexEntriesRoute,
-  getCodexOverviewSummary,
   getCodexScreenIntro,
-  getIncompleteEntries,
-  getSearchResultContext,
-  getVisibleWorkspaceEntries,
-  getWorkspaceOverviewEntryHighlights,
-  searchEntries,
-  type SearchableEntry,
+  getWorkspaceOverviewWorkspaceKicker,
+  getWorkspaceOverviewEntryRoute,
+  getWorkspaceOverviewModel,
+  getWorkspaceOverviewSectionRoute,
+  overviewFeatureCopy,
   type WorldDocument,
 } from '@valgaron/core';
-
-function getEntryRoute(
-  entry: Pick<SearchableEntry, 'sectionId' | 'id' | 'name'>
-) {
-  return getCodexEntriesRoute({
-    sectionId: entry.sectionId,
-    entryId: entry.id,
-    intent: 'edit',
-    query: entry.name,
-  });
-}
 
 export function Overview({ document }: { document: WorldDocument }) {
   const [globalQuery, setGlobalQuery] = useState('');
   const activeWorld = useMemo(() => getActiveWorld(document), [document]);
   const intro = getCodexScreenIntro('overview');
-  const sections = activeWorld.entryTypes;
-  const summary = useMemo(() => getCodexOverviewSummary(document), [document]);
-  const visibleEntries = useMemo(
-    () => getVisibleWorkspaceEntries(activeWorld),
-    [activeWorld]
+  const overview = useMemo(
+    () =>
+      getWorkspaceOverviewModel({
+        document,
+        workspace: activeWorld,
+        query: globalQuery,
+        searchLimit: 8,
+        highlightLimit: 6,
+        incompleteLimit: 6,
+      }),
+    [activeWorld, document, globalQuery]
   );
-  const globalResults = useMemo(
-    () => searchEntries(visibleEntries, sections, globalQuery).slice(0, 8),
-    [globalQuery, sections, visibleEntries]
-  );
-  const entryHighlights = useMemo(
-    () => getWorkspaceOverviewEntryHighlights(activeWorld, 6),
-    [activeWorld]
-  );
-  const incompleteEntries = useMemo(
-    () => getIncompleteEntries(visibleEntries, sections).slice(0, 6),
-    [sections, visibleEntries]
-  );
+  const {
+    entryHighlights,
+    incompleteEntries,
+    quickCreateActions,
+    searchResults,
+    sections,
+    summary,
+  } = overview;
 
   return (
     <main className="vwb-main" id="main-content" tabIndex={-1}>
       <section className="vwb-hero" aria-labelledby="overview-title">
         <div>
-          <p className="vwb-kicker">{summary.workspaceName} Workspace</p>
+          <p className="vwb-kicker">
+            {getWorkspaceOverviewWorkspaceKicker(summary)}
+          </p>
           <h2 id="overview-title">{intro.title}</h2>
         </div>
         <p>{intro.detail}</p>
       </section>
 
-      <section className="vwb-local-data-notice" aria-label="Local data notice">
-        <strong>Local browser data.</strong>
-        <span>
-          Use the header Save button to write current progress to this browser
-          profile. Export JSON backups regularly, especially before clearing
-          browser data or changing devices.
-        </span>
+      <section
+        className="vwb-local-data-notice"
+        aria-label={overviewFeatureCopy.localDataNoticeLabel}
+      >
+        <strong>{overviewFeatureCopy.localDataNoticeTitle}</strong>
+        <span>{overviewFeatureCopy.localDataNoticeDetail}</span>
       </section>
 
-      <section className="vwb-stat-grid" aria-label="Codex totals">
+      <section
+        className="vwb-stat-grid"
+        aria-label={overviewFeatureCopy.codexTotalsLabel}
+      >
         {sections.map((section) => (
           <NavLink
             className="vwb-stat-card"
-            to={getCodexEntriesRoute({ sectionId: section.id })}
+            to={getWorkspaceOverviewSectionRoute(section)}
             key={section.id}
           >
             <span>{section.title}</span>
@@ -84,21 +75,22 @@ export function Overview({ document }: { document: WorldDocument }) {
       <section className="vwb-panel" aria-labelledby="quick-create-title">
         <div className="vwb-section-heading">
           <div>
-            <p className="vwb-kicker">Quick create</p>
-            <h2 id="quick-create-title">Start a new record</h2>
+            <p className="vwb-kicker">
+              {overviewFeatureCopy.quickCreateKicker}
+            </p>
+            <h2 id="quick-create-title">
+              {overviewFeatureCopy.quickCreateTitle}
+            </h2>
           </div>
         </div>
         <div className="vwb-quick-create-list">
-          {sections.map((section) => (
+          {quickCreateActions.map((action) => (
             <NavLink
               className="vwb-secondary-button"
-              key={section.id}
-              to={getCodexEntriesRoute({
-                sectionId: section.id,
-                intent: 'new',
-              })}
+              key={action.id}
+              to={action.route}
             >
-              New {section.singularTitle}
+              {action.label}
             </NavLink>
           ))}
         </div>
@@ -107,16 +99,20 @@ export function Overview({ document }: { document: WorldDocument }) {
       <section className="vwb-panel" aria-labelledby="global-search-title">
         <div className="vwb-section-heading">
           <div>
-            <p className="vwb-kicker">Global search</p>
-            <h2 id="global-search-title">Find anything in this world</h2>
+            <p className="vwb-kicker">
+              {overviewFeatureCopy.globalSearchKicker}
+            </p>
+            <h2 id="global-search-title">
+              {overviewFeatureCopy.globalSearchTitle}
+            </h2>
           </div>
         </div>
         <label className="vwb-search-field">
-          Search entries
+          {overviewFeatureCopy.searchEntriesLabel}
           <input
             value={globalQuery}
             onChange={(event) => setGlobalQuery(event.target.value)}
-            placeholder="Search codex records"
+            placeholder={overviewFeatureCopy.searchPlaceholder}
             type="search"
           />
         </label>
@@ -126,13 +122,13 @@ export function Overview({ document }: { document: WorldDocument }) {
             type="button"
             onClick={() => setGlobalQuery('')}
           >
-            Clear Search
+            {overviewFeatureCopy.clearSearchLabel}
           </button>
         ) : null}
         {globalQuery.trim() ? (
           <div className="vwb-entry-list vwb-search-results" role="list">
-            {globalResults.length > 0 ? (
-              globalResults.map((entry) => (
+            {searchResults.length > 0 ? (
+              searchResults.map((entry) => (
                 <article
                   className="vwb-entry-card"
                   key={entry.id}
@@ -140,20 +136,20 @@ export function Overview({ document }: { document: WorldDocument }) {
                 >
                   <div className="vwb-entry-card-header">
                     <div>
-                      <p className="vwb-entry-kind">
-                        {getSearchResultContext(entry)}
-                      </p>
+                      <p className="vwb-entry-kind">{entry.contextText}</p>
                       <h3>{entry.name}</h3>
                     </div>
-                    <NavLink to={getEntryRoute(entry)}>Open</NavLink>
+                    <NavLink to={getWorkspaceOverviewEntryRoute(entry)}>
+                      {overviewFeatureCopy.openLabel}
+                    </NavLink>
                   </div>
-                  <p>{entry.summary || 'No summary yet.'}</p>
+                  <p>{entry.summaryText}</p>
                 </article>
               ))
             ) : (
               <div className="vwb-empty-results" role="status">
-                <strong>No entries found.</strong>
-                <p>Try another name, tag, note, or world detail.</p>
+                <strong>{overviewFeatureCopy.noSearchResultsTitle}</strong>
+                <p>{overviewFeatureCopy.noSearchResultsDetail}</p>
               </div>
             )}
           </div>
@@ -163,8 +159,8 @@ export function Overview({ document }: { document: WorldDocument }) {
       <section className="vwb-panel" aria-labelledby="recent-title">
         <div className="vwb-section-heading">
           <div>
-            <p className="vwb-kicker">Recently updated</p>
-            <h2 id="recent-title">Latest codex work</h2>
+            <p className="vwb-kicker">{overviewFeatureCopy.recentKicker}</p>
+            <h2 id="recent-title">{overviewFeatureCopy.recentTitle}</h2>
           </div>
         </div>
         <div className="vwb-entry-list">
@@ -176,16 +172,18 @@ export function Overview({ document }: { document: WorldDocument }) {
                     <p className="vwb-entry-kind">{entry.sectionTitle}</p>
                     <h3>{entry.name}</h3>
                   </div>
-                  <NavLink to={getEntryRoute(entry)}>Edit</NavLink>
+                  <NavLink to={getWorkspaceOverviewEntryRoute(entry)}>
+                    {overviewFeatureCopy.editLabel}
+                  </NavLink>
                 </div>
-                <p>{entry.summary || 'No summary yet.'}</p>
-                <small>Updated {formatUpdatedAt(entry.updatedAt)}</small>
+                <p>{entry.summaryText}</p>
+                <small>{entry.updatedText}</small>
               </article>
             ))
           ) : (
             <div className="vwb-empty-results" role="status">
-              <strong>No recent records yet.</strong>
-              <p>Create a codex record to start filling this workspace.</p>
+              <strong>{overviewFeatureCopy.noRecentRecordsTitle}</strong>
+              <p>{overviewFeatureCopy.noRecentRecordsDetail}</p>
             </div>
           )}
         </div>
@@ -195,8 +193,8 @@ export function Overview({ document }: { document: WorldDocument }) {
         <section className="vwb-panel" aria-labelledby="pinned-title">
           <div className="vwb-section-heading">
             <div>
-              <p className="vwb-kicker">Pinned</p>
-              <h2 id="pinned-title">Important records</h2>
+              <p className="vwb-kicker">{overviewFeatureCopy.pinnedKicker}</p>
+              <h2 id="pinned-title">{overviewFeatureCopy.pinnedTitle}</h2>
             </div>
           </div>
           <div className="vwb-entry-list">
@@ -207,10 +205,12 @@ export function Overview({ document }: { document: WorldDocument }) {
                     <p className="vwb-entry-kind">{entry.sectionTitle}</p>
                     <h3>{entry.name}</h3>
                   </div>
-                  <NavLink to={getEntryRoute(entry)}>Edit</NavLink>
+                  <NavLink to={getWorkspaceOverviewEntryRoute(entry)}>
+                    {overviewFeatureCopy.editLabel}
+                  </NavLink>
                 </div>
-                <p>{entry.summary || 'No summary yet.'}</p>
-                <small>Updated {formatUpdatedAt(entry.updatedAt)}</small>
+                <p>{entry.summaryText}</p>
+                <small>{entry.updatedText}</small>
               </article>
             ))}
           </div>
@@ -221,8 +221,12 @@ export function Overview({ document }: { document: WorldDocument }) {
         <section className="vwb-panel" aria-labelledby="incomplete-title">
           <div className="vwb-section-heading">
             <div>
-              <p className="vwb-kicker">Needs attention</p>
-              <h2 id="incomplete-title">Incomplete records</h2>
+              <p className="vwb-kicker">
+                {overviewFeatureCopy.incompleteKicker}
+              </p>
+              <h2 id="incomplete-title">
+                {overviewFeatureCopy.incompleteTitle}
+              </h2>
             </div>
           </div>
           <div className="vwb-entry-list">
@@ -230,23 +234,20 @@ export function Overview({ document }: { document: WorldDocument }) {
               <article className="vwb-entry-card" key={item.entry.id}>
                 <div className="vwb-entry-card-header">
                   <div>
-                    <p className="vwb-entry-kind">
-                      {item.section.title} - {item.percent}% complete
-                    </p>
+                    <p className="vwb-entry-kind">{item.contextText}</p>
                     <h3>{item.entry.name}</h3>
                   </div>
                   <NavLink
-                    to={getCodexEntriesRoute({
+                    to={getWorkspaceOverviewEntryRoute({
+                      id: item.entry.id,
+                      name: item.entry.name,
                       sectionId: item.section.id,
-                      entryId: item.entry.id,
-                      intent: 'edit',
-                      query: item.entry.name,
                     })}
                   >
-                    Edit
+                    {overviewFeatureCopy.editLabel}
                   </NavLink>
                 </div>
-                <p>{item.prompts[0]}</p>
+                <p>{item.promptText}</p>
               </article>
             ))}
           </div>

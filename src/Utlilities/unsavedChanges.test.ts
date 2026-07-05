@@ -1,7 +1,11 @@
 import { afterEach, describe, expect, it, jest } from '@jest/globals';
 import {
-  confirmDiscardUnsavedChanges,
+  getDiscardUnsavedChangesConfirmation,
   hasUnsavedChanges,
+} from '@valgaron/core';
+import {
+  confirmDiscardUnsavedChanges as confirmBrowserDiscardUnsavedChanges,
+  hasUnsavedChanges as hasUnsavedChangesFromWebAdapter,
 } from './unsavedChanges';
 
 describe('unsaved change helpers', () => {
@@ -11,7 +15,7 @@ describe('unsaved change helpers', () => {
 
   it('detects nested draft changes without depending on key order', () => {
     expect(
-      hasUnsavedChanges(
+      hasUnsavedChangesFromWebAdapter(
         { name: 'Aster', details: { climate: 'Cold', orbit: 'High' } },
         { details: { orbit: 'High', climate: 'Cold' }, name: 'Aster' }
       )
@@ -32,12 +36,18 @@ describe('unsaved change helpers', () => {
       },
     });
 
-    expect(confirmDiscardUnsavedChanges(false)).toBe(true);
-    expect(confirmDiscardUnsavedChanges(true)).toBe(true);
+    expect(confirmBrowserDiscardUnsavedChanges(false)).toBe(true);
+    expect(confirmBrowserDiscardUnsavedChanges(true)).toBe(true);
     expect(window.confirm).toHaveBeenCalledTimes(1);
+    const confirmation = getDiscardUnsavedChangesConfirmation({
+      isDirty: true,
+    });
+    expect(window.confirm).toHaveBeenCalledWith(
+      confirmation.kind === 'confirm' ? confirmation.browserMessage : ''
+    );
   });
 
   it('blocks discards when confirmation is unavailable', () => {
-    expect(confirmDiscardUnsavedChanges(true)).toBe(false);
+    expect(confirmBrowserDiscardUnsavedChanges(true)).toBe(false);
   });
 });

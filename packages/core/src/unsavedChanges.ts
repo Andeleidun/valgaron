@@ -20,3 +20,68 @@ export function hasUnsavedChanges<TValue>(
 ): boolean {
   return normalizeValue(initialValue) !== normalizeValue(currentValue);
 }
+
+export type UnsavedChangesConfirmationActionId = 'keep-editing' | 'discard';
+
+export type UnsavedChangesConfirmationActionIntent = 'cancel' | 'destructive';
+
+export type UnsavedChangesConfirmationAction = {
+  id: UnsavedChangesConfirmationActionId;
+  intent: UnsavedChangesConfirmationActionIntent;
+  label: string;
+};
+
+export type DiscardUnsavedChangesConfirmation =
+  | {
+      kind: 'clean';
+    }
+  | {
+      actions: readonly [
+        UnsavedChangesConfirmationAction,
+        UnsavedChangesConfirmationAction
+      ];
+      browserMessage: string;
+      kind: 'confirm';
+      message: string;
+      title: string;
+    };
+
+export const unsavedChangesConfirmationCopy = {
+  title: 'Discard unsaved changes?',
+  message: 'This draft has local edits that have not been saved.',
+  keepEditingLabel: 'Keep Editing',
+  discardLabel: 'Discard',
+} as const;
+
+export function getDiscardUnsavedChangesConfirmation({
+  isDirty,
+  message = unsavedChangesConfirmationCopy.message,
+  title = unsavedChangesConfirmationCopy.title,
+}: {
+  isDirty: boolean;
+  message?: string;
+  title?: string;
+}): DiscardUnsavedChangesConfirmation {
+  if (!isDirty) {
+    return { kind: 'clean' };
+  }
+
+  return {
+    actions: [
+      {
+        id: 'keep-editing',
+        intent: 'cancel',
+        label: unsavedChangesConfirmationCopy.keepEditingLabel,
+      },
+      {
+        id: 'discard',
+        intent: 'destructive',
+        label: unsavedChangesConfirmationCopy.discardLabel,
+      },
+    ],
+    browserMessage: `${title}\n\n${message}`,
+    kind: 'confirm',
+    message,
+    title,
+  };
+}

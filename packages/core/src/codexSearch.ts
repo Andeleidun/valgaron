@@ -4,7 +4,7 @@ import type {
   WorldEntryStatus,
   WorldSectionConfig,
 } from './types';
-import { formatUpdatedAt, getEntries } from './codexEntries';
+import { entryDisplayCopy, formatUpdatedAt, getEntries } from './codexEntries';
 
 export type SearchableEntry = WorldEntry & {
   sectionId: string;
@@ -146,5 +146,7 @@ export function sortEntries(
 
 /** Build a short result context for global search output. */
 export function getSearchResultContext(entry: SearchableEntry): string {
-  return `${entry.sectionTitle} - Updated ${formatUpdatedAt(entry.updatedAt)}`;
+  return `${entry.sectionTitle} - ${
+    entryDisplayCopy.updatedPrefix
+  } ${formatUpdatedAt(entry.updatedAt)}`;
 }

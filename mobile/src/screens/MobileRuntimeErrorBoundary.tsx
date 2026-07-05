@@ -1,13 +1,13 @@
 import { Component, type ReactNode } from 'react';
 import { router } from 'expo-router';
 import { StyleSheet, Text, View } from 'react-native';
+import { getRuntimeRecoveryCopy } from '@valgaron/core';
 import {
   valgaronColors,
   valgaronRadius,
   valgaronSpacing,
   valgaronTypography,
 } from '@valgaron/ui-tokens';
-import { getMobileRuntimeRecoveryCopy } from '../state/mobileRuntimeRecovery';
 import { getMobileTabHref } from '../navigation/mobileRoutes';
 import { ActionButton, ButtonRow } from './screenPrimitives';
 
@@ -46,7 +46,7 @@ export class MobileRuntimeErrorBoundary extends Component<
       return this.props.children;
     }
 
-    const copy = getMobileRuntimeRecoveryCopy();
+    const copy = getRuntimeRecoveryCopy();
     return (
       <View style={styles.screen}>
         <View style={styles.panel} accessibilityRole="alert">

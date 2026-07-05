@@ -9,8 +9,11 @@ import type { AutocompleteProps } from '@mui/material/Autocomplete';
 import type { TextFieldProps } from '@mui/material/TextField';
 import { styled } from '@mui/material/styles';
 import { Box } from '../';
-import { renderTextValue } from '../../../Utlilities';
-import type { StringOrOptionType, OptionType } from '../../../types';
+import {
+  renderTextValue,
+  type OptionType,
+  type StringOrOptionType,
+} from '../../../Utlilities';
 import {
   READ_ONLY_STYLE_TOKENS,
   READ_ONLY_CONTROL_CLASS,

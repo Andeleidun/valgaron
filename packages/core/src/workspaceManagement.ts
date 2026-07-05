@@ -30,6 +30,14 @@ export const workspaceDraftFields: readonly WorkspaceDraftFieldDescriptor[] = [
   { key: 'defaultEra', label: 'Default era' },
 ];
 
+export function workspaceDraftFrom(workspace?: WorldWorkspace): WorkspaceDraft {
+  return {
+    name: workspace?.name ?? '',
+    summary: workspace?.summary ?? '',
+    defaultEra: workspace?.defaultEra ?? '',
+  };
+}
+
 export type PlanetaryWorldDraft = {
   name: string;
   summary: string;
@@ -94,6 +102,15 @@ export const entryTypeDraftFields: readonly EntryTypeDraftFieldDescriptor[] = [
     placeholder: 'Origin, Power, Current holder',
   },
 ];
+
+export function emptyEntryTypeDraft(): EntryTypeDraft {
+  return {
+    title: '',
+    singularTitle: '',
+    description: '',
+    fields: '',
+  };
+}
 
 export type WorkspaceActionState = {
   switchLabel: 'Current' | 'Switch' | 'Archived';

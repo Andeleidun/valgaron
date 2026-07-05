@@ -1,6 +1,14 @@
 import { getEntries } from './codexEntries';
 import { relationshipFromDraft } from './codexRelationships';
-import { buildRelationshipTextMigration } from './relationshipTextMigration';
+import {
+  formatHiddenResultCountMessage,
+  pluralizeCountLabel,
+} from './featureDisplayLimits';
+import {
+  buildRelationshipTextMigration,
+  splitRelationshipTextFragments,
+  type RelationshipTextMigrationResult,
+} from './relationshipTextMigration';
 import {
   getEntryDetailFields,
   placeRelationshipFieldConfigs,
@@ -16,6 +24,17 @@ import type {
 export type PlaceRelationshipTargetOption = {
   entry: WorldEntry;
   section: WorldSectionConfig;
+  isPreferredTarget: boolean;
+  targetCategoryWarning?: string;
+};
+
+export type PlaceRelationshipTargetOptionDisplay = {
+  visibleOptions: PlaceRelationshipTargetOption[];
+  hiddenPreferredCount: number;
+  hiddenPreferredMessage: string;
+  hiddenUnusualCount: number;
+  canExpandUnusualTargets: boolean;
+  showUnusualTargetsLabel: string;
 };
 
 export type PlaceRelationshipTextReviewItem = {
@@ -43,7 +62,67 @@ export type PlaceRelationshipTextReviewItem = {
   }[];
 };
 
+export const placeRelationshipTextReviewCopy = {
+  title: 'Legacy Link Text',
+  batchExactMatchLabel: 'Migrate All Exact Matches',
+  draftBlockedMessage:
+    'Save or discard the current entry draft before migrating exact matches.',
+  exactMatchMigrationLabel: 'Migrate Exact Matches',
+  hiddenPlaceDetailsTitle: 'Hidden place details',
+  linkedFieldsBlockedMessage:
+    'Save this place before editing relationship links.',
+  linkedFieldsDescription:
+    'These fields are saved as relationships so linked records stay navigable from both sides.',
+  linkedFieldsTitle: 'Linked place fields',
+  noExactMatchesFound: 'No exact matches found.',
+  reviewEntryLabel: 'Review Entry',
+  savedTextLinkNotesTitle: 'Saved text link notes',
+  unmatchedTextWillRemain: 'Unmatched text will remain.',
+} as const;
+
+export const placeRelationshipFieldCopy = {
+  createMatchingRecordsMessage:
+    'Create matching records before linking this field.',
+  noLinkedRecordLabel: 'No linked record',
+  noMatchingTargetsMessage:
+    'No matching records. Clear the search to see all targets.',
+  searchPlaceholder: 'Filter linked record targets',
+} as const;
+
+export function getPlaceRelationshipTextReviewSummary(count: number): string {
+  return `${count} relationship-backed field${count === 1 ? '' : 's'} still ${
+    count === 1 ? 'contains' : 'contain'
+  } text that exact-match migration cannot fully resolve.`;
+}
+
+export function getPlaceRelationshipTextMigrationStatus({
+  remainingText,
+  targetIds,
+}: Pick<
+  RelationshipTextMigrationResult,
+  'remainingText' | 'targetIds'
+>): string {
+  const matchText =
+    targetIds.length > 0
+      ? `${targetIds.length} exact match${
+          targetIds.length === 1 ? '' : 'es'
+        } found.`
+      : placeRelationshipTextReviewCopy.noExactMatchesFound;
+  return remainingText
+    ? `${matchText} ${placeRelationshipTextReviewCopy.unmatchedTextWillRemain}`
+    : matchText;
+}
+
 export type PlaceRelationshipTextReviewMigration = {
+  relationshipIdsToDelete: string[];
+  relationshipsToSave: {
+    relationship: WorldRelationship;
+    existingRelationship?: WorldRelationship;
+  }[];
+  fields: Record<string, string>;
+};
+
+export type PlaceRelationshipFieldTextMigrationOperation = {
   relationshipIdsToDelete: string[];
   relationshipsToSave: {
     relationship: WorldRelationship;
@@ -62,6 +141,15 @@ export type PlaceRelationshipTextReviewBatchMigration = {
     entryId: string;
     fields: Record<string, string>;
   }[];
+};
+
+export type PlaceRelationshipTextReviewSuggestionMigrationInput = {
+  config: PlaceRelationshipFieldConfig;
+  entry: WorldEntry;
+  fragment: string;
+  item: PlaceRelationshipTextReviewItem;
+  relationships: readonly WorldRelationship[];
+  targetEntryId: string;
 };
 
 export function getPlaceRelationshipTextReviewUnresolvedLabel(
@@ -110,6 +198,13 @@ export function getPlaceRelationshipTargetOptions({
   sections: readonly WorldSectionConfig[];
   currentEntry: WorldEntry;
 }): PlaceRelationshipTargetOption[] {
+  const targetCategoryBehavior =
+    config.targetCategoryBehavior ??
+    (config.targetPlaceCategories && config.targetPlaceCategories.length > 0
+      ? 'preferred'
+      : 'soft');
+  const preferredPlaceCategories = new Set(config.targetPlaceCategories ?? []);
+
   return sections
     .filter((section) => {
       if (config.targetEntryKinds.includes(section.kind)) {
@@ -120,31 +215,54 @@ export function getPlaceRelationshipTargetOptions({
       );
     })
     .flatMap((section) =>
-      getEntries(codex, section.id)
-        .filter((entry) => {
+      getEntries(codex, section.id).flatMap(
+        (entry): PlaceRelationshipTargetOption[] => {
+          const selected = includedTargetIds?.has(entry.id) ?? false;
           if (entry.id === currentEntry.id) {
-            return false;
+            return [];
           }
-          if (includedTargetIds?.has(entry.id)) {
-            return true;
+          if (entry.status === 'archived' && !selected) {
+            return [];
           }
-          if (entry.status === 'archived') {
-            return false;
+          const matchesTargetKind = config.targetEntryKinds.includes(
+            section.kind
+          );
+          if (!matchesTargetKind && !selected) {
+            return [];
           }
+          const hasPreferredPlaceCategories =
+            preferredPlaceCategories.size > 0 && section.kind === 'place';
+          const isPreferredTarget =
+            matchesTargetKind &&
+            (!hasPreferredPlaceCategories ||
+              preferredPlaceCategories.has(entry.fields.category ?? ''));
           if (
+            !isPreferredTarget &&
+            !selected &&
             section.kind === 'place' &&
-            config.targetPlaceCategories &&
-            config.targetPlaceCategories.length > 0
+            hasPreferredPlaceCategories &&
+            targetCategoryBehavior === 'hard'
           ) {
-            return config.targetPlaceCategories.includes(
-              entry.fields.category ?? ''
-            );
+            return [];
           }
-          return true;
-        })
-        .map((entry) => ({ entry, section }))
+          return [
+            {
+              entry,
+              section,
+              isPreferredTarget,
+              targetCategoryWarning: isPreferredTarget
+                ? undefined
+                : 'Unusual target for this field',
+            },
+          ];
+        }
+      )
     )
-    .sort((first, second) => first.entry.name.localeCompare(second.entry.name));
+    .sort(
+      (first, second) =>
+        Number(second.isPreferredTarget) - Number(first.isPreferredTarget) ||
+        first.entry.name.localeCompare(second.entry.name)
+    );
 }
 
 export function getPlaceRelationshipFieldTargetId(
@@ -232,6 +350,79 @@ export function limitPlaceRelationshipTargetOptions(
     0,
     Math.max(limit, selectedOptions.length)
   );
+}
+
+export function getPlaceRelationshipTargetOptionDisplay({
+  expandedUnusualTargets,
+  limit,
+  options,
+  selectedTargetIds,
+  targetCategoryBehavior = 'preferred',
+}: {
+  expandedUnusualTargets: boolean;
+  limit: number;
+  options: readonly PlaceRelationshipTargetOption[];
+  selectedTargetIds: ReadonlySet<string>;
+  targetCategoryBehavior?: PlaceRelationshipFieldConfig['targetCategoryBehavior'];
+}): PlaceRelationshipTargetOptionDisplay {
+  const shouldShowUnusualTargets =
+    expandedUnusualTargets || targetCategoryBehavior === 'soft';
+  const selectedOptions = options.filter((option) =>
+    selectedTargetIds.has(option.entry.id)
+  );
+  const selectedOptionIds = new Set(
+    selectedOptions.map((option) => option.entry.id)
+  );
+  const preferredOptions = options.filter(
+    (option) =>
+      option.isPreferredTarget && !selectedOptionIds.has(option.entry.id)
+  );
+  const unusualOptions = options.filter(
+    (option) =>
+      !option.isPreferredTarget && !selectedOptionIds.has(option.entry.id)
+  );
+  const preferredLimit =
+    targetCategoryBehavior === 'soft'
+      ? Number.MAX_SAFE_INTEGER
+      : Math.max(limit, selectedOptions.length);
+  const visiblePreferredOptions = [
+    ...selectedOptions,
+    ...preferredOptions,
+  ].slice(0, preferredLimit);
+  const hiddenPreferredCount = Math.max(
+    0,
+    selectedOptions.length +
+      preferredOptions.length -
+      visiblePreferredOptions.length
+  );
+  const visibleUnusualOptions = shouldShowUnusualTargets ? unusualOptions : [];
+  const canExpandUnusualTargets =
+    !shouldShowUnusualTargets &&
+    hiddenPreferredCount === 0 &&
+    unusualOptions.length > 0;
+
+  return {
+    visibleOptions: [...visiblePreferredOptions, ...visibleUnusualOptions],
+    hiddenPreferredCount,
+    hiddenPreferredMessage:
+      hiddenPreferredCount > 0
+        ? `Showing ${visiblePreferredOptions.length} of ${
+            options.length
+          } matches. ${formatHiddenResultCountMessage({
+            hiddenCount: hiddenPreferredCount,
+            itemLabel: 'preferred record',
+            refinementLabel: 'the search',
+          })}`
+        : '',
+    hiddenUnusualCount: shouldShowUnusualTargets ? 0 : unusualOptions.length,
+    canExpandUnusualTargets,
+    showUnusualTargetsLabel: canExpandUnusualTargets
+      ? `Show ${unusualOptions.length} unusual ${pluralizeCountLabel(
+          unusualOptions.length,
+          'target'
+        )}`
+      : '',
+  };
 }
 
 function normalizeReviewFragment(value: string): string {
@@ -353,6 +544,110 @@ export function getPlaceRelationshipTextReviewItems({
     );
 }
 
+export function getPlaceRelationshipFieldTextMigration({
+  codex,
+  config,
+  currentEntry,
+  sections,
+  value,
+}: {
+  codex: WorldCodex;
+  config: PlaceRelationshipFieldConfig;
+  currentEntry: WorldEntry;
+  sections: readonly WorldSectionConfig[];
+  value: string;
+}) {
+  const options = getPlaceRelationshipTargetOptions({
+    codex,
+    config,
+    sections,
+    currentEntry,
+  });
+  return buildRelationshipTextMigration(
+    value,
+    options.map((option) => ({
+      id: option.entry.id,
+      name: option.entry.name,
+    })),
+    config.cardinality
+  );
+}
+
+export function buildPlaceRelationshipFieldTextMigrationOperation({
+  config,
+  entry,
+  migration,
+  relationships,
+}: {
+  config: PlaceRelationshipFieldConfig;
+  entry: WorldEntry;
+  migration: RelationshipTextMigrationResult;
+  relationships: readonly WorldRelationship[];
+}): PlaceRelationshipFieldTextMigrationOperation {
+  const fieldRelationships = getPlaceRelationshipFieldLinks(
+    relationships,
+    entry,
+    config
+  );
+  const relationshipIdsToDelete: string[] = [];
+  const relationshipsToSave: PlaceRelationshipFieldTextMigrationOperation['relationshipsToSave'] =
+    [];
+
+  if (config.cardinality === 'one') {
+    const [primaryRelationship, ...extraRelationships] = fieldRelationships;
+    relationshipIdsToDelete.push(
+      ...extraRelationships.map((relationship) => relationship.id)
+    );
+    const targetEntryId = migration.targetIds[0];
+    if (
+      targetEntryId &&
+      (!primaryRelationship ||
+        getPlaceRelationshipFieldTargetId(primaryRelationship, config) !==
+          targetEntryId)
+    ) {
+      relationshipsToSave.push({
+        relationship: makePlaceFieldRelationship(
+          entry,
+          config,
+          targetEntryId,
+          primaryRelationship
+        ),
+        existingRelationship: primaryRelationship,
+      });
+    }
+  } else {
+    for (const targetEntryId of migration.targetIds) {
+      const existingRelationship = fieldRelationships.find(
+        (relationship) =>
+          getPlaceRelationshipFieldTargetId(relationship, config) ===
+          targetEntryId
+      );
+      if (!existingRelationship) {
+        relationshipsToSave.push({
+          relationship: makePlaceFieldRelationship(
+            entry,
+            config,
+            targetEntryId
+          ),
+        });
+      }
+    }
+  }
+
+  const fields = { ...entry.fields };
+  if (migration.remainingText) {
+    fields[config.fieldKey] = migration.remainingText;
+  } else {
+    delete fields[config.fieldKey];
+  }
+
+  return {
+    relationshipIdsToDelete,
+    relationshipsToSave,
+    fields,
+  };
+}
+
 export function buildPlaceRelationshipTextReviewMigration({
   config,
   entry,
@@ -426,6 +721,57 @@ export function buildPlaceRelationshipTextReviewMigration({
     relationshipsToSave,
     fields,
   };
+}
+
+function removeFirstReviewFragment(
+  value: string,
+  fragmentToRemove: string
+): string {
+  let removed = false;
+  const normalizedFragmentToRemove = normalizeReviewFragment(fragmentToRemove);
+  return splitRelationshipTextFragments(value)
+    .filter((fragment) => {
+      if (
+        !removed &&
+        normalizeReviewFragment(fragment) === normalizedFragmentToRemove
+      ) {
+        removed = true;
+        return false;
+      }
+      return true;
+    })
+    .join('\n');
+}
+
+export function buildPlaceRelationshipTextReviewSuggestionMigration({
+  config,
+  entry,
+  fragment,
+  item,
+  relationships,
+  targetEntryId,
+}: PlaceRelationshipTextReviewSuggestionMigrationInput): PlaceRelationshipTextReviewMigration | null {
+  const suggestedTarget = item.suggestedTargets
+    .find((suggestion) => suggestion.fragment === fragment)
+    ?.targets.some((target) => target.id === targetEntryId);
+  if (!suggestedTarget) {
+    return null;
+  }
+  const exactTargetIds =
+    config.cardinality === 'one'
+      ? [targetEntryId]
+      : Array.from(new Set([...item.exactTargetIds, targetEntryId]));
+
+  return buildPlaceRelationshipTextReviewMigration({
+    config,
+    entry,
+    item: {
+      ...item,
+      exactTargetIds,
+      remainingText: removeFirstReviewFragment(item.remainingText, fragment),
+    },
+    relationships,
+  });
 }
 
 function getEntryIndex(

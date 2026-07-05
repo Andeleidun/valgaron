@@ -2,12 +2,15 @@ import { useMemo, useState } from 'react';
 import { router } from 'expo-router';
 import { Text, View, StyleSheet } from 'react-native';
 import {
-  formatUpdatedAt,
-  getCodexEntriesRoute,
   getDataRecoverySnapshotModel,
   getDeviceSaveStatusModel,
-  getIncompleteEntries,
-  getSearchableEntries,
+  getWorkspaceOverviewDraftingPromptCountLabel,
+  getWorkspaceOverviewEditEntryAccessibilityLabel,
+  getWorkspaceOverviewEntryRoute,
+  getWorkspaceOverviewModel,
+  getWorkspaceOverviewOpenEntryAccessibilityLabel,
+  mobileFeatureDisplayLimits,
+  overviewFeatureCopy,
   summarizeRecoverySnapshot,
   valgaronProduct,
 } from '@valgaron/core';
@@ -19,11 +22,6 @@ import {
 } from '@valgaron/ui-tokens';
 import { useMobileCodex } from '../state/MobileCodexContext';
 import { getMobileRouteHref } from '../navigation/mobileRoutes';
-import {
-  getMobileOverviewEntryHighlights,
-  getMobileOverviewSummary,
-  getMobileOverviewSearchResults,
-} from '../state/mobileCodexViewModels';
 import {
   ActionButton,
   ButtonRow,
@@ -38,15 +36,24 @@ import {
 export function OverviewScreen() {
   const controller = useMobileCodex();
   const [globalQuery, setGlobalQuery] = useState('');
-  const summary = getMobileOverviewSummary(controller.document);
-  const searchableEntries = getSearchableEntries(
-    controller.activeWorld.codex,
-    controller.activeWorld.entryTypes
+  const overview = useMemo(
+    () =>
+      getWorkspaceOverviewModel({
+        document: controller.document,
+        workspace: controller.activeWorld,
+        query: globalQuery,
+        searchLimit: mobileFeatureDisplayLimits.overviewSearchResults,
+        incompleteLimit: mobileFeatureDisplayLimits.overviewIncompleteEntries,
+      }),
+    [controller.activeWorld, controller.document, globalQuery]
   );
-  const incompleteEntries = getIncompleteEntries(
-    searchableEntries,
-    controller.activeWorld.entryTypes
-  ).slice(0, 5);
+  const {
+    entryHighlights,
+    incompleteEntries,
+    quickCreateActions,
+    searchResults,
+    summary,
+  } = overview;
   const recoverySnapshotSummary = controller.lastRecoverySnapshot
     ? summarizeRecoverySnapshot(controller.lastRecoverySnapshot)
     : null;
@@ -54,18 +61,6 @@ export function OverviewScreen() {
     ? getDataRecoverySnapshotModel([recoverySnapshotSummary]).rows[0]
         ?.mobileSummaryText
     : '';
-  const globalResults = useMemo(
-    () =>
-      getMobileOverviewSearchResults(controller.activeWorld, globalQuery).slice(
-        0,
-        6
-      ),
-    [controller.activeWorld, globalQuery]
-  );
-  const entryHighlights = useMemo(
-    () => getMobileOverviewEntryHighlights(controller.activeWorld),
-    [controller.activeWorld]
-  );
   const saveStatus = getDeviceSaveStatusModel({
     savedAt: controller.document.savedAt,
     saveMessage: controller.saveMessage,
@@ -73,14 +68,7 @@ export function OverviewScreen() {
 
   function openEntry(entry: { id: string; name: string; sectionId: string }) {
     router.push({
-      ...getMobileRouteHref(
-        getCodexEntriesRoute({
-          entryId: entry.id,
-          intent: 'edit',
-          query: entry.name,
-          sectionId: entry.sectionId,
-        })
-      ),
+      ...getMobileRouteHref(getWorkspaceOverviewEntryRoute(entry)),
     });
   }
 
@@ -92,11 +80,20 @@ export function OverviewScreen() {
       />
 
       <View style={styles.statGrid}>
-        <Stat label="Workspace" value={summary.workspaceName} />
-        <Stat label="Entries" value={String(summary.entryCount)} />
-        <Stat label="Relationships" value={String(summary.relationshipCount)} />
         <Stat
-          label="Active workspaces"
+          label={overviewFeatureCopy.workspaceStatLabel}
+          value={summary.workspaceName}
+        />
+        <Stat
+          label={overviewFeatureCopy.entriesStatLabel}
+          value={String(summary.entryCount)}
+        />
+        <Stat
+          label={overviewFeatureCopy.relationshipsStatLabel}
+          value={String(summary.relationshipCount)}
+        />
+        <Stat
+          label={overviewFeatureCopy.activeWorkspacesStatLabel}
           value={String(summary.activeWorkspaceCount)}
         />
       </View>
@@ -106,80 +103,75 @@ export function OverviewScreen() {
         <MutedText>{saveStatus.detail}</MutedText>
         <ButtonRow>
           <ActionButton
-            label="Open Data"
+            label={overviewFeatureCopy.openDataLabel}
             onPress={() => router.push('/data')}
           />
         </ButtonRow>
       </SectionBlock>
 
-      <SectionBlock title="Current Draft State">
+      <SectionBlock title={overviewFeatureCopy.currentDraftStateTitle}>
         <MutedText>
-          {summary.incompleteEntryCount} visible entries still have drafting
-          prompts.
+          {getWorkspaceOverviewDraftingPromptCountLabel(
+            summary.incompleteEntryCount
+          )}
         </MutedText>
         {recoverySnapshotText ? (
           <MutedText>{recoverySnapshotText}</MutedText>
         ) : null}
       </SectionBlock>
 
-      <SectionBlock title="Find Anything">
+      <SectionBlock title={overviewFeatureCopy.globalSearchTitle}>
         <Field
           autoCapitalize="none"
           autoCorrect={false}
-          label="Search entries"
+          label={overviewFeatureCopy.searchEntriesLabel}
           value={globalQuery}
           onChangeText={setGlobalQuery}
-          placeholder="Search codex records"
+          placeholder={overviewFeatureCopy.searchPlaceholder}
         />
         {globalQuery.trim() ? (
           <ButtonRow>
             <ActionButton
-              label="Clear Search"
+              label={overviewFeatureCopy.clearSearchLabel}
               onPress={() => setGlobalQuery('')}
             />
           </ButtonRow>
         ) : null}
         {globalQuery.trim() ? (
-          globalResults.length > 0 ? (
-            globalResults.map((entry) => (
+          searchResults.length > 0 ? (
+            searchResults.map((entry) => (
               <View key={entry.id} style={styles.queueItem}>
                 <Text style={styles.itemTitle}>{entry.name}</Text>
-                <MutedText>
-                  {entry.sectionTitle} - Updated{' '}
-                  {formatUpdatedAt(entry.updatedAt)}
-                </MutedText>
-                <MutedText>{entry.summary || 'No summary yet.'}</MutedText>
+                <MutedText>{entry.contextText}</MutedText>
+                <MutedText>{entry.summaryText}</MutedText>
                 <ButtonRow>
                   <ActionButton
-                    accessibilityLabel={`Open ${entry.name}`}
-                    label="Open"
+                    accessibilityLabel={getWorkspaceOverviewOpenEntryAccessibilityLabel(
+                      entry
+                    )}
+                    label={overviewFeatureCopy.openLabel}
                     onPress={() => openEntry(entry)}
                   />
                 </ButtonRow>
               </View>
             ))
           ) : (
-            <MutedText>No entries match that search.</MutedText>
+            <MutedText>{overviewFeatureCopy.noSearchResultsTitle}</MutedText>
           )
         ) : (
-          <MutedText>Search names, tags, notes, and detail fields.</MutedText>
+          <MutedText>{overviewFeatureCopy.searchHelpText}</MutedText>
         )}
       </SectionBlock>
 
-      <SectionBlock title="Start a Record">
+      <SectionBlock title={overviewFeatureCopy.quickCreateTitle}>
         <ButtonRow>
-          {controller.activeWorld.entryTypes.map((section) => (
+          {quickCreateActions.map((action) => (
             <ActionButton
-              key={section.id}
-              label={`New ${section.singularTitle}`}
+              key={action.id}
+              label={action.label}
               onPress={() =>
                 router.push({
-                  ...getMobileRouteHref(
-                    getCodexEntriesRoute({
-                      intent: 'new',
-                      sectionId: section.id,
-                    })
-                  ),
+                  ...getMobileRouteHref(action.route),
                 })
               }
             />
@@ -188,19 +180,18 @@ export function OverviewScreen() {
       </SectionBlock>
 
       {entryHighlights.pinned.length > 0 ? (
-        <SectionBlock title="Pinned Records">
+        <SectionBlock title={overviewFeatureCopy.pinnedTitle}>
           {entryHighlights.pinned.map((entry) => (
             <View key={entry.id} style={styles.queueItem}>
               <Text style={styles.itemTitle}>{entry.name}</Text>
-              <MutedText>
-                {entry.sectionTitle} - Updated{' '}
-                {formatUpdatedAt(entry.updatedAt)}
-              </MutedText>
-              <MutedText>{entry.summary || 'No summary yet.'}</MutedText>
+              <MutedText>{entry.contextText}</MutedText>
+              <MutedText>{entry.summaryText}</MutedText>
               <ButtonRow>
                 <ActionButton
-                  accessibilityLabel={`Open ${entry.name}`}
-                  label="Open"
+                  accessibilityLabel={getWorkspaceOverviewEditEntryAccessibilityLabel(
+                    entry
+                  )}
+                  label={overviewFeatureCopy.editLabel}
                   onPress={() => openEntry(entry)}
                 />
               </ButtonRow>
@@ -209,43 +200,42 @@ export function OverviewScreen() {
         </SectionBlock>
       ) : null}
 
-      <SectionBlock title="Recent Work">
+      <SectionBlock title={overviewFeatureCopy.recentTitle}>
         {entryHighlights.recent.length > 0 ? (
           entryHighlights.recent.map((entry) => (
             <View key={entry.id} style={styles.queueItem}>
               <Text style={styles.itemTitle}>{entry.name}</Text>
-              <MutedText>
-                {entry.sectionTitle} - Updated{' '}
-                {formatUpdatedAt(entry.updatedAt)}
-              </MutedText>
-              <MutedText>{entry.summary || 'No summary yet.'}</MutedText>
+              <MutedText>{entry.contextText}</MutedText>
+              <MutedText>{entry.summaryText}</MutedText>
               <ButtonRow>
                 <ActionButton
-                  accessibilityLabel={`Open ${entry.name}`}
-                  label="Open"
+                  accessibilityLabel={getWorkspaceOverviewEditEntryAccessibilityLabel(
+                    entry
+                  )}
+                  label={overviewFeatureCopy.editLabel}
                   onPress={() => openEntry(entry)}
                 />
               </ButtonRow>
             </View>
           ))
         ) : (
-          <MutedText>No recent records in this workspace yet.</MutedText>
+          <MutedText>{overviewFeatureCopy.noRecentRecordsTitle}</MutedText>
         )}
       </SectionBlock>
 
-      <SectionBlock title="Drafting Queue">
+      <SectionBlock title={overviewFeatureCopy.incompleteTitle}>
         {incompleteEntries.length > 0 ? (
           incompleteEntries.map((item) => (
             <View key={item.entry.id} style={styles.queueItem}>
               <Text style={styles.itemTitle}>{item.entry.name}</Text>
-              <MutedText>
-                {item.section.title} - {item.percent}% complete
-              </MutedText>
-              <MutedText>{item.prompts.slice(0, 2).join(' ')}</MutedText>
+              <MutedText>{item.contextText}</MutedText>
+              <MutedText>{item.promptText}</MutedText>
               <ButtonRow>
                 <ActionButton
-                  accessibilityLabel={`Open ${item.entry.name}`}
-                  label="Open"
+                  accessibilityLabel={getWorkspaceOverviewEditEntryAccessibilityLabel(
+                    item.entry
+                  )}
+                  label={overviewFeatureCopy.editLabel}
                   onPress={() =>
                     openEntry({
                       id: item.entry.id,
@@ -258,7 +248,7 @@ export function OverviewScreen() {
             </View>
           ))
         ) : (
-          <MutedText>No visible entries need drafting prompts.</MutedText>
+          <MutedText>{overviewFeatureCopy.noVisibleDraftingPrompts}</MutedText>
         )}
       </SectionBlock>
     </ScreenScroll>
