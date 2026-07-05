@@ -62,6 +62,7 @@ export type WorldDetailField = {
   label: string;
   multiline?: boolean;
   autocompleteOptions?: readonly string[];
+  suggestFromExistingValues?: boolean;
 };
 
 export type WorldSectionConfig = {

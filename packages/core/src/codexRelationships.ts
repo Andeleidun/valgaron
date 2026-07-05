@@ -4,7 +4,6 @@ import type {
   WorldEntryStatus,
   WorldRelationship,
   WorldSectionConfig,
-  WorldWorkspace,
 } from './types';
 import {
   entryDisplayCopy,
@@ -18,6 +17,7 @@ import {
   placeRelationshipTypeOptions,
   type PlaceRelationshipGroupId,
 } from './placeTaxonomy';
+import { characterRelationshipTypeOptions } from './characterTaxonomy';
 import { getCodexEntriesRoute, getCodexRelationshipsRoute } from './shell';
 
 const baseRelationshipTypeOptions: readonly string[] = [
@@ -32,7 +32,11 @@ const baseRelationshipTypeOptions: readonly string[] = [
 ];
 
 export const relationshipTypeOptions: readonly string[] = Array.from(
-  new Set([...baseRelationshipTypeOptions, ...placeRelationshipTypeOptions])
+  new Set([
+    ...baseRelationshipTypeOptions,
+    ...placeRelationshipTypeOptions,
+    ...characterRelationshipTypeOptions,
+  ])
 );
 
 export const relationshipFeatureCopy = {
@@ -129,6 +133,25 @@ export type RelationshipWithEntries = WorldRelationship & {
 
 export type PlaceRelationshipGroup = {
   id: PlaceRelationshipGroupId;
+  label: string;
+  relationships: RelationshipWithEntries[];
+};
+
+export type CharacterRelationshipGroupId =
+  | 'identity'
+  | 'origin'
+  | 'places'
+  | 'affiliations'
+  | 'authority'
+  | 'family'
+  | 'social'
+  | 'conflict'
+  | 'eventsLore'
+  | 'supernatural'
+  | 'other';
+
+export type CharacterRelationshipGroup = {
+  id: CharacterRelationshipGroupId;
   label: string;
   relationships: RelationshipWithEntries[];
 };
@@ -269,6 +292,12 @@ export type EntryRelationshipGroupModel = {
   relationships: EntryRelationshipItemModel[];
 };
 
+type EntryRelationshipModelWorkspace = {
+  codex: WorldCodex;
+  entryTypes: readonly WorldSectionConfig[];
+  relationships: readonly WorldRelationship[];
+};
+
 export type RelationshipHealthSummary = {
   brokenRelationshipCount: number;
   orphanedEntryCount: number;
@@ -350,6 +379,123 @@ const placeRelationshipGroupRules: Record<
     { type: 'built', perspective: 'either' },
     { type: 'created by', perspective: 'either' },
     { type: 'created', perspective: 'either' },
+  ],
+};
+
+const characterRelationshipGroupOrder: readonly CharacterRelationshipGroupId[] =
+  [
+    'identity',
+    'origin',
+    'places',
+    'affiliations',
+    'authority',
+    'family',
+    'social',
+    'conflict',
+    'eventsLore',
+    'supernatural',
+    'other',
+  ];
+
+const characterRelationshipGroupLabels: Record<
+  CharacterRelationshipGroupId,
+  string
+> = {
+  identity: 'Identity and forms',
+  origin: 'Origin and creation',
+  places: 'Places and movement',
+  affiliations: 'Affiliations and service',
+  authority: 'Authority and command',
+  family: 'Family and lineage',
+  social: 'Allies, partners, and mentors',
+  conflict: 'Rivals, enemies, and obligations',
+  eventsLore: 'Events and lore',
+  supernatural: 'Bindings and domains',
+  other: 'Other links',
+};
+
+const characterRelationshipGroupRules: Record<
+  Exclude<CharacterRelationshipGroupId, 'other'>,
+  readonly {
+    type: string;
+    perspective: 'source' | 'target' | 'either';
+  }[]
+> = {
+  identity: [
+    { type: 'same as', perspective: 'either' },
+    { type: 'identity of', perspective: 'either' },
+    { type: 'has identity', perspective: 'either' },
+  ],
+  origin: [
+    { type: 'originated from', perspective: 'source' },
+    { type: 'origin of', perspective: 'target' },
+    { type: 'created by', perspective: 'source' },
+    { type: 'created', perspective: 'target' },
+    { type: 'ancestry described by', perspective: 'source' },
+    { type: 'describes ancestry of', perspective: 'target' },
+    { type: 'profession described by', perspective: 'source' },
+    { type: 'describes profession of', perspective: 'target' },
+  ],
+  places: [
+    { type: 'resides in', perspective: 'source' },
+    { type: 'has resident', perspective: 'target' },
+    { type: 'located at', perspective: 'source' },
+    { type: 'has present character', perspective: 'target' },
+    { type: 'travels between', perspective: 'source' },
+    { type: 'visited by', perspective: 'target' },
+  ],
+  affiliations: [
+    { type: 'member of', perspective: 'source' },
+    { type: 'has member', perspective: 'target' },
+    { type: 'employed by', perspective: 'source' },
+    { type: 'employs', perspective: 'target' },
+    { type: 'serves', perspective: 'source' },
+    { type: 'served by', perspective: 'target' },
+  ],
+  authority: [
+    { type: 'leads', perspective: 'source' },
+    { type: 'led by', perspective: 'target' },
+    { type: 'rules', perspective: 'source' },
+    { type: 'ruled by', perspective: 'target' },
+    { type: 'commands', perspective: 'source' },
+    { type: 'commanded by', perspective: 'target' },
+  ],
+  family: [
+    { type: 'descended from', perspective: 'source' },
+    { type: 'ancestor of', perspective: 'target' },
+    { type: 'parent of', perspective: 'either' },
+    { type: 'child of', perspective: 'either' },
+    { type: 'sibling of', perspective: 'either' },
+  ],
+  social: [
+    { type: 'partner of', perspective: 'either' },
+    { type: 'mentor of', perspective: 'either' },
+    { type: 'mentored by', perspective: 'either' },
+    { type: 'ally of', perspective: 'either' },
+  ],
+  conflict: [
+    { type: 'rival of', perspective: 'either' },
+    { type: 'enemy of', perspective: 'either' },
+    { type: 'owes obligation to', perspective: 'source' },
+    { type: 'is owed by', perspective: 'target' },
+  ],
+  eventsLore: [
+    { type: 'participated in', perspective: 'source' },
+    { type: 'included participant', perspective: 'target' },
+    { type: 'caused event', perspective: 'source' },
+    { type: 'caused by', perspective: 'target' },
+    { type: 'changed by event', perspective: 'source' },
+    { type: 'changed', perspective: 'target' },
+    { type: 'appears in lore', perspective: 'source' },
+    { type: 'mentions character', perspective: 'target' },
+    { type: 'uses lore', perspective: 'source' },
+    { type: 'used by', perspective: 'target' },
+    { type: 'references', perspective: 'either' },
+    { type: 'referenced by', perspective: 'either' },
+  ],
+  supernatural: [
+    { type: 'bound to', perspective: 'source' },
+    { type: 'binds', perspective: 'target' },
   ],
 };
 
@@ -847,7 +993,7 @@ function toEntryRelationshipItemModel(
 }
 
 export function getEntryRelationshipSummaryModel(
-  workspace: Pick<WorldWorkspace, 'codex' | 'entryTypes' | 'relationships'>,
+  workspace: EntryRelationshipModelWorkspace,
   entryId: string
 ): EntryRelationshipItemModel[] {
   const relationshipEntryById = new Map(
@@ -866,7 +1012,7 @@ export function getEntryRelationshipSummaryModel(
 }
 
 export function getEntryRelationshipGroupsModel(
-  workspace: Pick<WorldWorkspace, 'codex' | 'entryTypes' | 'relationships'>,
+  workspace: EntryRelationshipModelWorkspace,
   entry: WorldEntry
 ): EntryRelationshipGroupModel[] {
   const relationshipEntryById = new Map(
@@ -874,18 +1020,29 @@ export function getEntryRelationshipGroupsModel(
       (item) => [item.id, item]
     )
   );
-  if (entry.kind !== 'place') {
+  const groups =
+    entry.kind === 'place'
+      ? getPlaceRelationshipGroups(
+          entry,
+          workspace.relationships,
+          workspace.codex,
+          workspace.entryTypes
+        )
+      : entry.kind === 'character'
+      ? getCharacterRelationshipGroups(
+          entry,
+          workspace.relationships,
+          workspace.codex,
+          workspace.entryTypes
+        )
+      : [];
+  if (groups.length === 0) {
     const relationships = getEntryRelationshipSummaryModel(workspace, entry.id);
     return relationships.length > 0
       ? [{ id: 'linked-records', label: 'Linked records', relationships }]
       : [];
   }
-  return getPlaceRelationshipGroups(
-    entry,
-    workspace.relationships,
-    workspace.codex,
-    workspace.entryTypes
-  ).map((group) => ({
+  return groups.map((group) => ({
     id: group.id,
     label: group.label,
     relationships: group.relationships.map((relationship) =>
@@ -944,6 +1101,20 @@ function relationshipMatchesGroupRule(
   );
 }
 
+function relationshipMatchesCharacterGroupRule(
+  relationship: RelationshipWithEntries,
+  entryId: string,
+  groupId: Exclude<CharacterRelationshipGroupId, 'other'>
+): boolean {
+  const normalizedType = normalizeRelationshipType(relationship.type);
+  const perspective = relationshipPerspective(relationship, entryId);
+  return characterRelationshipGroupRules[groupId].some(
+    (rule) =>
+      rule.type === normalizedType &&
+      (rule.perspective === 'either' || rule.perspective === perspective)
+  );
+}
+
 function getPlaceRelationshipGroupId(
   relationship: RelationshipWithEntries,
   entryId: string
@@ -953,6 +1124,19 @@ function getPlaceRelationshipGroupId(
       (groupId) =>
         groupId !== 'other' &&
         relationshipMatchesGroupRule(relationship, entryId, groupId)
+    ) ?? 'other'
+  );
+}
+
+function getCharacterRelationshipGroupId(
+  relationship: RelationshipWithEntries,
+  entryId: string
+): CharacterRelationshipGroupId {
+  return (
+    characterRelationshipGroupOrder.find(
+      (groupId) =>
+        groupId !== 'other' &&
+        relationshipMatchesCharacterGroupRule(relationship, entryId, groupId)
     ) ?? 'other'
   );
 }
@@ -986,6 +1170,39 @@ export function getPlaceRelationshipGroups(
     .map((groupId) => ({
       id: groupId,
       label: getPlaceRelationshipGroupLabel(category, groupId),
+      relationships: groupsById.get(groupId) ?? [],
+    }))
+    .filter((group) => group.relationships.length > 0);
+}
+
+/** Group an attached character relationship list into character-tree oriented sections. */
+export function getCharacterRelationshipGroups(
+  entry: WorldEntry,
+  relationships: readonly WorldRelationship[],
+  codex: WorldCodex,
+  sections: readonly WorldSectionConfig[]
+): CharacterRelationshipGroup[] {
+  if (entry.kind !== 'character') {
+    return [];
+  }
+  const attachedRelationships = getEntryRelationships(
+    relationships,
+    codex,
+    sections,
+    entry.id
+  );
+  const groupsById = new Map<
+    CharacterRelationshipGroupId,
+    RelationshipWithEntries[]
+  >(characterRelationshipGroupOrder.map((groupId) => [groupId, []]));
+  for (const relationship of attachedRelationships) {
+    const groupId = getCharacterRelationshipGroupId(relationship, entry.id);
+    groupsById.get(groupId)?.push(relationship);
+  }
+  return characterRelationshipGroupOrder
+    .map((groupId) => ({
+      id: groupId,
+      label: characterRelationshipGroupLabels[groupId],
       relationships: groupsById.get(groupId) ?? [],
     }))
     .filter((group) => group.relationships.length > 0);

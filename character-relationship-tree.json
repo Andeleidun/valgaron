@@ -1,0 +1,1838 @@
+{
+  "schemaVersion": 1,
+  "purpose": "Planning artifact for Valgaron character category relationships, category-specific field profiles, and relationship-backed character fields.",
+  "scope": {
+    "entryKind": "character",
+    "sourceCategorySet": "Canonical category nodes in this artifact's tree section",
+    "linkedEntryKinds": ["character", "place", "faction", "lore", "timeline"],
+    "notes": [
+      "This artifact is for product and data-model planning. It does not require the prototype to hardcode all fields immediately.",
+      "Character category describes the entity shape and field profile. Narrative function, ancestry, profession, faction rank, and moral alignment are flexible fields, not fixed character categories.",
+      "Ancestry is the preferred field name for humanoid race, species, people, or lineage concepts. It should accept creator-defined values and optional lore links.",
+      "Profession is the preferred field name for class, job, calling, trade, or adventuring role concepts. It should accept creator-defined values and optional faction or lore links.",
+      "Relationship-backed fields should become typed selectors when the editor supports typed character fields; plain text remains acceptable for the current local prototype."
+    ]
+  },
+  "classificationPrinciples": [
+    {
+      "id": "separate_entity_shape_from_story_role",
+      "principle": "Use character category for what kind of entity the record represents, and use fields for how the story uses that entity.",
+      "examples": [
+        "A protagonist can be a humanoid person, construct, spirit, or collective character.",
+        "A villain, mentor, ruler, or witness is a narrative role field, not a category."
+      ]
+    },
+    {
+      "id": "prefer_flexible_creator_vocabularies",
+      "principle": "Ancestry, profession, culture, faith, title, and ability system should be flexible creator-authored values with optional links.",
+      "examples": [
+        "The builder can suggest recently used values, but should not ship fixed ancestry or profession lists.",
+        "Sample data can use common-domain values, but the schema should not imply defaults."
+      ]
+    },
+    {
+      "id": "store_links_once",
+      "principle": "Facts that connect records should be stored as relationships and displayed from both sides.",
+      "examples": [
+        "A character residing in a city should make the city show resident characters.",
+        "A character employed by a guild should make the guild show members or staff."
+      ]
+    },
+    {
+      "id": "support_specificity_without_blocking_drafts",
+      "principle": "Category-specific fields should guide the creator toward useful details while allowing sparse early drafts and unusual worlds.",
+      "examples": [
+        "A construct may not have parents, but may have a maker, owner, directive, power source, and maintenance state.",
+        "A deity may not have a current residence, but may have a domain, manifestation places, worshipping factions, avatars, and myths."
+      ]
+    }
+  ],
+  "relationshipTypes": [
+    {
+      "id": "same_as",
+      "label": "same as",
+      "directional": false,
+      "inverseLabel": "same as",
+      "sourceKinds": ["character"],
+      "targetKinds": ["character"],
+      "description": "Two records represent the same identity, alias, incarnation, duplicate, mask, or version."
+    },
+    {
+      "id": "identity_of",
+      "label": "identity of",
+      "directional": true,
+      "inverseLabel": "has identity",
+      "sourceKinds": ["character"],
+      "targetKinds": ["character"],
+      "description": "A public persona, secret identity, avatar, disguise, incarnation, or alternate form of another character."
+    },
+    {
+      "id": "ancestry_described_by",
+      "label": "ancestry described by",
+      "directional": true,
+      "inverseLabel": "describes ancestry of",
+      "sourceKinds": ["character"],
+      "targetKinds": ["lore"],
+      "description": "Links a creator-defined ancestry value to a lore note about biology, culture, origin, or inherited traits."
+    },
+    {
+      "id": "profession_described_by",
+      "label": "profession described by",
+      "directional": true,
+      "inverseLabel": "describes profession of",
+      "sourceKinds": ["character"],
+      "targetKinds": ["lore"],
+      "description": "Links a creator-defined profession value to a lore note about duties, class traditions, tools, training, or status."
+    },
+    {
+      "id": "originated_from",
+      "label": "originated from",
+      "directional": true,
+      "inverseLabel": "origin of",
+      "sourceKinds": ["character"],
+      "targetKinds": ["place", "faction", "lore", "timeline"],
+      "description": "Birthplace, creation site, awakening event, ancestral homeland, summoning source, or first appearance."
+    },
+    {
+      "id": "resides_in",
+      "label": "resides in",
+      "directional": true,
+      "inverseLabel": "has resident",
+      "sourceKinds": ["character"],
+      "targetKinds": ["place"],
+      "description": "Current home, lair, station, court, temple, den, or usual base."
+    },
+    {
+      "id": "located_at",
+      "label": "located at",
+      "directional": true,
+      "inverseLabel": "has present character",
+      "sourceKinds": ["character"],
+      "targetKinds": ["place"],
+      "description": "Current known location when it differs from home or origin."
+    },
+    {
+      "id": "travels_between",
+      "label": "travels between",
+      "directional": false,
+      "inverseLabel": "visited by",
+      "sourceKinds": ["character"],
+      "targetKinds": ["place"],
+      "description": "Regular route, migration range, patrol circuit, trade path, pilgrimage path, or hunting ground."
+    },
+    {
+      "id": "member_of",
+      "label": "member of",
+      "directional": true,
+      "inverseLabel": "has member",
+      "sourceKinds": ["character"],
+      "targetKinds": ["faction"],
+      "description": "Membership, citizenship, house, guild, crew, order, faith, school, military, or court attachment."
+    },
+    {
+      "id": "employed_by",
+      "label": "employed by",
+      "directional": true,
+      "inverseLabel": "employs",
+      "sourceKinds": ["character"],
+      "targetKinds": ["character", "faction", "place"],
+      "description": "Employment, service, contract, appointment, patronage, or office."
+    },
+    {
+      "id": "leads",
+      "label": "leads",
+      "directional": true,
+      "inverseLabel": "led by",
+      "sourceKinds": ["character"],
+      "targetKinds": ["faction", "place", "character"],
+      "description": "Formal or practical command over an organization, polity, settlement, crew, household, or follower."
+    },
+    {
+      "id": "rules",
+      "label": "rules",
+      "directional": true,
+      "inverseLabel": "ruled by",
+      "sourceKinds": ["character"],
+      "targetKinds": ["place", "faction"],
+      "description": "Sovereignty, stewardship, territorial dominion, court authority, divine patronage, or claimed rule."
+    },
+    {
+      "id": "serves",
+      "label": "serves",
+      "directional": true,
+      "inverseLabel": "served by",
+      "sourceKinds": ["character"],
+      "targetKinds": ["character", "faction", "place", "lore"],
+      "description": "Service, oath, religious dedication, employment, duty, binding, or fealty."
+    },
+    {
+      "id": "served_by",
+      "label": "served by",
+      "directional": true,
+      "inverseLabel": "serves",
+      "sourceKinds": ["character"],
+      "targetKinds": ["character", "faction", "place"],
+      "description": "Followers, worshippers, attendants, servants, bound agents, caretakers, or communities that serve the character."
+    },
+    {
+      "id": "commands",
+      "label": "commands",
+      "directional": true,
+      "inverseLabel": "commanded by",
+      "sourceKinds": ["character"],
+      "targetKinds": ["character", "faction"],
+      "description": "Operational command over followers, troops, familiars, constructs, agents, or subordinates."
+    },
+    {
+      "id": "created_by",
+      "label": "created by",
+      "directional": true,
+      "inverseLabel": "created",
+      "sourceKinds": ["character"],
+      "targetKinds": ["character", "faction", "lore", "timeline"],
+      "description": "Maker, inventor, parent process, ritual, accident, event, author, or divine act that created the character."
+    },
+    {
+      "id": "descended_from",
+      "label": "descended from",
+      "directional": true,
+      "inverseLabel": "ancestor of",
+      "sourceKinds": ["character"],
+      "targetKinds": ["character", "faction", "lore"],
+      "description": "Genealogical descent, dynastic descent, spiritual descent, cloned lineage, or inherited mythic origin."
+    },
+    {
+      "id": "parent_of",
+      "label": "parent of",
+      "directional": true,
+      "inverseLabel": "child of",
+      "sourceKinds": ["character"],
+      "targetKinds": ["character"],
+      "description": "Biological, adoptive, spiritual, artificial, or creator-parent relationship."
+    },
+    {
+      "id": "child_of",
+      "label": "child of",
+      "directional": true,
+      "inverseLabel": "parent of",
+      "sourceKinds": ["character"],
+      "targetKinds": ["character"],
+      "description": "Biological, adoptive, spiritual, artificial, or creator-child relationship from the child record to parent records."
+    },
+    {
+      "id": "sibling_of",
+      "label": "sibling of",
+      "directional": false,
+      "inverseLabel": "sibling of",
+      "sourceKinds": ["character"],
+      "targetKinds": ["character"],
+      "description": "Sibling, clutchmate, batchmate, oath-sibling, clone sibling, or equivalent peer lineage."
+    },
+    {
+      "id": "partner_of",
+      "label": "partner of",
+      "directional": false,
+      "inverseLabel": "partner of",
+      "sourceKinds": ["character"],
+      "targetKinds": ["character"],
+      "description": "Romantic partner, spouse, bondmate, political marriage, bonded pair, or equivalent relationship."
+    },
+    {
+      "id": "mentor_of",
+      "label": "mentor of",
+      "directional": true,
+      "inverseLabel": "mentored by",
+      "sourceKinds": ["character"],
+      "targetKinds": ["character"],
+      "description": "Teacher, trainer, patron, master, handler, predecessor, or guiding figure."
+    },
+    {
+      "id": "ally_of",
+      "label": "ally of",
+      "directional": false,
+      "inverseLabel": "ally of",
+      "sourceKinds": ["character"],
+      "targetKinds": ["character", "faction"],
+      "description": "Cooperation, friendship, treaty, campaign alliance, shared agenda, or temporary partnership."
+    },
+    {
+      "id": "rival_of",
+      "label": "rival of",
+      "directional": false,
+      "inverseLabel": "rival of",
+      "sourceKinds": ["character"],
+      "targetKinds": ["character", "faction"],
+      "description": "Competition, professional rivalry, succession contest, ideological rivalry, or personal foil."
+    },
+    {
+      "id": "enemy_of",
+      "label": "enemy of",
+      "directional": false,
+      "inverseLabel": "enemy of",
+      "sourceKinds": ["character"],
+      "targetKinds": ["character", "faction"],
+      "description": "Hostile relationship, active opposition, vendetta, war, curse, predator-prey conflict, or sworn enmity."
+    },
+    {
+      "id": "owes_obligation_to",
+      "label": "owes obligation to",
+      "directional": true,
+      "inverseLabel": "is owed by",
+      "sourceKinds": ["character"],
+      "targetKinds": ["character", "faction", "place", "lore"],
+      "description": "Debt, oath, curse, contract, taboo, vow, legal duty, divine command, or unresolved favor."
+    },
+    {
+      "id": "uses_lore",
+      "label": "uses lore",
+      "directional": true,
+      "inverseLabel": "used by",
+      "sourceKinds": ["character"],
+      "targetKinds": ["lore"],
+      "description": "Magic system, technology, martial tradition, ritual, language, artifact rule, medical condition, or doctrine."
+    },
+    {
+      "id": "bound_to",
+      "label": "bound to",
+      "directional": true,
+      "inverseLabel": "binds",
+      "sourceKinds": ["character"],
+      "targetKinds": ["character", "place", "faction", "lore", "timeline"],
+      "description": "Geas, curse, summoning bond, vessel, anchor, patron, contract, containment, oath, or metaphysical dependency."
+    },
+    {
+      "id": "participated_in",
+      "label": "participated in",
+      "directional": true,
+      "inverseLabel": "included participant",
+      "sourceKinds": ["character"],
+      "targetKinds": ["timeline"],
+      "description": "Presence, participation, witness, casualty, author, victim, cause, or beneficiary in a timeline event."
+    },
+    {
+      "id": "caused_event",
+      "label": "caused event",
+      "directional": true,
+      "inverseLabel": "caused by",
+      "sourceKinds": ["character"],
+      "targetKinds": ["timeline"],
+      "description": "Intentional or accidental cause of a timeline event."
+    },
+    {
+      "id": "changed_by_event",
+      "label": "changed by event",
+      "directional": true,
+      "inverseLabel": "changed",
+      "sourceKinds": ["character"],
+      "targetKinds": ["timeline"],
+      "description": "Event that transformed status, allegiance, body, powers, reputation, location, or motivation."
+    },
+    {
+      "id": "appears_in_lore",
+      "label": "appears in lore",
+      "directional": true,
+      "inverseLabel": "mentions character",
+      "sourceKinds": ["character"],
+      "targetKinds": ["lore"],
+      "description": "Myth, prophecy, law, song, chronicle, bestiary note, doctrine, rumor, or research record mentioning the character."
+    }
+  ],
+  "fieldCatalog": [
+    {
+      "id": "characterCategory",
+      "label": "Character category",
+      "valueType": "category",
+      "cardinality": "one",
+      "description": "The entity-shape category used to choose relevant field groups."
+    },
+    {
+      "id": "name",
+      "label": "Name",
+      "valueType": "text",
+      "cardinality": "one",
+      "description": "Primary display name for the character record."
+    },
+    {
+      "id": "alternateNames",
+      "label": "Alternate names",
+      "valueType": "textList",
+      "cardinality": "many",
+      "description": "Aliases, translated names, epithets, true names, secret names, designations, or public handles."
+    },
+    {
+      "id": "summary",
+      "label": "Summary",
+      "valueType": "longText",
+      "cardinality": "one",
+      "description": "Short drafting summary used in lists and reference views."
+    },
+    {
+      "id": "status",
+      "label": "Record status",
+      "valueType": "status",
+      "cardinality": "one",
+      "description": "Drafting status such as draft, canon, needs review, deprecated, or archived."
+    },
+    {
+      "id": "tags",
+      "label": "Tags",
+      "valueType": "textList",
+      "cardinality": "many",
+      "description": "Loose labels for search, filtering, and draft organization."
+    },
+    {
+      "id": "narrativeRole",
+      "label": "Narrative role",
+      "valueType": "customText",
+      "cardinality": "many",
+      "description": "Story function such as point-of-view figure, mentor, antagonist, witness, patron, foil, or background figure."
+    },
+    {
+      "id": "currentStatus",
+      "label": "Current status",
+      "valueType": "customText",
+      "cardinality": "one",
+      "description": "In-fiction condition such as alive, missing, exiled, dormant, cursed, transformed, ruling, hunted, or unknown."
+    },
+    {
+      "id": "ancestry",
+      "label": "Ancestry",
+      "valueType": "customText",
+      "cardinality": "many",
+      "description": "Creator-defined humanoid race, species, people, heritage, lineage, or origin concept. Do not hardcode a default list."
+    },
+    {
+      "id": "ancestryLore",
+      "label": "Ancestry lore",
+      "valueType": "linkList",
+      "cardinality": "many",
+      "relationshipType": "ancestry_described_by",
+      "targetKinds": ["lore"],
+      "description": "Optional links to lore notes defining ancestry biology, culture, history, taboos, inherited traits, or social treatment."
+    },
+    {
+      "id": "culture",
+      "label": "Culture",
+      "valueType": "customText",
+      "cardinality": "many",
+      "targetKinds": ["lore", "faction", "place"],
+      "description": "Creator-defined cultural identity, upbringing, social tradition, diaspora, or adopted community."
+    },
+    {
+      "id": "homeland",
+      "label": "Homeland",
+      "valueType": "linkList",
+      "cardinality": "many",
+      "relationshipType": "originated_from",
+      "targetKinds": ["place"],
+      "description": "Ancestral, cultural, or emotional place of origin."
+    },
+    {
+      "id": "origin",
+      "label": "Origin",
+      "valueType": "linkList",
+      "cardinality": "many",
+      "relationshipType": "originated_from",
+      "targetKinds": ["place", "faction", "lore", "timeline"],
+      "description": "Birth, creation, awakening, summoning, manufacture, first appearance, or mythic source."
+    },
+    {
+      "id": "age",
+      "label": "Age",
+      "valueType": "customText",
+      "cardinality": "one",
+      "description": "Exact age, apparent age, age band, era, generation, or unknown age note."
+    },
+    {
+      "id": "lifespan",
+      "label": "Lifespan",
+      "valueType": "customText",
+      "cardinality": "one",
+      "description": "Expected lifespan, immortality rule, decay cycle, service life, reincarnation cycle, or seasonal lifecycle."
+    },
+    {
+      "id": "gender",
+      "label": "Gender",
+      "valueType": "customText",
+      "cardinality": "one",
+      "description": "Creator-defined gender or social gender note where relevant."
+    },
+    {
+      "id": "pronouns",
+      "label": "Pronouns",
+      "valueType": "text",
+      "cardinality": "one",
+      "description": "Pronouns for prose drafting and reference."
+    },
+    {
+      "id": "languages",
+      "label": "Languages",
+      "valueType": "customTextList",
+      "cardinality": "many",
+      "targetKinds": ["lore", "faction", "place"],
+      "description": "Languages, registers, telepathy modes, signal systems, machine protocols, or ritual speech."
+    },
+    {
+      "id": "homePlace",
+      "label": "Home",
+      "valueType": "linkList",
+      "cardinality": "many",
+      "relationshipType": "resides_in",
+      "targetKinds": ["place"],
+      "description": "Home, lair, nest, residence, station, den, court, temple, grove, ship, or base."
+    },
+    {
+      "id": "currentLocation",
+      "label": "Current location",
+      "valueType": "linkList",
+      "cardinality": "many",
+      "relationshipType": "located_at",
+      "targetKinds": ["place"],
+      "description": "Where the character is currently known to be."
+    },
+    {
+      "id": "territory",
+      "label": "Territory or range",
+      "valueType": "linkList",
+      "cardinality": "many",
+      "relationshipType": "travels_between",
+      "targetKinds": ["place"],
+      "description": "Hunting range, patrol route, kingdom, divine domain, haunting ground, operating theater, migration route, or area of influence."
+    },
+    {
+      "id": "profession",
+      "label": "Profession",
+      "valueType": "customText",
+      "cardinality": "many",
+      "description": "Creator-defined class, job, trade, calling, office, station, vocation, or specialist role. Do not hardcode a default list."
+    },
+    {
+      "id": "professionLore",
+      "label": "Profession lore",
+      "valueType": "linkList",
+      "cardinality": "many",
+      "relationshipType": "profession_described_by",
+      "targetKinds": ["lore"],
+      "description": "Optional links to lore notes defining training, duties, tools, class traditions, guild status, or social expectations."
+    },
+    {
+      "id": "affiliations",
+      "label": "Affiliations",
+      "valueType": "linkList",
+      "cardinality": "many",
+      "relationshipType": "member_of",
+      "targetKinds": ["faction"],
+      "description": "Guilds, houses, faiths, armies, schools, crews, courts, orders, movements, or citizenship."
+    },
+    {
+      "id": "rankOrTitle",
+      "label": "Rank or title",
+      "valueType": "customTextList",
+      "cardinality": "many",
+      "targetKinds": ["faction", "place", "lore"],
+      "description": "Formal rank, noble title, office, honorific, license, clergy rank, military grade, ritual status, or bestowed epithet."
+    },
+    {
+      "id": "employerOrPatron",
+      "label": "Employer or patron",
+      "valueType": "linkList",
+      "cardinality": "many",
+      "relationshipType": "employed_by",
+      "targetKinds": ["character", "faction", "place"],
+      "description": "Employers, patrons, sponsors, owners, command structures, or appointing authorities."
+    },
+    {
+      "id": "authorityOver",
+      "label": "Authority over",
+      "valueType": "linkList",
+      "cardinality": "many",
+      "relationshipType": "leads",
+      "targetKinds": ["character", "faction", "place"],
+      "description": "Followers, staff, troops, retainers, settlements, institutions, households, courts, territories, or agents."
+    },
+    {
+      "id": "resources",
+      "label": "Resources",
+      "valueType": "longText",
+      "cardinality": "one",
+      "description": "Wealth, equipment, contacts, ships, sanctuaries, troops, legal powers, secrets, habitats, worship, or energy supply."
+    },
+    {
+      "id": "skills",
+      "label": "Skills",
+      "valueType": "customTextList",
+      "cardinality": "many",
+      "targetKinds": ["lore"],
+      "description": "Practical skills, training, knowledge domains, social skills, martial forms, survival methods, or technical capabilities."
+    },
+    {
+      "id": "abilities",
+      "label": "Abilities",
+      "valueType": "customTextList",
+      "cardinality": "many",
+      "description": "Magic, powers, technologies, mutations, senses, transformations, immunities, talents, or extraordinary methods."
+    },
+    {
+      "id": "limitations",
+      "label": "Limitations",
+      "valueType": "longText",
+      "cardinality": "one",
+      "description": "Weaknesses, costs, taboos, vulnerabilities, failure modes, dependencies, maintenance limits, curses, or social constraints."
+    },
+    {
+      "id": "appearance",
+      "label": "Appearance",
+      "valueType": "longText",
+      "cardinality": "one",
+      "description": "Build, height, coloration, clothing, silhouette, movement, voice, scent, markings, or first visual impression."
+    },
+    {
+      "id": "distinguishingFeatures",
+      "label": "Distinguishing features",
+      "valueType": "customTextList",
+      "cardinality": "many",
+      "description": "Scars, mutations, signature tools, heraldry, aura, prosthetics, voice, behavior, markings, or identifying details."
+    },
+    {
+      "id": "condition",
+      "label": "Condition",
+      "valueType": "customText",
+      "cardinality": "one",
+      "description": "Health, damage, corruption, enchantment, maintenance state, hunger, spiritual stability, sanity, or transformation status."
+    },
+    {
+      "id": "personality",
+      "label": "Personality",
+      "valueType": "longText",
+      "cardinality": "one",
+      "description": "Temperament, habits, social style, values, humor, self-image, speech pattern, and decision tendencies."
+    },
+    {
+      "id": "motivations",
+      "label": "Motivations",
+      "valueType": "longText",
+      "cardinality": "one",
+      "description": "Wants, needs, fears, promises, grudges, ambitions, duties, survival drives, hungers, or divine mandates."
+    },
+    {
+      "id": "currentGoal",
+      "label": "Current goal",
+      "valueType": "longText",
+      "cardinality": "one",
+      "description": "Immediate objective that can drive scenes, conflicts, or timeline events."
+    },
+    {
+      "id": "secrets",
+      "label": "Secrets",
+      "valueType": "longText",
+      "cardinality": "one",
+      "description": "Hidden identity, concealed history, private motive, forbidden knowledge, secret bond, weakness, or unrevealed fact."
+    },
+    {
+      "id": "arc",
+      "label": "Character arc",
+      "valueType": "longText",
+      "cardinality": "one",
+      "description": "Expected change, unresolved contradiction, fall, recovery, transformation, or static function."
+    },
+    {
+      "id": "parents",
+      "label": "Parents or creators",
+      "valueType": "linkList",
+      "cardinality": "many",
+      "relationshipType": "child_of",
+      "targetKinds": ["character"],
+      "description": "Parents, creators treated as family, adoptive parents, spiritual parents, or origin figures."
+    },
+    {
+      "id": "siblings",
+      "label": "Siblings or peers",
+      "valueType": "linkList",
+      "cardinality": "many",
+      "relationshipType": "sibling_of",
+      "targetKinds": ["character"],
+      "description": "Siblings, clutchmates, batchmates, peer clones, oath-siblings, or equivalent close peers."
+    },
+    {
+      "id": "partners",
+      "label": "Partners",
+      "valueType": "linkList",
+      "cardinality": "many",
+      "relationshipType": "partner_of",
+      "targetKinds": ["character"],
+      "description": "Spouses, romantic partners, bondmates, political partners, bonded pairs, or equivalent."
+    },
+    {
+      "id": "children",
+      "label": "Children or creations",
+      "valueType": "linkList",
+      "cardinality": "many",
+      "relationshipType": "parent_of",
+      "targetKinds": ["character"],
+      "description": "Children, creations treated as children, successors, descendants, offspring, or derived beings."
+    },
+    {
+      "id": "mentors",
+      "label": "Mentors",
+      "valueType": "linkList",
+      "cardinality": "many",
+      "relationshipType": "mentor_of",
+      "currentEntryRole": "target",
+      "targetKinds": ["character"],
+      "description": "Teachers, trainers, guides, handlers, patrons, old masters, predecessors, or origin guides."
+    },
+    {
+      "id": "allies",
+      "label": "Allies",
+      "valueType": "linkList",
+      "cardinality": "many",
+      "relationshipType": "ally_of",
+      "targetKinds": ["character", "faction"],
+      "description": "Friends, allies, collaborators, party members, coalition partners, or temporary supporters."
+    },
+    {
+      "id": "rivals",
+      "label": "Rivals",
+      "valueType": "linkList",
+      "cardinality": "many",
+      "relationshipType": "rival_of",
+      "targetKinds": ["character", "faction"],
+      "description": "Foils, professional competitors, succession rivals, ideological opponents, or personal rivals."
+    },
+    {
+      "id": "enemies",
+      "label": "Enemies",
+      "valueType": "linkList",
+      "cardinality": "many",
+      "relationshipType": "enemy_of",
+      "targetKinds": ["character", "faction"],
+      "description": "Opponents, hunters, prey, sworn enemies, hostile factions, or active threats."
+    },
+    {
+      "id": "obligations",
+      "label": "Obligations",
+      "valueType": "linkList",
+      "cardinality": "many",
+      "relationshipType": "owes_obligation_to",
+      "targetKinds": ["character", "faction", "place", "lore"],
+      "description": "Debts, vows, contracts, taboos, curses, legal duties, bonds, services owed, or favors owed."
+    },
+    {
+      "id": "notableEvents",
+      "label": "Notable events",
+      "valueType": "linkList",
+      "cardinality": "many",
+      "relationshipType": "participated_in",
+      "targetKinds": ["timeline"],
+      "description": "Events involving, changing, creating, wounding, exiling, appointing, transforming, or killing the character."
+    },
+    {
+      "id": "relatedLore",
+      "label": "Related lore",
+      "valueType": "linkList",
+      "cardinality": "many",
+      "relationshipType": "appears_in_lore",
+      "targetKinds": ["lore"],
+      "description": "Prophecies, myths, laws, bestiary entries, rituals, artifacts, diseases, technologies, customs, or research notes."
+    },
+    {
+      "id": "habitat",
+      "label": "Habitat",
+      "valueType": "linkList",
+      "cardinality": "many",
+      "relationshipType": "resides_in",
+      "targetKinds": ["place"],
+      "description": "Natural habitat, lair, range, nest, plane, biome, containment site, or preferred environment."
+    },
+    {
+      "id": "dietOrFuel",
+      "label": "Diet or fuel",
+      "valueType": "customText",
+      "cardinality": "one",
+      "description": "Food, prey, energy source, sunlight, blood, prayers, magic, batteries, memory, dreams, or maintenance input."
+    },
+    {
+      "id": "behavior",
+      "label": "Behavior",
+      "valueType": "longText",
+      "cardinality": "one",
+      "description": "Instincts, social behavior, territoriality, hunting pattern, routines, command responses, or manifestation pattern."
+    },
+    {
+      "id": "threatLevel",
+      "label": "Threat level",
+      "valueType": "customText",
+      "cardinality": "one",
+      "description": "Creator-defined danger, political risk, combat risk, ecological risk, social risk, or containment priority."
+    },
+    {
+      "id": "handler",
+      "label": "Handler or keeper",
+      "valueType": "linkList",
+      "cardinality": "many",
+      "relationshipType": "serves",
+      "targetKinds": ["character", "faction"],
+      "description": "Handler, keeper, trainer, summoner, owner, pilot, custodian, priest, or caretaker."
+    },
+    {
+      "id": "maker",
+      "label": "Maker",
+      "valueType": "linkList",
+      "cardinality": "many",
+      "relationshipType": "created_by",
+      "targetKinds": ["character", "faction", "lore", "timeline"],
+      "description": "Inventor, creator, manufacturer, summoner, ritual source, divine maker, parent event, or design lineage."
+    },
+    {
+      "id": "modelOrDesign",
+      "label": "Model or design",
+      "valueType": "customText",
+      "cardinality": "one",
+      "targetKinds": ["lore"],
+      "description": "Construct model, spell form, automaton class, manufactured line, prototype name, vessel type, or ritual design."
+    },
+    {
+      "id": "directive",
+      "label": "Directive",
+      "valueType": "longText",
+      "cardinality": "one",
+      "description": "Primary instruction, operating law, geas, programming, bound service, mission, purpose, or original design goal."
+    },
+    {
+      "id": "autonomy",
+      "label": "Autonomy",
+      "valueType": "customText",
+      "cardinality": "one",
+      "description": "Free will, obedience constraints, self-awareness, legal personhood, command hierarchy, or sentience state."
+    },
+    {
+      "id": "maintenance",
+      "label": "Maintenance",
+      "valueType": "longText",
+      "cardinality": "one",
+      "description": "Repair needs, ritual upkeep, spare parts, decay, service intervals, memory resets, or sustaining conditions."
+    },
+    {
+      "id": "domain",
+      "label": "Domain",
+      "valueType": "customTextList",
+      "cardinality": "many",
+      "targetKinds": ["lore", "place"],
+      "description": "Divine portfolio, spirit concern, haunting theme, conceptual jurisdiction, natural force, or metaphysical territory."
+    },
+    {
+      "id": "anchor",
+      "label": "Anchor",
+      "valueType": "linkList",
+      "cardinality": "many",
+      "relationshipType": "bound_to",
+      "targetKinds": ["character", "place", "faction", "lore", "timeline"],
+      "description": "Object, place, event, person, oath, body, shrine, grave, ritual, vessel, or condition that binds the character."
+    },
+    {
+      "id": "manifestation",
+      "label": "Manifestation",
+      "valueType": "longText",
+      "cardinality": "one",
+      "description": "How an immaterial, divine, undead, or shapeshifting character appears and interacts with the world."
+    },
+    {
+      "id": "worshippers",
+      "label": "Worshippers or cult",
+      "valueType": "linkList",
+      "cardinality": "many",
+      "relationshipType": "served_by",
+      "targetKinds": ["faction", "character", "place"],
+      "description": "Followers, cults, priesthoods, temples, patron communities, saints, devotees, or bargain networks."
+    },
+    {
+      "id": "forms",
+      "label": "Forms",
+      "valueType": "customTextList",
+      "cardinality": "many",
+      "description": "Alternate bodies, masks, avatars, phases, seasonal shapes, false identities, or transformed states."
+    },
+    {
+      "id": "transformationRules",
+      "label": "Transformation rules",
+      "valueType": "longText",
+      "cardinality": "one",
+      "targetKinds": ["lore"],
+      "description": "Triggers, costs, limits, recognition clues, control rules, reversibility, and social consequences of changing form."
+    },
+    {
+      "id": "members",
+      "label": "Members",
+      "valueType": "linkList",
+      "cardinality": "many",
+      "relationshipType": "commands",
+      "targetKinds": ["character"],
+      "description": "Constituent bodies, voices, linked minds, swarm members, family line representatives, or composite parts."
+    },
+    {
+      "id": "spokespersons",
+      "label": "Spokespersons",
+      "valueType": "linkList",
+      "cardinality": "many",
+      "relationshipType": "identity_of",
+      "currentEntryRole": "target",
+      "targetKinds": ["character"],
+      "description": "Individuals who speak for, embody, host, or represent a collective character."
+    },
+    {
+      "id": "sharedMind",
+      "label": "Shared mind",
+      "valueType": "longText",
+      "cardinality": "one",
+      "description": "How a collective identity coordinates memory, intent, disagreement, separation, and decision-making."
+    },
+    {
+      "id": "succession",
+      "label": "Succession",
+      "valueType": "linkList",
+      "cardinality": "many",
+      "relationshipType": "descended_from",
+      "targetKinds": ["character", "faction"],
+      "description": "Predecessors, successors, incarnations, dynastic descent, office transfer, lineage crisis, or future heir."
+    }
+  ],
+  "commonFieldProfiles": [
+    {
+      "id": "recordBasics",
+      "label": "Record basics",
+      "fields": ["name", "alternateNames", "summary", "status", "tags"],
+      "description": "Fields every character record needs for list display, search, and drafting state."
+    },
+    {
+      "id": "categoryAndRole",
+      "label": "Category and role",
+      "fields": ["characterCategory", "narrativeRole", "currentStatus"],
+      "description": "Separates entity shape from story function and current in-fiction state."
+    },
+    {
+      "id": "identityAndOrigin",
+      "label": "Identity and origin",
+      "fields": [
+        "ancestry",
+        "ancestryLore",
+        "culture",
+        "homeland",
+        "origin",
+        "age",
+        "lifespan",
+        "gender",
+        "pronouns",
+        "languages"
+      ],
+      "description": "Personal, cultural, biological, created, or mythic identity fields."
+    },
+    {
+      "id": "placeConnections",
+      "label": "Place connections",
+      "fields": ["homePlace", "currentLocation", "territory", "habitat"],
+      "description": "Location fields that should link to place records and display inverse character lists on places."
+    },
+    {
+      "id": "professionAndPower",
+      "label": "Profession and power",
+      "fields": [
+        "profession",
+        "professionLore",
+        "affiliations",
+        "rankOrTitle",
+        "employerOrPatron",
+        "authorityOver",
+        "resources",
+        "skills",
+        "abilities",
+        "limitations"
+      ],
+      "description": "Work, office, training, power, class-like concepts, and institutional relationships."
+    },
+    {
+      "id": "presentation",
+      "label": "Presentation",
+      "fields": [
+        "appearance",
+        "distinguishingFeatures",
+        "condition",
+        "personality"
+      ],
+      "description": "Fields for recognizing and writing the character in scenes."
+    },
+    {
+      "id": "storyEngine",
+      "label": "Story engine",
+      "fields": ["motivations", "currentGoal", "secrets", "arc"],
+      "description": "Fields that make the character useful for plot, conflict, and revision."
+    },
+    {
+      "id": "relationshipGraph",
+      "label": "Relationship graph",
+      "fields": [
+        "parents",
+        "siblings",
+        "partners",
+        "children",
+        "mentors",
+        "allies",
+        "rivals",
+        "enemies",
+        "obligations",
+        "notableEvents",
+        "relatedLore"
+      ],
+      "description": "Typed links to other records. These should be graph edges rather than duplicated prose when possible."
+    },
+    {
+      "id": "storyLinks",
+      "label": "Story links",
+      "fields": [
+        "allies",
+        "rivals",
+        "enemies",
+        "obligations",
+        "notableEvents",
+        "relatedLore"
+      ],
+      "description": "Common non-family relationship links for categories where biological or social-family fields are not usually primary."
+    },
+    {
+      "id": "creatureProfile",
+      "label": "Creature profile",
+      "fields": ["habitat", "dietOrFuel", "behavior", "threatLevel", "handler"],
+      "description": "Fields for animals, familiars, monsters, and creature-like characters."
+    },
+    {
+      "id": "constructProfile",
+      "label": "Construct profile",
+      "fields": [
+        "maker",
+        "modelOrDesign",
+        "directive",
+        "autonomy",
+        "dietOrFuel",
+        "maintenance"
+      ],
+      "description": "Fields for artificial, built, programmed, summoned, or manufactured characters."
+    },
+    {
+      "id": "supernaturalProfile",
+      "label": "Supernatural profile",
+      "fields": [
+        "domain",
+        "anchor",
+        "manifestation",
+        "worshippers",
+        "abilities",
+        "limitations"
+      ],
+      "description": "Fields for spirits, undead, divine figures, planar beings, and metaphysical characters."
+    },
+    {
+      "id": "shapeshifterProfile",
+      "label": "Shapeshifter profile",
+      "fields": [
+        "forms",
+        "transformationRules",
+        "alternateNames",
+        "origin",
+        "currentStatus"
+      ],
+      "description": "Fields for characters with multiple bodies, identities, forms, phases, or avatars."
+    },
+    {
+      "id": "collectiveProfile",
+      "label": "Collective profile",
+      "fields": ["members", "spokespersons", "sharedMind", "succession"],
+      "description": "Fields for hive minds, swarms, dynastic personas, shared bodies, or composite identities treated as a character."
+    }
+  ],
+  "tree": {
+    "id": "character",
+    "label": "Character",
+    "category": null,
+    "description": "Named figures, beings, creatures, identities, and character-like entities in the world.",
+    "fieldProfiles": [
+      "recordBasics",
+      "categoryAndRole",
+      "storyEngine",
+      "relationshipGraph"
+    ],
+    "children": [
+      {
+        "id": "individualSapient",
+        "label": "Individual sapient characters",
+        "category": null,
+        "description": "Characters with person-like agency, identity, social relationships, and decision-making.",
+        "fieldProfiles": [
+          "identityAndOrigin",
+          "placeConnections",
+          "professionAndPower",
+          "presentation"
+        ],
+        "children": [
+          {
+            "id": "humanoidPerson",
+            "label": "Humanoid person",
+            "category": "Humanoid person",
+            "description": "A person-like character whose ancestry, culture, profession, affiliations, relationships, and places are the central drafting concerns.",
+            "useWhen": [
+              "The character participates in society as a person.",
+              "Ancestry, culture, profession, family, affiliations, and residence are useful fields.",
+              "The setting might call the ancestry race, species, people, lineage, or heritage, but the field should be named ancestry."
+            ],
+            "avoidWhen": [
+              "The record is mainly a political organization or army; use faction.",
+              "The record is mainly a species overview, custom, or biology note; use lore."
+            ],
+            "recommendedFieldProfiles": [
+              "recordBasics",
+              "categoryAndRole",
+              "identityAndOrigin",
+              "placeConnections",
+              "professionAndPower",
+              "presentation",
+              "storyEngine",
+              "relationshipGraph"
+            ],
+            "highValueFields": [
+              "ancestry",
+              "culture",
+              "profession",
+              "affiliations",
+              "rankOrTitle",
+              "homePlace",
+              "currentLocation",
+              "parents",
+              "allies",
+              "rivals",
+              "notableEvents"
+            ],
+            "linkFocus": [
+              "homePlace to place",
+              "affiliations to faction",
+              "professionLore to lore",
+              "family and allies to character",
+              "notableEvents to timeline"
+            ]
+          },
+          {
+            "id": "nonhumanoidSapient",
+            "label": "Nonhumanoid sapient",
+            "category": "Nonhumanoid sapient",
+            "description": "An intelligent individual with agency but a non-person-default body, culture, communication mode, lifecycle, or habitat.",
+            "useWhen": [
+              "The character makes choices, forms relationships, and can hold goals or obligations.",
+              "Biology, habitat, communication, and social treatment matter alongside personality and profession."
+            ],
+            "avoidWhen": [
+              "The record is a generic creature type; use lore.",
+              "The record is an animal without person-like agency; use animal or creature."
+            ],
+            "recommendedFieldProfiles": [
+              "recordBasics",
+              "categoryAndRole",
+              "identityAndOrigin",
+              "placeConnections",
+              "professionAndPower",
+              "presentation",
+              "creatureProfile",
+              "storyEngine",
+              "relationshipGraph"
+            ],
+            "highValueFields": [
+              "ancestry",
+              "languages",
+              "habitat",
+              "dietOrFuel",
+              "behavior",
+              "profession",
+              "abilities",
+              "limitations",
+              "currentGoal",
+              "relatedLore"
+            ],
+            "linkFocus": [
+              "habitat to place",
+              "ancestryLore to lore",
+              "languages to lore",
+              "affiliations to faction",
+              "currentLocation to place"
+            ]
+          },
+          {
+            "id": "shapeshifterOrVariantIdentity",
+            "label": "Shapeshifter or variant identity",
+            "category": "Shapeshifter or variant identity",
+            "description": "A character whose forms, masks, avatars, public identities, phases, or transformed states are central to the record.",
+            "useWhen": [
+              "A single character needs linked forms or identities.",
+              "Recognition, transformation rules, costs, and identity ambiguity matter."
+            ],
+            "avoidWhen": [
+              "A public alias is only a name; use alternate names on the base category.",
+              "Each identity has independent relationships and should be drafted separately; use linked character records with same-as or identity-of."
+            ],
+            "recommendedFieldProfiles": [
+              "recordBasics",
+              "categoryAndRole",
+              "identityAndOrigin",
+              "placeConnections",
+              "presentation",
+              "shapeshifterProfile",
+              "storyEngine",
+              "storyLinks"
+            ],
+            "highValueFields": [
+              "forms",
+              "transformationRules",
+              "alternateNames",
+              "appearance",
+              "distinguishingFeatures",
+              "condition",
+              "secrets",
+              "abilities",
+              "limitations",
+              "relatedLore"
+            ],
+            "linkFocus": [
+              "forms to character when forms are record-worthy",
+              "transformationRules to lore",
+              "changedByEvent to timeline through notableEvents",
+              "secrets to prose until secret visibility exists"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "biologicalCreature",
+        "label": "Biological creature characters",
+        "category": null,
+        "description": "Named animals, beasts, familiars, mounts, monsters, and other living characters where ecology and behavior are important.",
+        "fieldProfiles": [
+          "placeConnections",
+          "presentation",
+          "creatureProfile",
+          "relationshipGraph"
+        ],
+        "children": [
+          {
+            "id": "animalOrCompanion",
+            "label": "Animal or companion",
+            "category": "Animal or companion",
+            "description": "A named animal, mount, familiar, pet, working animal, or companion where handler bonds, training, behavior, and habitat matter.",
+            "useWhen": [
+              "The record is a specific named creature rather than a species note.",
+              "A handler, rider, owner, bonded character, or home place is important."
+            ],
+            "avoidWhen": [
+              "The record is a species, ecology article, or bestiary entry; use lore.",
+              "The character has full person-like social agency; consider nonhumanoid sapient."
+            ],
+            "recommendedFieldProfiles": [
+              "recordBasics",
+              "categoryAndRole",
+              "placeConnections",
+              "presentation",
+              "creatureProfile",
+              "storyLinks"
+            ],
+            "highValueFields": [
+              "handler",
+              "habitat",
+              "behavior",
+              "dietOrFuel",
+              "abilities",
+              "limitations",
+              "condition",
+              "homePlace",
+              "notableEvents"
+            ],
+            "linkFocus": [
+              "handler to character or faction",
+              "habitat and homePlace to place",
+              "abilities to lore",
+              "notableEvents to timeline"
+            ]
+          },
+          {
+            "id": "monsterOrThreat",
+            "label": "Monster or threat",
+            "category": "Monster or threat",
+            "description": "A named dangerous creature or adversarial being where threat, range, vulnerabilities, casualties, and related lore are important.",
+            "useWhen": [
+              "The character is a specific named threat.",
+              "Containment, hunting grounds, weaknesses, victims, and events matter."
+            ],
+            "avoidWhen": [
+              "The record is a general creature taxonomy; use lore.",
+              "The threat is an organized group; use faction."
+            ],
+            "recommendedFieldProfiles": [
+              "recordBasics",
+              "categoryAndRole",
+              "placeConnections",
+              "presentation",
+              "creatureProfile",
+              "storyEngine",
+              "storyLinks"
+            ],
+            "highValueFields": [
+              "threatLevel",
+              "territory",
+              "habitat",
+              "dietOrFuel",
+              "behavior",
+              "abilities",
+              "limitations",
+              "enemies",
+              "notableEvents",
+              "relatedLore"
+            ],
+            "linkFocus": [
+              "territory to place",
+              "enemies to hunters or factions",
+              "limitations to lore",
+              "causedEvent and notableEvents to timeline"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "artificialBeing",
+        "label": "Artificial or made characters",
+        "category": null,
+        "description": "Constructs, machines, animated objects, built bodies, artificial intelligences, and manufactured or ritual-made beings.",
+        "fieldProfiles": [
+          "constructProfile",
+          "professionAndPower",
+          "placeConnections",
+          "presentation",
+          "relationshipGraph"
+        ],
+        "children": [
+          {
+            "id": "constructOrAutomaton",
+            "label": "Construct or automaton",
+            "category": "Construct or automaton",
+            "description": "A built, animated, manufactured, or programmed character with a maker, design, directive, autonomy state, and maintenance needs.",
+            "useWhen": [
+              "The character was built, programmed, animated, assembled, cloned, or ritually made.",
+              "Maker, owner, directive, autonomy, power source, and repair are useful fields."
+            ],
+            "avoidWhen": [
+              "The record is an item without agency; use lore.",
+              "The record is a faction of machines; use faction."
+            ],
+            "recommendedFieldProfiles": [
+              "recordBasics",
+              "categoryAndRole",
+              "constructProfile",
+              "placeConnections",
+              "professionAndPower",
+              "presentation",
+              "storyEngine",
+              "storyLinks"
+            ],
+            "highValueFields": [
+              "maker",
+              "modelOrDesign",
+              "directive",
+              "autonomy",
+              "dietOrFuel",
+              "maintenance",
+              "employerOrPatron",
+              "abilities",
+              "limitations",
+              "notableEvents"
+            ],
+            "linkFocus": [
+              "maker to character, faction, lore, or timeline",
+              "modelOrDesign to lore",
+              "employerOrPatron to owner or commissioning body",
+              "maintenance to lore when rules are reusable"
+            ]
+          },
+          {
+            "id": "artificialIntelligenceOrDisembodiedMind",
+            "label": "Artificial intelligence or disembodied mind",
+            "category": "Artificial intelligence or disembodied mind",
+            "description": "A created mind, machine intelligence, bound memory, archive persona, spell intelligence, or disembodied consciousness.",
+            "useWhen": [
+              "The character's body may be distributed, replaceable, virtual, or absent.",
+              "Hosting places, vessels, directives, autonomy, memory, and access control are important."
+            ],
+            "avoidWhen": [
+              "The record is a software system or magical rule without character agency; use lore."
+            ],
+            "recommendedFieldProfiles": [
+              "recordBasics",
+              "categoryAndRole",
+              "constructProfile",
+              "supernaturalProfile",
+              "placeConnections",
+              "storyEngine",
+              "storyLinks"
+            ],
+            "highValueFields": [
+              "maker",
+              "anchor",
+              "directive",
+              "autonomy",
+              "currentLocation",
+              "resources",
+              "abilities",
+              "limitations",
+              "secrets",
+              "relatedLore"
+            ],
+            "linkFocus": [
+              "anchor to place, lore, or host character",
+              "createdBy to maker or creation event",
+              "usesLore to technology or magic system",
+              "obligations to command authority"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "supernaturalBeing",
+        "label": "Supernatural or otherworldly characters",
+        "category": null,
+        "description": "Spirits, undead, deities, avatars, planar beings, cosmic entities, and characters defined by metaphysical rules.",
+        "fieldProfiles": [
+          "supernaturalProfile",
+          "placeConnections",
+          "professionAndPower",
+          "presentation",
+          "relationshipGraph"
+        ],
+        "children": [
+          {
+            "id": "spiritOrUndead",
+            "label": "Spirit or undead",
+            "category": "Spirit or undead",
+            "description": "A ghost, revenant, ancestral spirit, elemental spirit, bound soul, lingering dead, or other nonliving character with anchor and manifestation rules.",
+            "useWhen": [
+              "The character's existence depends on a death, binding, unfinished duty, haunting, vessel, or metaphysical condition.",
+              "Anchors, banes, manifestation rules, and related events are important."
+            ],
+            "avoidWhen": [
+              "The record is a general afterlife rule; use lore.",
+              "The record is a worshipped cosmic power; consider deity or cosmic entity."
+            ],
+            "recommendedFieldProfiles": [
+              "recordBasics",
+              "categoryAndRole",
+              "identityAndOrigin",
+              "supernaturalProfile",
+              "placeConnections",
+              "presentation",
+              "storyEngine",
+              "storyLinks"
+            ],
+            "highValueFields": [
+              "origin",
+              "anchor",
+              "manifestation",
+              "domain",
+              "currentStatus",
+              "abilities",
+              "limitations",
+              "obligations",
+              "notableEvents",
+              "relatedLore"
+            ],
+            "linkFocus": [
+              "origin to death or binding event",
+              "anchor to place, character, lore, or event",
+              "domain to lore or place",
+              "notableEvents to death, curse, or release event"
+            ]
+          },
+          {
+            "id": "deityOrDivineFigure",
+            "label": "Deity or divine figure",
+            "category": "Deity or divine figure",
+            "description": "A god, saint, demigod, patron power, divine ancestor, idol-being, or worshipped figure with domains, worshippers, avatars, and myths.",
+            "useWhen": [
+              "Worship, portfolios, temples, avatars, divine obligations, and mythic events matter.",
+              "The character can be linked to factions, places, and lore through worship and doctrine."
+            ],
+            "avoidWhen": [
+              "The record is only a religion or church; use faction.",
+              "The record is only a theology note; use lore."
+            ],
+            "recommendedFieldProfiles": [
+              "recordBasics",
+              "categoryAndRole",
+              "identityAndOrigin",
+              "supernaturalProfile",
+              "shapeshifterProfile",
+              "professionAndPower",
+              "storyEngine",
+              "storyLinks"
+            ],
+            "highValueFields": [
+              "domain",
+              "worshippers",
+              "forms",
+              "manifestation",
+              "territory",
+              "abilities",
+              "limitations",
+              "obligations",
+              "notableEvents",
+              "relatedLore"
+            ],
+            "linkFocus": [
+              "worshippers to factions, places, or characters",
+              "forms to avatars or incarnations",
+              "domain to lore",
+              "territory to temples, holy places, or realms"
+            ]
+          },
+          {
+            "id": "cosmicOrPlanarEntity",
+            "label": "Cosmic or planar entity",
+            "category": "Cosmic or planar entity",
+            "description": "A vast, alien, planar, conceptual, stellar, or reality-scale being whose scale and rules may not fit normal bodies or societies.",
+            "useWhen": [
+              "The character has agency but may also be a place-like, lore-like, or event-like force.",
+              "Domain, manifestation, scale, anchors, affected places, and cults matter."
+            ],
+            "avoidWhen": [
+              "The record is a realm or dimension without character agency; use place.",
+              "The record is a cosmology rule; use lore."
+            ],
+            "recommendedFieldProfiles": [
+              "recordBasics",
+              "categoryAndRole",
+              "supernaturalProfile",
+              "placeConnections",
+              "collectiveProfile",
+              "storyEngine",
+              "storyLinks"
+            ],
+            "highValueFields": [
+              "domain",
+              "manifestation",
+              "anchor",
+              "territory",
+              "worshippers",
+              "abilities",
+              "limitations",
+              "relatedLore",
+              "notableEvents"
+            ],
+            "linkFocus": [
+              "territory to realms, planes, stars, or affected places",
+              "worshippers to cult factions",
+              "notableEvents to awakenings, omens, incursions, or banishments",
+              "relatedLore to cosmology and rules"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "compositeOrCollective",
+        "label": "Composite or collective characters",
+        "category": null,
+        "description": "Characters treated as one narrative identity despite being made of multiple bodies, voices, iterations, heirs, or hosts.",
+        "fieldProfiles": [
+          "collectiveProfile",
+          "placeConnections",
+          "professionAndPower",
+          "storyEngine",
+          "relationshipGraph"
+        ],
+        "children": [
+          {
+            "id": "collectiveCharacter",
+            "label": "Collective character",
+            "category": "Collective character",
+            "description": "A hive mind, swarm identity, chorus, linked council, possessed host-chain, living city voice, or group treated as a single character.",
+            "useWhen": [
+              "The story treats the collective as one acting identity.",
+              "Member links, spokespersons, shared memory, disagreement, and severed members matter."
+            ],
+            "avoidWhen": [
+              "The record is primarily an organization with membership and goals; use faction.",
+              "The record is a population or ancestry overview; use lore."
+            ],
+            "recommendedFieldProfiles": [
+              "recordBasics",
+              "categoryAndRole",
+              "collectiveProfile",
+              "placeConnections",
+              "professionAndPower",
+              "storyEngine",
+              "storyLinks"
+            ],
+            "highValueFields": [
+              "members",
+              "spokespersons",
+              "sharedMind",
+              "territory",
+              "affiliations",
+              "currentGoal",
+              "limitations",
+              "notableEvents",
+              "relatedLore"
+            ],
+            "linkFocus": [
+              "members and spokespersons to character",
+              "territory to place",
+              "relatedLore to collective mind rules",
+              "notableEvents to schisms, assimilations, or severance"
+            ]
+          },
+          {
+            "id": "lineageOrSuccessionPersona",
+            "label": "Lineage or succession persona",
+            "category": "Lineage or succession persona",
+            "description": "A mantle, inherited identity, dynastic persona, reincarnation chain, office-name, or legacy treated as a character across holders.",
+            "useWhen": [
+              "Different people hold the same meaningful identity across time.",
+              "Predecessors, successors, masks, legitimacy, and transfer events matter."
+            ],
+            "avoidWhen": [
+              "The lineage is mainly a family organization or house; use faction.",
+              "Each holder has no shared identity; use relationships between normal character records."
+            ],
+            "recommendedFieldProfiles": [
+              "recordBasics",
+              "categoryAndRole",
+              "collectiveProfile",
+              "shapeshifterProfile",
+              "professionAndPower",
+              "storyLinks"
+            ],
+            "highValueFields": [
+              "succession",
+              "forms",
+              "rankOrTitle",
+              "authorityOver",
+              "origin",
+              "obligations",
+              "secrets",
+              "notableEvents",
+              "relatedLore"
+            ],
+            "linkFocus": [
+              "succession to predecessor and successor characters",
+              "notableEvents to investiture, death, abdication, or revelation",
+              "rankOrTitle to office lore or faction",
+              "forms to current holder or public identity"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "fieldRelationshipRules": [
+    {
+      "id": "ancestry_drives_related_identity_fields",
+      "whenFieldPresent": "ancestry",
+      "suggestFields": [
+        "ancestryLore",
+        "culture",
+        "homeland",
+        "lifespan",
+        "languages",
+        "appearance",
+        "abilities",
+        "limitations"
+      ],
+      "dataRule": "Ancestry is a custom value. Reused ancestry definitions should be represented by lore links, not a fixed enum.",
+      "reason": "Writers often need inherited traits, social treatment, origin, language, and lifecycle near ancestry decisions."
+    },
+    {
+      "id": "profession_drives_affiliation_and_skill_fields",
+      "whenFieldPresent": "profession",
+      "suggestFields": [
+        "professionLore",
+        "affiliations",
+        "rankOrTitle",
+        "employerOrPatron",
+        "skills",
+        "resources",
+        "obligations"
+      ],
+      "dataRule": "Profession is a custom value. Reused profession definitions should be represented by lore links and optional faction links.",
+      "reason": "Class-like concepts usually imply training, social status, tools, employers, guilds, duties, and constraints."
+    },
+    {
+      "id": "home_and_current_location_are_different",
+      "whenFieldPresent": "homePlace",
+      "suggestFields": ["currentLocation", "territory", "origin"],
+      "dataRule": "Home should use resides-in. Current location should use located-at. Origin should use originated-from.",
+      "reason": "A character can be from one place, live in another, and currently travel through a third."
+    },
+    {
+      "id": "rank_requires_context",
+      "whenFieldPresent": "rankOrTitle",
+      "suggestFields": [
+        "affiliations",
+        "authorityOver",
+        "employerOrPatron",
+        "obligations",
+        "territory"
+      ],
+      "dataRule": "Titles should link to a faction, place, or lore note when they grant authority or meaning.",
+      "reason": "A rank without its institution, jurisdiction, or duties is hard to query or display usefully."
+    },
+    {
+      "id": "abilities_need_costs_and_rules",
+      "whenFieldPresent": "abilities",
+      "suggestFields": ["limitations", "relatedLore", "condition", "resources"],
+      "dataRule": "Reusable magic, technology, training, and biology rules should live in lore; per-character expression can remain text.",
+      "reason": "World consistency depends on pairing power descriptions with costs, constraints, sources, and exceptions."
+    },
+    {
+      "id": "maker_replaces_parent_for_constructs",
+      "whenCategory": "Construct or automaton",
+      "suggestFields": [
+        "maker",
+        "modelOrDesign",
+        "directive",
+        "autonomy",
+        "maintenance"
+      ],
+      "deemphasizeFields": ["parents", "ancestry"],
+      "dataRule": "Constructs can still use ancestry or parents if the fiction supports it, but maker and design are usually higher-signal.",
+      "reason": "Artificial beings need creation and operation fields more than biological genealogy."
+    },
+    {
+      "id": "spirit_anchor_replaces_residence",
+      "whenCategory": "Spirit or undead",
+      "suggestFields": [
+        "anchor",
+        "manifestation",
+        "domain",
+        "origin",
+        "notableEvents"
+      ],
+      "dataRule": "Use anchor for metaphysical dependency. Use homePlace only when the spirit also has a meaningful residence or haunting place.",
+      "reason": "The binding object, place, person, or event is often the core query for supernatural characters."
+    },
+    {
+      "id": "collectives_need_member_modeling",
+      "whenCategory": "Collective character",
+      "suggestFields": ["members", "spokespersons", "sharedMind", "territory"],
+      "dataRule": "Use faction instead when the group is primarily an organization rather than one acting identity.",
+      "reason": "Collective characters require clear links between the whole identity and its constituent characters."
+    },
+    {
+      "id": "events_explain_status_changes",
+      "whenFieldPresent": "currentStatus",
+      "suggestFields": ["notableEvents", "condition", "currentLocation"],
+      "dataRule": "Major changes such as death, exile, transformation, appointment, release, and disappearance should link to timeline events.",
+      "reason": "The timeline should explain why the current character sheet is true."
+    }
+  ],
+  "runtime": {
+    "prototypeCompatibility": {
+      "currentDetailFields": ["role", "home", "affiliation", "statusNote"],
+      "suggestedMapping": [
+        {
+          "fromCurrentKey": "role",
+          "toCatalogFields": ["narrativeRole", "profession", "rankOrTitle"],
+          "notes": "Current role values may mix story role, job, title, and social function."
+        },
+        {
+          "fromCurrentKey": "home",
+          "toCatalogFields": ["homePlace", "homeland", "origin"],
+          "notes": "Current home values may be current residence, birthplace, base, or cultural origin."
+        },
+        {
+          "fromCurrentKey": "affiliation",
+          "toCatalogFields": [
+            "affiliations",
+            "employerOrPatron",
+            "rankOrTitle"
+          ],
+          "notes": "Current affiliation values should become faction links when possible."
+        },
+        {
+          "fromCurrentKey": "statusNote",
+          "toCatalogFields": ["currentStatus", "condition", "currentGoal"],
+          "notes": "Current status notes mix in-fiction state, health, task, and plot situation."
+        }
+      ]
+    },
+    "coreEntryFields": ["name", "summary", "status", "tags"],
+    "sharedDetailFields": [
+      "characterCategory",
+      "narrativeRole",
+      "ancestry",
+      "profession",
+      "homePlace",
+      "affiliations",
+      "currentStatus"
+    ],
+    "recommendedFirstPassFields": [
+      "characterCategory",
+      "narrativeRole",
+      "ancestry",
+      "profession",
+      "homePlace",
+      "affiliations",
+      "currentStatus"
+    ],
+    "relationshipBackedPriorityFields": [
+      "homePlace",
+      "currentLocation",
+      "origin",
+      "affiliations",
+      "employerOrPatron",
+      "authorityOver",
+      "parents",
+      "siblings",
+      "partners",
+      "children",
+      "mentors",
+      "allies",
+      "rivals",
+      "enemies",
+      "obligations",
+      "notableEvents",
+      "relatedLore",
+      "maker",
+      "anchor",
+      "forms",
+      "members",
+      "spokespersons",
+      "succession"
+    ],
+    "softValidation": [
+      "Warn, do not block, when a category uses unusual fields.",
+      "Allow custom ancestry and profession values without requiring lore records.",
+      "Suggest converting repeated free-text place, faction, lore, and character names into links.",
+      "Preserve free-text notes for ambiguity, secrets, and half-formed drafts."
+    ]
+  },
+  "implementationRecommendations": [
+    "Start with a visible character category selector and keep the existing flexible fields storage.",
+    "Add ancestry and profession as custom text fields with autocomplete from values already used in the current workspace, not from a bundled default list.",
+    "Add optional lore links beside ancestry and profession so reusable rules can be centralized without forcing early drafts to create lore notes.",
+    "Promote home, affiliation, and notable relationships to relationship-backed selectors before attempting to model every field as structured data.",
+    "Display inverse links on related records: residents on places, members on factions, participants on timeline events, and mentioned characters on lore.",
+    "Use category field profiles to decide which fields are shown by default and which are tucked into an advanced/details area.",
+    "Keep narrative role, current status, secrets, and arc as draft-friendly text fields even after high-value graph links become typed.",
+    "Prefer warnings and suggestions over constraints. Fantasy and speculative fiction need deliberate exceptions."
+  ],
+  "sampleDataGuidance": {
+    "allowed": [
+      "Sample characters may use common-domain ancestry examples such as human, elf, dwarf, fae, giant, or alien when they fit the sample world.",
+      "Sample characters may use common-domain profession examples such as surveyor, scholar, druid, soldier, courier, miner, or priest.",
+      "Samples should demonstrate custom values and links without implying that those values are built-in."
+    ],
+    "avoid": [
+      "Do not ship fixed ancestry or profession option lists as part of the codex builder.",
+      "Do not use ancestry where culture, nationality, faction membership, or profession is the more precise field.",
+      "Do not encode copyrighted species, classes, organizations, or setting-specific terms as defaults."
+    ]
+  }
+}

@@ -1151,6 +1151,19 @@
   gap: 12px;
 }
 
+.vwb-field-group {
+  display: grid;
+  gap: 10px;
+  border-top: 1px solid var(--vwb-border);
+  padding-top: 12px;
+}
+
+.vwb-field-group h3 {
+  margin: 0;
+  color: var(--vwb-heading);
+  font-size: 0.95rem;
+}
+
 .vwb-wide-field {
   grid-column: 1 / -1;
 }

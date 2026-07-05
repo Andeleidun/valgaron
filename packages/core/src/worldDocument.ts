@@ -121,10 +121,13 @@ function readDetailFields(
     const label = readString(field, 'label');
     const multiline = field.multiline;
     const autocompleteOptions = field.autocompleteOptions;
+    const suggestFromExistingValues = field.suggestFromExistingValues;
     if (
       !key ||
       !label ||
       (multiline !== undefined && typeof multiline !== 'boolean') ||
+      (suggestFromExistingValues !== undefined &&
+        typeof suggestFromExistingValues !== 'boolean') ||
       (autocompleteOptions !== undefined &&
         (!Array.isArray(autocompleteOptions) ||
           !autocompleteOptions.every((option) => typeof option === 'string')))
@@ -137,6 +140,9 @@ function readDetailFields(
       ...(typeof multiline === 'boolean' ? { multiline } : {}),
       ...(Array.isArray(autocompleteOptions)
         ? { autocompleteOptions: [...autocompleteOptions] }
+        : {}),
+      ...(typeof suggestFromExistingValues === 'boolean'
+        ? { suggestFromExistingValues }
         : {}),
     };
   });
@@ -185,6 +191,20 @@ function legacyFieldsFromEntry(
   record: Record<string, unknown>
 ): Record<string, string> {
   const fields: Record<string, string> = {};
+  if (record.kind === 'character') {
+    const role = readString(record, 'role');
+    const home = readString(record, 'home');
+    const affiliation = readString(record, 'affiliation');
+    const statusNote = readEntryStatus(record, 'status')
+      ? null
+      : readString(record, 'status');
+    return {
+      ...(role ? { role, narrativeRole: role } : {}),
+      ...(home ? { home, homePlace: home } : {}),
+      ...(affiliation ? { affiliation, affiliations: affiliation } : {}),
+      ...(statusNote ? { statusNote, currentStatus: statusNote } : {}),
+    };
+  }
   for (const section of worldSections) {
     if (section.kind !== record.kind) {
       continue;

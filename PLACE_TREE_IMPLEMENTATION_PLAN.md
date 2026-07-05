@@ -36,7 +36,7 @@ Stage 2 is now implemented: existing saved relationships are grouped under place
 
 Stage 3 is implemented for the current place-link model: the web and mobile entry editors now expose searchable relationship-backed controls for saved place entries when the entry has no unsaved detail changes. The implemented controls cover parent place, capital, settlements, child places, regions, districts, landmarks, waters, neighbors, route connections, trade partners, controlling powers, claimants, inhabitants, founders, builders, notable events, related lore, river sources, river mouths, and tributaries. Text values from older drafts remain visible as read-only saved text link notes with explicit clear actions.
 
-Stage 4 is now implemented: `place-relationship-tree.json` is the canonical source for place categories, relationship vocabulary, field catalog labels, profile-to-field mappings, category-to-profile mappings, relationship-backed field configs, target categories, current-entry relationship roles, and soft target behavior. `npm run generate:place-taxonomy` generates `packages/core/src/placeRelationshipTree.generated.ts`, and `placeTaxonomy.ts` consumes that generated metadata instead of maintaining a parallel hand-written taxonomy.
+Stage 4 is now implemented: `place-relationship-tree.json` is the canonical source for place categories, relationship vocabulary, field catalog labels, profile-to-field mappings, category-to-profile mappings, relationship-backed field configs, target categories, current-entry relationship roles, and soft target behavior. `npm run generate:taxonomies` refreshes generated taxonomy metadata, `npm run generate:place-taxonomy` can refresh only `packages/core/src/placeRelationshipTree.generated.ts`, and `placeTaxonomy.ts` consumes that generated metadata instead of maintaining a parallel hand-written taxonomy.
 
 Runtime guard tests now cover both artifact drift and relationship-config integrity: category nodes must match supported runtime categories, relationship-backed fields must match the planning field catalog, relationship vocabularies must align between runtime and the artifact, tree field/profile/category references must stay valid, relationship configs must point only at configured section kinds and supported place categories, and every configured relationship-backed field must be visible for at least one supported place category.
 
@@ -170,7 +170,7 @@ Migration options:
 
 Gap: the JSON is canonical but runtime imports generated TypeScript.
 Root cause: the repo uses TypeScript project references without JSON module imports, and direct root-JSON imports would complicate build settings across web, mobile, and core.
-Best path: keep `place-relationship-tree.json` canonical and generate `packages/core/src/placeRelationshipTree.generated.ts` with `npm run generate:place-taxonomy`. Coverage tests verify that generated metadata matches the JSON source.
+Best path: keep `place-relationship-tree.json` canonical and refresh generated taxonomy metadata with `npm run generate:taxonomies` or the targeted `npm run generate:place-taxonomy`. Coverage tests verify that generated metadata matches the JSON source.
 
 Gap: relationship types in the current app remain a broad string list.
 Root cause: existing relationships are intentionally generic and user-extensible.
@@ -182,7 +182,7 @@ Best path: focus next on unit and interaction tests. Keep pure core unit tests f
 
 ## Next Implementation Plan
 
-1. Keep `place-relationship-tree.json` canonical and run `npm run generate:place-taxonomy` after taxonomy edits.
+1. Keep `place-relationship-tree.json` canonical and run `npm run generate:taxonomies` after taxonomy edits.
 2. Add unit coverage for any new migration heuristics before adding rendered interaction coverage.
 3. Add rendered web/mobile interaction tests after the place editor behavior stabilizes.
 4. Keep automatic migration exact-match only unless a future review UI explicitly supports confidence-scored batch approvals.

@@ -15,9 +15,11 @@ Run this checklist before publishing a public GitHub Pages release.
 7. Run the route-intent tests when shell routes, query params, hashes, tabs, or
    focused workflows change:
    `npx jest packages/core/src/routeIntents.test.ts mobile/src/navigation/mobileRoutes.test.ts --runInBand`.
-8. Run `git diff --check`.
-9. Review `docs/qa/web-mobile-parity-checklist.md` and update the parity debt
-   ledger for any intentional web/mobile mismatch in this release.
+8. Run `npm run generate:taxonomies` before the release gate when a taxonomy
+   JSON artifact changed, then confirm the generated diff is intentional.
+9. Run `git diff --check`.
+10. Review `docs/qa/web-mobile-parity-checklist.md` and update the parity debt
+    ledger for any intentional web/mobile mismatch in this release.
 
 ## Browser Matrix
 

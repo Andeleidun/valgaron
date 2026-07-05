@@ -29,11 +29,15 @@ type PlaceRelationshipTreeArtifact = {
 };
 
 type PlaceRelationshipTreeRelationshipType = {
+  id: string;
   label: string;
   inverseLabel?: string;
+  sourceKinds?: string[];
+  targetKinds: string[];
 };
 
 type PlaceRelationshipTreeFieldCatalogEntry = {
+  cardinality?: string;
   currentEntryRole?: string;
   label: string;
   relationshipType?: string;
@@ -65,6 +69,36 @@ function readPlanningArtifact(): PlaceRelationshipTreeArtifact {
 }
 
 describe('place relationship tree canonical artifact', () => {
+  const allowedFieldValueTypes = new Set([
+    'enum',
+    'link',
+    'linkList',
+    'markdown',
+    'string',
+    'stringList',
+  ]);
+
+  it('keeps artifact ids unique where generated metadata uses identifiers', () => {
+    const artifact = readPlanningArtifact();
+    const relationshipTypeIds = artifact.relationshipTypes.map(
+      (relationshipType) => relationshipType.id
+    );
+    const treeNodeIds = artifact.tree.map((node) => node.id);
+
+    expect(relationshipTypeIds.every((id) => id.trim())).toBe(true);
+    expect(treeNodeIds.every((id) => id.trim())).toBe(true);
+    expect(
+      artifact.relationshipTypes.every(
+        (relationshipType) =>
+          relationshipType.label.trim() &&
+          (relationshipType.inverseLabel === undefined ||
+            relationshipType.inverseLabel.trim())
+      )
+    ).toBe(true);
+    expect(new Set(relationshipTypeIds).size).toBe(relationshipTypeIds.length);
+    expect(new Set(treeNodeIds).size).toBe(treeNodeIds.length);
+  });
+
   it('generates runtime taxonomy metadata from the canonical artifact', () => {
     const artifact = readPlanningArtifact();
     const generatedFieldCatalog = placeFieldCatalog as Record<
@@ -186,6 +220,23 @@ describe('place relationship tree canonical artifact', () => {
       'place',
       ...artifact.scope.nonPlaceLinkTargets,
     ]);
+    const relationshipByLabel = new Map(
+      artifact.relationshipTypes.flatMap((relationshipType) =>
+        [relationshipType.label, relationshipType.inverseLabel]
+          .filter((label): label is string => Boolean(label))
+          .map((label) => [label, relationshipType])
+      )
+    );
+
+    for (const relationshipType of artifact.relationshipTypes) {
+      expect(relationshipType.targetKinds.length).toBeGreaterThan(0);
+      expect(
+        [
+          ...(relationshipType.sourceKinds ?? []),
+          ...relationshipType.targetKinds,
+        ].filter((entryKind) => !supportedEntryKinds.has(entryKind))
+      ).toEqual([]);
+    }
 
     for (const [profileId, profileFieldKeys] of Object.entries(
       artifact.commonFieldProfiles
@@ -197,11 +248,31 @@ describe('place relationship tree canonical artifact', () => {
     }
 
     for (const [fieldKey, field] of Object.entries(artifact.fieldCatalog)) {
+      expect(allowedFieldValueTypes.has(field.valueType)).toBe(true);
       expect(
         (field.targetEntryKinds ?? []).filter(
           (entryKind) => !supportedEntryKinds.has(entryKind)
         )
       ).toEqual([]);
+      if (field.relationshipType) {
+        expect(['link', 'linkList']).toContain(field.valueType);
+        expect(field.cardinality).toBe(
+          field.valueType === 'link' ? 'zeroOrOne' : 'zeroOrMany'
+        );
+        expect(field.targetEntryKinds?.length ?? 0).toBeGreaterThan(0);
+        expect(
+          (field.targetEntryKinds ?? []).every((entryKind) => entryKind.trim())
+        ).toBe(true);
+        const relationshipType = relationshipByLabel.get(
+          field.relationshipType
+        );
+        expect(relationshipType).toBeDefined();
+        expect(
+          (field.targetEntryKinds ?? []).filter(
+            (entryKind) => !relationshipType?.targetKinds.includes(entryKind)
+          )
+        ).toEqual([]);
+      }
       expect(
         (field.targetCategories ?? []).filter(
           (category) => !supportedCategories.has(category)

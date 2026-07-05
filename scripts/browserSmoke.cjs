@@ -39,8 +39,17 @@ const routeChecks = [
     expectedText: ['Characters', 'Search this section', 'Mira Rowan'],
   },
   {
+    path: '/factions?entryId=faction-cartographers-guild&intent=edit&query=Cartographers',
+    expectedText: [
+      'The Cartographers Guild',
+      'Linked records',
+      'Mira Rowan',
+      'From - member of',
+    ],
+  },
+  {
     path: '/relationships',
-    expectedText: ['Relationships', 'Relationship editor', 'Graph view'],
+    expectedText: ['Relationships', 'Relationship Form', 'Graph view'],
   },
   {
     path: '/timeline',
@@ -70,6 +79,9 @@ const routeChecks = [
     expectedText: [
       'Help',
       'Backups and recovery',
+      'Use character category to shape which character fields appear',
+      'Use relationship-backed character fields',
+      'related lore',
       'Report problems without world content',
     ],
   },
@@ -102,6 +114,28 @@ const layoutChecks = [
     name: 'narrow-mobile-header-actions',
     path: '/',
     size: '320,900',
+  },
+];
+
+const characterEditorLayoutChecks = [
+  {
+    name: 'character-editor-direct-route',
+    path: '/characters?entryId=character-mira-rowan&intent=edit&query=Mira%20Rowan',
+    selectEntry: false,
+    size: '1365,900',
+    verifyReviewMigration: true,
+  },
+  {
+    name: 'character-editor-desktop',
+    path: '/characters',
+    selectEntry: true,
+    size: '1365,900',
+  },
+  {
+    name: 'character-editor-mobile',
+    path: '/characters',
+    selectEntry: true,
+    size: '375,1000',
   },
 ];
 
@@ -570,6 +604,311 @@ async function assertMobileHeaderLayout(browserPath, profilePrefix, check) {
   }
 }
 
+async function assertCharacterEditorLayout(browserPath, profilePrefix, check) {
+  const debugPort = 60000 + (process.pid % 1000);
+  const url = `${baseUrl}${check.path}`;
+  const child = spawn(
+    browserPath,
+    [
+      ...browserCdpBaseArgs(
+        profilePrefix,
+        `character-layout-${check.name}`,
+        check.size
+      ),
+      `--remote-debugging-port=${debugPort}`,
+      url,
+    ],
+    {
+      cwd: rootDir,
+      stdio: ['ignore', 'pipe', 'pipe'],
+    }
+  );
+  let output = '';
+  child.stdout.on('data', (chunk) => {
+    output += chunk.toString();
+  });
+  child.stderr.on('data', (chunk) => {
+    output += chunk.toString();
+  });
+
+  let cdp;
+  try {
+    const webSocketUrl = await waitForDebugPage(debugPort, url);
+    cdp = await createCdpClient(webSocketUrl);
+    await waitForRuntimeCondition(
+      cdp,
+      "document.readyState !== 'loading' && Boolean(document.querySelector('form.vwb-form'))"
+    );
+    if (check.selectEntry) {
+      const clickedCharacter = await evaluateRuntime(
+        cdp,
+        `(() => {
+          const card = Array.from(document.querySelectorAll('.vwb-entry-card'))
+            .find((element) => element.textContent?.includes('Mira Rowan'));
+          if (!(card instanceof HTMLElement)) {
+            return false;
+          }
+          card.click();
+          return true;
+        })()`
+      );
+      if (!clickedCharacter) {
+        throw new Error(`${check.name} could not click the Mira Rowan card`);
+      }
+    }
+    await waitForRuntimeCondition(
+      cdp,
+      "Array.from(document.querySelectorAll('h2')).some((node) => node.textContent?.trim() === 'Mira Rowan')"
+    );
+    const relationshipDetailResult = await evaluateRuntime(
+      cdp,
+      `(() => {
+        const detailPanel = Array.from(document.querySelectorAll('.vwb-detail-panel'))
+          .find((panel) => panel.textContent?.includes('Mira Rowan'));
+        const issues = [];
+        if (!detailPanel) {
+          issues.push('selected character detail panel is missing');
+          return { issues };
+        }
+        const relationshipPanel = detailPanel.querySelector('.vwb-relationship-panel');
+        if (!relationshipPanel) {
+          issues.push('character relationship panel is missing');
+          return { issues };
+        }
+        const groupHeadings = Array.from(
+          relationshipPanel.querySelectorAll('.vwb-relationship-group > h4')
+        )
+          .map((heading) => heading.textContent?.trim())
+          .filter(Boolean);
+        if (!groupHeadings.includes('Affiliations and service')) {
+          issues.push('character relationship group is missing');
+        }
+        const relationshipText = relationshipPanel.textContent || '';
+        for (const text of ['The Cartographers Guild', 'To - member of']) {
+          if (!relationshipText.includes(text)) {
+            issues.push('missing relationship detail: ' + text);
+          }
+        }
+        return {
+          groupHeadings,
+          issues,
+          relationshipText: relationshipText.replace(/\\s+/g, ' ').trim().slice(0, 240)
+        };
+      })()`
+    );
+    if (relationshipDetailResult.issues.length > 0) {
+      throw new Error(
+        `${
+          check.name
+        } character relationship detail issues: ${relationshipDetailResult.issues.join(
+          ', '
+        )}. Details: ${JSON.stringify(relationshipDetailResult)}`
+      );
+    }
+    const result = await evaluateRuntime(
+      cdp,
+      `(() => {
+        const viewportWidth = document.documentElement.clientWidth;
+        const issues = [];
+        const headings = Array.from(document.querySelectorAll('h1, h2, h3, h4'))
+          .map((heading) => heading.textContent?.trim())
+          .filter(Boolean);
+        if (!headings.some((heading) => heading === 'Mira Rowan')) {
+          issues.push('selected character editor is not open');
+        }
+        const reviewPanel = document.querySelector('[aria-label="Legacy relationship link text review"]');
+        if (!reviewPanel) {
+          issues.push('legacy relationship text review panel is missing');
+        } else {
+          const reviewText = reviewPanel.textContent || '';
+          for (const text of [
+            'Legacy Link Text',
+            'Mira Rowan',
+            'Affiliations',
+            'Unresolved: None. 1 exact match available.'
+          ]) {
+            if (!reviewText.includes(text)) {
+              issues.push('missing legacy review detail: ' + text);
+            }
+          }
+        }
+        const requiredHeadings = [
+          'Record basics',
+          'Category and role',
+          'Identity and origin',
+          'Profession and power'
+        ];
+        const headingText = Array.from(document.querySelectorAll('.vwb-field-group > h3'))
+          .map((heading) => heading.textContent?.trim())
+          .filter(Boolean);
+        for (const heading of requiredHeadings) {
+          if (!headingText.includes(heading)) {
+            issues.push('missing field group: ' + heading);
+          }
+        }
+        const linkedFieldPanel = document.querySelector(
+          '[aria-label="Relationship-backed character fields"]'
+        );
+        if (!linkedFieldPanel) {
+          issues.push('linked character field panel is missing');
+        } else {
+          const linkedLabels = Array.from(linkedFieldPanel.querySelectorAll('h4'))
+            .map((heading) => heading.textContent?.trim())
+            .filter(Boolean);
+          for (const label of ['Home', 'Affiliations']) {
+            if (!linkedLabels.includes(label)) {
+              issues.push('missing linked character control: ' + label);
+            }
+          }
+        }
+        const emptyGroups = Array.from(document.querySelectorAll('.vwb-field-group'))
+          .filter((group) => !group.querySelector('input, textarea, select'))
+          .map((group) => group.querySelector('h3')?.textContent?.trim() || 'unnamed');
+        if (emptyGroups.length > 0) {
+          issues.push('empty field groups: ' + emptyGroups.join(', '));
+        }
+        const overflowers = Array.from(document.body.querySelectorAll('*'))
+          .map((element) => {
+            const rect = element.getBoundingClientRect();
+            return {
+              className: String(element.className || ''),
+              nodeName: element.nodeName,
+              left: Math.round(rect.left),
+              right: Math.round(rect.right),
+              width: Math.round(rect.width)
+            };
+          })
+          .filter((item) => item.width > 0 && item.right > viewportWidth + 1)
+          .slice(0, 8);
+        if (document.documentElement.scrollWidth > viewportWidth + 1) {
+          issues.push('page has horizontal overflow');
+        }
+        return {
+          fieldGroupCount: headingText.length,
+          headings: headings.slice(0, 24),
+          headingText,
+          issues,
+          location: window.location.href,
+          overflowers,
+          scrollWidth: document.documentElement.scrollWidth,
+          viewportWidth
+        };
+      })()`
+    );
+    if (result.issues.length > 0) {
+      throw new Error(
+        `${check.name} character editor issues: ${result.issues.join(
+          ', '
+        )}. Details: ${JSON.stringify(result)}`
+      );
+    }
+    if (check.verifyReviewMigration) {
+      const migrationClickResult = await evaluateRuntime(
+        cdp,
+        `(() => {
+          const reviewPanel = document.querySelector('[aria-label="Legacy relationship link text review"]');
+          const issues = [];
+          if (!reviewPanel) {
+            return { issues: ['legacy relationship text review panel is missing'] };
+          }
+          const row = Array.from(reviewPanel.querySelectorAll('.vwb-relationship-row'))
+            .find((candidate) => {
+              const text = candidate.textContent || '';
+              return text.includes('Mira Rowan')
+                && text.includes('Affiliations')
+                && text.includes('Unresolved: None. 1 exact match available.');
+            });
+          if (!row) {
+            return {
+              issues: ['exact-only legacy relationship text row is missing'],
+              reviewText: reviewPanel.textContent?.replace(/\\s+/g, ' ').trim().slice(0, 240)
+            };
+          }
+          const button = Array.from(row.querySelectorAll('button'))
+            .find((candidate) => candidate.textContent?.trim() === 'Migrate Exact Matches');
+          if (!(button instanceof HTMLElement)) {
+            return { issues: ['row-level exact-match migration button is missing'] };
+          }
+          button.click();
+          return { issues: [] };
+        })()`
+      );
+      if (migrationClickResult.issues.length > 0) {
+        throw new Error(
+          `${
+            check.name
+          } character review migration click issues: ${migrationClickResult.issues.join(
+            ', '
+          )}. Details: ${JSON.stringify(migrationClickResult)}`
+        );
+      }
+      await waitForRuntimeCondition(
+        cdp,
+        `(() => {
+          const reviewPanel = document.querySelector('[aria-label="Legacy relationship link text review"]');
+          if (!reviewPanel) {
+            return true;
+          }
+          return !Array.from(reviewPanel.querySelectorAll('.vwb-relationship-row'))
+            .some((candidate) => {
+              const text = candidate.textContent || '';
+              return text.includes('Mira Rowan')
+                && text.includes('Affiliations')
+                && text.includes('1 exact match available.');
+            });
+        })()`
+      );
+      const migrationResult = await evaluateRuntime(
+        cdp,
+        `(() => {
+          const issues = [];
+          const reviewPanel = document.querySelector('[aria-label="Legacy relationship link text review"]');
+          const reviewText = reviewPanel?.textContent || '';
+          if (
+            reviewText.includes('Mira Rowan')
+            && reviewText.includes('Affiliations')
+            && reviewText.includes('1 exact match available.')
+          ) {
+            issues.push('exact-only legacy relationship row still appears after migration');
+          }
+          const detailPanel = Array.from(document.querySelectorAll('.vwb-detail-panel'))
+            .find((panel) => panel.textContent?.includes('Mira Rowan'));
+          const detailText = detailPanel?.textContent || '';
+          for (const text of ['The Cartographers Guild', 'To - member of']) {
+            if (!detailText.includes(text)) {
+              issues.push('missing relationship after migration: ' + text);
+            }
+          }
+          return {
+            detailText: detailText.replace(/\\s+/g, ' ').trim().slice(0, 240),
+            issues,
+            reviewText: reviewText.replace(/\\s+/g, ' ').trim().slice(0, 240)
+          };
+        })()`
+      );
+      if (migrationResult.issues.length > 0) {
+        throw new Error(
+          `${
+            check.name
+          } character review migration issues: ${migrationResult.issues.join(
+            ', '
+          )}. Details: ${JSON.stringify(migrationResult)}`
+        );
+      }
+    }
+  } finally {
+    cdp?.close();
+    child.kill();
+    await new Promise((resolve) => {
+      child.once('exit', resolve);
+      setTimeout(resolve, 1000);
+    });
+    if (child.exitCode && child.exitCode !== 0) {
+      writeError(output);
+    }
+  }
+}
+
 async function run() {
   const browserPaths = findBrowserExecutables();
   if (browserPaths.length === 0) {
@@ -608,6 +947,14 @@ async function run() {
             layoutCheck
           );
           writeLine(`layout ok: ${layoutCheck.name}`);
+        }
+        for (const characterEditorLayoutCheck of characterEditorLayoutChecks) {
+          await assertCharacterEditorLayout(
+            browserPath,
+            profilePrefix,
+            characterEditorLayoutCheck
+          );
+          writeLine(`layout ok: ${characterEditorLayoutCheck.name}`);
         }
         writeLine(`Browser smoke artifacts: ${artifactDir}`);
         return;

@@ -232,6 +232,7 @@ export const codexWorkflowHelpTopics: readonly CodexHelpTopic[] = [
     items: [
       'Use Overview to scan recent, pinned, incomplete, and quick-create records.',
       'Use entry sections to create and edit characters, places, factions, lore, timeline events, and custom entry types.',
+      'Use character category to shape which character fields appear; ancestry and profession stay flexible creator-authored values rather than built-in lists.',
       'Use Places for worlds, planets, moons, settlements, terrain, realms, and other map-scale places inside a project.',
     ],
   },
@@ -239,6 +240,7 @@ export const codexWorkflowHelpTopics: readonly CodexHelpTopic[] = [
     title: 'Connect records',
     items: [
       'Use Relationships to link entries and inspect graph-style connections.',
+      'Use relationship-backed character fields for facts that should be visible from both sides, such as homes, affiliations, mentors, origins, related lore, and notable events.',
       'Use Timeline order controls to arrange events while keeping flexible prose dates and eras.',
       'Use tags, status, pinned records, and completeness prompts to keep unfinished work visible.',
     ],

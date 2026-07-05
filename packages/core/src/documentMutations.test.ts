@@ -42,10 +42,13 @@ describe('document mutation commands', () => {
       status: 'canon',
       pinned: true,
       details: {
-        role: 'Cartographer',
-        home: 'Northwatch Harbor',
-        affiliation: 'The Cartographers Guild',
-        statusNote: 'Surveying flood markers',
+        characterCategory: 'Humanoid person',
+        narrativeRole: 'Mapmaker',
+        ancestry: 'Human',
+        profession: 'Cartographer',
+        homePlace: 'Northwatch Harbor',
+        affiliations: 'The Cartographers Guild',
+        currentStatus: 'Surveying flood markers',
       },
     };
     const entry = entryFromDraft(section, draft);

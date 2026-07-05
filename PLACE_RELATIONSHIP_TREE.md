@@ -1,6 +1,6 @@
 # Place Relationship Tree
 
-This document explains the canonical place taxonomy artifact in `place-relationship-tree.json`. The JSON is the source of truth for supported place categories, category field profiles, relationship-backed place fields, target guidance, and relationship vocabulary. Runtime TypeScript metadata is generated from it by `npm run generate:place-taxonomy`; the app still stores place details flexibly as `Record<string, string>` so the editor can stay easy to evolve.
+This document explains the canonical place taxonomy artifact in `place-relationship-tree.json`. The JSON is the source of truth for supported place categories, category field profiles, relationship-backed place fields, target guidance, and relationship vocabulary. Runtime TypeScript metadata is generated from it by `npm run generate:taxonomies` or the targeted `npm run generate:place-taxonomy`; the app still stores place details flexibly as `Record<string, string>` so the editor can stay easy to evolve.
 
 ## Design Goals
 
@@ -90,10 +90,10 @@ The JSON is canonical, but the TypeScript app imports generated metadata rather 
 After changing the JSON, run:
 
 ```sh
-npm run generate:place-taxonomy
+npm run generate:taxonomies
 ```
 
-This updates `packages/core/src/placeRelationshipTree.generated.ts`. Core taxonomy helpers then derive place category options, visible field profiles, relationship-backed field configs, and relationship type suggestions from the generated metadata.
+This refreshes both generated taxonomy files. For a targeted place-only refresh, `npm run generate:place-taxonomy` updates `packages/core/src/placeRelationshipTree.generated.ts`. Core taxonomy helpers then derive place category options, visible field profiles, relationship-backed field configs, and relationship type suggestions from the generated metadata.
 
 The artifact test suite checks that generated metadata still matches the JSON field catalog, profiles, category tree, shared detail fields, relationship roles, target kinds, target categories, and relationship vocabulary.
 

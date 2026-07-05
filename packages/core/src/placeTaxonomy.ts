@@ -7,6 +7,12 @@ import {
   profileFieldKeys,
   supportedPlaceCategoryOptions as generatedSupportedPlaceCategoryOptions,
 } from './placeRelationshipTree.generated';
+import {
+  getCharacterCategoryFromFields,
+  getCharacterDetailFields,
+  getHiddenCharacterDetailValues,
+  type HiddenCharacterDetailValue,
+} from './characterTaxonomy';
 import type { WorldDetailField, WorldSectionConfig } from './types';
 
 export const supportedPlaceCategoryOptions: readonly string[] =
@@ -25,6 +31,10 @@ export type HiddenPlaceDetailValue = {
   label: string;
   value: string;
 };
+
+export type HiddenEntryDetailValue =
+  | HiddenPlaceDetailValue
+  | HiddenCharacterDetailValue;
 
 export type PlaceRelationshipFieldConfig = {
   fieldKey: string;
@@ -115,6 +125,11 @@ export function getEntryDetailFields(
   section: WorldSectionConfig,
   entry?: EntryLike
 ): WorldDetailField[] {
+  if (section.kind === 'character') {
+    return getCharacterDetailFields(
+      entry ? getCharacterCategoryFromFields(entry.fields) : ''
+    );
+  }
   if (section.kind !== 'place') {
     return [...section.detailFields];
   }
@@ -127,6 +142,11 @@ export function getDraftDetailFields(
   section: WorldSectionConfig,
   draft?: DraftLike
 ): WorldDetailField[] {
+  if (section.kind === 'character') {
+    return getCharacterDetailFields(
+      draft ? getCharacterCategoryFromFields(draft.details) : ''
+    );
+  }
   if (section.kind !== 'place') {
     return [...section.detailFields];
   }
@@ -155,6 +175,16 @@ export function getHiddenPlaceDetailValues(
       value,
     }))
     .sort((first, second) => first.label.localeCompare(second.label));
+}
+
+export function getHiddenEntryDetailValues(
+  section: WorldSectionConfig,
+  fields: Readonly<Record<string, string>>
+): HiddenEntryDetailValue[] {
+  if (section.kind === 'character') {
+    return getHiddenCharacterDetailValues(fields);
+  }
+  return getHiddenPlaceDetailValues(section, fields);
 }
 
 export function getPlaceCategoryProfileIds(

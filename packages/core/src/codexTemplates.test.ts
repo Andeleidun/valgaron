@@ -7,7 +7,7 @@ import {
   getEntryCompleteness,
   getIncompleteEntries,
 } from './codexTemplates';
-import { createSeedCodex, worldSections } from './seedCodex';
+import { createSeedCodex, seedRelationships, worldSections } from './seedCodex';
 
 describe('codex templates and completeness helpers', () => {
   it('creates deterministic section templates', () => {
@@ -17,10 +17,13 @@ describe('codex templates and completeness helpers', () => {
     expect(template.tags).toBe('character');
     expect(template.notes).toContain('## Role in the story');
     expect(Object.keys(template.details)).toEqual([
-      'role',
-      'home',
-      'affiliation',
-      'statusNote',
+      'characterCategory',
+      'narrativeRole',
+      'ancestry',
+      'profession',
+      'homePlace',
+      'affiliations',
+      'currentStatus',
     ]);
   });
 
@@ -30,10 +33,13 @@ describe('codex templates and completeness helpers', () => {
 
     expect(draft.tags).toBe('character');
     expect(draft.details).toEqual({
-      role: '',
-      home: '',
-      affiliation: '',
-      statusNote: '',
+      characterCategory: '',
+      narrativeRole: '',
+      ancestry: '',
+      profession: '',
+      homePlace: '',
+      affiliations: '',
+      currentStatus: '',
     });
   });
 
@@ -44,7 +50,7 @@ describe('codex templates and completeness helpers', () => {
 
     expect(draft.name).toBe('Mira Rowan Template');
     expect(draft.status).toBe('draft');
-    expect(draft.details.role).toBe('Lead surveyor and field guide');
+    expect(draft.details.profession).toBe('Surveyor');
   });
 
   it('applies section templates without overwriting existing draft content', () => {
@@ -56,7 +62,7 @@ describe('codex templates and completeness helpers', () => {
 
     expect(draft.tags).toBe('character');
     expect(draft.notes).toContain('## Role in the story');
-    expect(draft.details).toHaveProperty('role');
+    expect(draft.details).toHaveProperty('characterCategory');
   });
 
   it('scores incomplete entries and returns prompts', () => {
@@ -67,17 +73,38 @@ describe('codex templates and completeness helpers', () => {
       notes: '',
       tags: [],
       fields: {
-        role: '',
-        home: 'Harbor District',
-        affiliation: '',
-        statusNote: '',
+        characterCategory: '',
+        narrativeRole: '',
+        ancestry: 'Human',
+        profession: '',
+        homePlace: 'Harbor District',
+        affiliations: '',
+        currentStatus: '',
       },
     };
     const completeness = getEntryCompleteness(entry, section);
 
     expect(completeness.percent).toBeLessThan(100);
     expect(completeness.prompts).toContain('Add a short summary.');
-    expect(completeness.prompts).toContain('Define this character role.');
+    expect(completeness.prompts).toContain('Choose a character category.');
+  });
+
+  it('counts relationship-backed fields as complete when a matching link exists', () => {
+    const section = worldSections[0];
+    const entry = {
+      ...createSeedCodex().characters[0],
+      fields: {
+        ...createSeedCodex().characters[0].fields,
+        affiliations: '',
+      },
+    };
+
+    expect(getEntryCompleteness(entry, section).prompts).toContain(
+      'Connect this character to a group or allegiance.'
+    );
+    expect(
+      getEntryCompleteness(entry, section, seedRelationships).prompts
+    ).not.toContain('Connect this character to a group or allegiance.');
   });
 
   it('returns incomplete visible entries by least complete first', () => {

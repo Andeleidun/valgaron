@@ -23,6 +23,22 @@ describe('help topics', () => {
       'Connect records',
       'Protect local work',
     ]);
+    expect(codexWorkflowHelpTopics[0]?.items.join(' ')).toContain(
+      'character category'
+    );
+    expect(codexWorkflowHelpTopics[0]?.items.join(' ')).toContain(
+      'ancestry and profession stay flexible'
+    );
+    expect(codexWorkflowHelpTopics[1]?.items.join(' ')).toContain(
+      'relationship-backed character fields'
+    );
+    expect(codexWorkflowHelpTopics[1]?.items.join(' ')).toContain(
+      'visible from both sides'
+    );
+    expect(codexWorkflowHelpTopics[1]?.items.join(' ')).toContain(
+      'related lore'
+    );
+    expect(codexWorkflowHelpTopics[1]?.items.join(' ')).not.toContain('forms');
   });
 
   it('covers import and export guidance for compact mobile help', () => {

@@ -11,6 +11,7 @@ import {
   getEntryRelationshipGroupsModel,
   getEntryRelationshipSummaryModel,
   getEntryRelationships,
+  getCharacterRelationshipGroups,
   getRelationshipDiagnosticsModel,
   getRelationshipEditorOptionsModel,
   getRelationshipEntryRoute,
@@ -39,6 +40,7 @@ import {
   createSeedWorldDocument,
   worldSections,
 } from './seedCodex';
+import { characterRelationshipTypeOptions } from './characterTaxonomy';
 import type { WorldRelationship } from './types';
 import { getActiveWorld } from './worldDocument';
 
@@ -710,6 +712,168 @@ describe('codexRelationships', () => {
         },
       ]
     );
+  });
+
+  it('groups character linked records for character detail sections', () => {
+    const world = getActiveWorld(createSeedWorldDocument());
+    const mira = world.codex.characters[0];
+    const groupedWorld = {
+      ...world,
+      relationships: [
+        {
+          ...world.relationships[0],
+          id: 'relationship-mira-parent',
+          sourceEntryId: mira.id,
+          targetEntryId: 'character-tomas-quill',
+          type: 'child of',
+        },
+        {
+          ...world.relationships[0],
+          id: 'relationship-tomas-mentor-mira',
+          sourceEntryId: 'character-tomas-quill',
+          targetEntryId: mira.id,
+          type: 'mentor of',
+        },
+        {
+          ...world.relationships[0],
+          id: 'relationship-mira-first-survey',
+          sourceEntryId: mira.id,
+          targetEntryId: 'timeline-first-survey',
+          type: 'participated in',
+        },
+        ...world.relationships,
+      ],
+    };
+
+    expect(
+      getCharacterRelationshipGroups(
+        mira,
+        groupedWorld.relationships,
+        groupedWorld.codex,
+        groupedWorld.entryTypes
+      ).map((group) => ({
+        id: group.id,
+        label: group.label,
+        types: group.relationships.map((relationship) => relationship.type),
+      }))
+    ).toEqual([
+      {
+        id: 'affiliations',
+        label: 'Affiliations and service',
+        types: ['member of'],
+      },
+      {
+        id: 'family',
+        label: 'Family and lineage',
+        types: ['child of'],
+      },
+      {
+        id: 'social',
+        label: 'Allies, partners, and mentors',
+        types: ['mentor of'],
+      },
+      {
+        id: 'eventsLore',
+        label: 'Events and lore',
+        types: ['participated in'],
+      },
+    ]);
+  });
+
+  it('groups every generated character relationship type outside the fallback group', () => {
+    const world = getActiveWorld(createSeedWorldDocument());
+    const mira = world.codex.characters[0];
+    const counterpartId = 'faction-cartographers-guild';
+    const relationships = characterRelationshipTypeOptions.flatMap(
+      (type, index): WorldRelationship[] => [
+        {
+          ...fixedRelationship,
+          id: `relationship-character-source-${index}`,
+          sourceEntryId: mira.id,
+          targetEntryId: counterpartId,
+          type,
+        },
+        {
+          ...fixedRelationship,
+          id: `relationship-character-target-${index}`,
+          sourceEntryId: counterpartId,
+          targetEntryId: mira.id,
+          type,
+        },
+      ]
+    );
+
+    const groupedNonFallbackTypes = new Set(
+      getCharacterRelationshipGroups(
+        mira,
+        relationships,
+        world.codex,
+        world.entryTypes
+      )
+        .filter((group) => group.id !== 'other')
+        .flatMap((group) =>
+          group.relationships.map((relationship) => relationship.type)
+        )
+    );
+
+    expect(
+      characterRelationshipTypeOptions.filter(
+        (type) => !groupedNonFallbackTypes.has(type)
+      )
+    ).toEqual([]);
+  });
+
+  it('uses character groups in shared entry relationship group models', () => {
+    const world = getActiveWorld(createSeedWorldDocument());
+    const tomas = world.codex.characters[1];
+
+    expect(getEntryRelationshipGroupsModel(world, tomas)).toMatchObject([
+      {
+        id: 'eventsLore',
+        label: 'Events and lore',
+        relationships: [
+          {
+            relatedEntryId: 'lore-tide-calendar',
+            relatedEntryName: 'The Tide Calendar',
+            type: 'references',
+          },
+        ],
+      },
+    ]);
+  });
+
+  it('falls back to linked-record groups for non-tree entry kinds with inverse character links', () => {
+    const world = getActiveWorld(createSeedWorldDocument());
+    const guild = world.codex.factions.find(
+      (entry) => entry.id === 'faction-cartographers-guild'
+    );
+
+    if (!guild) {
+      throw new Error('Seed guild fixture is missing.');
+    }
+
+    expect(getEntryRelationshipGroupsModel(world, guild)).toMatchObject([
+      {
+        id: 'linked-records',
+        label: 'Linked records',
+        relationships: [
+          {
+            directionLabel: 'From',
+            relatedEntryId: 'character-mira-rowan',
+            relatedEntryName: 'Mira Rowan',
+            relatedSectionId: 'characters',
+            type: 'member of',
+          },
+          {
+            directionLabel: 'From',
+            relatedEntryId: 'timeline-harbor-accord',
+            relatedEntryName: 'Harbor Accord Signed',
+            relatedSectionId: 'timeline',
+            type: 'founded',
+          },
+        ],
+      },
+    ]);
   });
 
   it('builds a shared relationship diagnostics model', () => {

@@ -102,10 +102,13 @@ describe('frontend parity data contract', () => {
       status: 'canon',
       pinned: false,
       details: {
-        role: 'Marsh guide',
-        home: 'Glassfen Crossing',
-        affiliation: 'Ferrywardens',
-        statusNote: 'Available during low-water season',
+        characterCategory: 'Humanoid person',
+        narrativeRole: 'Marsh guide',
+        ancestry: 'Human',
+        profession: 'Guide',
+        homePlace: 'Glassfen Crossing',
+        affiliations: 'Ferrywardens',
+        currentStatus: 'Available during low-water season',
       },
     });
     document = saveEntryInActiveWorkspace({ document, entry: character });

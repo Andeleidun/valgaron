@@ -6,9 +6,9 @@ import {
   useSearchParams,
 } from 'react-router-dom';
 import {
-  buildPlaceRelationshipTextReviewBatchMigration,
-  buildPlaceRelationshipTextReviewMigration,
-  buildPlaceRelationshipTextReviewSuggestionMigration,
+  buildRelationshipTextReviewBatchMigration,
+  buildRelationshipTextReviewMigration,
+  buildRelationshipTextReviewSuggestionMigration,
   draftFromEntry,
   duplicateEntry,
   entryListCopy,
@@ -22,18 +22,18 @@ import {
   getEntrySortControlOptions,
   getEntryTagFilterOptions,
   getEntries,
-  getPlaceRelationshipTextReviewExactMatchLabel,
-  getPlaceRelationshipTextReviewItems,
-  getPlaceRelationshipTextReviewSummary,
-  getPlaceRelationshipTextReviewSuggestionLabels,
-  getPlaceRelationshipTextReviewUnresolvedLabel,
+  getRelationshipTextReviewExactMatchLabel,
+  getRelationshipTextReviewItems,
+  getRelationshipTextReviewSummary,
+  getRelationshipTextReviewSuggestionLabels,
+  getRelationshipTextReviewUnresolvedLabel,
   getRelationshipEntries,
+  getRelationshipFieldConfigsForEntryKind,
   getSectionById,
   getTimelineEras,
   getTimelineInvolvedEntryIds,
-  placeRelationshipTextReviewCopy,
-  placeRelationshipFieldConfigs,
-  type PlaceRelationshipTextReviewItem,
+  relationshipTextReviewCopy,
+  type RelationshipTextReviewItem,
   type EntryDraft,
   type EntrySortControlValue,
   type WorldCodex,
@@ -79,7 +79,9 @@ export function SectionPage({
     requestedIntent ?? ''
   }|${requestedQuery ?? ''}`;
   const appliedRouteSelectionKeyRef = useRef('');
-  const [selectedEntryId, setSelectedEntryId] = useState<string | null>(null);
+  const [selectedEntryId, setSelectedEntryId] = useState<string | null>(
+    () => requestedEntryId
+  );
   const [query, setQuery] = useState('');
   const [activeTag, setActiveTag] = useState('');
   const [statusFilter, setStatusFilter] = useState<EntryDraft['status'] | ''>(
@@ -98,7 +100,7 @@ export function SectionPage({
   const [templateDraft, setTemplateDraft] = useState<EntryDraft | null>(null);
 
   useEffect(() => {
-    setSelectedEntryId(null);
+    setSelectedEntryId(requestedEntryId);
     setQuery('');
     setActiveTag('');
     setStatusFilter('');
@@ -272,20 +274,23 @@ export function SectionPage({
     involvedEntryFilter.length > 0 ||
     showArchived ||
     updatedWithinDays !== null;
-  const placeRelationshipTextReviewItems = useMemo(
+  const relationshipTextReviewItems = useMemo(
     () =>
-      section?.kind === 'place'
-        ? getPlaceRelationshipTextReviewItems({ codex, sections }).filter(
+      section &&
+      getRelationshipFieldConfigsForEntryKind(section.kind).length > 0
+        ? getRelationshipTextReviewItems({ codex, sections }).filter(
             (item) => item.sectionId === section.id
           )
         : [],
     [codex, section, sections]
   );
-  const placeRelationshipTextReviewExactItems =
-    placeRelationshipTextReviewItems.filter((item) => item.exactMatchCount > 0);
+  const relationshipTextReviewExactItems = relationshipTextReviewItems.filter(
+    (item) => item.exactMatchCount > 0
+  );
 
   useEffect(() => {
     if (
+      entries.length > 0 &&
       selectedEntryId &&
       !isEntryFormDirty &&
       !filteredEntries.some((entry) => entry.id === selectedEntryId)
@@ -330,21 +335,22 @@ export function SectionPage({
     }
   };
 
-  const migrateReviewItemExactMatches = (
-    item: PlaceRelationshipTextReviewItem
-  ) => {
+  const migrateReviewItemExactMatches = (item: RelationshipTextReviewItem) => {
     if (isEntryFormDirty) {
       return;
     }
     const entry = entries.find((candidate) => candidate.id === item.entryId);
-    const config = placeRelationshipFieldConfigs.find(
+    if (!entry || item.exactTargetIds.length === 0) {
+      return;
+    }
+    const config = getRelationshipFieldConfigsForEntryKind(entry.kind).find(
       (candidate) => candidate.fieldKey === item.fieldKey
     );
-    if (!entry || !config || item.exactTargetIds.length === 0) {
+    if (!config) {
       return;
     }
 
-    const migration = buildPlaceRelationshipTextReviewMigration({
+    const migration = buildRelationshipTextReviewMigration({
       config,
       entry,
       item,
@@ -362,7 +368,7 @@ export function SectionPage({
   };
 
   const migrateReviewItemSuggestion = (
-    item: PlaceRelationshipTextReviewItem,
+    item: RelationshipTextReviewItem,
     fragment: string,
     targetEntryId: string
   ) => {
@@ -370,14 +376,17 @@ export function SectionPage({
       return;
     }
     const entry = entries.find((candidate) => candidate.id === item.entryId);
-    const config = placeRelationshipFieldConfigs.find(
+    if (!entry) {
+      return;
+    }
+    const config = getRelationshipFieldConfigsForEntryKind(entry.kind).find(
       (candidate) => candidate.fieldKey === item.fieldKey
     );
-    if (!entry || !config) {
+    if (!config) {
       return;
     }
 
-    const migration = buildPlaceRelationshipTextReviewSuggestionMigration({
+    const migration = buildRelationshipTextReviewSuggestionMigration({
       config,
       entry,
       fragment,
@@ -401,15 +410,12 @@ export function SectionPage({
   };
 
   const migrateAllReviewExactMatches = () => {
-    if (
-      placeRelationshipTextReviewExactItems.length === 0 ||
-      isEntryFormDirty
-    ) {
+    if (relationshipTextReviewExactItems.length === 0 || isEntryFormDirty) {
       return;
     }
-    const migration = buildPlaceRelationshipTextReviewBatchMigration({
+    const migration = buildRelationshipTextReviewBatchMigration({
       codex,
-      items: placeRelationshipTextReviewExactItems,
+      items: relationshipTextReviewExactItems,
       relationships,
       sections,
     });
@@ -471,43 +477,42 @@ export function SectionPage({
         />
       ) : null}
 
-      {placeRelationshipTextReviewItems.length > 0 ? (
+      {relationshipTextReviewItems.length > 0 ? (
         <section
           className="vwb-panel vwb-linked-field-panel"
-          aria-label="Legacy place link text review"
+          aria-label="Legacy relationship link text review"
         >
           <div className="vwb-section-heading">
             <div>
               <p className="vwb-kicker">
-                {placeRelationshipTextReviewItems.length} field
-                {placeRelationshipTextReviewItems.length === 1 ? '' : 's'} to
-                review
+                {relationshipTextReviewItems.length} field
+                {relationshipTextReviewItems.length === 1 ? '' : 's'} to review
               </p>
-              <h2>{placeRelationshipTextReviewCopy.title}</h2>
+              <h2>{relationshipTextReviewCopy.title}</h2>
             </div>
           </div>
           <p>
-            {getPlaceRelationshipTextReviewSummary(
-              placeRelationshipTextReviewItems.length
+            {getRelationshipTextReviewSummary(
+              relationshipTextReviewItems.length
             )}
           </p>
           {isEntryFormDirty ? (
             <p className="vwb-inline-status">
-              {placeRelationshipTextReviewCopy.draftBlockedMessage}
+              {relationshipTextReviewCopy.draftBlockedMessage}
             </p>
           ) : null}
-          {placeRelationshipTextReviewExactItems.length > 0 ? (
+          {relationshipTextReviewExactItems.length > 0 ? (
             <button
               className="vwb-secondary-button"
               disabled={isEntryFormDirty}
               type="button"
               onClick={migrateAllReviewExactMatches}
             >
-              {placeRelationshipTextReviewCopy.batchExactMatchLabel}
+              {relationshipTextReviewCopy.batchExactMatchLabel}
             </button>
           ) : null}
           <div className="vwb-relationship-list">
-            {placeRelationshipTextReviewItems.slice(0, 6).map((item) => (
+            {relationshipTextReviewItems.slice(0, 6).map((item) => (
               <article
                 className="vwb-relationship-row"
                 key={`${item.entryId}-${item.fieldKey}`}
@@ -523,17 +528,16 @@ export function SectionPage({
                   </button>
                 </div>
                 <p>
-                  Unresolved:{' '}
-                  {getPlaceRelationshipTextReviewUnresolvedLabel(item)};{' '}
-                  {getPlaceRelationshipTextReviewExactMatchLabel(item)}
+                  Unresolved: {getRelationshipTextReviewUnresolvedLabel(item)}.{' '}
+                  {getRelationshipTextReviewExactMatchLabel(item)}
                 </p>
                 {item.suggestedTargets.length > 0 ? (
                   <div>
                     <p>
                       Suggestions:{' '}
-                      {getPlaceRelationshipTextReviewSuggestionLabels(
-                        item
-                      ).join('; ')}
+                      {getRelationshipTextReviewSuggestionLabels(item).join(
+                        '; '
+                      )}
                     </p>
                     {item.suggestedTargets.map((suggestion) =>
                       suggestion.targets.map((target) => (
@@ -569,9 +573,9 @@ export function SectionPage({
               </article>
             ))}
           </div>
-          {placeRelationshipTextReviewItems.length > 6 ? (
+          {relationshipTextReviewItems.length > 6 ? (
             <p className="vwb-inline-status">
-              Showing 6 of {placeRelationshipTextReviewItems.length}. Use the
+              Showing 6 of {relationshipTextReviewItems.length}. Use the
               affected entries to continue cleanup.
             </p>
           ) : null}

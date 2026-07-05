@@ -63,6 +63,19 @@ describe('mobile route model', () => {
         sectionId: 'characters',
       },
     });
+    expect(
+      getMobileRouteHref(
+        '/entries?sectionId=characters&entryId=character-mira-rowan&intent=edit&query=Mira%20Rowan'
+      )
+    ).toEqual({
+      pathname: '/entries',
+      params: {
+        entryId: 'character-mira-rowan',
+        intent: 'edit',
+        query: 'Mira Rowan',
+        sectionId: 'characters',
+      },
+    });
     expect(getMobileRouteHref('/entries?query=Mira+Rowan').params).toEqual({
       query: 'Mira Rowan',
     });

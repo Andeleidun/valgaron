@@ -33,6 +33,24 @@ Use contextual Help links in entry, timeline, relationship, workspace, and data
 workflows when you need focused guidance without leaving the current product
 surface.
 
+## Character Drafting
+
+Character records can use a character category to show fields that fit the
+entity being drafted, such as a humanoid person, construct, spirit, creature,
+deity, shapeshifter, collective, or succession persona.
+
+Use `ancestry` for humanoid race, species, people, lineage, or heritage
+concepts. Use `profession` for class, job, calling, trade, office, or
+adventuring-role concepts. Both fields are creator-defined text values with
+workspace-local suggestions from values already used in your current codex; the
+builder does not ship fixed ancestry or profession lists.
+
+Use relationship-backed character fields when a fact should be visible from
+both sides of the codex. Homes can link to places, affiliations can link to
+factions, mentors and family can link to characters, notable events can link to
+timeline records, and related lore can link to reusable rules, prophecies,
+customs, abilities, or ancestry and profession notes.
+
 ## Local Data And Backups
 
 The browser app saves in the current browser profile with `localStorage`. The

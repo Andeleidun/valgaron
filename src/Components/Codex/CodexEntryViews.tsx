@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { NavLink } from 'react-router-dom';
 import {
   createEmptyDraft,
@@ -16,7 +16,7 @@ import {
   getDraftDetailFields,
   getEntryDetailDisplayModel,
   getEntryEditorBaseFields,
-  getEntryEditorDetailFieldModels,
+  getEntryEditorDetailFieldGroups,
   getEntryDetailFields,
   getEntryEditorCreateTitle,
   getEntryEditorNotesPreviewModel,
@@ -25,10 +25,10 @@ import {
   getEntryHiddenDetailCleanupModel,
   getEntryNameCopiedMessage,
   getEntryNameCopyText,
-  getEntryRelationships,
-  getPlaceRelationshipGroups,
+  getEntryRelationshipGroupsModel,
   getRelationshipEntries,
   getRelationshipEntryRouteById,
+  getRelationshipFieldConfigsForEntryKind,
   getRelationshipManagementRoute,
   getTimelineDiagnostics,
   getTimelineEventItem,
@@ -37,25 +37,23 @@ import {
   getTimelineOrderUpdates,
   relationshipFeatureCopy,
   groupTimelineEventsByEra,
-  buildPlaceRelationshipFieldTextMigrationOperation,
-  filterPlaceRelationshipTargetOptions,
-  getPlaceRelationshipFieldLinks,
-  getPlaceRelationshipFieldTextMigration,
-  getPlaceRelationshipFieldTargetId,
-  getPlaceRelationshipTextMigrationStatus,
-  placeRelationshipFieldCopy,
-  placeRelationshipFieldConfigs,
-  placeRelationshipTextReviewCopy,
-  getPlaceRelationshipTargetOptionDisplay,
-  getPlaceRelationshipTargetOptions,
-  makePlaceFieldRelationship,
+  buildRelationshipFieldTextMigrationOperation,
+  filterRelationshipTargetOptions,
+  getRelationshipFieldLinks,
+  getRelationshipFieldTextMigration,
+  getRelationshipFieldTargetId,
+  getRelationshipTextMigrationStatus,
+  relationshipFieldCopy,
+  relationshipTextReviewCopy,
+  getRelationshipTargetOptionDisplay,
+  getRelationshipTargetOptions,
+  makeFieldRelationship,
   sortTimelineEvents,
   timelineFeatureCopy,
   validateEntryDraft,
   type EntryDraft,
   type EntryListItem,
-  type PlaceRelationshipFieldConfig,
-  type RelationshipWithEntries,
+  type RelationshipFieldConfig,
   type WorldCodex,
   type WorldDetailFieldKey,
   type WorldEntry,
@@ -195,9 +193,9 @@ export function EntryDetail({
       {detailModel.hiddenDetails.length > 0 ? (
         <section
           className="vwb-hidden-detail-panel"
-          aria-label={placeRelationshipTextReviewCopy.hiddenPlaceDetailsTitle}
+          aria-label={entryEditorCopy.hiddenDetailsTitle}
         >
-          <h3>{placeRelationshipTextReviewCopy.hiddenPlaceDetailsTitle}</h3>
+          <h3>{entryEditorCopy.hiddenDetailsTitle}</h3>
           <dl className="vwb-detail-list">
             {detailModel.hiddenDetails.map((field) => (
               <div key={field.key}>
@@ -218,25 +216,6 @@ export function EntryDetail({
   );
 }
 
-function formatRelationshipDirection(
-  relationship: RelationshipWithEntries,
-  currentEntryId: string
-): string {
-  if (!relationship.directional) {
-    return 'Linked with';
-  }
-  return relationship.sourceEntryId === currentEntryId ? 'To' : 'From';
-}
-
-function getRelatedEntry(
-  relationship: RelationshipWithEntries,
-  currentEntryId: string
-): WorldEntry | null {
-  return relationship.sourceEntryId === currentEntryId
-    ? relationship.targetEntry
-    : relationship.sourceEntry;
-}
-
 function EntryRelationships({
   codex,
   entry,
@@ -248,17 +227,13 @@ function EntryRelationships({
   relationships: readonly WorldRelationship[];
   sections: readonly WorldSectionConfig[];
 }) {
-  const linkedRelationships = getEntryRelationships(
-    relationships,
-    codex,
-    sections,
-    entry.id
-  );
-  const placeRelationshipGroups = getPlaceRelationshipGroups(
-    entry,
-    relationships,
-    codex,
-    sections
+  const groupedRelationships = getEntryRelationshipGroupsModel(
+    {
+      codex,
+      entryTypes: sections,
+      relationships,
+    },
+    entry
   );
 
   return (
@@ -278,77 +253,40 @@ function EntryRelationships({
           {relationshipFeatureCopy.manageLinksLabel}
         </NavLink>
       </div>
-      {placeRelationshipGroups.length > 0 ? (
+      {groupedRelationships.length > 0 ? (
         <div className="vwb-relationship-list">
-          {placeRelationshipGroups.map((group) => (
+          {groupedRelationships.map((group) => (
             <section
               className="vwb-relationship-group"
               aria-label={group.label}
               key={group.id}
             >
               <h4>{group.label}</h4>
-              {group.relationships.map((relationship) => {
-                const relatedEntry = getRelatedEntry(relationship, entry.id);
-                return (
-                  <article
-                    className="vwb-relationship-row"
-                    key={relationship.id}
-                  >
-                    <div>
-                      <span className="vwb-entry-kind">
-                        {formatRelationshipDirection(relationship, entry.id)} -{' '}
-                        {relationship.type}
-                      </span>
-                      {relatedEntry ? (
-                        <NavLink
-                          to={getRelationshipEntryRouteById(
-                            codex,
-                            sections,
-                            relatedEntry.id
-                          )}
-                        >
-                          {relatedEntry.name}
-                        </NavLink>
-                      ) : (
-                        <strong>Missing entry</strong>
-                      )}
-                    </div>
-                    {relationship.note ? <p>{relationship.note}</p> : null}
-                  </article>
-                );
-              })}
+              {group.relationships.map((relationship) => (
+                <article className="vwb-relationship-row" key={relationship.id}>
+                  <div>
+                    <span className="vwb-entry-kind">
+                      {relationship.directionLabel} - {relationship.type}
+                    </span>
+                    {relationship.relatedEntryId ? (
+                      <NavLink
+                        to={getRelationshipEntryRouteById(
+                          codex,
+                          sections,
+                          relationship.relatedEntryId
+                        )}
+                      >
+                        {relationship.relatedEntryName}
+                      </NavLink>
+                    ) : (
+                      <strong>{relationship.relatedEntryName}</strong>
+                    )}
+                  </div>
+                  {relationship.note ? <p>{relationship.note}</p> : null}
+                </article>
+              ))}
             </section>
           ))}
-        </div>
-      ) : linkedRelationships.length > 0 ? (
-        <div className="vwb-relationship-list">
-          {linkedRelationships.map((relationship) => {
-            const relatedEntry = getRelatedEntry(relationship, entry.id);
-            return (
-              <article className="vwb-relationship-row" key={relationship.id}>
-                <div>
-                  <span className="vwb-entry-kind">
-                    {formatRelationshipDirection(relationship, entry.id)} -{' '}
-                    {relationship.type}
-                  </span>
-                  {relatedEntry ? (
-                    <NavLink
-                      to={getRelationshipEntryRouteById(
-                        codex,
-                        sections,
-                        relatedEntry.id
-                      )}
-                    >
-                      {relatedEntry.name}
-                    </NavLink>
-                  ) : (
-                    <strong>Missing entry</strong>
-                  )}
-                </div>
-                {relationship.note ? <p>{relationship.note}</p> : null}
-              </article>
-            );
-          })}
         </div>
       ) : (
         <div className="vwb-empty-results" role="status">
@@ -663,7 +601,37 @@ export function ResetConfirmationDialog({
 
 const RELATIONSHIP_TARGET_RESULT_LIMIT = 60;
 
-function PlaceRelationshipFieldControl({
+function getSectionNoun(section: WorldSectionConfig): string {
+  return section.singularTitle.toLowerCase();
+}
+
+function getLinkedFieldPanelTitle(section: WorldSectionConfig): string {
+  return `Linked ${getSectionNoun(section)} fields`;
+}
+
+function getLinkedFieldPanelLabel(section: WorldSectionConfig): string {
+  return `Relationship-backed ${getSectionNoun(section)} fields`;
+}
+
+function getLinkedFieldBlockedMessage(section: WorldSectionConfig): string {
+  return `Save this ${getSectionNoun(
+    section
+  )} before editing relationship links.`;
+}
+
+function getActiveRelationshipFieldConfigs(
+  entry: WorldEntry | undefined,
+  visibleFieldKeys: ReadonlySet<WorldDetailFieldKey>
+): RelationshipFieldConfig[] {
+  if (!entry) {
+    return [];
+  }
+  return getRelationshipFieldConfigsForEntryKind(entry.kind).filter((config) =>
+    visibleFieldKeys.has(config.fieldKey)
+  );
+}
+
+function RelationshipFieldControl({
   codex,
   config,
   entry,
@@ -673,7 +641,7 @@ function PlaceRelationshipFieldControl({
   sections,
 }: {
   codex: WorldCodex;
-  config: PlaceRelationshipFieldConfig;
+  config: RelationshipFieldConfig;
   entry: WorldEntry;
   onDeleteRelationship: (relationshipId: string) => void;
   onSaveRelationship: (relationship: WorldRelationship) => void;
@@ -682,29 +650,29 @@ function PlaceRelationshipFieldControl({
 }) {
   const [query, setQuery] = useState('');
   const [expandedUnusualTargets, setExpandedUnusualTargets] = useState(false);
-  const fieldRelationships = getPlaceRelationshipFieldLinks(
+  const fieldRelationships = getRelationshipFieldLinks(
     relationships,
     entry,
     config
   );
   const selectedTargetIds = new Set(
     fieldRelationships.map((relationship) =>
-      getPlaceRelationshipFieldTargetId(relationship, config)
+      getRelationshipFieldTargetId(relationship, config)
     )
   );
-  const options = getPlaceRelationshipTargetOptions({
+  const options = getRelationshipTargetOptions({
     codex,
     config,
     includedTargetIds: selectedTargetIds,
     sections,
     currentEntry: entry,
   });
-  const filteredOptions = filterPlaceRelationshipTargetOptions(
+  const filteredOptions = filterRelationshipTargetOptions(
     options,
     query,
     selectedTargetIds
   );
-  const optionDisplay = getPlaceRelationshipTargetOptionDisplay({
+  const optionDisplay = getRelationshipTargetOptionDisplay({
     expandedUnusualTargets,
     limit: RELATIONSHIP_TARGET_RESULT_LIMIT,
     options: filteredOptions,
@@ -719,12 +687,7 @@ function PlaceRelationshipFieldControl({
     existingRelationship?: WorldRelationship
   ) => {
     onSaveRelationship(
-      makePlaceFieldRelationship(
-        entry,
-        config,
-        targetEntryId,
-        existingRelationship
-      )
+      makeFieldRelationship(entry, config, targetEntryId, existingRelationship)
     );
   };
 
@@ -741,7 +704,7 @@ function PlaceRelationshipFieldControl({
     }
     if (
       primaryRelationship &&
-      getPlaceRelationshipFieldTargetId(primaryRelationship, config) ===
+      getRelationshipFieldTargetId(primaryRelationship, config) ===
         targetEntryId
     ) {
       return;
@@ -752,8 +715,7 @@ function PlaceRelationshipFieldControl({
   const toggleManyTarget = (targetEntryId: string, checked: boolean) => {
     const existingRelationship = fieldRelationships.find(
       (relationship) =>
-        getPlaceRelationshipFieldTargetId(relationship, config) ===
-        targetEntryId
+        getRelationshipFieldTargetId(relationship, config) === targetEntryId
     );
     if (checked) {
       if (!existingRelationship) {
@@ -782,7 +744,7 @@ function PlaceRelationshipFieldControl({
             <input
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder={placeRelationshipFieldCopy.searchPlaceholder}
+              placeholder={relationshipFieldCopy.searchPlaceholder}
               type="search"
             />
           </label>
@@ -793,17 +755,17 @@ function PlaceRelationshipFieldControl({
                   <input
                     checked={fieldRelationships.length === 0}
                     onChange={() => setSingleTarget('')}
-                    name={`place-link-${entry.id}-${config.fieldKey}`}
+                    name={`relationship-link-${entry.id}-${config.fieldKey}`}
                     type="radio"
                   />
-                  {placeRelationshipFieldCopy.noLinkedRecordLabel}
+                  {relationshipFieldCopy.noLinkedRecordLabel}
                 </label>
                 {visibleOptions.map((option) => (
                   <label className="vwb-inline-toggle" key={option.entry.id}>
                     <input
                       checked={selectedTargetIds.has(option.entry.id)}
                       onChange={() => setSingleTarget(option.entry.id)}
-                      name={`place-link-${entry.id}-${config.fieldKey}`}
+                      name={`relationship-link-${entry.id}-${config.fieldKey}`}
                       type="radio"
                     />
                     {option.entry.name} ({option.section.singularTitle})
@@ -834,7 +796,7 @@ function PlaceRelationshipFieldControl({
             )
           ) : (
             <p className="vwb-inline-status">
-              {placeRelationshipFieldCopy.noMatchingTargetsMessage}
+              {relationshipFieldCopy.noMatchingTargetsMessage}
             </p>
           )}
           {optionDisplay.canExpandUnusualTargets ? (
@@ -854,7 +816,7 @@ function PlaceRelationshipFieldControl({
         </>
       ) : (
         <p className="vwb-inline-status">
-          {placeRelationshipFieldCopy.createMatchingRecordsMessage}
+          {relationshipFieldCopy.createMatchingRecordsMessage}
         </p>
       )}
     </section>
@@ -908,43 +870,42 @@ export function EntryForm({
   const [draft, setDraft] = useState<EntryDraft>(() => baselineDraft);
   const [error, setError] = useState('');
   const [copyStatus, setCopyStatus] = useState('');
+  const reportedBaselineDraftRef = useRef(baselineDraft);
   const isDirty = hasUnsavedChanges(baselineDraft, draft);
-  const selectedPlaceCategory = draft.details.category ?? '';
+  const isBaselineResetPending =
+    reportedBaselineDraftRef.current !== baselineDraft;
+  const reportedIsDirty = !isBaselineResetPending && isDirty;
   const visibleDetailFields = useMemo(
-    () =>
-      getDraftDetailFields(section, {
-        details: { category: selectedPlaceCategory },
-      }),
-    [section, selectedPlaceCategory]
+    () => getDraftDetailFields(section, draft),
+    [section, draft]
   );
   const visibleFieldKeys = new Set(
     visibleDetailFields.map((field) => field.key)
   );
-  const activeRelationshipFieldConfigs =
-    selectedEntry?.kind === 'place'
-      ? placeRelationshipFieldConfigs.filter((config) =>
-          visibleFieldKeys.has(config.fieldKey)
-        )
-      : [];
+  const activeRelationshipFieldConfigs = getActiveRelationshipFieldConfigs(
+    selectedEntry,
+    visibleFieldKeys
+  );
   const relationshipFieldKeys = new Set(
     activeRelationshipFieldConfigs.map((config) => config.fieldKey)
   );
   const editableDetailFields =
-    selectedEntry?.kind === 'place'
+    selectedEntry?.kind === 'place' || selectedEntry?.kind === 'character'
       ? visibleDetailFields.filter(
           (field) => !relationshipFieldKeys.has(field.key)
         )
       : visibleDetailFields;
   const baseFields = getEntryEditorBaseFields(section, draft);
   const notesPreview = getEntryEditorNotesPreviewModel(draft.notes);
-  const detailFieldModels = useMemo(
+  const detailFieldGroups = useMemo(
     () =>
-      getEntryEditorDetailFieldModels({
+      getEntryEditorDetailFieldGroups({
         draft,
         fields: editableDetailFields,
+        section,
         sectionEntries,
       }),
-    [draft, editableDetailFields, sectionEntries]
+    [draft, editableDetailFields, section, sectionEntries]
   );
   const hiddenDetailCleanup = getEntryHiddenDetailCleanupModel(section, draft);
   const selectedActionModel = selectedEntry
@@ -958,7 +919,7 @@ export function EntryForm({
       value: draft.details[config.fieldKey]?.trim() ?? '',
     }))
     .filter((field) => field.value);
-  const canEditPlaceRelationships = Boolean(
+  const canEditRelationshipFields = Boolean(
     selectedEntry &&
       !isDirty &&
       codex &&
@@ -968,17 +929,18 @@ export function EntryForm({
       onSaveRelationship
   );
 
-  useUnsavedChangesWarning(isDirty);
+  useUnsavedChangesWarning(reportedIsDirty);
 
   useEffect(() => {
+    reportedBaselineDraftRef.current = baselineDraft;
     setDraft(baselineDraft);
     setError('');
     setCopyStatus('');
   }, [baselineDraft]);
 
   useEffect(() => {
-    onDirtyChange?.(isDirty);
-  }, [isDirty, onDirtyChange]);
+    onDirtyChange?.(reportedIsDirty);
+  }, [onDirtyChange, reportedIsDirty]);
 
   const updateDetail = (key: WorldDetailFieldKey, value: string) => {
     setDraft((currentDraft) => ({
@@ -1032,13 +994,13 @@ export function EntryForm({
   };
 
   const getLegacyRelationshipTextMigration = (
-    config: PlaceRelationshipFieldConfig,
+    config: RelationshipFieldConfig,
     value: string
   ) => {
     if (!selectedEntry || !codex || !sections) {
       return null;
     }
-    return getPlaceRelationshipFieldTextMigration({
+    return getRelationshipFieldTextMigration({
       codex,
       config,
       currentEntry: selectedEntry,
@@ -1048,7 +1010,7 @@ export function EntryForm({
   };
 
   const migrateLegacyRelationshipText = (
-    config: PlaceRelationshipFieldConfig,
+    config: RelationshipFieldConfig,
     value: string
   ) => {
     if (
@@ -1066,7 +1028,7 @@ export function EntryForm({
     if (!migration || migration.targetIds.length === 0) {
       return;
     }
-    const operation = buildPlaceRelationshipFieldTextMigrationOperation({
+    const operation = buildRelationshipFieldTextMigrationOperation({
       config,
       entry: selectedEntry,
       migration,
@@ -1102,7 +1064,7 @@ export function EntryForm({
               : getEntryEditorCreateTitle(section)}
           </h2>
         </div>
-        {isDirty ? (
+        {reportedIsDirty ? (
           <span className="vwb-status-pill">
             {entryEditorCopy.unsavedLabel}
           </span>
@@ -1222,66 +1184,78 @@ export function EntryForm({
         </label>
       </div>
 
-      <div className="vwb-form-grid">
-        {detailFieldModels.map((field) =>
-          (() => {
-            const suggestionId = getDetailFieldSuggestionId(
-              section.id,
-              field.key
-            );
-            return (
-              <label
-                className={field.multiline ? 'vwb-wide-field' : undefined}
-                key={field.key}
-              >
-                {field.label}
-                {field.multiline ? (
-                  <textarea
-                    value={field.value}
-                    onChange={(event) =>
-                      updateDetail(field.key, event.target.value)
-                    }
-                    rows={field.rows}
-                  />
-                ) : (
-                  <>
-                    <input
-                      value={field.value}
-                      onChange={(event) =>
-                        updateDetail(field.key, event.target.value)
-                      }
-                      list={
-                        field.suggestions.length > 0 ? suggestionId : undefined
-                      }
-                    />
-                    {field.suggestions.length > 0 ? (
-                      <datalist id={suggestionId}>
-                        {field.suggestions.map((option) => (
-                          <option value={option} key={option} />
-                        ))}
-                      </datalist>
-                    ) : null}
-                  </>
-                )}
-              </label>
-            );
-          })()
-        )}
-      </div>
+      {detailFieldGroups.map((group) => (
+        <section
+          className={
+            detailFieldGroups.length > 1 ? 'vwb-field-group' : undefined
+          }
+          aria-label={group.label}
+          key={group.id}
+        >
+          {detailFieldGroups.length > 1 ? <h3>{group.label}</h3> : null}
+          <div className="vwb-form-grid">
+            {group.fields.map((field) =>
+              (() => {
+                const suggestionId = getDetailFieldSuggestionId(
+                  section.id,
+                  field.key
+                );
+                return (
+                  <label
+                    className={field.multiline ? 'vwb-wide-field' : undefined}
+                    key={field.key}
+                  >
+                    {field.label}
+                    {field.multiline ? (
+                      <textarea
+                        value={field.value}
+                        onChange={(event) =>
+                          updateDetail(field.key, event.target.value)
+                        }
+                        rows={field.rows}
+                      />
+                    ) : (
+                      <>
+                        <input
+                          value={field.value}
+                          onChange={(event) =>
+                            updateDetail(field.key, event.target.value)
+                          }
+                          list={
+                            field.suggestions.length > 0
+                              ? suggestionId
+                              : undefined
+                          }
+                        />
+                        {field.suggestions.length > 0 ? (
+                          <datalist id={suggestionId}>
+                            {field.suggestions.map((option) => (
+                              <option value={option} key={option} />
+                            ))}
+                          </datalist>
+                        ) : null}
+                      </>
+                    )}
+                  </label>
+                );
+              })()
+            )}
+          </div>
+        </section>
+      ))}
 
-      {selectedEntry?.kind === 'place' &&
-      activeRelationshipFieldConfigs.length > 0 ? (
+      {selectedEntry && activeRelationshipFieldConfigs.length > 0 ? (
         <section
           className="vwb-linked-field-panel"
-          aria-label="Relationship-backed place fields"
+          aria-label={getLinkedFieldPanelLabel(section)}
         >
           <div>
-            <h3>{placeRelationshipTextReviewCopy.linkedFieldsTitle}</h3>
-            <p>{placeRelationshipTextReviewCopy.linkedFieldsDescription}</p>
+            <h3>{getLinkedFieldPanelTitle(section)}</h3>
+            <p>{relationshipTextReviewCopy.linkedFieldsDescription}</p>
           </div>
-          {canEditPlaceRelationships ? (
+          {canEditRelationshipFields ? (
             activeRelationshipFieldConfigs.map((config) => (
-              <PlaceRelationshipFieldControl
+              <RelationshipFieldControl
                 codex={codex!}
                 config={config}
                 entry={selectedEntry}
@@ -1294,20 +1268,18 @@ export function EntryForm({
             ))
           ) : (
             <p className="vwb-inline-status">
-              {placeRelationshipTextReviewCopy.linkedFieldsBlockedMessage}
+              {getLinkedFieldBlockedMessage(section)}
             </p>
           )}
           {legacyRelationshipTextValues.length > 0 ? (
             <section
               className="vwb-hidden-detail-panel"
-              aria-label={
-                placeRelationshipTextReviewCopy.savedTextLinkNotesTitle
-              }
+              aria-label={relationshipTextReviewCopy.savedTextLinkNotesTitle}
             >
-              <h4>{placeRelationshipTextReviewCopy.savedTextLinkNotesTitle}</h4>
+              <h4>{relationshipTextReviewCopy.savedTextLinkNotesTitle}</h4>
               <dl className="vwb-detail-list">
                 {legacyRelationshipTextValues.map((field) => {
-                  const migration = canEditPlaceRelationships
+                  const migration = canEditRelationshipFields
                     ? getLegacyRelationshipTextMigration(
                         field.config,
                         field.value
@@ -1330,7 +1302,7 @@ export function EntryForm({
                             }
                           >
                             {
-                              placeRelationshipTextReviewCopy.exactMatchMigrationLabel
+                              relationshipTextReviewCopy.exactMatchMigrationLabel
                             }
                           </button>
                         ) : null}
@@ -1343,7 +1315,7 @@ export function EntryForm({
                         </button>
                         {migration ? (
                           <small>
-                            {getPlaceRelationshipTextMigrationStatus(migration)}
+                            {getRelationshipTextMigrationStatus(migration)}
                           </small>
                         ) : null}
                       </dd>

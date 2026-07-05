@@ -1,10 +1,18 @@
-import type { WorldEntry, WorldSectionConfig } from './types';
+import type {
+  WorldEntry,
+  WorldRelationship,
+  WorldSectionConfig,
+} from './types';
 import {
   createEmptyDraft,
   draftFromEntry,
   type EntryDraft,
 } from './codexEntries';
 import { getEntryDetailFields, getDraftDetailFields } from './placeTaxonomy';
+import {
+  getRelationshipFieldConfigsForEntryKind,
+  getRelationshipFieldLinks,
+} from './relationshipFields';
 
 export type EntryTemplateDraft = Pick<
   EntryDraft,
@@ -22,7 +30,7 @@ export type EntryCompleteness = {
 
 const templateNotesByKind: Record<string, string> = {
   character:
-    '## Role in the story\n\n## Wants\n\n## Fears\n\n## Secrets\n\n## Open questions',
+    '## Role in the story\n\n## Wants\n\n## Fears\n\n## Relationships\n\n## Secrets\n\n## Open questions',
   place:
     '## First impression\n\n## History\n\n## Current tension\n\n## Secrets\n\n## Open questions',
   faction:
@@ -37,6 +45,13 @@ const detailPromptsByKey: Record<string, string> = {
   home: 'Give this character a home or origin.',
   affiliation: 'Connect this character to a group or allegiance.',
   statusNote: 'Describe this character current status.',
+  characterCategory: 'Choose a character category.',
+  narrativeRole: 'Define this character narrative role.',
+  ancestry: 'Add this character ancestry when relevant.',
+  profession: 'Add this character profession when relevant.',
+  homePlace: 'Give this character a home, lair, or base.',
+  affiliations: 'Connect this character to a group or allegiance.',
+  currentStatus: 'Describe this character current status.',
   region: 'Assign this place to a region.',
   climate: 'Describe the climate or atmosphere.',
   significance: 'Explain why this place matters.',
@@ -107,8 +122,15 @@ export function applyEntrySectionTemplate(
 /** Score an entry for lightweight drafting completeness. */
 export function getEntryCompleteness(
   entry: WorldEntry,
-  section: WorldSectionConfig
+  section: WorldSectionConfig,
+  relationships: readonly WorldRelationship[] = []
 ): EntryCompleteness {
+  const relationshipFieldConfigByKey = new Map(
+    getRelationshipFieldConfigsForEntryKind(entry.kind).map((config) => [
+      config.fieldKey,
+      config,
+    ])
+  );
   const checks = [
     {
       complete: entry.summary.trim().length > 0,
@@ -123,7 +145,16 @@ export function getEntryCompleteness(
       prompt: 'Add at least one tag.',
     },
     ...getEntryDetailFields(section, entry).map((field) => ({
-      complete: (entry.fields[field.key] ?? '').trim().length > 0,
+      complete:
+        (entry.fields[field.key] ?? '').trim().length > 0 ||
+        Boolean(
+          relationshipFieldConfigByKey.has(field.key) &&
+            getRelationshipFieldLinks(
+              relationships,
+              entry,
+              relationshipFieldConfigByKey.get(field.key)!
+            ).length > 0
+        ),
       prompt: detailPromptsByKey[field.key] ?? `Fill in ${field.label}.`,
     })),
   ];
@@ -144,12 +175,15 @@ export function getEntryCompleteness(
 /** Return incomplete visible entries ordered by least complete first. */
 export function getIncompleteEntries(
   entries: readonly WorldEntry[],
-  sections: readonly WorldSectionConfig[]
+  sections: readonly WorldSectionConfig[],
+  relationships: readonly WorldRelationship[] = []
 ): EntryCompleteness[] {
   return entries
     .map((entry) => {
       const section = sections.find((item) => item.kind === entry.kind);
-      return section ? getEntryCompleteness(entry, section) : null;
+      return section
+        ? getEntryCompleteness(entry, section, relationships)
+        : null;
     })
     .filter(
       (result): result is EntryCompleteness =>

@@ -12,8 +12,11 @@ import {
 import {
   getEntryDetailFields,
   placeRelationshipFieldConfigs,
-  type PlaceRelationshipFieldConfig,
 } from './placeTaxonomy';
+import {
+  characterRelationshipFieldConfigs,
+  type CharacterRelationshipFieldConfig,
+} from './characterTaxonomy';
 import type {
   WorldCodex,
   WorldEntry,
@@ -21,15 +24,55 @@ import type {
   WorldSectionConfig,
 } from './types';
 
-export type PlaceRelationshipTargetOption = {
+export type RelationshipTargetOption = {
   entry: WorldEntry;
   section: WorldSectionConfig;
   isPreferredTarget: boolean;
   targetCategoryWarning?: string;
 };
 
-export type PlaceRelationshipTargetOptionDisplay = {
-  visibleOptions: PlaceRelationshipTargetOption[];
+export type RelationshipFieldConfig = {
+  fieldKey: string;
+  label: string;
+  relationshipType: string;
+  directional: boolean;
+  cardinality: 'one' | 'many';
+  currentEntryRole: 'source' | 'target';
+  targetEntryKinds: readonly string[];
+  targetPlaceCategories?: readonly string[];
+  targetCategoryBehavior?: 'hard' | 'preferred' | 'soft';
+};
+
+function characterConfigToRelationshipFieldConfig(
+  config: CharacterRelationshipFieldConfig
+): RelationshipFieldConfig {
+  return {
+    fieldKey: config.fieldKey,
+    label: config.label,
+    relationshipType: config.relationshipTypeLabel,
+    directional: config.directional,
+    cardinality: config.cardinality,
+    currentEntryRole: config.currentEntryRole,
+    targetEntryKinds: config.targetEntryKinds,
+  };
+}
+
+export function getRelationshipFieldConfigsForEntryKind(
+  entryKind: string
+): RelationshipFieldConfig[] {
+  if (entryKind === 'place') {
+    return [...placeRelationshipFieldConfigs];
+  }
+  if (entryKind === 'character') {
+    return characterRelationshipFieldConfigs.map(
+      characterConfigToRelationshipFieldConfig
+    );
+  }
+  return [];
+}
+
+export type RelationshipTargetOptionDisplay = {
+  visibleOptions: RelationshipTargetOption[];
   hiddenPreferredCount: number;
   hiddenPreferredMessage: string;
   hiddenUnusualCount: number;
@@ -37,7 +80,7 @@ export type PlaceRelationshipTargetOptionDisplay = {
   showUnusualTargetsLabel: string;
 };
 
-export type PlaceRelationshipTextReviewItem = {
+export type RelationshipTextReviewItem = {
   entryId: string;
   entryName: string;
   sectionId: string;
@@ -62,25 +105,25 @@ export type PlaceRelationshipTextReviewItem = {
   }[];
 };
 
-export const placeRelationshipTextReviewCopy = {
+export const relationshipTextReviewCopy = {
   title: 'Legacy Link Text',
   batchExactMatchLabel: 'Migrate All Exact Matches',
   draftBlockedMessage:
     'Save or discard the current entry draft before migrating exact matches.',
   exactMatchMigrationLabel: 'Migrate Exact Matches',
-  hiddenPlaceDetailsTitle: 'Hidden place details',
+  hiddenEntryDetailsTitle: 'Hidden entry details',
   linkedFieldsBlockedMessage:
-    'Save this place before editing relationship links.',
+    'Save this entry before editing relationship links.',
   linkedFieldsDescription:
     'These fields are saved as relationships so linked records stay navigable from both sides.',
-  linkedFieldsTitle: 'Linked place fields',
+  linkedFieldsTitle: 'Linked relationship fields',
   noExactMatchesFound: 'No exact matches found.',
   reviewEntryLabel: 'Review Entry',
   savedTextLinkNotesTitle: 'Saved text link notes',
   unmatchedTextWillRemain: 'Unmatched text will remain.',
 } as const;
 
-export const placeRelationshipFieldCopy = {
+export const relationshipFieldCopy = {
   createMatchingRecordsMessage:
     'Create matching records before linking this field.',
   noLinkedRecordLabel: 'No linked record',
@@ -89,13 +132,13 @@ export const placeRelationshipFieldCopy = {
   searchPlaceholder: 'Filter linked record targets',
 } as const;
 
-export function getPlaceRelationshipTextReviewSummary(count: number): string {
-  return `${count} relationship-backed field${count === 1 ? '' : 's'} still ${
+export function getRelationshipTextReviewSummary(count: number): string {
+  return `${count} relationship-backed field${count === 1 ? '' : 's'} ${
     count === 1 ? 'contains' : 'contain'
-  } text that exact-match migration cannot fully resolve.`;
+  } saved text that can be reviewed or migrated to relationships.`;
 }
 
-export function getPlaceRelationshipTextMigrationStatus({
+export function getRelationshipTextMigrationStatus({
   remainingText,
   targetIds,
 }: Pick<
@@ -107,13 +150,13 @@ export function getPlaceRelationshipTextMigrationStatus({
       ? `${targetIds.length} exact match${
           targetIds.length === 1 ? '' : 'es'
         } found.`
-      : placeRelationshipTextReviewCopy.noExactMatchesFound;
+      : relationshipTextReviewCopy.noExactMatchesFound;
   return remainingText
-    ? `${matchText} ${placeRelationshipTextReviewCopy.unmatchedTextWillRemain}`
+    ? `${matchText} ${relationshipTextReviewCopy.unmatchedTextWillRemain}`
     : matchText;
 }
 
-export type PlaceRelationshipTextReviewMigration = {
+export type RelationshipTextReviewMigration = {
   relationshipIdsToDelete: string[];
   relationshipsToSave: {
     relationship: WorldRelationship;
@@ -122,7 +165,7 @@ export type PlaceRelationshipTextReviewMigration = {
   fields: Record<string, string>;
 };
 
-export type PlaceRelationshipFieldTextMigrationOperation = {
+export type RelationshipFieldTextMigrationOperation = {
   relationshipIdsToDelete: string[];
   relationshipsToSave: {
     relationship: WorldRelationship;
@@ -131,7 +174,7 @@ export type PlaceRelationshipFieldTextMigrationOperation = {
   fields: Record<string, string>;
 };
 
-export type PlaceRelationshipTextReviewBatchMigration = {
+export type RelationshipTextReviewBatchMigration = {
   relationshipIdsToDelete: string[];
   relationshipsToSave: {
     relationship: WorldRelationship;
@@ -143,28 +186,29 @@ export type PlaceRelationshipTextReviewBatchMigration = {
   }[];
 };
 
-export type PlaceRelationshipTextReviewSuggestionMigrationInput = {
-  config: PlaceRelationshipFieldConfig;
+export type RelationshipTextReviewSuggestionMigrationInput = {
+  config: RelationshipFieldConfig;
   entry: WorldEntry;
   fragment: string;
-  item: PlaceRelationshipTextReviewItem;
+  item: RelationshipTextReviewItem;
   relationships: readonly WorldRelationship[];
   targetEntryId: string;
 };
 
-export function getPlaceRelationshipTextReviewUnresolvedLabel(
-  item: PlaceRelationshipTextReviewItem
+export function getRelationshipTextReviewUnresolvedLabel(
+  item: RelationshipTextReviewItem
 ): string {
-  return [
+  const label = [
     ...item.unresolvedFragments,
     ...item.ambiguousFragments.map(
       (fragment) => `${fragment.fragment} (duplicate name)`
     ),
   ].join(', ');
+  return label || 'None';
 }
 
-export function getPlaceRelationshipTextReviewExactMatchLabel(
-  item: PlaceRelationshipTextReviewItem
+export function getRelationshipTextReviewExactMatchLabel(
+  item: RelationshipTextReviewItem
 ): string {
   if (item.exactMatchCount === 0) {
     return 'No exact matches available.';
@@ -174,8 +218,8 @@ export function getPlaceRelationshipTextReviewExactMatchLabel(
   } available.`;
 }
 
-export function getPlaceRelationshipTextReviewSuggestionLabels(
-  item: PlaceRelationshipTextReviewItem
+export function getRelationshipTextReviewSuggestionLabels(
+  item: RelationshipTextReviewItem
 ): string[] {
   return item.suggestedTargets.map(
     (suggestion) =>
@@ -185,7 +229,7 @@ export function getPlaceRelationshipTextReviewSuggestionLabels(
   );
 }
 
-export function getPlaceRelationshipTargetOptions({
+export function getRelationshipTargetOptions({
   codex,
   config,
   includedTargetIds,
@@ -193,11 +237,11 @@ export function getPlaceRelationshipTargetOptions({
   currentEntry,
 }: {
   codex: WorldCodex;
-  config: PlaceRelationshipFieldConfig;
+  config: RelationshipFieldConfig;
   includedTargetIds?: ReadonlySet<string>;
   sections: readonly WorldSectionConfig[];
   currentEntry: WorldEntry;
-}): PlaceRelationshipTargetOption[] {
+}): RelationshipTargetOption[] {
   const targetCategoryBehavior =
     config.targetCategoryBehavior ??
     (config.targetPlaceCategories && config.targetPlaceCategories.length > 0
@@ -216,7 +260,7 @@ export function getPlaceRelationshipTargetOptions({
     })
     .flatMap((section) =>
       getEntries(codex, section.id).flatMap(
-        (entry): PlaceRelationshipTargetOption[] => {
+        (entry): RelationshipTargetOption[] => {
           const selected = includedTargetIds?.has(entry.id) ?? false;
           if (entry.id === currentEntry.id) {
             return [];
@@ -265,19 +309,22 @@ export function getPlaceRelationshipTargetOptions({
     );
 }
 
-export function getPlaceRelationshipFieldTargetId(
+export function getRelationshipFieldTargetId(
   relationship: WorldRelationship,
-  config: PlaceRelationshipFieldConfig
+  config: Pick<RelationshipFieldConfig, 'currentEntryRole'>
 ): string {
   return config.currentEntryRole === 'source'
     ? relationship.targetEntryId
     : relationship.sourceEntryId;
 }
 
-export function getPlaceRelationshipFieldLinks(
+export function getRelationshipFieldLinks(
   relationships: readonly WorldRelationship[],
   entry: WorldEntry,
-  config: PlaceRelationshipFieldConfig
+  config: Pick<
+    RelationshipFieldConfig,
+    'currentEntryRole' | 'directional' | 'relationshipType'
+  >
 ): WorldRelationship[] {
   return relationships.filter(
     (relationship) =>
@@ -289,9 +336,9 @@ export function getPlaceRelationshipFieldLinks(
   );
 }
 
-export function makePlaceFieldRelationship(
+export function makeFieldRelationship(
   entry: WorldEntry,
-  config: PlaceRelationshipFieldConfig,
+  config: RelationshipFieldConfig,
   targetEntryId: string,
   existingRelationship?: WorldRelationship
 ): WorldRelationship {
@@ -312,11 +359,11 @@ export function makePlaceFieldRelationship(
   );
 }
 
-export function filterPlaceRelationshipTargetOptions(
-  options: readonly PlaceRelationshipTargetOption[],
+export function filterRelationshipTargetOptions(
+  options: readonly RelationshipTargetOption[],
   query: string,
   selectedTargetIds: ReadonlySet<string>
-): PlaceRelationshipTargetOption[] {
+): RelationshipTargetOption[] {
   const normalizedQuery = query.trim().toLowerCase();
   if (!normalizedQuery) {
     return [...options];
@@ -335,11 +382,11 @@ export function filterPlaceRelationshipTargetOptions(
   );
 }
 
-export function limitPlaceRelationshipTargetOptions(
-  options: readonly PlaceRelationshipTargetOption[],
+export function limitRelationshipTargetOptions(
+  options: readonly RelationshipTargetOption[],
   selectedTargetIds: ReadonlySet<string>,
   limit: number
-): PlaceRelationshipTargetOption[] {
+): RelationshipTargetOption[] {
   const selectedOptions = options.filter((option) =>
     selectedTargetIds.has(option.entry.id)
   );
@@ -352,7 +399,7 @@ export function limitPlaceRelationshipTargetOptions(
   );
 }
 
-export function getPlaceRelationshipTargetOptionDisplay({
+export function getRelationshipTargetOptionDisplay({
   expandedUnusualTargets,
   limit,
   options,
@@ -361,10 +408,10 @@ export function getPlaceRelationshipTargetOptionDisplay({
 }: {
   expandedUnusualTargets: boolean;
   limit: number;
-  options: readonly PlaceRelationshipTargetOption[];
+  options: readonly RelationshipTargetOption[];
   selectedTargetIds: ReadonlySet<string>;
-  targetCategoryBehavior?: PlaceRelationshipFieldConfig['targetCategoryBehavior'];
-}): PlaceRelationshipTargetOptionDisplay {
+  targetCategoryBehavior?: RelationshipFieldConfig['targetCategoryBehavior'];
+}): RelationshipTargetOptionDisplay {
   const shouldShowUnusualTargets =
     expandedUnusualTargets || targetCategoryBehavior === 'soft';
   const selectedOptions = options.filter((option) =>
@@ -429,9 +476,7 @@ function normalizeReviewFragment(value: string): string {
   return value.trim().replace(/\s+/g, ' ').toLowerCase();
 }
 
-function getSuggestionTargetContext(
-  option: PlaceRelationshipTargetOption
-): string {
+function getSuggestionTargetContext(option: RelationshipTargetOption): string {
   const category = option.entry.fields.category?.trim();
   return category
     ? `${category} in ${option.section.title}`
@@ -440,8 +485,8 @@ function getSuggestionTargetContext(
 
 function getSuggestedTargetsForUnresolvedFragments(
   unresolvedFragments: readonly string[],
-  options: readonly PlaceRelationshipTargetOption[]
-): PlaceRelationshipTextReviewItem['suggestedTargets'] {
+  options: readonly RelationshipTargetOption[]
+): RelationshipTextReviewItem['suggestedTargets'] {
   return unresolvedFragments
     .map((fragment) => {
       const normalizedFragment = normalizeReviewFragment(fragment);
@@ -482,28 +527,31 @@ function getSuggestedTargetsForUnresolvedFragments(
     .filter((suggestion) => suggestion.targets.length > 0);
 }
 
-export function getPlaceRelationshipTextReviewItems({
+export function getRelationshipTextReviewItems({
   codex,
   sections,
 }: {
   codex: WorldCodex;
   sections: readonly WorldSectionConfig[];
-}): PlaceRelationshipTextReviewItem[] {
+}): RelationshipTextReviewItem[] {
   return sections
-    .filter((section) => section.kind === 'place')
+    .filter(
+      (section) =>
+        getRelationshipFieldConfigsForEntryKind(section.kind).length > 0
+    )
     .flatMap((section) =>
       getEntries(codex, section.id).flatMap((entry) => {
         const visibleFieldKeys = new Set(
           getEntryDetailFields(section, entry).map((field) => field.key)
         );
-        return placeRelationshipFieldConfigs
+        return getRelationshipFieldConfigsForEntryKind(section.kind)
           .filter((config) => visibleFieldKeys.has(config.fieldKey))
           .flatMap((config) => {
             const value = entry.fields[config.fieldKey]?.trim() ?? '';
             if (!value) {
               return [];
             }
-            const options = getPlaceRelationshipTargetOptions({
+            const options = getRelationshipTargetOptions({
               codex,
               config,
               sections,
@@ -517,7 +565,7 @@ export function getPlaceRelationshipTextReviewItems({
               })),
               config.cardinality
             );
-            if (!migration.remainingText) {
+            if (migration.targetIds.length === 0 && !migration.remainingText) {
               return [];
             }
             return [
@@ -544,7 +592,7 @@ export function getPlaceRelationshipTextReviewItems({
     );
 }
 
-export function getPlaceRelationshipFieldTextMigration({
+export function getRelationshipFieldTextMigration({
   codex,
   config,
   currentEntry,
@@ -552,12 +600,12 @@ export function getPlaceRelationshipFieldTextMigration({
   value,
 }: {
   codex: WorldCodex;
-  config: PlaceRelationshipFieldConfig;
+  config: RelationshipFieldConfig;
   currentEntry: WorldEntry;
   sections: readonly WorldSectionConfig[];
   value: string;
 }) {
-  const options = getPlaceRelationshipTargetOptions({
+  const options = getRelationshipTargetOptions({
     codex,
     config,
     sections,
@@ -573,24 +621,24 @@ export function getPlaceRelationshipFieldTextMigration({
   );
 }
 
-export function buildPlaceRelationshipFieldTextMigrationOperation({
+export function buildRelationshipFieldTextMigrationOperation({
   config,
   entry,
   migration,
   relationships,
 }: {
-  config: PlaceRelationshipFieldConfig;
+  config: RelationshipFieldConfig;
   entry: WorldEntry;
   migration: RelationshipTextMigrationResult;
   relationships: readonly WorldRelationship[];
-}): PlaceRelationshipFieldTextMigrationOperation {
-  const fieldRelationships = getPlaceRelationshipFieldLinks(
+}): RelationshipFieldTextMigrationOperation {
+  const fieldRelationships = getRelationshipFieldLinks(
     relationships,
     entry,
     config
   );
   const relationshipIdsToDelete: string[] = [];
-  const relationshipsToSave: PlaceRelationshipFieldTextMigrationOperation['relationshipsToSave'] =
+  const relationshipsToSave: RelationshipFieldTextMigrationOperation['relationshipsToSave'] =
     [];
 
   if (config.cardinality === 'one') {
@@ -602,11 +650,11 @@ export function buildPlaceRelationshipFieldTextMigrationOperation({
     if (
       targetEntryId &&
       (!primaryRelationship ||
-        getPlaceRelationshipFieldTargetId(primaryRelationship, config) !==
+        getRelationshipFieldTargetId(primaryRelationship, config) !==
           targetEntryId)
     ) {
       relationshipsToSave.push({
-        relationship: makePlaceFieldRelationship(
+        relationship: makeFieldRelationship(
           entry,
           config,
           targetEntryId,
@@ -619,16 +667,11 @@ export function buildPlaceRelationshipFieldTextMigrationOperation({
     for (const targetEntryId of migration.targetIds) {
       const existingRelationship = fieldRelationships.find(
         (relationship) =>
-          getPlaceRelationshipFieldTargetId(relationship, config) ===
-          targetEntryId
+          getRelationshipFieldTargetId(relationship, config) === targetEntryId
       );
       if (!existingRelationship) {
         relationshipsToSave.push({
-          relationship: makePlaceFieldRelationship(
-            entry,
-            config,
-            targetEntryId
-          ),
+          relationship: makeFieldRelationship(entry, config, targetEntryId),
         });
       }
     }
@@ -648,24 +691,24 @@ export function buildPlaceRelationshipFieldTextMigrationOperation({
   };
 }
 
-export function buildPlaceRelationshipTextReviewMigration({
+export function buildRelationshipTextReviewMigration({
   config,
   entry,
   item,
   relationships,
 }: {
-  config: PlaceRelationshipFieldConfig;
+  config: RelationshipFieldConfig;
   entry: WorldEntry;
-  item: PlaceRelationshipTextReviewItem;
+  item: RelationshipTextReviewItem;
   relationships: readonly WorldRelationship[];
-}): PlaceRelationshipTextReviewMigration {
-  const fieldRelationships = getPlaceRelationshipFieldLinks(
+}): RelationshipTextReviewMigration {
+  const fieldRelationships = getRelationshipFieldLinks(
     relationships,
     entry,
     config
   );
   const relationshipIdsToDelete: string[] = [];
-  const relationshipsToSave: PlaceRelationshipTextReviewMigration['relationshipsToSave'] =
+  const relationshipsToSave: RelationshipTextReviewMigration['relationshipsToSave'] =
     [];
 
   if (config.cardinality === 'one') {
@@ -677,11 +720,11 @@ export function buildPlaceRelationshipTextReviewMigration({
     if (
       targetEntryId &&
       (!primaryRelationship ||
-        getPlaceRelationshipFieldTargetId(primaryRelationship, config) !==
+        getRelationshipFieldTargetId(primaryRelationship, config) !==
           targetEntryId)
     ) {
       relationshipsToSave.push({
-        relationship: makePlaceFieldRelationship(
+        relationship: makeFieldRelationship(
           entry,
           config,
           targetEntryId,
@@ -694,16 +737,11 @@ export function buildPlaceRelationshipTextReviewMigration({
     for (const targetEntryId of item.exactTargetIds) {
       const existingRelationship = fieldRelationships.find(
         (relationship) =>
-          getPlaceRelationshipFieldTargetId(relationship, config) ===
-          targetEntryId
+          getRelationshipFieldTargetId(relationship, config) === targetEntryId
       );
       if (!existingRelationship) {
         relationshipsToSave.push({
-          relationship: makePlaceFieldRelationship(
-            entry,
-            config,
-            targetEntryId
-          ),
+          relationship: makeFieldRelationship(entry, config, targetEntryId),
         });
       }
     }
@@ -743,14 +781,14 @@ function removeFirstReviewFragment(
     .join('\n');
 }
 
-export function buildPlaceRelationshipTextReviewSuggestionMigration({
+export function buildRelationshipTextReviewSuggestionMigration({
   config,
   entry,
   fragment,
   item,
   relationships,
   targetEntryId,
-}: PlaceRelationshipTextReviewSuggestionMigrationInput): PlaceRelationshipTextReviewMigration | null {
+}: RelationshipTextReviewSuggestionMigrationInput): RelationshipTextReviewMigration | null {
   const suggestedTarget = item.suggestedTargets
     .find((suggestion) => suggestion.fragment === fragment)
     ?.targets.some((target) => target.id === targetEntryId);
@@ -762,7 +800,7 @@ export function buildPlaceRelationshipTextReviewSuggestionMigration({
       ? [targetEntryId]
       : Array.from(new Set([...item.exactTargetIds, targetEntryId]));
 
-  return buildPlaceRelationshipTextReviewMigration({
+  return buildRelationshipTextReviewMigration({
     config,
     entry,
     item: {
@@ -785,23 +823,27 @@ function getEntryIndex(
   );
 }
 
-export function buildPlaceRelationshipTextReviewBatchMigration({
+export function buildRelationshipTextReviewBatchMigration({
   codex,
   items,
   relationships,
   sections,
 }: {
   codex: WorldCodex;
-  items: readonly PlaceRelationshipTextReviewItem[];
+  items: readonly RelationshipTextReviewItem[];
   relationships: readonly WorldRelationship[];
   sections: readonly WorldSectionConfig[];
-}): PlaceRelationshipTextReviewBatchMigration {
+}): RelationshipTextReviewBatchMigration {
   const entryById = getEntryIndex(codex, sections);
   const configByFieldKey = new Map(
-    placeRelationshipFieldConfigs.map((config) => [config.fieldKey, config])
+    sections.flatMap((section) =>
+      getRelationshipFieldConfigsForEntryKind(section.kind).map(
+        (config) => [`${section.kind}:${config.fieldKey}`, config] as const
+      )
+    )
   );
   const relationshipIdsToDelete: string[] = [];
-  const relationshipsToSave: PlaceRelationshipTextReviewBatchMigration['relationshipsToSave'] =
+  const relationshipsToSave: RelationshipTextReviewBatchMigration['relationshipsToSave'] =
     [];
   const fieldsByEntryId = new Map<string, Record<string, string>>();
 
@@ -810,7 +852,7 @@ export function buildPlaceRelationshipTextReviewBatchMigration({
       continue;
     }
     const entry = entryById.get(item.entryId);
-    const config = configByFieldKey.get(item.fieldKey);
+    const config = configByFieldKey.get(`${entry?.kind}:${item.fieldKey}`);
     if (!entry || !config) {
       continue;
     }
@@ -818,7 +860,7 @@ export function buildPlaceRelationshipTextReviewBatchMigration({
       ...entry,
       fields: fieldsByEntryId.get(entry.id) ?? entry.fields,
     };
-    const migration = buildPlaceRelationshipTextReviewMigration({
+    const migration = buildRelationshipTextReviewMigration({
       config,
       entry: entryWithCurrentFields,
       item,

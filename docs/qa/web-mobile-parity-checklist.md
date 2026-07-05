@@ -21,6 +21,7 @@ platform capability difference, or removed from supported scope.
 | Relationship navigation routes    | Resolved with shared route helpers      | Core relationship model | Shared route helpers       | Shared route helpers                     | Closed   | Same entry edit and manage-link routes                               |
 | Entry status/sort/filter controls | Resolved with shared descriptors        | Web section page        | Selects/checks/chips       | Selects/checks/chips                     | Closed   | Matching control descriptors                                         |
 | Place relationship fields         | Resolved with shared place field model  | Core place taxonomy     | Linked field controls      | Linked field controls                    | Closed   | Same targets, warnings, lazy expansion, and soft display             |
+| Character logical tree fields     | Resolved with shared character taxonomy | Core character taxonomy | Grouped field controls     | Grouped field controls                   | Closed   | Same category fields, local suggestions, and relationship controls   |
 | Entry notes preview/copy name     | Resolved with mobile editor controls    | Web entry form          | Present                    | Present with guarded clipboard feedback  | Closed   | Same actions and feedback                                            |
 | Data export/import review state   | Resolved with shared Data model         | Core data model         | Shared export/import logic | Shared export/import logic               | Closed   | Same export text, preview, and review state                          |
 | Data export workflow copy         | Resolved with shared Data model         | Core data model         | Shared export option copy  | Shared export action/status copy         | Closed   | Same export/share labels and draft prompts                           |
@@ -63,7 +64,8 @@ Run this workflow on web and mobile after each parity-significant change:
 
 1. Open the codex.
 2. Create or edit a place.
-3. Create or edit a character.
+3. Create or edit a character, including category, ancestry, profession, and
+   relationship-backed fields.
 4. Create or edit an in-fiction world/planet if the feature remains supported.
 5. Create a relationship linking the character and place.
 6. Save or confirm persisted state.

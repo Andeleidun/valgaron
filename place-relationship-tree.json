@@ -53,7 +53,7 @@
       "directional": true,
       "inverseLabel": "controls",
       "sourceKinds": ["place"],
-      "targetKinds": ["faction", "character"],
+      "targetKinds": ["faction", "character", "place"],
       "description": "Current political, military, religious, or personal control."
     },
     {
@@ -80,7 +80,7 @@
       "directional": false,
       "inverseLabel": "connected to",
       "sourceKinds": ["place"],
-      "targetKinds": ["place"],
+      "targetKinds": ["place", "faction"],
       "description": "Travel, trade, river, road, pass, gate, or transit connection."
     },
     {

@@ -18,6 +18,7 @@ Valgaron World Codex is a local-first tool for drafting and organizing fiction o
 - Pinned entries appear on the overview.
 - Rule-based section templates and completeness prompts for underdeveloped records.
 - Typed relationships between entries, including source, target, type, status, direction, and notes.
+- Character and place taxonomy artifacts generate runtime field metadata for category-specific editor fields and relationship-backed controls.
 - Relationship panels on entry detail views, plus a Relationships route for add, edit, delete, filter, and graph-style browsing.
 - Relationship diagnostics for broken references and orphaned records, repair/delete actions for broken links, graph filters, graph record search, custom relationship type input, and selectable graph nodes.
 - Timeline diagnostics, highlight cards, stable table view, era and involved-entry browsing filters, and earlier/later order controls for chronology work.
@@ -51,6 +52,8 @@ npm run lint
 npm run build
 npm run build:pages
 npm run check:metadata
+npm run generate:taxonomies
+npm run check:taxonomies
 npm run check:audit
 npm run mobile:doctor
 npm run check:performance
@@ -60,7 +63,7 @@ npm run check:browser
 npm run check:release
 ```
 
-`npm test` runs the focused Jest suite for codex utilities and local storage behavior. `npm run test:mobile` runs the mobile-focused Jest tests. `npm run typecheck` runs TypeScript project-reference checking with `tsc -b --noEmit`. `npm run typecheck:mobile` checks the Expo workspace. `npm run build` runs TypeScript build mode and Vite together. `npm run build:pages` also prepares the GitHub Pages route fallback. `npm run check:metadata` verifies that in-app version metadata matches `package.json`. `npm run check:audit` runs the runtime audit and fails on new unreviewed findings while allowing the known Expo CLI/config tooling issue that currently has no SDK-compatible fix. `npm run mobile:doctor` runs Expo Doctor from the mobile workspace so web-only tooling versions do not pollute the Expo SDK checks; it skips the optional React Native Directory lookup and treats network-only Expo API failures as warnings so local compatibility checks still run in restricted environments. `npm run check:performance` runs the large-world performance smoke test against a synthetic 2,500-entry, 5,000-relationship workspace. `npm run check:pwa` validates the built manifest, service worker, install icons, metadata, and Pages fallback. `npm run check` runs format checking, lint, web and mobile typechecks, metadata consistency, Jest, and production build. `npm run check:browser` starts a temporary local Vite server, checks key route text through a headless Chromium browser, verifies the phone-width header actions and Data Menu layout, and writes responsive screenshots under `.tmp/browser-smoke`. `npm run check:release` runs the core gate, runtime audit, mobile Expo Doctor, PWA artifact gate, and browser smoke gate. The browser smoke gate expects Chrome, Edge, or Chromium; set `VWB_BROWSER_PATH` if the browser is installed in a custom location. Vite may warn or fail on Node versions below its supported range; upgrade Node before treating that as an application code failure.
+`npm test` runs the focused Jest suite for codex utilities and local storage behavior. `npm run test:mobile` runs the mobile-focused Jest tests. `npm run typecheck` runs TypeScript project-reference checking with `tsc -b --noEmit`. `npm run typecheck:mobile` checks the Expo workspace. `npm run build` runs TypeScript build mode and Vite together. `npm run build:pages` also prepares the GitHub Pages route fallback. `npm run check:metadata` verifies that in-app version metadata matches `package.json`. `npm run generate:taxonomies` refreshes the generated place and character taxonomy metadata from the JSON planning artifacts. `npm run check:taxonomies` fails when generated taxonomy files drift from those artifacts. `npm run check:audit` runs the runtime audit and fails on new unreviewed findings while allowing the known Expo CLI/config tooling issue that currently has no SDK-compatible fix. `npm run mobile:doctor` runs Expo Doctor from the mobile workspace so web-only tooling versions do not pollute the Expo SDK checks; it skips the optional React Native Directory lookup and treats network-only Expo API failures as warnings so local compatibility checks still run in restricted environments. `npm run check:performance` runs the large-world performance smoke test against a synthetic 2,500-entry, 5,000-relationship workspace. `npm run check:pwa` validates the built manifest, service worker, install icons, metadata, and Pages fallback. `npm run check` runs format checking, lint, web and mobile typechecks, metadata consistency, taxonomy drift checks, Jest, and production build. `npm run check:browser` starts a temporary local Vite server, checks key route text through a headless Chromium browser, verifies the phone-width header actions and Data Menu layout, and writes responsive screenshots under `.tmp/browser-smoke`. `npm run check:release` runs the core gate, runtime audit, mobile Expo Doctor, PWA artifact gate, and browser smoke gate. The browser smoke gate expects Chrome, Edge, or Chromium; set `VWB_BROWSER_PATH` if the browser is installed in a custom location. Vite may warn or fail on Node versions below its supported range; upgrade Node before treating that as an application code failure.
 
 ## GitHub Pages
 
@@ -100,6 +103,10 @@ Diagnostics are local-only JSON reports for debugging storage or rendering failu
 - `docs/release/versioning-and-maintenance.md` is the release operations playbook.
 - `docs/release/schema-migrations.md` records current and legacy saved-document schema expectations.
 - `docs/qa/manual-release-checklist.md` and `docs/qa/runtime-recovery.md` cover manual release and recovery checks.
+- `PLACE_RELATIONSHIP_TREE.md` explains the place logical tree and relationship-backed place fields.
+- `PLACE_TREE_IMPLEMENTATION_PLAN.md` records the place taxonomy implementation plan and completed work.
+- `CHARACTER_RELATIONSHIP_TREE.md` explains the character logical tree, including creator-defined ancestry/profession fields and relationship-backed fields.
+- `CHARACTER_TREE_IMPLEMENTATION_PLAN.md` records the character taxonomy implementation plan, completed slices, review findings, and remaining opportunities.
 - `CHANGELOG.md` records release notes.
 
 ## Prototype Standards

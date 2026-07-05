@@ -10,12 +10,14 @@ import type {
   WorldWorkspace,
 } from './types';
 import { supportedPlaceCategoryOptions } from './placeTaxonomy';
+import { supportedCharacterCategoryOptions } from './characterTaxonomy';
 
 const SEED_CREATED_AT = '2026-05-01T08:00:00.000Z';
 const SEED_SAVED_AT = '2026-06-01T09:00:00.000Z';
 const SEED_WORLD_ID = 'world-starter-atlas';
 
 export const placeCategoryOptions = supportedPlaceCategoryOptions;
+export const characterCategoryOptions = supportedCharacterCategoryOptions;
 
 export const worldSections: readonly WorldSectionConfig[] = [
   {
@@ -26,10 +28,17 @@ export const worldSections: readonly WorldSectionConfig[] = [
     description:
       'Named figures, their roles, loyalties, homes, and current status.',
     detailFields: [
-      { key: 'role', label: 'Role' },
-      { key: 'home', label: 'Home' },
-      { key: 'affiliation', label: 'Affiliation' },
-      { key: 'statusNote', label: 'Status' },
+      {
+        key: 'characterCategory',
+        label: 'Character category',
+        autocompleteOptions: characterCategoryOptions,
+      },
+      { key: 'narrativeRole', label: 'Narrative role' },
+      { key: 'ancestry', label: 'Ancestry' },
+      { key: 'profession', label: 'Profession' },
+      { key: 'homePlace', label: 'Home' },
+      { key: 'affiliations', label: 'Affiliations' },
+      { key: 'currentStatus', label: 'Current status' },
     ],
   },
   {
@@ -136,10 +145,13 @@ export const seedCodex: WorldCodex = {
       tags: ['surveyor', 'routes', 'maps'],
       updatedAt: '2026-06-01T09:00:00.000Z',
       fields: {
-        role: 'Lead surveyor and field guide',
-        home: 'Harbor District',
-        affiliation: 'The Cartographers Guild',
-        statusNote: 'Preparing the northern route survey',
+        characterCategory: 'Humanoid person',
+        narrativeRole: 'Expedition lead and practical guide',
+        ancestry: 'Human',
+        profession: 'Surveyor',
+        homePlace: 'Harbor District',
+        affiliations: 'The Cartographers Guild',
+        currentStatus: 'Preparing the northern route survey',
       },
     }),
     seedEntry({
@@ -151,10 +163,13 @@ export const seedCodex: WorldCodex = {
       tags: ['quartermaster', 'supplies', 'ledger'],
       updatedAt: '2026-05-29T13:30:00.000Z',
       fields: {
-        role: 'Expedition quartermaster',
-        home: 'South Market',
-        affiliation: 'Northwatch Survey',
-        statusNote: 'Balancing short supplies against an early departure',
+        characterCategory: 'Humanoid person',
+        narrativeRole: 'Logistics foil and camp contact',
+        ancestry: 'Human',
+        profession: 'Quartermaster',
+        homePlace: 'South Market',
+        affiliations: 'Northwatch Survey',
+        currentStatus: 'Balancing short supplies against an early departure',
       },
     }),
   ],

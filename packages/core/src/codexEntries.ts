@@ -1,8 +1,12 @@
 import { worldSections } from './seedCodex';
 import {
+  getCharacterCategoryFromFields,
+  getCharacterDetailFieldProfileGroups,
+} from './characterTaxonomy';
+import {
   getEntryDetailFields,
-  getHiddenPlaceDetailValues,
-  type HiddenPlaceDetailValue,
+  getHiddenEntryDetailValues,
+  type HiddenEntryDetailValue,
 } from './placeTaxonomy';
 import type {
   WorldCodex,
@@ -54,7 +58,7 @@ export const entryEditorCopy = {
   saveChangesLabel: 'Save Changes',
   summaryLabel: 'Summary',
   tagsLabel: 'Tags',
-  hiddenDetailsTitle: 'Hidden place details',
+  hiddenDetailsTitle: 'Hidden details',
   unsavedDraftMessage: 'Unsaved entry draft.',
   unsavedLabel: 'Unsaved',
   useAsTemplateLabel: 'Use As Template',
@@ -91,7 +95,7 @@ export type EntryDetailDisplayField = {
 
 export type EntryDetailDisplayModel = {
   created: EntryDetailDisplayField;
-  hiddenDetails: HiddenPlaceDetailValue[];
+  hiddenDetails: HiddenEntryDetailValue[];
   kicker: string;
   name: string;
   notes: string;
@@ -125,6 +129,12 @@ export type EntryEditorDetailFieldModel = {
   value: string;
 };
 
+export type EntryEditorDetailFieldGroupModel = {
+  id: string;
+  label: string;
+  fields: EntryEditorDetailFieldModel[];
+};
+
 export type EntryEditorNotesPreviewModel = {
   body: string;
   emptyText: string;
@@ -133,7 +143,7 @@ export type EntryEditorNotesPreviewModel = {
   title: string;
 };
 
-export type EntryHiddenDetailCleanupFieldModel = HiddenPlaceDetailValue & {
+export type EntryHiddenDetailCleanupFieldModel = HiddenEntryDetailValue & {
   clearLabel: string;
 };
 
@@ -261,7 +271,7 @@ export function getEntryDetailDisplayModel(
       label: entryDisplayCopy.createdLabel,
       value: formatUpdatedAt(entry.createdAt),
     },
-    hiddenDetails: getHiddenPlaceDetailValues(section, entry.fields),
+    hiddenDetails: getHiddenEntryDetailValues(section, entry.fields),
     kicker: `${section.singularTitle} ${entryDisplayCopy.sectionDetailSuffix}`,
     name: entry.name,
     notes: entry.notes,
@@ -297,7 +307,11 @@ export function getEntryEditorDetailFieldModels({
   draft: EntryDraft;
   fields: readonly Pick<
     WorldDetailField,
-    'autocompleteOptions' | 'key' | 'label' | 'multiline'
+    | 'autocompleteOptions'
+    | 'key'
+    | 'label'
+    | 'multiline'
+    | 'suggestFromExistingValues'
   >[];
   sectionEntries: readonly WorldEntry[];
   suggestionLimit?: number;
@@ -322,12 +336,76 @@ export function getEntryEditorDetailFieldModels({
   });
 }
 
+export function getEntryEditorDetailFieldGroups({
+  draft,
+  fields,
+  section,
+  sectionEntries,
+  suggestionLimit = Number.POSITIVE_INFINITY,
+}: {
+  draft: EntryDraft;
+  fields: readonly Pick<
+    WorldDetailField,
+    | 'autocompleteOptions'
+    | 'key'
+    | 'label'
+    | 'multiline'
+    | 'suggestFromExistingValues'
+  >[];
+  section: WorldSectionConfig;
+  sectionEntries: readonly WorldEntry[];
+  suggestionLimit?: number;
+}): EntryEditorDetailFieldGroupModel[] {
+  const fieldModels = getEntryEditorDetailFieldModels({
+    draft,
+    fields,
+    sectionEntries,
+    suggestionLimit,
+  });
+  const fieldModelByKey = new Map(
+    fieldModels.map((field) => [field.key, field])
+  );
+  const groups: {
+    id: string;
+    label: string;
+    fields: readonly Pick<
+      WorldDetailField,
+      | 'autocompleteOptions'
+      | 'key'
+      | 'label'
+      | 'multiline'
+      | 'suggestFromExistingValues'
+    >[];
+  }[] =
+    section.kind === 'character'
+      ? getCharacterDetailFieldProfileGroups({
+          category: getCharacterCategoryFromFields(draft.details),
+          fields,
+        })
+      : [
+          {
+            id: `${section.kind}-details`,
+            label: `${section.singularTitle} details`,
+            fields,
+          },
+        ];
+  return groups.flatMap((group) => {
+    const groupFields = group.fields.flatMap((field) => {
+      const fieldModel = fieldModelByKey.get(field.key);
+      return fieldModel ? [fieldModel] : [];
+    });
+    return groupFields.length > 0
+      ? [{ id: group.id, label: group.label, fields: groupFields }]
+      : [];
+  });
+}
+
 export function getEntryHiddenDetailCleanupModel(
   section: WorldSectionConfig,
   draft: EntryDraft
 ): EntryHiddenDetailCleanupModel {
   return {
-    fields: getHiddenPlaceDetailValues(section, draft.details).map((field) => ({
+    fields: getHiddenEntryDetailValues(section, draft.details).map((field) => ({
       ...field,
       clearLabel: entryEditorCopy.clearLabel,
     })),
@@ -357,7 +435,10 @@ export function getEntryEditorSelectedActionModel(
 
 /** Build autocomplete suggestions for detail fields that opt into suggestions. */
 export function getEntryDetailFieldSuggestions(
-  fields: readonly Pick<WorldDetailField, 'autocompleteOptions' | 'key'>[],
+  fields: readonly Pick<
+    WorldDetailField,
+    'autocompleteOptions' | 'key' | 'suggestFromExistingValues'
+  >[],
   entries: readonly WorldEntry[]
 ): Record<WorldDetailFieldKey, string[]> {
   return Object.fromEntries(
@@ -369,7 +450,7 @@ export function getEntryDetailFieldSuggestions(
           suggestions.set(normalizedOption.toLowerCase(), normalizedOption);
         }
       }
-      if (suggestions.size > 0) {
+      if (field.suggestFromExistingValues || suggestions.size > 0) {
         for (const entry of entries) {
           const value = entry.fields[field.key]?.trim();
           if (value) {

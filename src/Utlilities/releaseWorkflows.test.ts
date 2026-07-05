@@ -40,8 +40,12 @@ describe('release-critical workflows', () => {
       tags: 'maps, routes',
       status: 'canon' as const,
       details: {
-        role: 'Cartographer',
-        home: placeEntry.name,
+        characterCategory: 'Humanoid person',
+        narrativeRole: 'Route mapper',
+        ancestry: 'Human',
+        profession: 'Cartographer',
+        homePlace: placeEntry.name,
+        affiliations: 'Survey guild',
         loyalty: 'Survey guild',
       },
     };

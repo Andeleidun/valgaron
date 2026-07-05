@@ -13,6 +13,7 @@ import {
   getEntryDetailFieldSuggestions,
   getEntryDetailDisplayModel,
   getEntryEditorBaseFields,
+  getEntryEditorDetailFieldGroups,
   getEntryEditorCreateTitle,
   getEntryEditorDetailFieldModels,
   getEntryEditorNewTitle,
@@ -75,7 +76,7 @@ describe('codex entry helpers', () => {
       saveChangesLabel: 'Save Changes',
       summaryLabel: 'Summary',
       tagsLabel: 'Tags',
-      hiddenDetailsTitle: 'Hidden place details',
+      hiddenDetailsTitle: 'Hidden details',
       unsavedDraftMessage: 'Unsaved entry draft.',
       unsavedLabel: 'Unsaved',
       useAsTemplateLabel: 'Use As Template',
@@ -223,7 +224,7 @@ describe('codex entry helpers', () => {
       fieldModels.find((field) => field.key === 'category')?.suggestions.length
     ).toBeLessThanOrEqual(2);
     expect(getEntryHiddenDetailCleanupModel(section, draft)).toEqual({
-      title: 'Hidden place details',
+      title: 'Hidden details',
       fields: [
         {
           key: 'hiddenPlanningNote',
@@ -233,6 +234,58 @@ describe('codex entry helpers', () => {
         },
       ],
     });
+  });
+
+  it('groups character detail fields by logical profile for editor rendering', () => {
+    const section = getSectionById('characters');
+    const codex = createSeedCodex();
+    if (!section) {
+      throw new Error('Expected character section seed config.');
+    }
+    const draft = draftFromEntry(
+      {
+        ...codex.characters[0],
+        fields: {
+          ...codex.characters[0].fields,
+          characterCategory: 'Construct or automaton',
+        },
+      },
+      section
+    );
+    const groups = getEntryEditorDetailFieldGroups({
+      draft,
+      fields: [
+        { key: 'characterCategory', label: 'Character category' },
+        { key: 'maker', label: 'Maker' },
+        { key: 'directive', label: 'Directive' },
+        { key: 'maintenance', label: 'Maintenance' },
+        { key: 'currentGoal', label: 'Current goal' },
+      ],
+      section,
+      sectionEntries: codex.characters,
+    });
+
+    expect(groups).toEqual([
+      {
+        id: 'categoryAndRole',
+        label: 'Category and role',
+        fields: [expect.objectContaining({ key: 'characterCategory' })],
+      },
+      {
+        id: 'constructProfile',
+        label: 'Construct profile',
+        fields: [
+          expect.objectContaining({ key: 'maker' }),
+          expect.objectContaining({ key: 'directive' }),
+          expect.objectContaining({ key: 'maintenance' }),
+        ],
+      },
+      {
+        id: 'storyEngine',
+        label: 'Story engine',
+        fields: [expect.objectContaining({ key: 'currentGoal' })],
+      },
+    ]);
   });
 
   it('builds shared selected-entry action labels and accessibility text', () => {
@@ -336,10 +389,13 @@ describe('codex entry helpers', () => {
       status: 'canon',
       pinned: true,
       details: {
-        role: '  Songkeeper  ',
-        home: '  Larkspan  ',
-        affiliation: '  Free courts  ',
-        statusNote: '  Traveling  ',
+        characterCategory: '  Humanoid person  ',
+        narrativeRole: '  Keeper of bridge songs  ',
+        ancestry: '  Human  ',
+        profession: '  Songkeeper  ',
+        homePlace: '  Larkspan  ',
+        affiliations: '  Free courts  ',
+        currentStatus: '  Traveling  ',
       },
     };
 
@@ -358,10 +414,13 @@ describe('codex entry helpers', () => {
       status: 'canon',
       pinned: true,
       fields: {
-        role: 'Songkeeper',
-        home: 'Larkspan',
-        affiliation: 'Free courts',
-        statusNote: 'Traveling',
+        characterCategory: 'Humanoid person',
+        narrativeRole: 'Keeper of bridge songs',
+        ancestry: 'Human',
+        profession: 'Songkeeper',
+        homePlace: 'Larkspan',
+        affiliations: 'Free courts',
+        currentStatus: 'Traveling',
       },
     });
     expect(entry.id).toContain('character-mira-vale-');

@@ -213,7 +213,8 @@ export function getWorkspaceOverviewIncompleteEntries(
 ): WorkspaceOverviewIncompleteEntry[] {
   return getIncompleteEntries(
     getVisibleWorkspaceEntries(workspace),
-    workspace.entryTypes
+    workspace.entryTypes,
+    workspace.relationships
   )
     .slice(0, limit)
     .map(getWorkspaceOverviewIncompleteEntry);
@@ -279,7 +280,8 @@ export function getWorkspaceOverviewSummary(
     relationshipCount: workspace.relationships.length,
     incompleteEntryCount: getIncompleteEntries(
       visibleEntries,
-      workspace.entryTypes
+      workspace.entryTypes,
+      workspace.relationships
     ).length,
     sectionCounts: Object.fromEntries(
       workspace.entryTypes.map((section) => [

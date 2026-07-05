@@ -63,6 +63,81 @@ describe('world document helpers', () => {
     ).toEqual(createSeedCodex());
   });
 
+  it('maps legacy character detail fields without copying workflow status into current status', () => {
+    const legacyCodex = {
+      ...createSeedCodex(),
+      characters: [
+        {
+          id: 'character-legacy',
+          kind: 'character',
+          name: 'Legacy Scout',
+          summary: '',
+          notes: '',
+          tags: [],
+          status: 'canon',
+          role: 'Guide',
+          home: 'Northwatch Harbor',
+          affiliation: 'The Cartographers Guild',
+          pinned: false,
+          createdAt: '2026-06-01T00:00:00.000Z',
+          updatedAt: '2026-06-01T00:00:00.000Z',
+        },
+      ],
+    };
+
+    const migratedDocument = parseWorldDocument(legacyCodex);
+    const migratedCharacter = migratedDocument
+      ? getActiveWorld(migratedDocument).codex.characters[0]
+      : null;
+
+    expect(migratedCharacter).toMatchObject({
+      status: 'canon',
+      fields: {
+        role: 'Guide',
+        narrativeRole: 'Guide',
+        home: 'Northwatch Harbor',
+        homePlace: 'Northwatch Harbor',
+        affiliation: 'The Cartographers Guild',
+        affiliations: 'The Cartographers Guild',
+      },
+    });
+    expect(migratedCharacter?.fields.currentStatus).toBeUndefined();
+    expect(migratedCharacter?.fields.statusNote).toBeUndefined();
+  });
+
+  it('preserves legacy character prose status values when they are not workflow statuses', () => {
+    const legacyCodex = {
+      ...createSeedCodex(),
+      characters: [
+        {
+          id: 'character-legacy',
+          kind: 'character',
+          name: 'Legacy Scout',
+          summary: '',
+          notes: '',
+          tags: [],
+          status: 'Missing beyond the reef',
+          pinned: false,
+          createdAt: '2026-06-01T00:00:00.000Z',
+          updatedAt: '2026-06-01T00:00:00.000Z',
+        },
+      ],
+    };
+
+    const migratedDocument = parseWorldDocument(legacyCodex);
+    const migratedCharacter = migratedDocument
+      ? getActiveWorld(migratedDocument).codex.characters[0]
+      : null;
+
+    expect(migratedCharacter).toMatchObject({
+      status: 'draft',
+      fields: {
+        statusNote: 'Missing beyond the reef',
+        currentStatus: 'Missing beyond the reef',
+      },
+    });
+  });
+
   it('accepts multiple worlds and preserves valid relationships', () => {
     const document = createSeedWorldDocument();
     const secondWorld = {
@@ -121,6 +196,54 @@ describe('world document helpers', () => {
     expect(
       parsedDocument ? getActiveWorld(parsedDocument).codex.artifacts : null
     ).toEqual([]);
+  });
+
+  it('preserves detail fields that suggest values from existing entries during parse', () => {
+    const document = createSeedWorldDocument();
+    const activeWorld = getActiveWorld(document);
+    const customSection = {
+      id: 'guilds',
+      kind: 'guild',
+      title: 'Guilds',
+      singularTitle: 'Guild',
+      description: 'Creator-defined organizations.',
+      detailFields: [
+        {
+          key: 'trade',
+          label: 'Trade',
+          suggestFromExistingValues: true,
+        },
+      ],
+      custom: true,
+    };
+    const customDocument: WorldDocument = {
+      ...document,
+      worlds: [
+        {
+          ...activeWorld,
+          entryTypes: [...activeWorld.entryTypes, customSection],
+          codex: {
+            ...activeWorld.codex,
+            guilds: [],
+          },
+        },
+      ],
+    };
+
+    const parsedDocument = parseWorldDocument(customDocument);
+    const parsedSection = parsedDocument
+      ? getActiveWorld(parsedDocument).entryTypes.find(
+          (section) => section.id === 'guilds'
+        )
+      : null;
+
+    expect(parsedSection?.detailFields).toEqual([
+      {
+        key: 'trade',
+        label: 'Trade',
+        suggestFromExistingValues: true,
+      },
+    ]);
   });
 
   it('updates only the active world', () => {
