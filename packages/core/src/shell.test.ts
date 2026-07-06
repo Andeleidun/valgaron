@@ -8,8 +8,10 @@ import {
   getCodexRelationshipsRoute,
   getCodexShellRouteTitle,
   getCodexShellRoutes,
+  getCodexMobileWebShellRouteLabel,
   localPersistenceCopy,
   mobilePrimaryRouteOrder,
+  mobileWebPrimaryRouteOrder,
   valgaronProduct,
   webPrimaryRouteOrder,
 } from './shell';
@@ -22,26 +24,32 @@ describe('shell contracts', () => {
   it('keeps web and mobile route labels aligned for shared tasks', () => {
     expect(
       getCodexShellRoutes(webPrimaryRouteOrder).map((route) => route.title)
-    ).toEqual(['Overview', 'Relationships', 'Data', 'Workspaces', 'Help']);
+    ).toEqual([
+      'Workbench',
+      'Timeline',
+      'Relationships',
+      'Knowledge',
+      'Utilities',
+    ]);
     expect(
       getCodexShellRoutes(mobilePrimaryRouteOrder).map((route) => route.title)
-    ).toEqual([
-      'Overview',
-      'Entries',
-      'Relationships',
-      'Workspaces',
-      'Data',
-      'Help',
-    ]);
+    ).toEqual(['Workbench', 'Timeline', 'Relationships', 'Utilities']);
     expect(getCodexShellRouteTitle('relationships')).toBe(
       codexShellRoutes.relationships.title
     );
     expect(
       mobilePrimaryRouteOrder.map((id) => getCodexMobileShellRouteLabel(id))
-    ).toEqual(['Home', 'Entries', 'Links', 'Worlds', 'Data', 'Help']);
+    ).toEqual(['Workbench', 'Timeline', 'Links', 'More']);
+    expect(
+      mobileWebPrimaryRouteOrder.map((id) =>
+        getCodexMobileWebShellRouteLabel(id)
+      )
+    ).toEqual(['Workbench', 'Timeline', 'Links', 'More']);
     expect(getCodexScreenIntro('relationships')).toEqual(
       codexScreenIntros.relationships
     );
+    expect(getCodexScreenIntro('timeline').title).toBe('Timeline');
+    expect(getCodexScreenIntro('utilities').title).toBe('Utilities');
     expect(codexScreenIntros.data.detail).toContain('Export JSON backups');
   });
 
@@ -63,6 +71,16 @@ describe('shell contracts', () => {
     );
     expect(getCodexEntriesRoute({ sectionId: 'places', intent: 'new' })).toBe(
       '/entries?sectionId=places&intent=new'
+    );
+    expect(
+      getCodexEntriesRoute({
+        entryId: 'faction-cartographers-guild',
+        intent: 'context',
+        query: 'The Cartographers Guild',
+        sectionId: 'factions',
+      })
+    ).toBe(
+      '/entries?sectionId=factions&entryId=faction-cartographers-guild&intent=context&query=The%20Cartographers%20Guild'
     );
     expect(
       getCodexRelationshipsRoute({

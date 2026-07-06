@@ -1,7 +1,9 @@
 import { useMemo, useState } from 'react';
 import {
+  addEntryTypeFieldsInActiveWorkspace,
   archiveEntryInActiveWorkspace,
   archivePlanetaryWorldInActiveWorkspace,
+  clearHiddenEntryDetailsInActiveWorkspace,
   createEntryTypeInActiveWorkspace,
   createWorkspace,
   deleteEntryTypeFromActiveWorkspace,
@@ -12,6 +14,9 @@ import {
   duplicateWorkspace,
   getActiveWorld,
   localPersistenceCopy,
+  moveEntryTypeFieldInActiveWorkspace,
+  renameEntryTypeFieldInActiveWorkspace,
+  removeEntryTypeFieldInActiveWorkspace,
   saveEntryInActiveWorkspace,
   savePlanetaryWorldInActiveWorkspace,
   saveRelationshipInActiveWorkspace,
@@ -19,6 +24,7 @@ import {
   setWorkspaceArchived,
   updateWorkspaceMetadata,
   type EntryTypeDraft,
+  type CustomEntryTypeFieldMoveDirection,
   type InFictionWorld,
   type PlanetaryWorldDraft,
   type RecoverySnapshot,
@@ -91,6 +97,19 @@ export type WorldDocumentState = {
   archivePlanetaryWorld: (planetaryWorldId: string, archived: boolean) => void;
   permanentlyDeletePlanetaryWorld: (planetaryWorldId: string) => void;
   createEntryType: (draft: EntryTypeDraft) => void;
+  addEntryTypeFields: (sectionId: string, fieldsText: string) => void;
+  moveEntryTypeField: (
+    sectionId: string,
+    fieldKey: string,
+    direction: CustomEntryTypeFieldMoveDirection
+  ) => void;
+  renameEntryTypeField: (
+    sectionId: string,
+    fieldKey: string,
+    label: string
+  ) => void;
+  removeEntryTypeField: (sectionId: string, fieldKey: string) => void;
+  clearHiddenEntryDetails: () => void;
   permanentlyDeleteEntryType: (sectionId: string) => void;
 };
 
@@ -360,6 +379,65 @@ export function useWorldDocumentState(): WorldDocumentState {
     );
   };
 
+  const addEntryTypeFields = (sectionId: string, fieldsText: string) => {
+    setUnsavedDocument((currentDocument) =>
+      addEntryTypeFieldsInActiveWorkspace({
+        document: currentDocument,
+        fieldsText,
+        sectionId,
+      })
+    );
+  };
+
+  const moveEntryTypeField = (
+    sectionId: string,
+    fieldKey: string,
+    direction: CustomEntryTypeFieldMoveDirection
+  ) => {
+    setUnsavedDocument((currentDocument) =>
+      moveEntryTypeFieldInActiveWorkspace({
+        direction,
+        document: currentDocument,
+        fieldKey,
+        sectionId,
+      })
+    );
+  };
+
+  const renameEntryTypeField = (
+    sectionId: string,
+    fieldKey: string,
+    label: string
+  ) => {
+    setUnsavedDocument((currentDocument) =>
+      renameEntryTypeFieldInActiveWorkspace({
+        document: currentDocument,
+        fieldKey,
+        label,
+        sectionId,
+      })
+    );
+  };
+
+  const removeEntryTypeField = (sectionId: string, fieldKey: string) => {
+    setUnsavedDocument((currentDocument) =>
+      removeEntryTypeFieldInActiveWorkspace({
+        document: currentDocument,
+        fieldKey,
+        sectionId,
+      })
+    );
+  };
+
+  const clearHiddenEntryDetails = () => {
+    captureSnapshot(document, 'schema-cleanup');
+    setUnsavedDocument((currentDocument) =>
+      clearHiddenEntryDetailsInActiveWorkspace({
+        document: currentDocument,
+      })
+    );
+  };
+
   const permanentlyDeleteEntryType = (sectionId: string) => {
     captureSnapshot(document, 'entry-type-delete');
     setUnsavedDocument((currentDocument) =>
@@ -402,6 +480,11 @@ export function useWorldDocumentState(): WorldDocumentState {
     archivePlanetaryWorld,
     permanentlyDeletePlanetaryWorld,
     createEntryType,
+    addEntryTypeFields,
+    moveEntryTypeField,
+    renameEntryTypeField,
+    removeEntryTypeField,
+    clearHiddenEntryDetails,
     permanentlyDeleteEntryType,
   };
 }

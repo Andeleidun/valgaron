@@ -1,20 +1,26 @@
 import { describe, expect, it } from '@jest/globals';
 import {
+  createTimelineInvolvedRecordStagedRelationship,
   filterTimelineEvents,
   getTimelineEventItem,
   getTimelineEventDateLabel,
   getTimelineEventOrderLabel,
   getTimelineBrowseModel,
   getTimelineDiagnostics,
+  getTimelineEraManagerModel,
+  getTimelineEraReassignmentUpdates,
   getTimelineEras,
   getTimelineHighlights,
   getTimelineInvolvedEntryIds,
   getTimelineOrderValue,
   getTimelineOrderUpdates,
+  getTimelineReviewModel,
   getTimelineSummaryModel,
+  getTimelineSurfaceModel,
   groupTimelineEventsByEra,
   sortTimelineEvents,
   timelineFeatureCopy,
+  timelineUnassignedEraFilterValue,
 } from './codexTimeline';
 import { createSeedWorld } from './seedCodex';
 import type { WorldEntry } from './types';
@@ -62,6 +68,23 @@ describe('codex timeline helpers', () => {
     expect(getTimelineEventDateLabel({ dateLabel: 'Year 4' })).toBe('Year 4');
     expect(getTimelineEventOrderLabel({ order: '' })).toBe('No order');
     expect(getTimelineEventOrderLabel({ order: '10' })).toBe('10');
+  });
+
+  it('creates staged involved-record relationships for new timeline events', () => {
+    expect(
+      createTimelineInvolvedRecordStagedRelationship(
+        ' character-mira-rowan ',
+        'staged-timeline-involved'
+      )
+    ).toMatchObject({
+      stagedId: 'staged-timeline-involved',
+      sourceEntryId: '__draft-entry__',
+      targetEntryId: 'character-mira-rowan',
+      type: 'involves',
+      directional: false,
+      status: 'draft',
+    });
+    expect(createTimelineInvolvedRecordStagedRelationship('   ')).toBeNull();
   });
 
   it('reads numeric timeline order values with an unsorted fallback', () => {
@@ -124,6 +147,56 @@ describe('codex timeline helpers', () => {
     ).toEqual(['First Era', 'Second Era']);
   });
 
+  it('builds an era manager model with counts and unassigned events', () => {
+    expect(
+      getTimelineEraManagerModel([
+        timelineEvent('second-a', 'Second A', '2', 'Second Era'),
+        timelineEvent('unassigned', 'Unassigned', '3', ''),
+        timelineEvent('first', 'First', '1', 'First Era'),
+        timelineEvent('second-b', 'Second B', '4', 'Second Era'),
+      ])
+    ).toEqual({
+      eras: [
+        { era: 'First Era', eventCount: 1 },
+        { era: 'Second Era', eventCount: 2 },
+      ],
+      totalEraCount: 2,
+      unassignedCount: 1,
+    });
+  });
+
+  it('builds era reassignment updates for renaming, merging, and assigning unassigned events', () => {
+    const first = timelineEvent('first', 'First', '1', 'First Era');
+    const second = timelineEvent('second', 'Second', '2', 'First Era');
+    const third = timelineEvent('third', 'Third', '3', 'Second Era');
+    const unassigned = timelineEvent('unassigned', 'Unassigned', '4', '');
+
+    expect(
+      getTimelineEraReassignmentUpdates([first, second, third, unassigned], {
+        sourceEra: 'First Era',
+        targetEra: 'Founding Era',
+        updatedAt: '2026-07-05T12:00:00.000Z',
+      }).map((event) => [event.id, event.fields.era, event.updatedAt])
+    ).toEqual([
+      ['first', 'Founding Era', '2026-07-05T12:00:00.000Z'],
+      ['second', 'Founding Era', '2026-07-05T12:00:00.000Z'],
+    ]);
+
+    expect(
+      getTimelineEraReassignmentUpdates([first, unassigned], {
+        sourceEra: '',
+        targetEra: 'Founding Era',
+      }).map((event) => [event.id, event.fields.era])
+    ).toEqual([['unassigned', 'Founding Era']]);
+
+    expect(
+      getTimelineEraReassignmentUpdates([first], {
+        sourceEra: 'First Era',
+        targetEra: ' First Era ',
+      })
+    ).toEqual([]);
+  });
+
   it('filters timeline events by era, tag, status, and involved entry', () => {
     const world = createSeedWorld();
     const events = world.codex.timeline;
@@ -143,6 +216,19 @@ describe('codex timeline helpers', () => {
         world.relationships
       ).map((event) => event.id)
     ).toEqual(['timeline-first-survey']);
+
+    expect(
+      filterTimelineEvents(
+        [timelineEvent('unassigned', 'Unassigned', '1', '')],
+        {
+          era: timelineUnassignedEraFilterValue,
+          tag: '',
+          status: '',
+          involvedEntryId: '',
+        },
+        []
+      ).map((event) => event.id)
+    ).toEqual(['unassigned']);
   });
 
   it('reports timeline ordering and relationship diagnostics', () => {
@@ -176,6 +262,102 @@ describe('codex timeline helpers', () => {
         },
       ],
       unlinkedEvents: [{ id: 'duplicate-b' }, { id: 'unordered' }],
+    });
+  });
+
+  it('builds a shared timeline review tray model', () => {
+    const duplicateA = timelineEvent('duplicate-a', 'Duplicate A', '10', 'Era');
+    const duplicateB = timelineEvent('duplicate-b', 'Duplicate B', '10', 'Era');
+    const unordered = timelineEvent('unordered', 'Unordered', '', 'Era');
+
+    expect(
+      getTimelineReviewModel(
+        [duplicateA, duplicateB, unordered],
+        [
+          {
+            id: 'relationship-timeline',
+            sourceEntryId: 'duplicate-a',
+            targetEntryId: 'character-mira-rowan',
+            type: 'references',
+            directional: true,
+            note: '',
+            status: 'draft',
+            createdAt: '2026-01-01T00:00:00.000Z',
+            updatedAt: '2026-01-01T00:00:00.000Z',
+          },
+        ]
+      )
+    ).toEqual({
+      title: 'Timeline Review',
+      totalIssueCount: 4,
+      hasIssues: true,
+      reviewSummary: {
+        hasIssues: true,
+        totalIssueCount: 4,
+        items: [
+          {
+            id: 'unordered-events',
+            title: 'Unordered events',
+            count: 1,
+            countLabel: '1',
+            detail: 'Events without a numeric sort order.',
+            hasIssues: true,
+            severity: 'warning',
+          },
+          {
+            id: 'duplicate-orders',
+            title: 'Duplicate orders',
+            count: 1,
+            countLabel: '1',
+            detail: 'Order values shared by more than one event.',
+            hasIssues: true,
+            severity: 'warning',
+          },
+          {
+            id: 'unlinked-events',
+            title: 'Unlinked events',
+            count: 2,
+            countLabel: '2',
+            detail: 'Events with no involved records.',
+            hasIssues: true,
+            severity: 'warning',
+          },
+        ],
+      },
+      items: [
+        {
+          id: 'unordered-events',
+          title: 'Unordered events',
+          count: 1,
+          summary: 'Events without a numeric sort order.',
+          itemLabels: ['Unordered'],
+          targets: [{ label: 'Unordered', eventIds: ['unordered'] }],
+        },
+        {
+          id: 'duplicate-orders',
+          title: 'Duplicate orders',
+          count: 1,
+          summary: 'Order values shared by more than one event.',
+          itemLabels: ['10: Duplicate A, Duplicate B'],
+          targets: [
+            {
+              label: '10: Duplicate A, Duplicate B',
+              eventIds: ['duplicate-a', 'duplicate-b'],
+            },
+          ],
+        },
+        {
+          id: 'unlinked-events',
+          title: 'Unlinked events',
+          count: 2,
+          summary: 'Events with no involved records.',
+          itemLabels: ['Duplicate B', 'Unordered'],
+          targets: [
+            { label: 'Duplicate B', eventIds: ['duplicate-b'] },
+            { label: 'Unordered', eventIds: ['unordered'] },
+          ],
+        },
+      ],
     });
   });
 
@@ -215,6 +397,33 @@ describe('codex timeline helpers', () => {
     });
   });
 
+  it('builds a shared timeline surface model for overview rendering', () => {
+    const world = createSeedWorld();
+    const surface = getTimelineSurfaceModel(world, world.codex.timeline);
+
+    expect(surface.eventCount).toBe(2);
+    expect(surface.review).toMatchObject({
+      title: 'Timeline Review',
+      totalIssueCount: 0,
+    });
+    expect(surface.eraManager).toMatchObject({
+      totalEraCount: 2,
+      unassignedCount: 0,
+    });
+    expect(surface.highlights.map((event) => event.name)).toEqual([
+      'Harbor Accord Signed',
+      'First Northern Survey',
+    ]);
+    expect(surface.sortedEvents.map((event) => event.name)).toEqual([
+      'Harbor Accord Signed',
+      'First Northern Survey',
+    ]);
+    expect(surface.groups.map((group) => group.era)).toEqual([
+      'Charter Era',
+      'Survey Era',
+    ]);
+  });
+
   it('builds shared timeline browse groups and filter options', () => {
     const world = createSeedWorld();
     const browse = getTimelineBrowseModel(world, {
@@ -245,6 +454,11 @@ describe('codex timeline helpers', () => {
         ],
       },
     ]);
+    expect(browse.review).toMatchObject({
+      title: 'Timeline Review',
+      totalIssueCount: 0,
+      hasIssues: false,
+    });
     expect(browse.unorderedNames).toEqual([]);
     expect(browse.duplicateOrderLabels).toEqual([]);
     expect(browse.unlinkedNames).toEqual([]);

@@ -26,9 +26,15 @@ describe('core package exports', () => {
       'function'
     );
     expect(typeof core.createEntryTypeInActiveWorkspace).toBe('function');
+    expect(typeof core.addEntryTypeFieldsInActiveWorkspace).toBe('function');
+    expect(typeof core.moveEntryTypeFieldInActiveWorkspace).toBe('function');
+    expect(typeof core.renameEntryTypeFieldInActiveWorkspace).toBe('function');
+    expect(typeof core.removeEntryTypeFieldInActiveWorkspace).toBe('function');
     expect(typeof core.deleteEntryTypeFromActiveWorkspace).toBe('function');
+    expect(typeof core.reassignTimelineEraInActiveWorkspace).toBe('function');
     expect(typeof core.summarizeRecoverySnapshot).toBe('function');
     expect(typeof core.getTimelineDiagnostics).toBe('function');
+    expect(typeof core.getTimelineEraReassignmentUpdates).toBe('function');
     expect(typeof core.getTimelineEventItem).toBe('function');
     expect(typeof core.getTimelineHighlights).toBe('function');
     expect(typeof core.getCodexExportFilename).toBe('function');
@@ -67,6 +73,7 @@ describe('core package exports', () => {
     expect(typeof core.formatCodexRouteIntent).toBe('function');
     expect(typeof core.getRuntimeRecoveryCopy).toBe('function');
     expect(typeof core.getRelationshipGraphViewModel).toBe('function');
+    expect(typeof core.getDuplicateRelationshipGroups).toBe('function');
     expect(typeof core.getRelationshipEntrySelectOptions).toBe('function');
     expect(typeof core.getRelationshipTypeSuggestions).toBe('function');
     expect(typeof core.getRelationshipListModel).toBe('function');

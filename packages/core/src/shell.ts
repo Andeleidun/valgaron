@@ -1,7 +1,10 @@
 export type CodexShellRouteId =
   | 'overview'
   | 'entries'
+  | 'timeline'
   | 'relationships'
+  | 'knowledge'
+  | 'utilities'
   | 'workspaces'
   | 'data'
   | 'help';
@@ -26,7 +29,7 @@ export type CodexRouteParams = Record<
 export type CodexEntryRouteParams = {
   sectionId?: string;
   entryId?: string;
-  intent?: 'new' | 'edit';
+  intent?: 'new' | 'edit' | 'context';
   query?: string;
 };
 
@@ -45,12 +48,15 @@ export const valgaronProduct = {
 
 export const codexShellRoutes = {
   overview: { id: 'overview', title: 'Overview', path: '/' },
-  entries: { id: 'entries', title: 'Entries', path: '/entries' },
+  entries: { id: 'entries', title: 'Workbench', path: '/entries' },
+  timeline: { id: 'timeline', title: 'Timeline', path: '/timeline' },
   relationships: {
     id: 'relationships',
     title: 'Relationships',
     path: '/relationships',
   },
+  knowledge: { id: 'knowledge', title: 'Knowledge', path: '/knowledge' },
+  utilities: { id: 'utilities', title: 'Utilities', path: '/utilities' },
   workspaces: { id: 'workspaces', title: 'Workspaces', path: '/workspaces' },
   data: { id: 'data', title: 'Data', path: '/data' },
   help: { id: 'help', title: 'Help', path: '/help' },
@@ -66,7 +72,14 @@ export const codexScreenIntros = {
   entries: {
     kicker: 'Codex records',
     title: codexShellRoutes.entries.title,
-    detail: 'Browse, search, create, edit, archive, and delete codex records.',
+    detail:
+      'Browse, search, create, edit, archive, and connect codex records from one working surface.',
+  },
+  timeline: {
+    kicker: 'Chronology',
+    title: codexShellRoutes.timeline.title,
+    detail:
+      'Review timeline events, eras, involved records, highlights, diagnostics, and order controls.',
   },
   relationships: {
     kicker: 'World logic',
@@ -74,11 +87,23 @@ export const codexScreenIntros = {
     detail:
       'Connect entries into alliances, memberships, causes, references, and other links that make the world easier to reason about.',
   },
+  knowledge: {
+    kicker: 'Schema and lore structure',
+    title: codexShellRoutes.knowledge.title,
+    detail:
+      'Centralize lore organization, custom entry types, reusable fields, categories, and world taxonomy decisions.',
+  },
+  utilities: {
+    kicker: 'Project tools',
+    title: codexShellRoutes.utilities.title,
+    detail:
+      'Open world setup, backup and import tools, diagnostics, and help without crowding primary drafting workflows.',
+  },
   workspaces: {
     kicker: 'Project and universe management',
     title: codexShellRoutes.workspaces.title,
     detail:
-      'Manage project/universe workspaces and custom entry types; use Places for worlds, planets, and map-scale places inside the active workspace.',
+      'Manage project/universe workspaces and in-fiction worlds or planets; use Knowledge for custom entry types and schema setup.',
   },
   data: {
     kicker: 'Local data',
@@ -95,26 +120,46 @@ export const codexScreenIntros = {
 } as const satisfies Record<CodexShellRouteId, CodexScreenIntro>;
 
 export const webPrimaryRouteOrder = [
-  'overview',
+  'entries',
+  'timeline',
   'relationships',
-  'data',
-  'workspaces',
-  'help',
+  'knowledge',
+  'utilities',
 ] as const satisfies readonly CodexShellRouteId[];
 
 export const mobilePrimaryRouteOrder = [
-  'overview',
   'entries',
+  'timeline',
   'relationships',
-  'workspaces',
-  'data',
-  'help',
+  'utilities',
+] as const satisfies readonly CodexShellRouteId[];
+
+export const mobileWebPrimaryRouteOrder = [
+  'entries',
+  'timeline',
+  'relationships',
+  'utilities',
 ] as const satisfies readonly CodexShellRouteId[];
 
 export const mobileShellRouteLabels = {
   overview: 'Home',
   entries: codexShellRoutes.entries.title,
+  timeline: codexShellRoutes.timeline.title,
   relationships: 'Links',
+  knowledge: codexShellRoutes.knowledge.title,
+  utilities: 'More',
+  workspaces: 'Worlds',
+  data: codexShellRoutes.data.title,
+  help: codexShellRoutes.help.title,
+} as const satisfies Record<CodexShellRouteId, string>;
+
+export const mobileWebShellRouteLabels = {
+  overview: 'Home',
+  entries: 'Workbench',
+  timeline: codexShellRoutes.timeline.title,
+  relationships: 'Links',
+  knowledge: codexShellRoutes.knowledge.title,
+  utilities: 'More',
   workspaces: 'Worlds',
   data: codexShellRoutes.data.title,
   help: codexShellRoutes.help.title,
@@ -143,6 +188,12 @@ export function getCodexShellRouteTitle(id: CodexShellRouteId): string {
 
 export function getCodexMobileShellRouteLabel(id: CodexShellRouteId): string {
   return mobileShellRouteLabels[id];
+}
+
+export function getCodexMobileWebShellRouteLabel(
+  id: CodexShellRouteId
+): string {
+  return mobileWebShellRouteLabels[id];
 }
 
 export function getCodexScreenIntro(id: CodexShellRouteId): CodexScreenIntro {

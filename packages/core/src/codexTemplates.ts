@@ -28,6 +28,10 @@ export type EntryCompleteness = {
   prompts: string[];
 };
 
+export type SectionEntryDraftContext = {
+  timelineEra?: string;
+};
+
 const templateNotesByKind: Record<string, string> = {
   character:
     '## Role in the story\n\n## Wants\n\n## Fears\n\n## Relationships\n\n## Secrets\n\n## Open questions',
@@ -83,14 +87,20 @@ export function createTemplateDraft(
 }
 
 export function createSectionEntryDraft(
-  section: WorldSectionConfig
+  section: WorldSectionConfig,
+  context: SectionEntryDraftContext = {}
 ): EntryDraft {
+  const details = Object.fromEntries(
+    getDraftDetailFields(section).map((field) => [field.key, ''])
+  );
+  const timelineEra = context.timelineEra?.trim() ?? '';
+  if (section.kind === 'timeline' && timelineEra) {
+    details.era = timelineEra;
+  }
   return {
     ...createEmptyDraft(),
     tags: section.kind,
-    details: Object.fromEntries(
-      getDraftDetailFields(section).map((field) => [field.key, ''])
-    ),
+    details,
   };
 }
 

@@ -70,30 +70,6 @@ export function pluralizeCountLabel(
   return count === 1 ? singularLabel : pluralLabel;
 }
 
-export function formatHiddenResultCountMessage({
-  hiddenCount,
-  itemLabel,
-  pluralItemLabel,
-  refinementLabel,
-  suffix = '',
-}: {
-  hiddenCount: number;
-  itemLabel: string;
-  pluralItemLabel?: string;
-  refinementLabel: string;
-  suffix?: string;
-}): string {
-  if (hiddenCount <= 0) {
-    return '';
-  }
-  const suffixText = suffix ? ` ${suffix}` : '';
-  return `Refine ${refinementLabel} to show ${hiddenCount} more ${pluralizeCountLabel(
-    hiddenCount,
-    itemLabel,
-    pluralItemLabel
-  )}${suffixText}.`;
-}
-
 export function getFeatureDisplayScaleDecision(
   totalCount: number
 ): FeatureDisplayScaleDecision {

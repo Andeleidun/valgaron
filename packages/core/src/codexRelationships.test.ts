@@ -14,10 +14,12 @@ import {
   getCharacterRelationshipGroups,
   getRelationshipDiagnosticsModel,
   getRelationshipEditorOptionsModel,
+  getRelationshipEntryContextRoute,
   getRelationshipEntryRoute,
   getRelationshipEntryRouteById,
   getRelationshipListModel,
   getRelationshipManagementRoute,
+  getRelationshipStudioModeModel,
   getOrphanedEntries,
   getPlaceRelationshipGroups,
   getRelationshipHealthSummary,
@@ -35,6 +37,10 @@ import {
   relationshipFromDraft,
   upsertRelationship,
 } from './codexRelationships';
+import {
+  getDuplicateRelationshipGroups,
+  getRelationshipStudioReviewModel,
+} from './relationshipStudioReview';
 import {
   createSeedCodex,
   createSeedWorldDocument,
@@ -63,7 +69,7 @@ describe('codexRelationships', () => {
       clearGraphFiltersLabel: 'Clear Graph Filters',
       helpLabel: 'Relationship Help',
       manageLinksLabel: 'Manage Links',
-      openEntryLabel: 'Open Entry',
+      openEntryLabel: 'Review Context',
       openSourceLabel: 'Open Source',
       openTargetLabel: 'Open Target',
       filterListLabel: 'Filter List',
@@ -88,6 +94,13 @@ describe('codexRelationships', () => {
       diagnosticsTitle: 'Diagnostics',
       brokenReferencesLabel: 'Broken references',
       orphanedRecordsLabel: 'Orphaned records',
+      duplicateRelationshipsLabel: 'Duplicate Relationships',
+      duplicateRelationshipsReviewLabel: 'Duplicate relationship review',
+      duplicateRelationshipsDetail:
+        'Saved relationships with the same source, target, type, status, direction, and note.',
+      duplicateRelationshipsCleanupLabel: 'Remove Duplicate Relationships',
+      duplicateRelationshipsCleanupBlockedMessage:
+        'Save or discard the current relationship draft before running bulk cleanup.',
       noBrokenRelationshipsTitle: 'No broken relationships.',
       noConnectedGraphMatchesMessage:
         'No connected graph records match these filters.',
@@ -108,7 +121,56 @@ describe('codexRelationships', () => {
       unsavedDraftMessage: 'Unsaved relationship draft.',
       noMatchesTitle: 'No relationships match the filters.',
       emptyTitle: 'No relationships yet.',
+      studioTitle: 'Relationship Studio',
+      studioReviewLabel: 'Review',
+      studioGraphLabel: 'Graph',
+      studioLinksLabel: 'Links',
+      studioBulkEditLabel: 'Bulk Edit',
     });
+  });
+
+  it('builds relationship studio mode options with active and fallback states', () => {
+    expect(getRelationshipStudioModeModel('graph')).toEqual({
+      title: 'Relationship Studio',
+      detail:
+        'Audit graph health, browse connected records, compose ad hoc links, and prepare bulk cleanup.',
+      activeMode: {
+        id: 'graph',
+        label: 'Graph',
+        detail: 'Browse connected records and inspect visible graph links.',
+        isActive: true,
+      },
+      modes: [
+        {
+          id: 'review',
+          label: 'Review',
+          detail: 'Repair broken references and find unlinked records.',
+          isActive: false,
+        },
+        {
+          id: 'graph',
+          label: 'Graph',
+          detail: 'Browse connected records and inspect visible graph links.',
+          isActive: true,
+        },
+        {
+          id: 'links',
+          label: 'Links',
+          detail: 'Search, edit, delete, or compose saved relationships.',
+          isActive: false,
+        },
+        {
+          id: 'bulk-edit',
+          label: 'Bulk Edit',
+          detail: 'Prepare larger relationship cleanup passes.',
+          isActive: false,
+        },
+      ],
+    });
+
+    expect(getRelationshipStudioModeModel('missing').activeMode.id).toBe(
+      'review'
+    );
   });
 
   it('creates a blank relationship draft with safe defaults', () => {
@@ -131,6 +193,15 @@ describe('codexRelationships', () => {
       })
     ).toBe(
       '/entries?sectionId=characters&entryId=character-mira-rowan&intent=edit&query=Mira%20Rowan'
+    );
+    expect(
+      getRelationshipEntryContextRoute({
+        entryId: 'character-mira-rowan',
+        name: 'Mira Rowan',
+        sectionId: 'characters',
+      })
+    ).toBe(
+      '/entries?sectionId=characters&entryId=character-mira-rowan&intent=context&query=Mira%20Rowan'
     );
   });
 
@@ -906,6 +977,90 @@ describe('codexRelationships', () => {
     expect(diagnostics.orphanedEntries.map((entry) => entry.name)).toEqual([
       'Northwatch Harbor',
       'The Ember Court',
+    ]);
+  });
+
+  it('builds a shared relationship studio review model with legacy text cleanup', () => {
+    const world = getActiveWorld(createSeedWorldDocument());
+    const review = getRelationshipStudioReviewModel(world);
+
+    expect(review.hasIssues).toBe(true);
+    expect(review.healthSummary).toEqual({
+      brokenRelationshipCount: 0,
+      orphanedEntryCount: 2,
+    });
+    expect(review.reviewSummary).toMatchObject({
+      hasIssues: true,
+      totalIssueCount: review.legacyTextItems.length + 2,
+      items: [
+        {
+          id: 'broken-relationships',
+          count: 0,
+          severity: 'critical',
+          title: 'Broken references',
+        },
+        {
+          id: 'orphaned-records',
+          count: 2,
+          title: 'Orphaned records',
+        },
+        {
+          id: 'duplicate-relationships',
+          count: 0,
+          countLabel: '0 groups',
+          title: 'Duplicate Relationships',
+        },
+        {
+          id: 'legacy-text-links',
+          count: review.legacyTextItems.length,
+          title: 'Legacy Link Text',
+        },
+      ],
+    });
+    expect(review.legacyTextExactItemCount).toBeGreaterThan(0);
+    expect(review.legacyTextItems).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          entryId: 'character-mira-rowan',
+          fieldKey: 'affiliations',
+          exactTargetIds: ['faction-cartographers-guild'],
+        }),
+      ])
+    );
+  });
+
+  it('detects conservative duplicate relationship groups for review and cleanup', () => {
+    const world = getActiveWorld(createSeedWorldDocument());
+    const duplicate = {
+      ...world.relationships[0],
+      id: 'relationship-duplicate-member',
+      createdAt: '2026-06-01T00:00:00.000Z',
+      updatedAt: '2026-06-01T00:00:00.000Z',
+    };
+    const olderOriginal = {
+      ...world.relationships[0],
+      createdAt: '2026-05-01T00:00:00.000Z',
+    };
+    const differentNote = {
+      ...world.relationships[0],
+      id: 'relationship-different-note',
+      note: 'Separate useful context.',
+    };
+    const groups = getDuplicateRelationshipGroups({
+      codex: world.codex,
+      entryTypes: world.entryTypes,
+      relationships: [duplicate, olderOriginal, differentNote],
+    });
+
+    expect(groups).toEqual([
+      expect.objectContaining({
+        retainedRelationshipId: olderOriginal.id,
+        duplicateRelationshipIds: ['relationship-duplicate-member'],
+        duplicateCount: 1,
+        sourceName: 'Mira Rowan',
+        targetName: 'The Cartographers Guild',
+        type: 'member of',
+      }),
     ]);
   });
 

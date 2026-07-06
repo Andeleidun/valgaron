@@ -9,24 +9,20 @@ import {
 
 export type MobileTabId = Extract<
   CodexShellRouteId,
-  'overview' | 'entries' | 'relationships' | 'workspaces' | 'data' | 'help'
+  'entries' | 'timeline' | 'relationships' | 'utilities'
 >;
 
 export type MobileTabIconName =
   | 'book-open'
-  | 'database'
+  | 'clock'
   | 'git-branch'
-  | 'help-circle'
-  | 'home'
-  | 'layers';
+  | 'more-horizontal';
 
 const mobileTabIconNames: Record<MobileTabId, MobileTabIconName> = {
-  overview: 'home',
   entries: 'book-open',
+  timeline: 'clock',
   relationships: 'git-branch',
-  workspaces: 'layers',
-  data: 'database',
-  help: 'help-circle',
+  utilities: 'more-horizontal',
 };
 
 export const mobileRouteFocusParam = 'routeFocusId' as const;
@@ -35,24 +31,40 @@ export type MobileTabRoute = {
   id: MobileTabId;
   title: string;
   tabLabel: string;
+  tabAccessibilityLabel: string;
   href: string;
   iconName: MobileTabIconName;
-  screenName: 'index' | Exclude<MobileTabId, 'overview'>;
+  screenName: 'entries' | 'timeline' | 'relationships' | 'more';
 };
+
+function getMobileTabScreenName(id: MobileTabId): MobileTabRoute['screenName'] {
+  switch (id) {
+    case 'entries':
+      return 'entries';
+    case 'timeline':
+      return 'timeline';
+    case 'relationships':
+      return 'relationships';
+    case 'utilities':
+      return 'more';
+  }
+}
 
 export const mobileTabRoutes: readonly MobileTabRoute[] = getCodexShellRoutes(
   mobilePrimaryRouteOrder
-).map((route) => ({
-  id: route.id as MobileTabId,
-  title: route.title,
-  tabLabel: getCodexMobileShellRouteLabel(route.id),
-  href: route.path === '/entries' ? '/entries' : route.path,
-  iconName: mobileTabIconNames[route.id as MobileTabId],
-  screenName:
-    route.id === 'overview'
-      ? 'index'
-      : (route.id as Exclude<MobileTabId, 'overview'>),
-}));
+).map((route) => {
+  const id = route.id as MobileTabId;
+  const tabLabel = getCodexMobileShellRouteLabel(id);
+  return {
+    id,
+    title: route.title,
+    tabLabel,
+    tabAccessibilityLabel: `${tabLabel} tab`,
+    href: id === 'utilities' ? '/more' : route.path,
+    iconName: mobileTabIconNames[id],
+    screenName: getMobileTabScreenName(id),
+  };
+});
 
 export function getMobileTabTitle(id: MobileTabId): string {
   return getCodexShellRouteTitle(id);
@@ -67,8 +79,12 @@ export function getMobileRouteHref(route: string): {
   params: Record<string, string>;
 } {
   const intent = parseCodexRouteIntent(route);
+  const pathnameByRouteId: Partial<Record<CodexShellRouteId, string>> = {
+    knowledge: '/more',
+    utilities: '/more',
+  };
   return {
-    pathname: intent.pathname,
+    pathname: pathnameByRouteId[intent.routeId] ?? intent.pathname,
     params: {
       ...intent.params,
       ...(intent.focusId ? { [mobileRouteFocusParam]: intent.focusId } : {}),

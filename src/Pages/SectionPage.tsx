@@ -9,6 +9,8 @@ import {
   buildRelationshipTextReviewBatchMigration,
   buildRelationshipTextReviewMigration,
   buildRelationshipTextReviewSuggestionMigration,
+  commitEntryDraftTransaction,
+  createSectionEntryDraft,
   draftFromEntry,
   duplicateEntry,
   entryListCopy,
@@ -17,6 +19,7 @@ import {
   entryStatusFilterControl,
   entryUpdatedFilterControl,
   getCodexHelpRoute,
+  getCodexScreenIntro,
   getEntryListEmptyStateModel,
   getEntryListModel,
   getEntrySortControlOptions,
@@ -30,12 +33,17 @@ import {
   getRelationshipEntries,
   getRelationshipFieldConfigsForEntryKind,
   getSectionById,
+  getTimelineEraManagerModel,
   getTimelineEras,
   getTimelineInvolvedEntryIds,
+  createTimelineInvolvedRecordStagedRelationship,
+  timelineFeatureCopy,
+  timelineUnassignedEraFilterValue,
   relationshipTextReviewCopy,
   type RelationshipTextReviewItem,
   type EntryDraft,
   type EntrySortControlValue,
+  type StagedRelationshipDraft,
   type WorldCodex,
   type WorldEntry,
   type WorldRelationship,
@@ -52,6 +60,7 @@ import {
 
 export function SectionPage({
   codex,
+  fixedSectionId,
   relationships,
   sections,
   onArchiveEntry,
@@ -61,6 +70,7 @@ export function SectionPage({
   onSaveRelationship,
 }: {
   codex: WorldCodex;
+  fixedSectionId?: string;
   relationships: readonly WorldRelationship[];
   sections: readonly WorldSectionConfig[];
   onArchiveEntry: (entry: WorldEntry, archived: boolean) => void;
@@ -70,14 +80,59 @@ export function SectionPage({
   onSaveRelationship: (relationship: WorldRelationship) => void;
 }) {
   const { sectionId } = useParams();
-  const [searchParams] = useSearchParams();
-  const section = getSectionById(sectionId, sections);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const effectiveSectionId = fixedSectionId ?? sectionId;
+  const section = getSectionById(effectiveSectionId, sections);
   const requestedEntryId = searchParams.get('entryId');
   const requestedIntent = searchParams.get('intent');
   const requestedQuery = searchParams.get('query');
-  const routeSelectionKey = `${sectionId ?? ''}|${requestedEntryId ?? ''}|${
-    requestedIntent ?? ''
-  }|${requestedQuery ?? ''}`;
+  const timelineDefaultSortKey: EntrySortControlValue =
+    fixedSectionId === 'timeline' ? 'timeline-order' : 'updated-desc';
+  const requestedTimelineEra =
+    fixedSectionId === 'timeline' ? searchParams.get('era') ?? '' : '';
+  const requestedTimelineInvolvedEntryId =
+    fixedSectionId === 'timeline'
+      ? searchParams.get('involvedEntryId') ?? ''
+      : '';
+  const requestedTimelineStatusParam = searchParams.get('status') ?? '';
+  const requestedTimelineStatus =
+    fixedSectionId === 'timeline' &&
+    entryStatusFilterControl.options.some(
+      (option) => option.value === requestedTimelineStatusParam
+    )
+      ? (requestedTimelineStatusParam as EntryDraft['status'] | '')
+      : '';
+  const requestedTimelineTag =
+    fixedSectionId === 'timeline' ? searchParams.get('tag') ?? '' : '';
+  const requestedTimelineSortParam = searchParams.get('sort') ?? '';
+  const requestedTimelineSortKey =
+    fixedSectionId === 'timeline' &&
+    entrySortControl.options.some(
+      (option) => option.value === requestedTimelineSortParam
+    )
+      ? (requestedTimelineSortParam as EntrySortControlValue)
+      : timelineDefaultSortKey;
+  const requestedTimelineUpdatedParam =
+    searchParams.get('updatedWithinDays') ?? '';
+  const requestedTimelineUpdatedWithinDays =
+    fixedSectionId === 'timeline' &&
+    entryUpdatedFilterControl.options.some(
+      (option) =>
+        option.value !== '' && option.value === requestedTimelineUpdatedParam
+    )
+      ? Number(requestedTimelineUpdatedParam)
+      : null;
+  const requestedTimelineShowArchived =
+    fixedSectionId === 'timeline' &&
+    searchParams.get('showArchived') === 'true';
+  const routeSelectionKey = [
+    effectiveSectionId ?? '',
+    requestedEntryId ?? '',
+    requestedIntent ?? '',
+    requestedQuery ?? '',
+    fixedSectionId === 'timeline' ? requestedTimelineEra : '',
+    fixedSectionId === 'timeline' ? requestedTimelineInvolvedEntryId : '',
+  ].join('|');
   const appliedRouteSelectionKeyRef = useRef('');
   const [selectedEntryId, setSelectedEntryId] = useState<string | null>(
     () => requestedEntryId
@@ -90,14 +145,87 @@ export function SectionPage({
   const [updatedWithinDays, setUpdatedWithinDays] = useState<number | null>(
     null
   );
-  const [sortKey, setSortKey] = useState<EntrySortControlValue>('updated-desc');
+  const [sortKey, setSortKey] = useState<EntrySortControlValue>(
+    timelineDefaultSortKey
+  );
   const [eraFilter, setEraFilter] = useState('');
   const [involvedEntryFilter, setInvolvedEntryFilter] = useState('');
   const [showArchived, setShowArchived] = useState(false);
   const [entryPendingDelete, setEntryPendingDelete] =
     useState<WorldEntry | null>(null);
   const [isEntryFormDirty, setIsEntryFormDirty] = useState(false);
-  const [templateDraft, setTemplateDraft] = useState<EntryDraft | null>(null);
+  const [templateDraft, setTemplateDraft] = useState<EntryDraft | null>(() =>
+    section && requestedIntent === 'new'
+      ? createSectionEntryDraft(section, {
+          timelineEra:
+            section.id === 'timeline' &&
+            requestedTimelineEra !== timelineUnassignedEraFilterValue
+              ? requestedTimelineEra
+              : '',
+        })
+      : null
+  );
+  const [templateStagedRelationships, setTemplateStagedRelationships] =
+    useState<StagedRelationshipDraft[]>(() => {
+      if (
+        !section ||
+        requestedIntent !== 'new' ||
+        section.id !== 'timeline' ||
+        !requestedTimelineInvolvedEntryId ||
+        !getRelationshipEntries(codex, sections)
+          .filter((entry) => entry.status !== 'archived')
+          .some((entry) => entry.id === requestedTimelineInvolvedEntryId)
+      ) {
+        return [];
+      }
+      const relationship = createTimelineInvolvedRecordStagedRelationship(
+        requestedTimelineInvolvedEntryId,
+        `staged-timeline-involved-${requestedTimelineInvolvedEntryId}`
+      );
+      return relationship ? [relationship] : [];
+    });
+  const [
+    showAllRelationshipTextReviewItems,
+    setShowAllRelationshipTextReviewItems,
+  ] = useState(false);
+  const relationshipEntryIds = useMemo(
+    () =>
+      new Set(
+        getRelationshipEntries(codex, sections)
+          .filter((entry) => entry.status !== 'archived')
+          .map((entry) => entry.id)
+      ),
+    [codex, sections]
+  );
+
+  const createContextEntryDraft = (
+    nextSection: WorldSectionConfig,
+    timelineEra = eraFilter
+  ) =>
+    createSectionEntryDraft(nextSection, {
+      timelineEra:
+        nextSection.id === 'timeline' &&
+        timelineEra !== timelineUnassignedEraFilterValue
+          ? timelineEra
+          : '',
+    });
+  const createContextStagedRelationships = (
+    nextSection: WorldSectionConfig,
+    involvedEntryId = involvedEntryFilter
+  ): StagedRelationshipDraft[] => {
+    if (
+      nextSection.id !== 'timeline' ||
+      !involvedEntryId ||
+      !relationshipEntryIds.has(involvedEntryId)
+    ) {
+      return [];
+    }
+    const relationship = createTimelineInvolvedRecordStagedRelationship(
+      involvedEntryId,
+      `staged-timeline-involved-${involvedEntryId}`
+    );
+    return relationship ? [relationship] : [];
+  };
 
   useEffect(() => {
     setSelectedEntryId(requestedEntryId);
@@ -105,13 +233,47 @@ export function SectionPage({
     setActiveTag('');
     setStatusFilter('');
     setUpdatedWithinDays(null);
-    setSortKey('updated-desc');
+    setSortKey(timelineDefaultSortKey);
     setEraFilter('');
     setInvolvedEntryFilter('');
     setShowArchived(false);
     setIsEntryFormDirty(false);
-    setTemplateDraft(null);
-  }, [sectionId]);
+    if (section && requestedIntent === 'new') {
+      setTemplateDraft(createContextEntryDraft(section, requestedTimelineEra));
+      setTemplateStagedRelationships(
+        createContextStagedRelationships(
+          section,
+          requestedTimelineInvolvedEntryId
+        )
+      );
+    } else {
+      setTemplateDraft(null);
+      setTemplateStagedRelationships([]);
+    }
+    setShowAllRelationshipTextReviewItems(false);
+  }, [effectiveSectionId, timelineDefaultSortKey]);
+
+  useEffect(() => {
+    if (fixedSectionId !== 'timeline') {
+      return;
+    }
+    setActiveTag(requestedTimelineTag);
+    setStatusFilter(requestedTimelineStatus);
+    setUpdatedWithinDays(requestedTimelineUpdatedWithinDays);
+    setSortKey(requestedTimelineSortKey);
+    setEraFilter(requestedTimelineEra);
+    setInvolvedEntryFilter(requestedTimelineInvolvedEntryId);
+    setShowArchived(requestedTimelineShowArchived);
+  }, [
+    fixedSectionId,
+    requestedTimelineEra,
+    requestedTimelineInvolvedEntryId,
+    requestedTimelineSortKey,
+    requestedTimelineStatus,
+    requestedTimelineTag,
+    requestedTimelineUpdatedWithinDays,
+    requestedTimelineShowArchived,
+  ]);
 
   useEffect(() => {
     if (!section) {
@@ -121,6 +283,10 @@ export function SectionPage({
       return;
     }
     const applyRouteQuery = () => {
+      if (fixedSectionId === 'timeline') {
+        setQuery(requestedQuery ?? '');
+        return;
+      }
       if (requestedQuery !== null) {
         setQuery(requestedQuery);
       }
@@ -132,7 +298,15 @@ export function SectionPage({
       if (confirmDiscardUnsavedChanges(isEntryFormDirty)) {
         applyRouteQuery();
         setSelectedEntryId(null);
-        setTemplateDraft(null);
+        setTemplateDraft(
+          createContextEntryDraft(section, requestedTimelineEra)
+        );
+        setTemplateStagedRelationships(
+          createContextStagedRelationships(
+            section,
+            requestedTimelineInvolvedEntryId
+          )
+        );
         appliedRouteSelectionKeyRef.current = routeSelectionKey;
       } else {
         cancelRouteSelection();
@@ -152,6 +326,7 @@ export function SectionPage({
       if (!isEntryFormDirty) {
         setSelectedEntryId(null);
         setTemplateDraft(null);
+        setTemplateStagedRelationships([]);
       }
       appliedRouteSelectionKeyRef.current = routeSelectionKey;
       return;
@@ -163,16 +338,21 @@ export function SectionPage({
       applyRouteQuery();
       setSelectedEntryId(nextEntry.id);
       setTemplateDraft(null);
+      setTemplateStagedRelationships([]);
       appliedRouteSelectionKeyRef.current = routeSelectionKey;
     } else {
       cancelRouteSelection();
     }
   }, [
     codex,
+    fixedSectionId,
     isEntryFormDirty,
     requestedEntryId,
     requestedIntent,
     requestedQuery,
+    requestedTimelineEra,
+    requestedTimelineInvolvedEntryId,
+    relationshipEntryIds,
     routeSelectionKey,
     section,
     selectedEntryId,
@@ -192,6 +372,11 @@ export function SectionPage({
   );
   const timelineEras = useMemo(
     () => (section?.id === 'timeline' ? getTimelineEras(entries) : []),
+    [entries, section]
+  );
+  const timelineEraManager = useMemo(
+    () =>
+      section?.id === 'timeline' ? getTimelineEraManagerModel(entries) : null,
     [entries, section]
   );
   const timelineInvolvedEntries = useMemo(() => {
@@ -287,6 +472,15 @@ export function SectionPage({
   const relationshipTextReviewExactItems = relationshipTextReviewItems.filter(
     (item) => item.exactMatchCount > 0
   );
+  const initialStagedRelationships = selectedEntry
+    ? []
+    : templateStagedRelationships;
+  const visibleRelationshipTextReviewItems = showAllRelationshipTextReviewItems
+    ? relationshipTextReviewItems
+    : relationshipTextReviewItems.slice(0, 6);
+  const hiddenRelationshipTextReviewItemCount =
+    relationshipTextReviewItems.length -
+    visibleRelationshipTextReviewItems.length;
 
   useEffect(() => {
     if (
@@ -311,6 +505,17 @@ export function SectionPage({
     setInvolvedEntryFilter('');
     setShowArchived(false);
     setUpdatedWithinDays(null);
+    setSortKey(timelineDefaultSortKey);
+    updateTimelineBrowseRoute({
+      era: '',
+      involvedEntryId: '',
+      query: '',
+      showArchived: false,
+      sort: timelineDefaultSortKey,
+      status: '',
+      tag: '',
+      updatedWithinDays: null,
+    });
   };
   const emptyState = section
     ? getEntryListEmptyStateModel({
@@ -324,6 +529,74 @@ export function SectionPage({
   const sectionHelpRoute = getCodexHelpRoute(
     section.id === 'timeline' ? 'timeline' : 'entries'
   );
+  const fixedTimelineIntro =
+    fixedSectionId === 'timeline' ? getCodexScreenIntro('timeline') : null;
+
+  const updateTimelineBrowseRoute = ({
+    era = eraFilter,
+    involvedEntryId = involvedEntryFilter,
+    query: nextQuery = query,
+    showArchived: nextShowArchived = showArchived,
+    sort: nextSort = sortKey,
+    status: nextStatus = statusFilter,
+    tag = activeTag,
+    updatedWithinDays: nextUpdatedWithinDays = updatedWithinDays,
+  }: {
+    era?: string;
+    involvedEntryId?: string;
+    query?: string;
+    showArchived?: boolean;
+    sort?: EntrySortControlValue;
+    status?: EntryDraft['status'] | '';
+    tag?: string;
+    updatedWithinDays?: number | null;
+  }) => {
+    if (fixedSectionId !== 'timeline') {
+      return;
+    }
+    const nextParams = new URLSearchParams(searchParams);
+    if (nextQuery.trim()) {
+      nextParams.set('query', nextQuery);
+    } else {
+      nextParams.delete('query');
+    }
+    if (era) {
+      nextParams.set('era', era);
+    } else {
+      nextParams.delete('era');
+    }
+    if (tag) {
+      nextParams.set('tag', tag);
+    } else {
+      nextParams.delete('tag');
+    }
+    if (nextStatus) {
+      nextParams.set('status', nextStatus);
+    } else {
+      nextParams.delete('status');
+    }
+    if (nextSort !== timelineDefaultSortKey) {
+      nextParams.set('sort', nextSort);
+    } else {
+      nextParams.delete('sort');
+    }
+    if (nextUpdatedWithinDays !== null) {
+      nextParams.set('updatedWithinDays', String(nextUpdatedWithinDays));
+    } else {
+      nextParams.delete('updatedWithinDays');
+    }
+    if (involvedEntryId) {
+      nextParams.set('involvedEntryId', involvedEntryId);
+    } else {
+      nextParams.delete('involvedEntryId');
+    }
+    if (nextShowArchived) {
+      nextParams.set('showArchived', 'true');
+    } else {
+      nextParams.delete('showArchived');
+    }
+    setSearchParams(nextParams);
+  };
 
   const selectEntry = (entryId: string) => {
     if (
@@ -331,6 +604,7 @@ export function SectionPage({
       confirmDiscardUnsavedChanges(isEntryFormDirty)
     ) {
       setTemplateDraft(null);
+      setTemplateStagedRelationships([]);
       setSelectedEntryId(entryId);
     }
   };
@@ -447,9 +721,13 @@ export function SectionPage({
         className="vwb-panel vwb-section-intro"
         aria-labelledby={`${section.id}-title`}
       >
-        <p className="vwb-kicker">Codex section</p>
-        <h1 id={`${section.id}-title`}>{section.title}</h1>
-        <p>{section.description}</p>
+        <p className="vwb-kicker">
+          {fixedTimelineIntro?.kicker ?? 'Codex section'}
+        </p>
+        <h1 id={`${section.id}-title`}>
+          {fixedTimelineIntro?.title ?? section.title}
+        </h1>
+        <p>{fixedTimelineIntro?.detail ?? section.description}</p>
         <NavLink
           className="vwb-secondary-button"
           to={sectionHelpRoute}
@@ -512,7 +790,7 @@ export function SectionPage({
             </button>
           ) : null}
           <div className="vwb-relationship-list">
-            {relationshipTextReviewItems.slice(0, 6).map((item) => (
+            {visibleRelationshipTextReviewItems.map((item) => (
               <article
                 className="vwb-relationship-row"
                 key={`${item.entryId}-${item.fieldKey}`}
@@ -573,11 +851,29 @@ export function SectionPage({
               </article>
             ))}
           </div>
+          {hiddenRelationshipTextReviewItemCount > 0 ? (
+            <span className="vwb-tag">
+              {hiddenRelationshipTextReviewItemCount} more legacy text item
+              {hiddenRelationshipTextReviewItemCount === 1 ? '' : 's'}.
+            </span>
+          ) : null}
           {relationshipTextReviewItems.length > 6 ? (
-            <p className="vwb-inline-status">
-              Showing 6 of {relationshipTextReviewItems.length}. Use the
-              affected entries to continue cleanup.
-            </p>
+            <div className="vwb-action-row">
+              <button
+                className="vwb-secondary-button"
+                type="button"
+                aria-expanded={showAllRelationshipTextReviewItems}
+                onClick={() =>
+                  setShowAllRelationshipTextReviewItems(
+                    (currentValue) => !currentValue
+                  )
+                }
+              >
+                {showAllRelationshipTextReviewItems
+                  ? 'Show Fewer Legacy Text Items'
+                  : `Show ${hiddenRelationshipTextReviewItemCount} More Legacy Text Items`}
+              </button>
+            </div>
           ) : null}
         </section>
       ) : null}
@@ -602,7 +898,11 @@ export function SectionPage({
             Search {section.title}
             <input
               value={query}
-              onChange={(event) => setQuery(event.target.value)}
+              onChange={(event) => {
+                const nextQuery = event.target.value;
+                setQuery(nextQuery);
+                updateTimelineBrowseRoute({ query: nextQuery });
+              }}
               placeholder="Search this section"
               type="search"
             />
@@ -616,7 +916,10 @@ export function SectionPage({
                   }`}
                   key={option.value}
                   type="button"
-                  onClick={() => setActiveTag(option.nextValue)}
+                  onClick={() => {
+                    setActiveTag(option.nextValue);
+                    updateTimelineBrowseRoute({ tag: option.nextValue });
+                  }}
                   aria-pressed={option.isActive}
                 >
                   {option.label}
@@ -645,6 +948,11 @@ export function SectionPage({
                   if (nextStatus === 'archived') {
                     setShowArchived(true);
                   }
+                  updateTimelineBrowseRoute({
+                    showArchived:
+                      nextStatus === 'archived' ? true : showArchived,
+                    status: nextStatus,
+                  });
                 }}
               >
                 {entryStatusFilterControl.options.map((option) => (
@@ -659,9 +967,12 @@ export function SectionPage({
               <select
                 aria-label={entrySortControl.accessibilityLabel}
                 value={sortKey}
-                onChange={(event) =>
-                  setSortKey(event.target.value as EntrySortControlValue)
-                }
+                onChange={(event) => {
+                  const nextSortKey = event.target
+                    .value as EntrySortControlValue;
+                  setSortKey(nextSortKey);
+                  updateTimelineBrowseRoute({ sort: nextSortKey });
+                }}
               >
                 {entrySortOptions.map((option) => (
                   <option value={option.value} key={option.value}>
@@ -675,11 +986,15 @@ export function SectionPage({
               <select
                 aria-label={entryUpdatedFilterControl.accessibilityLabel}
                 value={updatedWithinDays ?? ''}
-                onChange={(event) =>
-                  setUpdatedWithinDays(
-                    event.target.value ? Number(event.target.value) : null
-                  )
-                }
+                onChange={(event) => {
+                  const nextUpdatedWithinDays = event.target.value
+                    ? Number(event.target.value)
+                    : null;
+                  setUpdatedWithinDays(nextUpdatedWithinDays);
+                  updateTimelineBrowseRoute({
+                    updatedWithinDays: nextUpdatedWithinDays,
+                  });
+                }}
               >
                 {entryUpdatedFilterControl.options.map((option) => (
                   <option value={option.value} key={option.value}>
@@ -695,7 +1010,11 @@ export function SectionPage({
                 Era
                 <select
                   value={eraFilter}
-                  onChange={(event) => setEraFilter(event.target.value)}
+                  onChange={(event) => {
+                    const nextEra = event.target.value;
+                    setEraFilter(nextEra);
+                    updateTimelineBrowseRoute({ era: nextEra });
+                  }}
                 >
                   <option value="">Any era</option>
                   {timelineEras.map((era) => (
@@ -703,15 +1022,25 @@ export function SectionPage({
                       {era}
                     </option>
                   ))}
+                  {timelineEraManager?.unassignedCount ? (
+                    <option value={timelineUnassignedEraFilterValue}>
+                      {timelineFeatureCopy.unassignedEraLabel} (
+                      {timelineEraManager.unassignedCount})
+                    </option>
+                  ) : null}
                 </select>
               </label>
               <label>
                 Involved entry
                 <select
                   value={involvedEntryFilter}
-                  onChange={(event) =>
-                    setInvolvedEntryFilter(event.target.value)
-                  }
+                  onChange={(event) => {
+                    const nextInvolvedEntryId = event.target.value;
+                    setInvolvedEntryFilter(nextInvolvedEntryId);
+                    updateTimelineBrowseRoute({
+                      involvedEntryId: nextInvolvedEntryId,
+                    });
+                  }}
                 >
                   <option value="">Any linked entry</option>
                   {timelineInvolvedEntries.map((entry) => (
@@ -727,7 +1056,11 @@ export function SectionPage({
             <input
               aria-label={entryShowArchivedControl.accessibilityLabel}
               checked={showArchived}
-              onChange={(event) => setShowArchived(event.target.checked)}
+              onChange={(event) => {
+                const nextShowArchived = event.target.checked;
+                setShowArchived(nextShowArchived);
+                updateTimelineBrowseRoute({ showArchived: nextShowArchived });
+              }}
               type="checkbox"
             />
             {entryShowArchivedControl.label}
@@ -753,7 +1086,10 @@ export function SectionPage({
                 <button
                   className="vwb-secondary-button"
                   type="button"
-                  onClick={() => setShowArchived(true)}
+                  onClick={() => {
+                    setShowArchived(true);
+                    updateTimelineBrowseRoute({ showArchived: true });
+                  }}
                 >
                   Show Archived
                 </button>
@@ -791,12 +1127,16 @@ export function SectionPage({
           }`}
           onCancel={() => {
             setSelectedEntryId(null);
-            setTemplateDraft(null);
+            setTemplateDraft(createContextEntryDraft(section));
+            setTemplateStagedRelationships(
+              createContextStagedRelationships(section)
+            );
           }}
           onArchive={(entry) => {
             onArchiveEntry(entry, true);
             setSelectedEntryId(null);
             setTemplateDraft(null);
+            setTemplateStagedRelationships([]);
           }}
           onDelete={(entry) => setEntryPendingDelete(entry)}
           onDuplicate={(entry) => {
@@ -804,17 +1144,36 @@ export function SectionPage({
             onSaveEntry(duplicatedEntry);
             setSelectedEntryId(duplicatedEntry.id);
             setTemplateDraft(null);
+            setTemplateStagedRelationships([]);
           }}
           onRestore={(entry) => {
             onArchiveEntry(entry, false);
             setSelectedEntryId(entry.id);
             setTemplateDraft(null);
+            setTemplateStagedRelationships([]);
             setShowArchived(true);
           }}
           onSave={(entry) => {
             onSaveEntry(entry);
             setSelectedEntryId(entry.id);
             setTemplateDraft(null);
+            setTemplateStagedRelationships([]);
+          }}
+          onSaveDraft={(draft, existingEntry, stagedRelationships = []) => {
+            const result = commitEntryDraftTransaction({
+              codex,
+              entryDraft: draft,
+              existingEntry,
+              relationships,
+              section,
+              stagedRelationships,
+            });
+            onSaveEntry(result.entry);
+            result.savedRelationships.forEach(onSaveRelationship);
+            setSelectedEntryId(result.entry.id);
+            setTemplateDraft(null);
+            setTemplateStagedRelationships([]);
+            return result.entry;
           }}
           onDeleteRelationship={onDeleteRelationship}
           onSaveRelationship={onSaveRelationship}
@@ -826,11 +1185,13 @@ export function SectionPage({
               status: 'draft',
             });
             setSelectedEntryId(null);
+            setTemplateStagedRelationships([]);
           }}
           section={section}
           sectionEntries={entries}
           selectedEntry={selectedEntry}
           initialDraft={templateDraft ?? undefined}
+          initialStagedRelationships={initialStagedRelationships}
           onDirtyChange={setIsEntryFormDirty}
           codex={codex}
           relationships={relationships}
@@ -845,6 +1206,7 @@ export function SectionPage({
             onDeleteEntry(entryPendingDelete);
             setSelectedEntryId(null);
             setTemplateDraft(null);
+            setTemplateStagedRelationships([]);
             setEntryPendingDelete(null);
           }}
         />

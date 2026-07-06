@@ -8,7 +8,7 @@ import {
   valgaronSpacing,
   valgaronTypography,
 } from '@valgaron/ui-tokens';
-import { getMobileTabHref } from '../navigation/mobileRoutes';
+import { getMobileRouteHref } from '../navigation/mobileRoutes';
 import { ActionButton, ButtonRow } from './screenPrimitives';
 
 type MobileRuntimeErrorBoundaryProps = {
@@ -37,7 +37,7 @@ export class MobileRuntimeErrorBoundary extends Component<
 
   openData = () => {
     this.setState({ hasError: false }, () => {
-      router.replace(getMobileTabHref('data'));
+      router.replace(getMobileRouteHref('/data'));
     });
   };
 

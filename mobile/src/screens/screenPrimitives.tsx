@@ -153,6 +153,8 @@ export function SelectField<TValue extends string>({
         accessibilityHint="Opens a list of choices."
         accessibilityLabel={accessibilityLabel ?? label}
         accessibilityRole="button"
+        accessibilityState={{ expanded: isOpen }}
+        accessibilityValue={{ text: selectedOption?.label ?? 'Select' }}
         onPress={() => setIsOpen(true)}
         style={({ pressed }) => [
           styles.input,
@@ -268,15 +270,17 @@ export function CheckboxField({
 export function ActionButton({
   accessibilityHint,
   accessibilityLabel,
+  expanded,
   label,
   onPress,
-  selected = false,
+  selected,
   testID,
   tone = 'neutral',
   disabled = false,
 }: {
   accessibilityHint?: string;
   accessibilityLabel?: string;
+  expanded?: boolean;
   label: string;
   onPress: () => void;
   selected?: boolean;
@@ -284,12 +288,21 @@ export function ActionButton({
   tone?: 'neutral' | 'accent' | 'danger';
   disabled?: boolean;
 }) {
+  const accessibilityState = {
+    ...(disabled ? { disabled: true } : {}),
+    ...(expanded === undefined ? {} : { expanded }),
+    ...(selected === undefined ? {} : { selected }),
+  };
+  const hasAccessibilityState = Object.keys(accessibilityState).length > 0;
+
   return (
     <Pressable
       accessibilityHint={accessibilityHint}
       accessibilityLabel={accessibilityLabel ?? label}
       accessibilityRole="button"
-      accessibilityState={{ disabled, selected }}
+      accessibilityState={
+        hasAccessibilityState ? accessibilityState : undefined
+      }
       disabled={disabled}
       hitSlop={4}
       onPress={onPress}

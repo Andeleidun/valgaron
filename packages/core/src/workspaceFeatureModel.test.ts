@@ -172,12 +172,41 @@ describe('workspace feature model', () => {
     ]);
     expect(model.customEntryTypes.hiddenCount).toBe(1);
     expect(model.customEntryTypes.countLabel).toBe('3 custom types');
-    expect(model.customEntryTypes.hiddenText).toBe(
-      'Refine custom type search to show 1 more type.'
-    );
+    expect(model.customEntryTypes.totalCount).toBe(3);
     expect(model.planetaryWorlds.rows).toEqual([]);
     expect(model.planetaryWorlds.emptyText).toBe(
       'No in-fiction worlds match this search.'
     );
+  });
+
+  it('supports per-list result limits for expanded management lists', () => {
+    let document = createSeedWorldDocument();
+    for (const title of ['Artifacts', 'Relics', 'Rituals']) {
+      document = updateActiveWorkspace(document, (workspace) =>
+        createCustomEntryType(workspace, {
+          title,
+          singularTitle: title.slice(0, -1),
+          description: '',
+          fields: 'Origin',
+        })
+      );
+    }
+
+    const model = getWorkspaceFeatureModel({
+      activeWorld: getActiveWorld(document),
+      document,
+      resultLimit: 1,
+      resultLimits: {
+        customEntryTypes: 3,
+      },
+    });
+
+    expect(model.workspaces.rows).toHaveLength(1);
+    expect(model.customEntryTypes.rows.map((row) => row.title)).toEqual([
+      'Artifacts',
+      'Relics',
+      'Rituals',
+    ]);
+    expect(model.customEntryTypes.hiddenCount).toBe(0);
   });
 });

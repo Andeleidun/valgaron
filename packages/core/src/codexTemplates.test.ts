@@ -43,6 +43,29 @@ describe('codex templates and completeness helpers', () => {
     });
   });
 
+  it('seeds timeline draft era from creation context', () => {
+    const timelineSection = worldSections.find(
+      (section) => section.id === 'timeline'
+    );
+    const characterSection = worldSections.find(
+      (section) => section.id === 'characters'
+    );
+    if (!timelineSection || !characterSection) {
+      throw new Error('Expected seed section config.');
+    }
+
+    expect(
+      createSectionEntryDraft(timelineSection, {
+        timelineEra: '  Charter Era  ',
+      }).details.era
+    ).toBe('Charter Era');
+    expect(
+      createSectionEntryDraft(characterSection, {
+        timelineEra: 'Charter Era',
+      }).details
+    ).not.toHaveProperty('era');
+  });
+
   it('creates reusable template drafts from existing entries', () => {
     const codex = createSeedCodex();
     const section = worldSections[0];

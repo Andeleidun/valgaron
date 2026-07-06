@@ -15,6 +15,7 @@ export const recoverySnapshotReasons = [
   'workspace-delete',
   'planetary-world-delete',
   'entry-type-delete',
+  'schema-cleanup',
 ] as const satisfies readonly RecoverySnapshotReason[];
 
 const recoverySnapshotReasonLabels: Record<
@@ -46,6 +47,10 @@ const recoverySnapshotReasonLabels: Record<
   'entry-type-delete': {
     title: 'Before custom entry type delete',
     phrase: 'before custom entry type delete',
+  },
+  'schema-cleanup': {
+    title: 'Before schema cleanup',
+    phrase: 'before schema cleanup',
   },
 };
 

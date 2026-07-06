@@ -49,6 +49,7 @@ export type MobileEntryEditorModel = {
 export function getMobileEntryEditorModel({
   codex,
   draft,
+  expandedLinkedFieldPreferredTargets = {},
   expandedLinkedFieldTargets = {},
   linkedFieldQueries = {},
   relationships = [],
@@ -59,6 +60,7 @@ export function getMobileEntryEditorModel({
 }: {
   codex?: WorldCodex;
   draft: EntryDraft;
+  expandedLinkedFieldPreferredTargets?: Readonly<Record<string, boolean>>;
   expandedLinkedFieldTargets?: Readonly<Record<string, boolean>>;
   linkedFieldQueries?: Readonly<Record<string, string>>;
   relationships?: readonly WorldRelationship[];
@@ -129,6 +131,9 @@ export function getMobileEntryEditorModel({
             selectedTargetIds
           );
           const optionDisplay = getRelationshipTargetOptionDisplay({
+            expandedPreferredTargets: Boolean(
+              expandedLinkedFieldPreferredTargets[config.fieldKey]
+            ),
             expandedUnusualTargets: Boolean(
               expandedLinkedFieldTargets[config.fieldKey]
             ),

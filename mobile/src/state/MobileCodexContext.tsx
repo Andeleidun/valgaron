@@ -16,9 +16,12 @@ import type {
   WorldSectionConfig,
 } from '@valgaron/core';
 import {
+  addEntryTypeFieldsInActiveWorkspace,
   applyEntry,
   archiveEntryInActiveWorkspace,
   archivePlanetaryWorldInActiveWorkspace,
+  clearHiddenEntryDetailsInActiveWorkspace,
+  commitEntryDraftTransaction,
   createEntryTypeInActiveWorkspace,
   createEmptyRelationshipDraft,
   createSeedWorldDocument,
@@ -30,7 +33,6 @@ import {
   deleteWorkspace as deleteCoreWorkspace,
   duplicateEntry as duplicateCoreEntry,
   duplicateWorkspace as duplicateCoreWorkspace,
-  entryFromDraft,
   formatDraftValidationErrors,
   getActiveWorld,
   getDataActionResultMessage,
@@ -42,25 +44,30 @@ import {
   getDeviceCommitResolvedMessage,
   getDeviceCommitResultMessage,
   localPersistenceCopy,
+  moveEntryTypeFieldInActiveWorkspace,
   moveTimelineEventInActiveWorkspace,
+  renameEntryTypeFieldInActiveWorkspace,
+  removeEntryTypeFieldInActiveWorkspace,
+  reassignTimelineEraInActiveWorkspace,
   relationshipFromDraft,
-  saveEntryInActiveWorkspace,
   savePlanetaryWorldInActiveWorkspace,
   saveRelationshipInActiveWorkspace,
   setActiveWorkspace,
   setWorkspaceArchived,
   updateActiveWorld,
   updateWorkspaceMetadata,
-  validateEntryDraft,
+  validateEntryDraftTransaction,
   validateEntryTypeDraft,
   validatePlanetaryWorldDraft,
   validateRelationshipDraft,
   validateWorkspaceDraft,
   type DraftValidationResult,
+  type CustomEntryTypeFieldMoveDirection,
   type EntryDraft,
   type EntryTypeDraft,
   type PlanetaryWorldDraft,
   type RelationshipDraft,
+  type StagedRelationshipDraft,
   type WorkspaceDraft,
 } from '@valgaron/core';
 import { asyncStorageAdapter } from '../storage/asyncStorageAdapter';
@@ -96,7 +103,8 @@ export type MobileCodexController = MobileCodexState & {
   saveEntryDraft: (
     section: WorldSectionConfig,
     draft: EntryDraft,
-    existingEntry?: WorldEntry
+    existingEntry?: WorldEntry,
+    stagedRelationships?: readonly StagedRelationshipDraft[]
   ) => WorldEntry | null;
   archiveEntry: (entry: WorldEntry, archived: boolean) => void;
   duplicateEntry: (
@@ -107,6 +115,7 @@ export type MobileCodexController = MobileCodexState & {
     eventId: string,
     direction: TimelineOrderDirection
   ) => void;
+  reassignTimelineEra: (sourceEra: string, targetEra: string) => boolean;
   permanentlyDeleteEntry: (entry: WorldEntry) => void;
   createRelationshipDraft: () => RelationshipDraft;
   saveRelationshipDraft: (
@@ -128,6 +137,19 @@ export type MobileCodexController = MobileCodexState & {
   archivePlanetaryWorld: (planetaryWorldId: string, archived: boolean) => void;
   permanentlyDeletePlanetaryWorld: (planetaryWorldId: string) => void;
   createEntryType: (draft: EntryTypeDraft) => boolean;
+  addEntryTypeFields: (sectionId: string, fieldsText: string) => boolean;
+  moveEntryTypeField: (
+    sectionId: string,
+    fieldKey: string,
+    direction: CustomEntryTypeFieldMoveDirection
+  ) => boolean;
+  renameEntryTypeField: (
+    sectionId: string,
+    fieldKey: string,
+    label: string
+  ) => boolean;
+  removeEntryTypeField: (sectionId: string, fieldKey: string) => boolean;
+  clearHiddenEntryDetails: () => void;
   permanentlyDeleteEntryType: (sectionId: string) => void;
   importDocumentText: (text: string) => void;
   restoreRecoverySnapshot: (snapshotId: string) => void;
@@ -286,25 +308,48 @@ export function MobileCodexProvider({ children }: { children: ReactNode }) {
       ...state,
       activeWorld,
       sections: activeWorld.entryTypes,
-      saveEntryDraft(section, draft, existingEntry) {
-        const validation = validateEntryDraft(section, draft);
+      saveEntryDraft(section, draft, existingEntry, stagedRelationships = []) {
+        const validation = validateEntryDraftTransaction({
+          codex: activeWorld.codex,
+          entryDraft: draft,
+          existingEntry,
+          section,
+          stagedRelationships,
+        });
         if (!validation.ok) {
           setFormValidationError(validation);
           return null;
         }
-        const entry = entryFromDraft(section, draft, existingEntry);
+        let savedEntry: WorldEntry | null = null;
         commitDocument(
           (currentDocument) =>
-            saveEntryInActiveWorkspace({
-              document: currentDocument,
-              entry,
+            updateActiveWorld(currentDocument, (world) => {
+              const currentSection =
+                world.entryTypes.find((item) => item.id === section.id) ??
+                section;
+              const transaction = commitEntryDraftTransaction({
+                codex: world.codex,
+                entryDraft: draft,
+                existingEntry,
+                relationships: world.relationships,
+                section: currentSection,
+                stagedRelationships,
+              });
+              savedEntry = transaction.entry;
+
+              return {
+                ...world,
+                codex: transaction.codex,
+                relationships: [...transaction.relationships],
+                updatedAt: new Date().toISOString(),
+              };
             }),
           undefined,
           existingEntry
             ? getDeviceCommitResultMessage('entry-updated')
             : getDeviceCommitResultMessage('entry-saved')
         );
-        return entry;
+        return savedEntry;
       },
       archiveEntry(entry, archived) {
         commitDocument((currentDocument) =>
@@ -334,6 +379,21 @@ export function MobileCodexProvider({ children }: { children: ReactNode }) {
             eventId,
           })
         );
+      },
+      reassignTimelineEra(sourceEra, targetEra) {
+        commitDocument(
+          (currentDocument) =>
+            reassignTimelineEraInActiveWorkspace({
+              document: currentDocument,
+              draft: {
+                sourceEra,
+                targetEra,
+              },
+            }),
+          undefined,
+          getDeviceCommitResultMessage('entry-updated')
+        );
+        return true;
       },
       permanentlyDeleteEntry(entry) {
         commitDocument(
@@ -493,6 +553,70 @@ export function MobileCodexProvider({ children }: { children: ReactNode }) {
           getDeviceCommitResultMessage('entry-type-created')
         );
         return true;
+      },
+      addEntryTypeFields(sectionId, fieldsText) {
+        commitDocument(
+          (currentDocument) =>
+            addEntryTypeFieldsInActiveWorkspace({
+              document: currentDocument,
+              fieldsText,
+              sectionId,
+            }),
+          undefined,
+          getDeviceCommitResultMessage('entry-type-updated')
+        );
+        return true;
+      },
+      moveEntryTypeField(sectionId, fieldKey, direction) {
+        commitDocument(
+          (currentDocument) =>
+            moveEntryTypeFieldInActiveWorkspace({
+              direction,
+              document: currentDocument,
+              fieldKey,
+              sectionId,
+            }),
+          undefined,
+          getDeviceCommitResultMessage('entry-type-updated')
+        );
+        return true;
+      },
+      renameEntryTypeField(sectionId, fieldKey, label) {
+        commitDocument(
+          (currentDocument) =>
+            renameEntryTypeFieldInActiveWorkspace({
+              document: currentDocument,
+              fieldKey,
+              label,
+              sectionId,
+            }),
+          undefined,
+          getDeviceCommitResultMessage('entry-type-updated')
+        );
+        return true;
+      },
+      removeEntryTypeField(sectionId, fieldKey) {
+        commitDocument(
+          (currentDocument) =>
+            removeEntryTypeFieldInActiveWorkspace({
+              document: currentDocument,
+              fieldKey,
+              sectionId,
+            }),
+          undefined,
+          getDeviceCommitResultMessage('entry-type-updated')
+        );
+        return true;
+      },
+      clearHiddenEntryDetails() {
+        commitDocument(
+          (currentDocument) =>
+            clearHiddenEntryDetailsInActiveWorkspace({
+              document: currentDocument,
+            }),
+          'schema-cleanup',
+          getDeviceCommitResultMessage('entry-type-updated')
+        );
       },
       permanentlyDeleteEntryType(sectionId) {
         commitDocument(

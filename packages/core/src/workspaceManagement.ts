@@ -90,7 +90,17 @@ export type EntryTypeDraftFieldDescriptor = {
   label: string;
   placeholder?: string;
   multiline?: boolean;
+  helperText?: string;
 };
+
+export type EntryTypeDraftFieldPreview = {
+  key: string;
+  label: string;
+  modeLabel: string;
+  detail: string;
+};
+
+export type CustomEntryTypeFieldMoveDirection = 'up' | 'down';
 
 export const entryTypeDraftFields: readonly EntryTypeDraftFieldDescriptor[] = [
   { key: 'title', label: 'Section title', placeholder: 'Artifacts' },
@@ -99,7 +109,10 @@ export const entryTypeDraftFields: readonly EntryTypeDraftFieldDescriptor[] = [
   {
     key: 'fields',
     label: 'Detail fields',
-    placeholder: 'Origin, Power, Current holder',
+    placeholder:
+      'Origin; Notes (long); Status [Dormant | Active]; Profession (suggest)',
+    helperText:
+      'Separate fields with semicolons or new lines. Add (long) for notes, (suggest) for values learned from entries, or [Value | Value] for fixed choices.',
   },
 ];
 
@@ -193,6 +206,154 @@ export function parseTags(value: string): string[] {
     .split(',')
     .map((tag) => tag.trim())
     .filter(Boolean);
+}
+
+function splitCustomFieldDefinitionText(value: string): string[] {
+  const parts: string[] = [];
+  let current = '';
+  let bracketDepth = 0;
+  for (const character of value) {
+    if (character === '[') {
+      bracketDepth += 1;
+      current += character;
+      continue;
+    }
+    if (character === ']') {
+      bracketDepth = Math.max(0, bracketDepth - 1);
+      current += character;
+      continue;
+    }
+    if (
+      bracketDepth === 0 &&
+      (character === ';' || character === ',' || character === '\n')
+    ) {
+      const part = current.trim();
+      if (part) {
+        parts.push(part);
+      }
+      current = '';
+      continue;
+    }
+    if (character !== '\r') {
+      current += character;
+    }
+  }
+  const finalPart = current.trim();
+  return finalPart ? [...parts, finalPart] : parts;
+}
+
+function parseCustomFieldOptions(value: string): string[] {
+  return value
+    .split(/[|,]/)
+    .map((option) => option.trim())
+    .filter(Boolean);
+}
+
+function parseCustomFieldDefinition(
+  token: string
+): Omit<WorldDetailField, 'key'> | null {
+  let labelText = token.trim();
+  const optionMatch = labelText.match(/\[([^\]]+)\]\s*$/);
+  const autocompleteOptions = optionMatch
+    ? parseCustomFieldOptions(optionMatch[1])
+    : [];
+  if (optionMatch) {
+    labelText = labelText.slice(0, optionMatch.index).trim();
+  }
+
+  let multiline = false;
+  let suggestFromExistingValues = false;
+  while (true) {
+    const flagMatch = labelText.match(/\(([^)]*)\)\s*$/);
+    if (!flagMatch) {
+      break;
+    }
+    const flags = flagMatch[1]
+      .toLowerCase()
+      .split(/[,\s/|]+/)
+      .filter(Boolean);
+    const recognized = flags.some((flag) =>
+      ['long', 'multiline', 'note', 'notes', 'suggest', 'suggestions'].includes(
+        flag
+      )
+    );
+    if (!recognized) {
+      break;
+    }
+    multiline =
+      multiline ||
+      flags.some((flag) =>
+        ['long', 'multiline', 'note', 'notes'].includes(flag)
+      );
+    suggestFromExistingValues =
+      suggestFromExistingValues ||
+      flags.some((flag) => ['suggest', 'suggestions'].includes(flag));
+    labelText = labelText.slice(0, flagMatch.index).trim();
+  }
+
+  if (!labelText) {
+    return null;
+  }
+  return {
+    label: labelText,
+    ...(multiline ? { multiline: true } : {}),
+    ...(suggestFromExistingValues ? { suggestFromExistingValues: true } : {}),
+    ...(autocompleteOptions.length > 0 ? { autocompleteOptions } : {}),
+  };
+}
+
+export function parseCustomDetailFields(value: string): WorldDetailField[] {
+  return splitCustomFieldDefinitionText(value).reduce<WorldDetailField[]>(
+    (detailFields, token) => {
+      const definition = parseCustomFieldDefinition(token);
+      if (!definition) {
+        return detailFields;
+      }
+      const key = uniqueId(
+        slugIdentifier(definition.label, 'field'),
+        detailFields.map((field) => field.key)
+      );
+      return [...detailFields, { key, ...definition }];
+    },
+    []
+  );
+}
+
+function getCustomDetailFieldModeLabel(field: WorldDetailField): string {
+  if (field.autocompleteOptions?.length) {
+    return 'Suggested choices';
+  }
+  if (field.multiline) {
+    return 'Long text';
+  }
+  if (field.suggestFromExistingValues) {
+    return 'Suggested from entries';
+  }
+  return 'Text';
+}
+
+function getCustomDetailFieldDetail(field: WorldDetailField): string {
+  if (field.autocompleteOptions?.length) {
+    return field.autocompleteOptions.join(', ');
+  }
+  if (field.multiline) {
+    return 'Multiline detail field.';
+  }
+  if (field.suggestFromExistingValues) {
+    return 'Suggests values already used in this field.';
+  }
+  return 'Flexible text field.';
+}
+
+export function getEntryTypeDraftFieldPreview(
+  fieldsText: string
+): EntryTypeDraftFieldPreview[] {
+  return parseCustomDetailFields(fieldsText).map((field) => ({
+    key: field.key,
+    label: field.label,
+    modeLabel: getCustomDetailFieldModeLabel(field),
+    detail: getCustomDetailFieldDetail(field),
+  }));
 }
 
 export function normalizeWorkspaceDraft(draft: WorkspaceDraft): WorkspaceDraft {
@@ -496,17 +657,7 @@ export function createCustomEntryType(
     slugIdentifier(draft.title, 'custom-section'),
     workspace.entryTypes.map((section) => section.id)
   );
-  const fields = draft.fields
-    .split(',')
-    .map((label) => label.trim())
-    .filter(Boolean)
-    .reduce<WorldDetailField[]>((detailFields, label) => {
-      const key = uniqueId(
-        slugIdentifier(label, 'field'),
-        detailFields.map((field) => field.key)
-      );
-      return [...detailFields, { key, label }];
-    }, []);
+  const fields = parseCustomDetailFields(draft.fields);
   const section: WorldSectionConfig = {
     id: sectionId,
     kind: uniqueId(
@@ -528,6 +679,166 @@ export function createCustomEntryType(
       [section.id]: [],
     },
     updatedAt,
+  };
+}
+
+export function addCustomEntryTypeFields(
+  workspace: WorldWorkspace,
+  sectionId: string,
+  fieldsText: string
+): WorldWorkspace {
+  const fieldsToAdd = parseCustomDetailFields(fieldsText);
+  if (fieldsToAdd.length === 0) {
+    return workspace;
+  }
+  let didAddFields = false;
+  const entryTypes = workspace.entryTypes.map((section) => {
+    if (section.id !== sectionId || !section.custom) {
+      return section;
+    }
+    const nextFields = fieldsToAdd.reduce<WorldDetailField[]>(
+      (detailFields, field) => {
+        const key = uniqueId(
+          field.key,
+          detailFields.map((detailField) => detailField.key)
+        );
+        return [
+          ...detailFields,
+          {
+            ...field,
+            key,
+          },
+        ];
+      },
+      [...section.detailFields]
+    );
+    didAddFields = nextFields.length > section.detailFields.length;
+    return {
+      ...section,
+      detailFields: nextFields,
+    };
+  });
+  if (!didAddFields) {
+    return workspace;
+  }
+  return {
+    ...workspace,
+    entryTypes,
+    updatedAt: nowIso(),
+  };
+}
+
+export function moveCustomEntryTypeField(
+  workspace: WorldWorkspace,
+  sectionId: string,
+  fieldKey: string,
+  direction: CustomEntryTypeFieldMoveDirection
+): WorldWorkspace {
+  let didMoveField = false;
+  const entryTypes = workspace.entryTypes.map((section) => {
+    if (section.id !== sectionId || !section.custom) {
+      return section;
+    }
+    const currentIndex = section.detailFields.findIndex(
+      (field) => field.key === fieldKey
+    );
+    if (currentIndex < 0) {
+      return section;
+    }
+    const nextIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+    if (nextIndex < 0 || nextIndex >= section.detailFields.length) {
+      return section;
+    }
+    const detailFields = [...section.detailFields];
+    const [field] = detailFields.splice(currentIndex, 1);
+    detailFields.splice(nextIndex, 0, field);
+    didMoveField = true;
+    return {
+      ...section,
+      detailFields,
+    };
+  });
+  if (!didMoveField) {
+    return workspace;
+  }
+  return {
+    ...workspace,
+    entryTypes,
+    updatedAt: nowIso(),
+  };
+}
+
+export function renameCustomEntryTypeField(
+  workspace: WorldWorkspace,
+  sectionId: string,
+  fieldKey: string,
+  label: string
+): WorldWorkspace {
+  const nextLabel = label.trim();
+  if (!nextLabel) {
+    return workspace;
+  }
+  let didRenameField = false;
+  const entryTypes = workspace.entryTypes.map((section) => {
+    if (section.id !== sectionId || !section.custom) {
+      return section;
+    }
+    const detailFields = section.detailFields.map((field) => {
+      if (field.key !== fieldKey || field.label === nextLabel) {
+        return field;
+      }
+      didRenameField = true;
+      return {
+        ...field,
+        label: nextLabel,
+      };
+    });
+    return didRenameField
+      ? {
+          ...section,
+          detailFields,
+        }
+      : section;
+  });
+  if (!didRenameField) {
+    return workspace;
+  }
+  return {
+    ...workspace,
+    entryTypes,
+    updatedAt: nowIso(),
+  };
+}
+
+export function removeCustomEntryTypeField(
+  workspace: WorldWorkspace,
+  sectionId: string,
+  fieldKey: string
+): WorldWorkspace {
+  let didRemoveField = false;
+  const entryTypes = workspace.entryTypes.map((section) => {
+    if (section.id !== sectionId || !section.custom) {
+      return section;
+    }
+    const detailFields = section.detailFields.filter(
+      (field) => field.key !== fieldKey
+    );
+    if (detailFields.length === section.detailFields.length) {
+      return section;
+    }
+    didRemoveField = true;
+    return {
+      ...section,
+      detailFields,
+    };
+  });
+  if (!didRemoveField) {
+    return workspace;
+  }
+  return {
+    ...workspace,
+    entryTypes,
+    updatedAt: nowIso(),
   };
 }
 

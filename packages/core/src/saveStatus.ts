@@ -32,7 +32,8 @@ export type DeviceCommitResultId =
   | 'workspace-updated'
   | 'planetary-world-saved'
   | 'planetary-world-updated'
-  | 'entry-type-created';
+  | 'entry-type-created'
+  | 'entry-type-updated';
 
 export const deviceCommitResultMessages: Record<DeviceCommitResultId, string> =
   {
@@ -45,6 +46,7 @@ export const deviceCommitResultMessages: Record<DeviceCommitResultId, string> =
     'planetary-world-saved': 'Saved in-fiction world on this device.',
     'planetary-world-updated': 'Updated in-fiction world on this device.',
     'entry-type-created': 'Created entry type on this device.',
+    'entry-type-updated': 'Updated entry type on this device.',
   };
 
 export function getDeviceCommitResultMessage(id: DeviceCommitResultId): string {

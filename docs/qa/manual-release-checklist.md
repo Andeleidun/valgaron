@@ -33,10 +33,12 @@ Check the production build or deployed GitHub Pages URL in:
 
 Check these routes at phone, tablet, and desktop widths:
 
-- Overview;
-- Characters;
-- Relationships;
+- Workbench;
 - Timeline;
+- Relationships;
+- Knowledge;
+- Utilities;
+- Characters;
 - Data;
 - Workspaces;
 - Help.
@@ -59,19 +61,34 @@ codex area.
 ## Core Workflows
 
 1. Create, edit, pin, archive, restore, duplicate, and permanently delete an
-   entry.
-2. Create, edit, filter, and delete a relationship.
-3. Create and reorder timeline events.
-4. Create, switch, duplicate, archive, restore, and delete a workspace.
-5. Create and delete a custom entry type.
-6. Create, archive, restore, and delete an in-fiction world/planet.
+   entry; expand selected-record drafting prompts when the context summary is
+   compacted.
+2. Create, edit, filter, delete, expand Review cleanup lists, review legacy
+   relationship text, and duplicate-cleanup a relationship from Relationship
+   Studio.
+3. Create and reorder timeline events, create one event from an active era or
+   involved-record filter and confirm that context seeds the draft, expand dense
+   mobile era groups when available, filter to Unassigned Era when an unassigned
+   event exists, then rename or merge an era from the Era Manager and confirm
+   affected events move to the target era.
+4. Create, switch, duplicate, archive, restore, delete, and expand large
+   workspace lists when enough workspaces exist.
+5. Create a custom entry type from Knowledge or mobile More, add multiline and
+   suggested-choice fields after creation, rename, reorder, and remove those
+   fields, confirm suggested and observed flexible values are labeled in
+   Knowledge/More, confirm existing values appear in the hidden detail cleanup
+   queue, review the affected entry, clear hidden details, confirm a recovery
+   snapshot is available, then delete the type.
+6. Create, archive, restore, delete, and expand large in-fiction world/planet
+   lists when enough worlds exist.
 
 ## Mobile Companion
 
 1. Open the Expo app locally.
-2. Confirm Overview, Entries, Relationships, Workspaces, Data, and Help load.
-3. Create and edit an entry, link it with a relationship, switch workspaces,
-   and return to the edited entry.
+2. Confirm Workbench, Timeline, Links, More, Workspaces, Data, and Help load.
+3. Create and edit an entry, link it with a relationship, expand Links Review
+   cleanup lists and Graph records when available, run duplicate relationship
+   cleanup from Links, switch workspaces, and return to the edited entry.
 4. Export JSON from Data and confirm the text matches the selected export mode.
 5. Import valid JSON, reject invalid JSON, reset starter data, and restore a
    selected recovery snapshot.

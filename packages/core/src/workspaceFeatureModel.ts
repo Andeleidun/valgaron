@@ -28,6 +28,11 @@ export const workspaceFeatureActions = {
   createWorld: 'Create World',
   newWorldDraft: 'New World Draft',
   createEntryType: 'Create Entry Type',
+  addFields: 'Add Fields',
+  moveFieldUp: 'Move Up',
+  moveFieldDown: 'Move Down',
+  saveFieldLabel: 'Save Label',
+  removeField: 'Remove Field',
   deleteType: 'Delete Type',
 } as const;
 
@@ -66,6 +71,12 @@ export type WorkspaceFeatureQueries = {
   workspaces?: string;
   customEntryTypes?: string;
   planetaryWorlds?: string;
+};
+
+export type WorkspaceFeatureResultLimits = {
+  workspaces?: number;
+  customEntryTypes?: number;
+  planetaryWorlds?: number;
 };
 
 export type WorkspaceRowModel = {
@@ -114,7 +125,6 @@ export type WorkspaceFeatureListModel<TRow> = {
   totalCount: number;
   hiddenCount: number;
   emptyText: string;
-  hiddenText: string;
 };
 
 export type WorkspaceFeatureModel = {
@@ -195,8 +205,6 @@ function matchesQuery(values: readonly string[], query: string): boolean {
 
 function createListModel<TRow>({
   emptyText,
-  hiddenUnit,
-  hiddenTextLabel,
   label,
   countUnit,
   countUnitPlural,
@@ -206,8 +214,6 @@ function createListModel<TRow>({
   limit,
 }: {
   emptyText: string;
-  hiddenUnit: string;
-  hiddenTextLabel: string;
   label: string;
   countUnit: string;
   countUnitPlural?: string;
@@ -231,13 +237,6 @@ function createListModel<TRow>({
     totalCount: rows.length,
     hiddenCount,
     emptyText,
-    hiddenText:
-      hiddenCount > 0
-        ? `Refine ${hiddenTextLabel} to show ${hiddenCount} more ${pluralizeCountLabel(
-            hiddenCount,
-            hiddenUnit
-          )}.`
-        : '',
   };
 }
 
@@ -246,12 +245,14 @@ export function getWorkspaceFeatureModel({
   document,
   queries = {},
   resultLimit = workspaceFeatureResultLimit,
+  resultLimits = {},
   selectedWorkspaceId,
 }: {
   activeWorld: WorldWorkspace;
   document: WorldDocument;
   queries?: WorkspaceFeatureQueries;
   resultLimit?: number;
+  resultLimits?: WorkspaceFeatureResultLimits;
   selectedWorkspaceId?: string | null;
 }): WorkspaceFeatureModel {
   const activeWorkspaceCount = document.worlds.filter(
@@ -392,40 +393,34 @@ export function getWorkspaceFeatureModel({
       emptyText: workspaceQuery.trim()
         ? 'No workspaces match this search.'
         : 'No workspaces yet.',
-      hiddenUnit: 'workspace',
-      hiddenTextLabel: 'workspace search',
       label: 'Search workspaces',
       countUnit: 'project workspace',
       placeholder: 'Name, summary, era, status, or id',
       query: workspaceQuery,
       rows: workspaceRows,
-      limit: resultLimit,
+      limit: resultLimits.workspaces ?? resultLimit,
     }),
     customEntryTypes: createListModel({
       emptyText: customEntryTypeQuery.trim()
         ? 'No custom entry types match this search.'
         : 'No custom entry types yet. Create one when the built-in sections are not enough.',
-      hiddenUnit: 'type',
-      hiddenTextLabel: 'custom type search',
       label: 'Search custom entry types',
       countUnit: 'custom type',
       placeholder: 'Title, field, description, or id',
       query: customEntryTypeQuery,
       rows: customEntryTypeRows,
-      limit: resultLimit,
+      limit: resultLimits.customEntryTypes ?? resultLimit,
     }),
     planetaryWorlds: createListModel({
       emptyText: planetaryWorldQuery.trim()
         ? 'No in-fiction worlds match this search.'
         : 'No in-fiction worlds yet. Create planets, realms, moons, or other large-scale settings when they need their own workspace-level record.',
-      hiddenUnit: 'world',
-      hiddenTextLabel: 'in-fiction world search',
       label: 'Search in-fiction worlds',
       countUnit: 'in-fiction world',
       placeholder: 'Name, climate, terrain, tag, status, or id',
       query: planetaryWorldQuery,
       rows: planetaryWorldRows,
-      limit: resultLimit,
+      limit: resultLimits.planetaryWorlds ?? resultLimit,
     }),
   };
 }

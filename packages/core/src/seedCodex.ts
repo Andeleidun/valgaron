@@ -95,7 +95,8 @@ export const worldSections: readonly WorldSectionConfig[] = [
     detailFields: [
       { key: 'order', label: 'Sort order' },
       { key: 'dateLabel', label: 'Date or order' },
-      { key: 'era', label: 'Era' },
+      { key: 'era', label: 'Era', suggestFromExistingValues: true },
+      { key: 'involvedRecords', label: 'Involved records', multiline: true },
       { key: 'consequences', label: 'Consequences', multiline: true },
     ],
   },

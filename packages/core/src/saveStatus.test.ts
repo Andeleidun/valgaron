@@ -141,5 +141,8 @@ describe('save status models', () => {
     expect(getDeviceCommitResultMessage('planetary-world-saved')).toBe(
       'Saved in-fiction world on this device.'
     );
+    expect(getDeviceCommitResultMessage('entry-type-updated')).toBe(
+      'Updated entry type on this device.'
+    );
   });
 });

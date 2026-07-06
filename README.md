@@ -4,7 +4,8 @@ Valgaron World Codex is a local-first tool for drafting and organizing fiction o
 
 ## Current Slice
 
-- World overview with section totals and recently updated entries.
+- Workbench overview with section totals, recent records, pinned records,
+  review prompts, and selected-record context.
 - Codex sections for Characters, Places, Factions, Lore, and Timeline.
 - Create and edit entries with required names, optional summaries, comma-separated tags, and section-specific fields.
 - Markdown-style notes, authoring status, and pinned-entry metadata.
@@ -13,25 +14,36 @@ Valgaron World Codex is a local-first tool for drafting and organizing fiction o
 - Global search across names, notes, tags, summaries, and configured details.
 - Search within each codex section and narrow entries by tag, status, archived state, and updated date.
 - Sort section entries by recent update, recent creation, name, or status.
-- Timeline events support explicit sort order, era filtering, involved-entry filtering through relationships, and grouped era browsing.
+- Timeline events support explicit sort order, era filtering, era reassignment,
+  involved-entry filtering through relationships, grouped era browsing, and
+  contextual new-event drafts from active era or involved-record filters.
 - Archived entries are hidden from normal section browsing unless explicitly shown.
 - Pinned entries appear on the overview.
 - Rule-based section templates and completeness prompts for underdeveloped records.
 - Typed relationships between entries, including source, target, type, status, direction, and notes.
 - Character and place taxonomy artifacts generate runtime field metadata for category-specific editor fields and relationship-backed controls.
-- Relationship panels on entry detail views, plus a Relationships route for add, edit, delete, filter, and graph-style browsing.
-- Relationship diagnostics for broken references and orphaned records, repair/delete actions for broken links, graph filters, graph record search, custom relationship type input, and selectable graph nodes.
-- Timeline diagnostics, highlight cards, stable table view, era and involved-entry browsing filters, and earlier/later order controls for chronology work.
+- Relationship panels on entry detail views, plus Relationship Studio for
+  review, graph browsing, link editing, exact-match cleanup, duplicate
+  relationship cleanup, and ad hoc links.
+- Relationship diagnostics for broken references, duplicate relationships, and orphaned records, repair/delete actions for broken links, graph filters, graph record search, custom relationship type input, and selectable graph nodes.
+- Timeline diagnostics, highlight cards, stable table view, era manager
+  reassignment, involved-entry browsing filters, contextual event creation, and
+  earlier/later order controls for chronology work.
 - Web Data route and mobile Data tab for active-workspace JSON export, full-document JSON export, Markdown reference export, diagnostics, validated JSON import preview, and reset-to-seed confirmation.
 - Header Save writes the current session state to browser localStorage on demand.
-- Expo mobile companion with local device storage, shared codex schema, overview, entry editing, timeline browsing, relationship repair and graph search, workspaces, data import/export, recovery snapshot history, and Help guidance.
+- Expo mobile companion with local device storage, shared codex schema,
+  Workbench, Timeline, Links, More, data import/export, recovery snapshot
+  history, and Help guidance.
 - Runtime recovery screens with retry and Data access when a web or mobile render failure is caught.
 - Local diagnostics export on the Data route or tab with app version, schema version, storage target, recovery state, platform runtime context, and document counts without world content by default.
 - Neutral starter sample data.
 - Manual browser `localStorage` persistence under `valgaron.worldDocument.v2`, with migration support for the earlier `valgaron.worldCodex.v1` shape.
 - Versioned multi-workspace document storage with active project/universe workspace switching in the UI.
 - Separate in-fiction world/planet records inside each project/universe workspace.
-- Custom entry type creation in the active workspace, with new custom sections added to navigation.
+- Knowledge setup for custom entry type creation, custom field hints such as
+  multiline fields and suggested choices, controlled values, lore definition
+  types, relationship-backed field rules, observed flexible-value review,
+  hidden detail cleanup review, and recovery-snapshotted hidden detail clearing.
 - Unsaved-change warnings for entry, relationship, import, workspace management forms, and unsaved document edits before browser reload or close.
 - Markdown notes preview, overview quick-create links, copy-name, and duplicate-as-template entry actions.
 - In-app Help route for workflow, backup, offline, diagnostics, support, and release-limit guidance, with focused Help links from entry, timeline, relationship, workspace, and data workflows.

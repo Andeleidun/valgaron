@@ -130,7 +130,8 @@ export type RecoverySnapshotReason =
   | 'restore'
   | 'workspace-delete'
   | 'planetary-world-delete'
-  | 'entry-type-delete';
+  | 'entry-type-delete'
+  | 'schema-cleanup';
 
 export type RecoverySnapshot = {
   id: string;

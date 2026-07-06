@@ -1,9 +1,6 @@
 import { getEntries } from './codexEntries';
 import { relationshipFromDraft } from './codexRelationships';
-import {
-  formatHiddenResultCountMessage,
-  pluralizeCountLabel,
-} from './featureDisplayLimits';
+import { pluralizeCountLabel } from './featureDisplayLimits';
 import {
   buildRelationshipTextMigration,
   splitRelationshipTextFragments,
@@ -43,6 +40,18 @@ export type RelationshipFieldConfig = {
   targetCategoryBehavior?: 'hard' | 'preferred' | 'soft';
 };
 
+export const timelineRelationshipFieldConfigs = [
+  {
+    fieldKey: 'involvedRecords',
+    label: 'Involved records',
+    relationshipType: 'involves',
+    directional: false,
+    cardinality: 'many',
+    currentEntryRole: 'source',
+    targetEntryKinds: ['character', 'place', 'faction', 'lore'],
+  },
+] as const satisfies readonly RelationshipFieldConfig[];
+
 function characterConfigToRelationshipFieldConfig(
   config: CharacterRelationshipFieldConfig
 ): RelationshipFieldConfig {
@@ -68,6 +77,9 @@ export function getRelationshipFieldConfigsForEntryKind(
       characterConfigToRelationshipFieldConfig
     );
   }
+  if (entryKind === 'timeline') {
+    return [...timelineRelationshipFieldConfigs];
+  }
   return [];
 }
 
@@ -75,6 +87,8 @@ export type RelationshipTargetOptionDisplay = {
   visibleOptions: RelationshipTargetOption[];
   hiddenPreferredCount: number;
   hiddenPreferredMessage: string;
+  canExpandPreferredTargets: boolean;
+  showPreferredTargetsLabel: string;
   hiddenUnusualCount: number;
   canExpandUnusualTargets: boolean;
   showUnusualTargetsLabel: string;
@@ -401,12 +415,14 @@ export function limitRelationshipTargetOptions(
 }
 
 export function getRelationshipTargetOptionDisplay({
+  expandedPreferredTargets = false,
   expandedUnusualTargets,
   limit,
   options,
   selectedTargetIds,
   targetCategoryBehavior = 'preferred',
 }: {
+  expandedPreferredTargets?: boolean;
   expandedUnusualTargets: boolean;
   limit: number;
   options: readonly RelationshipTargetOption[];
@@ -430,7 +446,7 @@ export function getRelationshipTargetOptionDisplay({
       !option.isPreferredTarget && !selectedOptionIds.has(option.entry.id)
   );
   const preferredLimit =
-    targetCategoryBehavior === 'soft'
+    expandedPreferredTargets || targetCategoryBehavior === 'soft'
       ? Number.MAX_SAFE_INTEGER
       : Math.max(limit, selectedOptions.length);
   const visiblePreferredOptions = [
@@ -448,20 +464,26 @@ export function getRelationshipTargetOptionDisplay({
     !shouldShowUnusualTargets &&
     hiddenPreferredCount === 0 &&
     unusualOptions.length > 0;
+  const canExpandPreferredTargets =
+    targetCategoryBehavior !== 'soft' && hiddenPreferredCount > 0;
 
   return {
     visibleOptions: [...visiblePreferredOptions, ...visibleUnusualOptions],
     hiddenPreferredCount,
     hiddenPreferredMessage:
       hiddenPreferredCount > 0
-        ? `Showing ${visiblePreferredOptions.length} of ${
-            options.length
-          } matches. ${formatHiddenResultCountMessage({
-            hiddenCount: hiddenPreferredCount,
-            itemLabel: 'preferred record',
-            refinementLabel: 'the search',
-          })}`
+        ? `${hiddenPreferredCount} more ${pluralizeCountLabel(
+            hiddenPreferredCount,
+            'preferred record'
+          )}.`
         : '',
+    canExpandPreferredTargets,
+    showPreferredTargetsLabel: canExpandPreferredTargets
+      ? `Show ${hiddenPreferredCount} More Preferred ${pluralizeCountLabel(
+          hiddenPreferredCount,
+          'Record'
+        )}`
+      : '',
     hiddenUnusualCount: shouldShowUnusualTargets ? 0 : unusualOptions.length,
     canExpandUnusualTargets,
     showUnusualTargetsLabel: canExpandUnusualTargets

@@ -8,6 +8,7 @@ import {
   getEntrySectionNavigationOptions,
   getEntryTagFilterOptions,
 } from './entryListModel';
+import { timelineUnassignedEraFilterValue } from './codexTimeline';
 
 describe('entry list model', () => {
   it('centralizes entry list command labels', () => {
@@ -233,5 +234,28 @@ describe('entry list model', () => {
     expect(
       getEntryListModel(world, section!, '', {}).map((entry) => entry.name)
     ).toEqual(['Harbor Accord Signed', 'First Northern Survey']);
+  });
+
+  it('filters timeline entries to unassigned eras', () => {
+    const world = getActiveWorld(createSeedWorldDocument());
+    const section = world.entryTypes.find((item) => item.id === 'timeline');
+    const worldWithUnassignedEvent = {
+      ...world,
+      codex: {
+        ...world.codex,
+        timeline: world.codex.timeline.map((event) =>
+          event.id === 'timeline-first-survey'
+            ? { ...event, fields: { ...event.fields, era: '' } }
+            : event
+        ),
+      },
+    };
+
+    expect(section).toBeDefined();
+    expect(
+      getEntryListModel(worldWithUnassignedEvent, section!, '', {
+        timelineEra: timelineUnassignedEraFilterValue,
+      }).map((entry) => entry.name)
+    ).toEqual(['First Northern Survey']);
   });
 });

@@ -103,7 +103,22 @@ describe('codex entry helpers', () => {
     expect(
       getEntryEditorSubmitLabel({
         section,
+        selectedEntry: null,
+        stagedRelationshipCount: 1,
+      })
+    ).toBe('Create Character And 1 Link');
+    expect(
+      getEntryEditorSubmitLabel({
+        section,
+        selectedEntry: null,
+        stagedRelationshipCount: 2,
+      })
+    ).toBe('Create Character And 2 Links');
+    expect(
+      getEntryEditorSubmitLabel({
+        section,
         selectedEntry: codex.characters[0],
+        stagedRelationshipCount: 2,
       })
     ).toBe('Save Changes');
   });
@@ -286,6 +301,51 @@ describe('codex entry helpers', () => {
         fields: [expect.objectContaining({ key: 'currentGoal' })],
       },
     ]);
+  });
+
+  it('groups timeline detail fields around chronology and outcomes', () => {
+    const section = getSectionById('timeline');
+    const codex = createSeedCodex();
+    if (!section) {
+      throw new Error('Expected timeline section seed config.');
+    }
+    const draft = draftFromEntry(codex.timeline[0], section);
+
+    expect(
+      getEntryEditorDetailFieldGroups({
+        draft,
+        fields: section.detailFields,
+        section,
+        sectionEntries: codex.timeline,
+      })
+    ).toEqual([
+      {
+        id: 'timelineChronology',
+        label: 'Chronology',
+        fields: [
+          expect.objectContaining({ key: 'order' }),
+          expect.objectContaining({ key: 'dateLabel' }),
+          expect.objectContaining({ key: 'era' }),
+        ],
+      },
+      {
+        id: 'timelineLinkedRecords',
+        label: 'Linked records',
+        fields: [expect.objectContaining({ key: 'involvedRecords' })],
+      },
+      {
+        id: 'timelineOutcomes',
+        label: 'Outcomes',
+        fields: [expect.objectContaining({ key: 'consequences' })],
+      },
+    ]);
+    expect(
+      getEntryEditorDetailFieldModels({
+        draft,
+        fields: section.detailFields,
+        sectionEntries: codex.timeline,
+      }).find((field) => field.key === 'era')?.suggestions
+    ).toEqual(['Charter Era']);
   });
 
   it('builds shared selected-entry action labels and accessibility text', () => {

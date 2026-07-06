@@ -11,27 +11,64 @@ companion.
 - An in-fiction world or planet is a setting body inside one workspace, such as
   a planet, realm, plane, moon, or major region.
 - Codex entries are the editable records inside a workspace: characters, places,
-  factions, lore, timeline events, and custom entry types.
+  factions, lore, timeline events, and records from custom entry types.
 - Relationships connect codex entries.
 - Timeline order controls arrange events without requiring a strict calendar.
 
 ## Everyday Workflow
 
-1. Start on Overview to scan recent work, pinned records, incomplete records,
-   and section totals.
-2. Create or edit records in the section pages or mobile Entries tab.
-3. Use Relationships or the mobile Links tab to connect entries, repair broken
-   links, and inspect graph-style context.
-4. Use Timeline, or the mobile timeline browser inside Entries, to review
-   chronology and adjust event order.
-5. Use Workspaces, or the mobile Worlds tab, when switching projects, managing
-   in-fiction worlds/planets, or adding custom entry types.
-6. Use Data regularly to download active-workspace or full-document JSON
-   backups.
+1. Start on Workbench to scan recent work, pinned records, incomplete records,
+   expandable review prompts, and section totals.
+2. Create or edit records in Workbench, section pages, or the mobile Workbench
+   tab.
+3. Use Relationships or the mobile Links tab to connect entries, expand Review
+   cleanup lists, repair broken links, clean up duplicate saved relationships,
+   review legacy relationship text, and inspect graph-style context.
+4. Use Timeline to review chronology, eras, involved records, event order, and
+   dense era groups.
+5. Use Knowledge, or the Project Tools area inside mobile More, to create
+   custom entry types and review expandable schema overviews, field behavior,
+   controlled values, observed flexible values, lore definition types, and
+   relationship-backed field rules.
+6. Use Workspaces from Utilities or More when switching projects or managing
+   in-fiction worlds/planets, expanding dense workspace or world lists when
+   needed.
+7. Use Data from Utilities or More regularly to download active-workspace or
+   full-document JSON backups.
 
-Use contextual Help links in entry, timeline, relationship, workspace, and data
-workflows when you need focused guidance without leaving the current product
-surface.
+Use contextual Help links in Workbench, timeline, relationship, Knowledge,
+workspace, and data workflows when you need focused guidance without leaving the
+current product surface.
+
+## Timeline
+
+Use Timeline to browse events by explicit order, era, involved records, status,
+tags, and search. The Era Manager shows named era counts and unassigned events.
+Choose an era to change, enter a new or existing era name, and apply the change
+to rename an era, merge one era into another, or assign unassigned events. Use
+the Unassigned Era filter when you need to review unassigned events before
+assigning them. Creating a new event while an era or involved-record filter is
+active starts the draft with that context. On mobile, compact era groups can
+expand in place when an era has more events than the default scan view shows.
+
+## Knowledge Setup
+
+Custom entry types can define detail fields from Knowledge or mobile More. The
+Detail fields box accepts simple names such as `Origin` and richer field hints:
+use `Notes (long)` for multiline notes, `Profession (suggest)` for text values
+suggested from entries you have already created, and `Status [Dormant | Active]`
+for fixed suggested choices. The field preview shows how each field will be
+created before you save the custom entry type. Existing custom entry types can
+add more fields later, rename field labels, reorder fields, and remove fields
+from the visible schema. Knowledge and More also distinguish suggested choice
+sets from observed flexible values so fields such as ancestry and profession can
+stay lightweight until they need reusable structure. Removed-field values stay
+saved on existing entries as hidden details until you clear them from those
+entries. Knowledge on the web and More on mobile list hidden detail cleanup
+targets so you can review affected entries first or clear all hidden values
+after a recovery snapshot is created. Mobile More keeps the first schema scan
+compact, but expandable controls reveal additional entry types,
+relationship-backed fields, vocabulary rows, value lists, and cleanup rows.
 
 ## Character Drafting
 
@@ -107,9 +144,10 @@ version, route or storage status where available, recovery status, and counts.
 They omit world names, entry names, notes, summaries, tags, relationship notes,
 and ids by default.
 
-Use Help in the web app or mobile Help tab for local-device behavior, backups,
+Use Help in the web app or mobile More tab for local-device behavior, backups,
 diagnostics, support, and release limits. Focused Help links open the relevant
-topic for entries, timelines, relationships, workspaces, or data.
+topic for entries, timelines, relationships, Knowledge, Utilities, workspaces,
+or data.
 
 Do not share JSON backups unless you intentionally want to share world content.
 

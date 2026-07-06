@@ -6,6 +6,7 @@ import {
   buildRelationshipTextReviewMigration,
   buildRelationshipTextReviewSuggestionMigration,
   getRelationshipTargetOptionDisplay,
+  getRelationshipFieldConfigsForEntryKind,
   getRelationshipFieldTextMigration,
   getRelationshipFieldLinks,
   getRelationshipFieldTargetId,
@@ -52,6 +53,24 @@ const factionSection: WorldSectionConfig = {
   kind: 'faction',
   title: 'Factions',
   singularTitle: 'Faction',
+  description: '',
+  detailFields: [],
+};
+
+const loreSection: WorldSectionConfig = {
+  id: 'lore',
+  kind: 'lore',
+  title: 'Lore',
+  singularTitle: 'Lore',
+  description: '',
+  detailFields: [],
+};
+
+const timelineSection: WorldSectionConfig = {
+  id: 'timeline',
+  kind: 'timeline',
+  title: 'Timeline',
+  singularTitle: 'Timeline Event',
   description: '',
   detailFields: [],
 };
@@ -254,7 +273,7 @@ describe('relationship-backed field helpers', () => {
     expect(expandedDisplay.showUnusualTargetsLabel).toBe('');
   });
 
-  it('does not offer unusual expansion before all preferred matches are visible', () => {
+  it('offers preferred expansion before unusual target expansion', () => {
     const options = [
       makeTargetOption(makeEntry('place-capital-a', 'Amber Hall', 'Capital')),
       makeTargetOption(makeEntry('place-capital-b', 'Brass Hall', 'Capital')),
@@ -264,20 +283,39 @@ describe('relationship-backed field helpers', () => {
       ),
     ];
 
-    const display = getRelationshipTargetOptionDisplay({
+    const collapsedDisplay = getRelationshipTargetOptionDisplay({
+      expandedUnusualTargets: false,
+      limit: 1,
+      options,
+      selectedTargetIds: new Set(),
+    });
+    const preferredExpandedDisplay = getRelationshipTargetOptionDisplay({
+      expandedPreferredTargets: true,
       expandedUnusualTargets: false,
       limit: 1,
       options,
       selectedTargetIds: new Set(),
     });
 
-    expect(display).toMatchObject({
+    expect(collapsedDisplay).toMatchObject({
+      canExpandPreferredTargets: true,
       canExpandUnusualTargets: false,
       hiddenPreferredCount: 1,
-      hiddenPreferredMessage:
-        'Showing 1 of 3 matches. Refine the search to show 1 more preferred record.',
+      hiddenPreferredMessage: '1 more preferred record.',
       hiddenUnusualCount: 1,
+      showPreferredTargetsLabel: 'Show 1 More Preferred Record',
       showUnusualTargetsLabel: '',
+    });
+    expect(
+      preferredExpandedDisplay.visibleOptions.map((option) => option.entry.id)
+    ).toEqual(['place-capital-a', 'place-capital-b']);
+    expect(preferredExpandedDisplay).toMatchObject({
+      canExpandPreferredTargets: false,
+      canExpandUnusualTargets: true,
+      hiddenPreferredCount: 0,
+      hiddenUnusualCount: 1,
+      showPreferredTargetsLabel: '',
+      showUnusualTargetsLabel: 'Show 1 unusual target',
     });
   });
 
@@ -370,6 +408,76 @@ describe('relationship-backed field helpers', () => {
         directional: true,
       }
     );
+  });
+
+  it('defines a timeline involved-record relationship field', () => {
+    const [config] = getRelationshipFieldConfigsForEntryKind('timeline');
+    const event = {
+      ...makeEntry('timeline-accord', 'Harbor Accord', ''),
+      kind: 'timeline',
+    };
+    const timelineCodex = {
+      ...codex,
+      characters: [
+        {
+          ...makeEntry('character-mira', 'Mira Rowan', ''),
+          kind: 'character',
+        },
+      ],
+      factions: [
+        {
+          ...makeEntry('faction-guild', 'Cartographers Guild', ''),
+          kind: 'faction',
+        },
+      ],
+      lore: [
+        {
+          ...makeEntry('lore-charter', 'Harbor Charter', ''),
+          kind: 'lore',
+        },
+      ],
+      timeline: [event],
+    } as WorldCodex;
+
+    expect(config).toMatchObject({
+      cardinality: 'many',
+      currentEntryRole: 'source',
+      directional: false,
+      fieldKey: 'involvedRecords',
+      label: 'Involved records',
+      relationshipType: 'involves',
+      targetEntryKinds: ['character', 'place', 'faction', 'lore'],
+    });
+    expect(
+      getRelationshipTargetOptions({
+        codex: timelineCodex,
+        config,
+        currentEntry: event,
+        sections: [
+          characterSection,
+          placeSection,
+          factionSection,
+          loreSection,
+          timelineSection,
+        ],
+      }).map((option) => option.entry.id)
+    ).toEqual([
+      'faction-guild',
+      'place-capital',
+      'lore-charter',
+      'character-mira',
+      'place-river-source',
+      'place-village',
+      'place-river-main',
+    ]);
+    expect(
+      makeFieldRelationship(event, config, 'character-mira')
+    ).toMatchObject({
+      directional: false,
+      sourceEntryId: 'timeline-accord',
+      targetEntryId: 'character-mira',
+      type: 'involves',
+    });
   });
 
   it('keeps selected targets visible while filtering and limiting options', () => {

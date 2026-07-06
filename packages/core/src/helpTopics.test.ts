@@ -24,6 +24,12 @@ describe('help topics', () => {
       'Protect local work',
     ]);
     expect(codexWorkflowHelpTopics[0]?.items.join(' ')).toContain(
+      'Use Knowledge or mobile More to create custom entry types'
+    );
+    expect(codexWorkflowHelpTopics[0]?.items.join(' ')).toContain(
+      'observed flexible values'
+    );
+    expect(codexWorkflowHelpTopics[0]?.items.join(' ')).toContain(
       'character category'
     );
     expect(codexWorkflowHelpTopics[0]?.items.join(' ')).toContain(
@@ -37,6 +43,12 @@ describe('help topics', () => {
     );
     expect(codexWorkflowHelpTopics[1]?.items.join(' ')).toContain(
       'related lore'
+    );
+    expect(codexWorkflowHelpTopics[1]?.items.join(' ')).toContain(
+      'Era Manager reassignment'
+    );
+    expect(codexWorkflowHelpTopics[1]?.items.join(' ')).toContain(
+      'filtered new-event drafts'
     );
     expect(codexWorkflowHelpTopics[1]?.items.join(' ')).not.toContain('forms');
   });
@@ -85,6 +97,8 @@ describe('help topics', () => {
       'entries',
       'relationships',
       'timeline',
+      'knowledge',
+      'utilities',
       'workspaces',
       'data',
       'support',
@@ -92,6 +106,24 @@ describe('help topics', () => {
     ]);
     expect(getCodexHelpFocus('timeline')?.title).toBe('Timeline');
     expect(getCodexHelpFocus('timeline')?.path).toBe('/help?topic=timeline');
+    expect(getCodexHelpFocus('timeline')?.detail).toContain(
+      'Era Manager reassignment'
+    );
+    expect(getCodexHelpFocus('timeline')?.detail).toContain(
+      'contextual new-event drafts'
+    );
+    expect(getCodexHelpFocus('knowledge')?.detail).toContain(
+      'create custom entry types'
+    );
+    expect(getCodexHelpFocus('knowledge')?.detail).toContain(
+      'observed flexible values'
+    );
+    expect(getCodexHelpFocus('utilities')?.detail).toContain(
+      'Project Tools hub'
+    );
+    expect(getCodexHelpFocus('workspaces')?.detail).not.toContain(
+      'custom entry types'
+    );
     expect(isCodexHelpFocusId('timeline')).toBe(true);
     expect(isCodexHelpFocusId('unknown')).toBe(false);
     expect(getCodexHelpFocus('unknown')).toBeNull();
@@ -103,14 +135,19 @@ describe('help topics', () => {
 
   it('provides shared quick actions for Help navigation', () => {
     expect(codexHelpQuickActions).toEqual([
-      { id: 'entries', label: 'Open Entries', path: '/entries' },
+      { id: 'entries', label: 'Open Workbench', path: '/entries' },
       {
         id: 'relationships',
         label: 'Open Relationships',
         path: '/relationships',
       },
-      { id: 'workspaces', label: 'Open Workspaces', path: '/workspaces' },
-      { id: 'data', label: 'Open Data', path: '/data' },
+      { id: 'timeline', label: 'Open Timeline', path: '/timeline' },
+      { id: 'knowledge', label: 'Open Knowledge', path: '/knowledge' },
+      {
+        id: 'utilities',
+        label: 'Open Utilities',
+        path: '/utilities#project-tools',
+      },
     ]);
   });
 

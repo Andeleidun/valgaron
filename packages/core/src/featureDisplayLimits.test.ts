@@ -1,7 +1,6 @@
 import { describe, expect, it } from '@jest/globals';
 import {
   featureDisplayScalePolicy,
-  formatHiddenResultCountMessage,
   formatLimitedTextList,
   getFeatureDisplayScaleDecision,
   getLimitedResultModel,
@@ -68,38 +67,6 @@ describe('feature display limits', () => {
         limit: 0,
       })
     ).toBe('and 1 more');
-  });
-
-  it('formats hidden result count messages with shared pluralization', () => {
-    expect(
-      formatHiddenResultCountMessage({
-        hiddenCount: 1,
-        itemLabel: 'record',
-        refinementLabel: 'graph search',
-      })
-    ).toBe('Refine graph search to show 1 more record.');
-    expect(
-      formatHiddenResultCountMessage({
-        hiddenCount: 2,
-        itemLabel: 'link',
-        refinementLabel: 'relationship search or filters',
-      })
-    ).toBe('Refine relationship search or filters to show 2 more links.');
-    expect(
-      formatHiddenResultCountMessage({
-        hiddenCount: 3,
-        itemLabel: 'event',
-        refinementLabel: 'timeline filters',
-        suffix: 'in this era',
-      })
-    ).toBe('Refine timeline filters to show 3 more events in this era.');
-    expect(
-      formatHiddenResultCountMessage({
-        hiddenCount: 0,
-        itemLabel: 'record',
-        refinementLabel: 'entry search',
-      })
-    ).toBe('');
   });
 
   it('defines when capped displays should graduate to pagination or virtualization', () => {

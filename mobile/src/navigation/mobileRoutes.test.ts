@@ -11,42 +11,37 @@ import {
 describe('mobile route model', () => {
   it('uses compact codex tabs without copied social surfaces', () => {
     expect(mobileTabRoutes.map((route) => route.id)).toEqual([
-      'overview',
       'entries',
+      'timeline',
       'relationships',
-      'workspaces',
-      'data',
-      'help',
+      'utilities',
     ]);
     expect(mobileTabRoutes.map((route) => route.screenName)).toEqual([
-      'index',
       'entries',
+      'timeline',
       'relationships',
-      'workspaces',
-      'data',
-      'help',
+      'more',
     ]);
     expect(mobileTabRoutes.map((route) => route.iconName)).toEqual([
-      'home',
       'book-open',
+      'clock',
       'git-branch',
-      'layers',
-      'database',
-      'help-circle',
+      'more-horizontal',
     ]);
     expect(mobileTabRoutes.map((route) => route.tabLabel)).toEqual([
-      'Home',
-      'Entries',
+      'Workbench',
+      'Timeline',
       'Links',
-      'Worlds',
-      'Data',
-      'Help',
+      'More',
     ]);
+    expect(mobileTabRoutes.map((route) => route.tabAccessibilityLabel)).toEqual(
+      ['Workbench tab', 'Timeline tab', 'Links tab', 'More tab']
+    );
     expect(mobileTabRoutes.map((route) => route.title).join(' ')).not.toMatch(
       /messages|discover|profile|community/i
     );
     expect(getMobileTabHref('entries')).toBe('/entries');
-    expect(getMobileTabHref('help')).toBe('/help');
+    expect(getMobileTabHref('utilities')).toBe('/more');
     expect(getMobileTabTitle('relationships')).toBe('Relationships');
   });
 
@@ -76,6 +71,19 @@ describe('mobile route model', () => {
         sectionId: 'characters',
       },
     });
+    expect(
+      getMobileRouteHref(
+        '/entries?sectionId=characters&entryId=character-mira-rowan&intent=context&query=Mira%20Rowan'
+      )
+    ).toEqual({
+      pathname: '/entries',
+      params: {
+        entryId: 'character-mira-rowan',
+        intent: 'context',
+        query: 'Mira Rowan',
+        sectionId: 'characters',
+      },
+    });
     expect(getMobileRouteHref('/entries?query=Mira+Rowan').params).toEqual({
       query: 'Mira Rowan',
     });
@@ -90,6 +98,65 @@ describe('mobile route model', () => {
       params: {
         mode: 'full-json',
         [mobileRouteFocusParam]: 'export',
+      },
+    });
+    expect(getMobileRouteHref('/timeline')).toEqual({
+      pathname: '/timeline',
+      params: {},
+    });
+    expect(
+      getMobileRouteHref(
+        '/timeline?query=Guild&era=Charter%20Era&involvedEntryId=faction-cartographers-guild&tag=charter&status=needs-review&sort=name&updatedWithinDays=30&showArchived=true'
+      )
+    ).toEqual({
+      pathname: '/timeline',
+      params: {
+        era: 'Charter Era',
+        involvedEntryId: 'faction-cartographers-guild',
+        query: 'Guild',
+        showArchived: 'true',
+        sort: 'name',
+        status: 'needs-review',
+        tag: 'charter',
+        updatedWithinDays: '30',
+      },
+    });
+    expect(
+      getMobileRouteHref(
+        '/timeline?intent=new&era=Charter%20Era&involvedEntryId=faction-cartographers-guild'
+      )
+    ).toEqual({
+      pathname: '/timeline',
+      params: {
+        era: 'Charter Era',
+        intent: 'new',
+        involvedEntryId: 'faction-cartographers-guild',
+      },
+    });
+    expect(getMobileRouteHref('/utilities')).toEqual({
+      pathname: '/more',
+      params: {},
+    });
+    expect(getMobileRouteHref('/utilities#data-tools')).toEqual({
+      pathname: '/more',
+      params: {
+        [mobileRouteFocusParam]: 'data-tools',
+      },
+    });
+    expect(getMobileRouteHref('/knowledge')).toEqual({
+      pathname: '/more',
+      params: {},
+    });
+    expect(getMobileRouteHref('/knowledge#custom-entry-types')).toEqual({
+      pathname: '/more',
+      params: {
+        [mobileRouteFocusParam]: 'custom-entry-types',
+      },
+    });
+    expect(getMobileRouteHref('/knowledge#hidden-detail-cleanup')).toEqual({
+      pathname: '/more',
+      params: {
+        [mobileRouteFocusParam]: 'hidden-detail-cleanup',
       },
     });
     expect(
@@ -112,7 +179,7 @@ describe('mobile route model', () => {
       const href = getMobileRouteHref(route);
 
       expect(href.pathname).toMatch(
-        /^\/(?:entries|relationships|workspaces|data|help)?$/
+        /^\/(?:entries|timeline|relationships|workspaces|data|help|more)?$/
       );
       expect(Object.values(href.params)).not.toContain('');
       if (route.includes('#')) {

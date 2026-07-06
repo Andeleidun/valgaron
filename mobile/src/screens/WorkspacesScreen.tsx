@@ -2,7 +2,6 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Text, View, StyleSheet } from 'react-native';
 import { router } from 'expo-router';
 import type {
-  EntryTypeDraft,
   InFictionWorld,
   PlanetaryWorldDraft,
   WorkspaceDraft,
@@ -11,12 +10,10 @@ import type {
 import {
   getCodexHelpRoute,
   getCodexScreenIntro,
-  emptyEntryTypeDraft,
   formatWorkspaceFeatureAccessibilityLabel,
   getWorkspaceFormKicker,
   getWorkspaceFormTitle,
   getWorkspaceFeatureModel,
-  entryTypeDraftFields,
   getFeedbackTone,
   hasUnsavedChanges,
   lastActiveWorkspaceArchiveMessage,
@@ -28,6 +25,7 @@ import {
   workspaceDraftFrom,
   workspaceFeatureActions,
   workspaceFeatureCopy,
+  workspaceFeatureResultLimit,
 } from '@valgaron/core';
 import {
   valgaronColors,
@@ -60,17 +58,15 @@ export function WorkspacesScreen() {
   const [workspaceDraft, setWorkspaceDraft] = useState<WorkspaceDraft>(() =>
     workspaceDraftFrom(controller.activeWorld)
   );
-  const [entryTypeDraft, setEntryTypeDraft] = useState<EntryTypeDraft>(() =>
-    emptyEntryTypeDraft()
-  );
   const [selectedPlanetaryWorldId, setSelectedPlanetaryWorldId] = useState<
     string | null
   >(null);
   const [planetaryWorldDraft, setPlanetaryWorldDraft] =
     useState<PlanetaryWorldDraft>(() => planetaryWorldDraftFrom());
   const [workspaceQuery, setWorkspaceQuery] = useState('');
-  const [entryTypeQuery, setEntryTypeQuery] = useState('');
   const [planetaryWorldQuery, setPlanetaryWorldQuery] = useState('');
+  const [showAllWorkspaces, setShowAllWorkspaces] = useState(false);
+  const [showAllPlanetaryWorlds, setShowAllPlanetaryWorlds] = useState(false);
 
   useEffect(() => {
     if (activeWorkspaceIdRef.current === controller.activeWorld.id) {
@@ -107,6 +103,14 @@ export function WorkspacesScreen() {
     }
   }, [controller.activeWorld.planetaryWorlds, selectedPlanetaryWorldId]);
 
+  useEffect(() => {
+    setShowAllWorkspaces(false);
+  }, [controller.activeWorld.id, workspaceQuery]);
+
+  useEffect(() => {
+    setShowAllPlanetaryWorlds(false);
+  }, [controller.activeWorld.id, planetaryWorldQuery]);
+
   const workspaceModel = useMemo(
     () =>
       getWorkspaceFeatureModel({
@@ -114,17 +118,23 @@ export function WorkspacesScreen() {
         document: controller.document,
         queries: {
           workspaces: workspaceQuery,
-          customEntryTypes: entryTypeQuery,
           planetaryWorlds: planetaryWorldQuery,
+        },
+        resultLimits: {
+          workspaces: showAllWorkspaces ? Number.MAX_SAFE_INTEGER : undefined,
+          planetaryWorlds: showAllPlanetaryWorlds
+            ? Number.MAX_SAFE_INTEGER
+            : undefined,
         },
         selectedWorkspaceId,
       }),
     [
       controller.activeWorld,
       controller.document,
-      entryTypeQuery,
       planetaryWorldQuery,
       selectedWorkspaceId,
+      showAllPlanetaryWorlds,
+      showAllWorkspaces,
       workspaceQuery,
     ]
   );
@@ -135,10 +145,6 @@ export function WorkspacesScreen() {
   const isWorkspaceDraftDirty = hasUnsavedChanges(
     workspaceBaselineDraft,
     workspaceDraft
-  );
-  const isEntryTypeDraftDirty = hasUnsavedChanges(
-    emptyEntryTypeDraft(),
-    entryTypeDraft
   );
   const selectedPlanetaryWorld = selectedPlanetaryWorldId
     ? controller.activeWorld.planetaryWorlds.find(
@@ -152,10 +158,7 @@ export function WorkspacesScreen() {
     planetaryWorldBaselineDraft,
     planetaryWorldDraft
   );
-  const hasDirtyDraft =
-    isWorkspaceDraftDirty ||
-    isEntryTypeDraftDirty ||
-    isPlanetaryWorldDraftDirty;
+  const hasDirtyDraft = isWorkspaceDraftDirty || isPlanetaryWorldDraftDirty;
 
   function editWorkspace(workspace: WorldWorkspace) {
     if (selectedWorkspaceId === workspace.id) {
@@ -299,16 +302,6 @@ export function WorkspacesScreen() {
     }));
   }
 
-  function updateEntryTypeDraft(
-    key: (typeof entryTypeDraftFields)[number]['key'],
-    value: string
-  ) {
-    setEntryTypeDraft((current) => ({
-      ...current,
-      [key]: value,
-    }));
-  }
-
   return (
     <ScreenScroll>
       <ScreenHeader title={intro.title} detail={intro.detail} />
@@ -431,7 +424,25 @@ export function WorkspacesScreen() {
           <MutedText>{workspaceModel.workspaces.emptyText}</MutedText>
         )}
         {workspaceModel.workspaces.hiddenCount > 0 ? (
-          <MutedText>{workspaceModel.workspaces.hiddenText}</MutedText>
+          <MutedText>
+            {workspaceModel.workspaces.hiddenCount} more workspace
+            {workspaceModel.workspaces.hiddenCount === 1 ? '' : 's'}.
+          </MutedText>
+        ) : null}
+        {workspaceModel.workspaces.totalCount > workspaceFeatureResultLimit ? (
+          <ButtonRow>
+            <ActionButton
+              expanded={showAllWorkspaces}
+              label={
+                showAllWorkspaces
+                  ? 'Show Fewer Workspaces'
+                  : `Show ${workspaceModel.workspaces.hiddenCount} More Workspaces`
+              }
+              onPress={() =>
+                setShowAllWorkspaces((currentValue) => !currentValue)
+              }
+            />
+          </ButtonRow>
         ) : null}
       </SectionBlock>
 
@@ -565,7 +576,26 @@ export function WorkspacesScreen() {
           <MutedText>{workspaceModel.planetaryWorlds.emptyText}</MutedText>
         )}
         {workspaceModel.planetaryWorlds.hiddenCount > 0 ? (
-          <MutedText>{workspaceModel.planetaryWorlds.hiddenText}</MutedText>
+          <MutedText>
+            {workspaceModel.planetaryWorlds.hiddenCount} more in-fiction world
+            {workspaceModel.planetaryWorlds.hiddenCount === 1 ? '' : 's'}.
+          </MutedText>
+        ) : null}
+        {workspaceModel.planetaryWorlds.totalCount >
+        workspaceFeatureResultLimit ? (
+          <ButtonRow>
+            <ActionButton
+              expanded={showAllPlanetaryWorlds}
+              label={
+                showAllPlanetaryWorlds
+                  ? 'Show Fewer In-Fiction Worlds'
+                  : `Show ${workspaceModel.planetaryWorlds.hiddenCount} More In-Fiction Worlds`
+              }
+              onPress={() =>
+                setShowAllPlanetaryWorlds((currentValue) => !currentValue)
+              }
+            />
+          </ButtonRow>
         ) : null}
         {planetaryWorldDraftFields.map((field) => (
           <Field
@@ -594,74 +624,6 @@ export function WorkspacesScreen() {
           <ActionButton
             label={workspaceFeatureActions.newWorldDraft}
             onPress={resetPlanetaryWorldDraft}
-          />
-        </ButtonRow>
-      </SectionBlock>
-
-      <SectionBlock title={workspaceFeatureCopy.sections.customEntryTypes}>
-        <MutedText>{workspaceModel.customEntryTypes.countLabel}</MutedText>
-        {isEntryTypeDraftDirty ? (
-          <StatusText tone="warning">
-            {workspaceFeatureCopy.draftStatus.customEntryType}
-          </StatusText>
-        ) : null}
-        <Field
-          autoCapitalize="none"
-          autoCorrect={false}
-          label={workspaceModel.customEntryTypes.label}
-          value={entryTypeQuery}
-          onChangeText={setEntryTypeQuery}
-          placeholder={workspaceModel.customEntryTypes.placeholder}
-        />
-        {workspaceModel.customEntryTypes.rows.length > 0 ? (
-          workspaceModel.customEntryTypes.rows.map((entryTypeRow) => (
-            <View key={entryTypeRow.id} style={styles.workspaceRow}>
-              <Text style={styles.itemTitle}>{entryTypeRow.title}</Text>
-              <MutedText>{entryTypeRow.descriptionText}</MutedText>
-              <MutedText>{entryTypeRow.fieldsLine}</MutedText>
-              <ActionButton
-                accessibilityHint="Deletes this custom entry type, its entries, and its relationships after confirmation."
-                accessibilityLabel={formatWorkspaceFeatureAccessibilityLabel(
-                  'delete-custom-entry-type',
-                  entryTypeRow.title
-                )}
-                label={workspaceFeatureActions.deleteType}
-                tone="danger"
-                onPress={() =>
-                  confirmMobileDestructiveAction('delete-entry-type', () =>
-                    controller.permanentlyDeleteEntryType(entryTypeRow.id)
-                  )
-                }
-              />
-            </View>
-          ))
-        ) : (
-          <MutedText>{workspaceModel.customEntryTypes.emptyText}</MutedText>
-        )}
-        {workspaceModel.customEntryTypes.hiddenCount > 0 ? (
-          <MutedText>{workspaceModel.customEntryTypes.hiddenText}</MutedText>
-        ) : null}
-        {entryTypeDraftFields.map((field) => (
-          <Field
-            autoCapitalize={field.key === 'fields' ? 'words' : undefined}
-            autoCorrect={field.key === 'fields' ? false : undefined}
-            key={field.key}
-            label={field.label}
-            multiline={field.multiline}
-            placeholder={field.placeholder}
-            value={entryTypeDraft[field.key]}
-            onChangeText={(value) => updateEntryTypeDraft(field.key, value)}
-          />
-        ))}
-        <ButtonRow>
-          <ActionButton
-            label={workspaceFeatureActions.createEntryType}
-            tone="accent"
-            onPress={() => {
-              if (controller.createEntryType(entryTypeDraft)) {
-                setEntryTypeDraft(emptyEntryTypeDraft());
-              }
-            }}
           />
         </ButtonRow>
       </SectionBlock>

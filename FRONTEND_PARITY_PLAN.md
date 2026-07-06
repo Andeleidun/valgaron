@@ -4,9 +4,45 @@
 
 This document analyzes the current shared frontend system between the browser web app and the Expo mobile app, then lays out a concrete plan for full feature and user experience behavior parity.
 
-The guiding requirement is low duplication over time. The web app is the more mature experience and should be treated as the source of truth for workflow shape, feature behavior, data semantics, control taxonomy, and copy unless a platform capability requires a deliberate adaptation.
+The guiding requirement is low duplication over time across three first-class
+surfaces: desktop web, mobile web, and native mobile. Desktop web can optimize
+for productivity with the multi-pane Workbench. Mobile web must follow the
+native mobile stacked workflow as closely as browser constraints allow, rather
+than inheriting a squeezed desktop layout. Shared feature behavior, data
+semantics, route intents, control taxonomy, and copy still belong in
+`@valgaron/core` unless a platform capability requires a deliberate adaptation.
 
-Parity here does not mean pixel equality. It means a user can perform the same workflow on web and mobile, recognize the same screens and controls, make the same choices, trigger the same validations and confirmations, and export/import the same data format interchangeably.
+Parity here does not mean pixel equality. It means a user can perform the same
+workflow on desktop web, mobile web, and native mobile, recognize the same
+screens and controls, make the same choices, trigger the same validations and
+confirmations, and export/import the same data format interchangeably.
+
+## Three-Surface Direction
+
+Valgaron now treats these as separate surface contracts:
+
+- Desktop web: multi-pane Workbench with record browser, editor, and context
+  rail where space allows.
+- Mobile web: app-like stacked Workbench that mirrors native mobile ordering,
+  labels, touch target rhythm, and picker flow.
+- Native mobile: Expo-style stacked screens refined against the same shared
+  models.
+
+Shared behavior lives in `@valgaron/core`. Shared visual foundations live in
+`@valgaron/ui-tokens`. Platform rendering remains separate; web must not import
+React Native components, and native mobile must not depend on DOM primitives.
+
+Mobile web ordering follows native mobile primary workflow:
+
+1. Workbench.
+2. Timeline.
+3. Links.
+4. More.
+
+Mobile web Timeline is a dedicated route/view. Mobile web Links uses the same
+Health, Browse Graph, Relationship Form, and Saved Links flow as native mobile.
+Mobile web More contains Knowledge Setup, Data Tools, and Help until schema
+editing is common enough to justify a primary mobile destination.
 
 ## Executive Summary
 
@@ -30,6 +66,9 @@ The main risk is now presentation and orchestration drift:
 - Remaining mobile-only presentation differences are responsive adaptations,
   such as compact list search and picker layouts, and should stay backed by
   shared model data and copy.
+- Mobile web is a separate parity surface. At narrow breakpoints, web routes
+  should switch to a stacked mobile web shell that follows native mobile
+  workflow order, not the desktop Workbench's multi-pane layout.
 
 The recommended path is not a full rewrite into one UI implementation. The lowest-risk, lowest-long-term-duplication approach is:
 
@@ -55,6 +94,9 @@ work, not follow-up polish:
 - Runtime recovery, diagnostics, storage migration, offline/local-storage copy,
   and release evidence need the same parity treatment as normal happy-path
   screens.
+- Mobile web route and viewport evidence must cover Workbench, Timeline, Links,
+  More, and the More-contained Knowledge Setup, Data Tools, and Help routes as
+  mobile-sized browser routes.
 - Performance parity for large worlds needs shared budgets and tests so a mobile
   truncation or web-only optimization does not hide a feature mismatch.
 - The migration plan needs a retirement path for duplicated utility re-exports
@@ -120,6 +162,26 @@ Executed in this revision:
 - Added retirement criteria for duplicate helpers, screen-level view models, and
   platform-only derivation code.
 
+### Iteration 4: Mobile Web As A First-Class Surface
+
+Evaluation:
+
+- Still needed. The previous plan treated "web" as one surface and allowed
+  narrow browser widths to inherit desktop Workbench composition.
+- Root cause: route, layout, smoke-test, and primitive contracts only separated
+  web from native mobile, so mobile web had no independent workflow target.
+- Best path: add a shared layout-mode contract for `desktop-web`,
+  `mobile-web`, and `native-mobile`; make mobile web follow native mobile
+  workflow order; and keep desktop web free to use productivity-oriented
+  multi-pane layouts.
+
+Executed in this revision:
+
+- Added mobile web to the product direction, route workflow, QA evidence, and
+  renderer-consolidation phases.
+- Promoted Timeline to a dedicated shared route intent while keeping native
+  mobile adapted to its existing Entries timeline flow.
+
 ## Current Architecture
 
 ### Web App
@@ -145,7 +207,10 @@ Web persistence is manual:
 - Import, reset, delete, and restore operations create recovery snapshots.
 - Unsaved changes are surfaced through before-unload warnings and in-page dirty-state UI.
 
-The web app currently has the richer editor and data-management behavior. It should be the UX source of truth.
+The desktop web app currently has the richer editor and data-management
+behavior. It should remain the productivity source of truth for dense editing,
+but mobile web must use native-mobile workflow order and stacked screen
+composition instead of copying desktop density.
 
 ### Mobile App
 
@@ -387,14 +452,14 @@ Web source behavior:
 
 Mobile current behavior:
 
-- One Entries tab with section button row.
+- Workbench tab with Index, Context, and Edit modes.
+- Dedicated Timeline tab for chronology browsing and event actions.
 - Query field.
 - Status button row.
 - Sort button row.
 - Tag button row.
 - Show archived button.
-- Timeline browser with text summaries, filters, groups, diagnostics text.
-- Entry list with edit buttons.
+- Entry list with edit and context actions.
 - Linked records section.
 - Entry form with name, summary, notes, tags, status buttons, pinned button, detail fields, save, new draft, archive/restore, duplicate, use as template, delete, apply template.
 
@@ -553,7 +618,8 @@ Gaps:
 - The original hidden-capability gap is closed.
 - `getWorkspaceFeatureModel` now owns list summaries, result limits, search
   labels, empty states, hidden-count copy, and workspace action state for
-  Workspaces, custom entry types, and in-fiction worlds.
+  Workspaces and in-fiction worlds. Custom entry type management now belongs to
+  Knowledge/More.
 - In-fiction worlds are intentionally managed inside Workspaces rather than
   global search for this slice; global search inclusion remains a product
   decision.
@@ -689,15 +755,19 @@ Current behavior:
 
 - Core defines route strings such as `/entries?sectionId=places&intent=new`,
   `/relationships?entryId=...`, and `/help?topic=...`.
-- Core classifies shared routes into typed workflow intents for Overview,
-  Entries browse/create/edit, Relationships, Workspaces, Data, and Help.
+- Core classifies shared routes into typed workflow intents for Workbench,
+  Timeline, Relationships, Knowledge, Utilities, Workspaces, Data, and Help.
 - Web uses those strings directly through React Router.
 - Mobile converts those strings into Expo Router `pathname` and `params` with
   `getMobileRouteHref`.
 - Mobile preserves supported hash fragments as the shared
   `routeFocusId` param.
-- Compact mobile tab labels such as "Links" and "Worlds" now come from shared
-  mobile shell route label metadata instead of a mobile-local label table.
+- Compact mobile tab labels such as "Workbench", "Links", and "More" now come
+  from shared mobile shell route label metadata instead of a mobile-local label
+  table.
+- Browser and mobile Relationship Studio now seed focused relationship route
+  params into initial Links-mode state, so first paint does not depend on a
+  follow-up route-hydration effect.
 
 Gaps:
 
@@ -712,8 +782,9 @@ Gaps:
 Plan:
 
 - Keep shared `RouteIntent` parsing and typed workflow-intent classification
-  current for Overview, Entries section browse, Entry create/edit,
-  Relationships, Workspaces, Data export/import focus, and Help topic focus.
+  current for Workbench browse, Entry create/edit, Timeline overview/edit,
+  Relationships, Knowledge, Utilities, Workspaces, Data export/import focus,
+  and Help topic focus.
 - Keep web and mobile route helpers converting route strings into the same
   intent fields.
 - Keep focused sections represented through parsed intent fields rather than
@@ -762,6 +833,9 @@ Plan:
   order on critical workflows.
 - Add rendered mobile tests for accessibility labels/states on the same control
   ids once the mobile interaction harness exists.
+- Current rendered mobile coverage preserves `accessibilityState` in the React
+  Native test mock and verifies representative checkbox state for entry editing
+  plus the shared checkbox primitive.
 
 Acceptance criteria:
 
@@ -1579,6 +1653,18 @@ Tasks:
 
 - Keep existing web CSS/MUI-compatible infrastructure.
 - Extend `@valgaron/ui-tokens` into CSS variables for web so web and mobile consume the same token source mechanically.
+- Add a shared layout-mode helper with `desktop`, `mobile-web`, and
+  `native-mobile` modes. Use it to keep desktop web, mobile web, and native
+  mobile route/workflow assumptions explicit.
+- Add responsive web component variants that mirror native mobile visual
+  contracts without importing React Native:
+  - `MobileWebScreenShell`.
+  - `MobileWebSectionBlock`.
+  - `MobileWebButtonRow`.
+  - `MobileWebActionButton`.
+  - `MobileWebField`.
+  - `MobileWebSelectSheet`.
+  - `MobileWebContextSheet`.
 - Create matching primitive props for:
   - Button.
   - Text field.
@@ -1592,6 +1678,14 @@ Tasks:
   - Runtime recovery panel.
   - Data export/import section.
   - In-fiction world editor section.
+- At narrow breakpoints, switch web routes to stacked mobile web sections with
+  a top screen header, compact dashboard blocks, large touch targets,
+  collapsible advanced sections, sheet-style pickers, and no desktop side
+  rails or dense two-column editor layout.
+- Keep mobile web section blocks visually closer to mobile primitives: top
+  borders and spacing over nested cards, inputs at least 44px high, wrapping
+  button rows, mobile hierarchy for labels/muted text, and status messages that
+  follow mobile tone styling.
 - Implement web and native renderers separately but from the same prop contracts.
 - Gradually replace ad hoc mobile screen primitives and web class-only form markup where duplication is high.
 
@@ -1624,6 +1718,15 @@ Tasks:
 - Add focused mobile screen tests around picker/control behavior once the primitives exist.
 - Add a small browser/mobile manual QA checklist until automated mobile UI coverage exists.
 - Add route-intent parity tests.
+- Add browser smoke coverage for mobile viewport routes: Workbench, Timeline,
+  Links, More, and the secondary Knowledge Setup, Data Tools, and Help routes
+  launched from More.
+- Add shared workflow-order tests that compare mobile web against native mobile
+  route/model order.
+- Verify mobile web has no horizontal overflow, avoids nested-card clutter,
+  keeps touch targets at least 44px, collapses filters and advanced panels
+  cleanly, uses sheet-like inline create/picker behavior, and preserves
+  relationship chip-field flow.
 - Add accessibility descriptor parity tests.
 - Keep large-world mobile model tests current and, when tooling is available,
   add rendered mobile large-world smoke tests.
@@ -1636,6 +1739,17 @@ Deliverable:
 - Future feature drift fails tests before release.
 
 ## Feature Matrix
+
+Mobile web acceptance for every matrix row:
+
+- Desktop-only multi-pane Workbench behavior is allowed only above the mobile
+  breakpoint.
+- Mobile web renders the same information order and action labels as native
+  mobile for common tasks.
+- Timeline is reachable as a dedicated mobile web route/view.
+- Links follows Health, Browse Graph, Relationship Form, and Saved Links order.
+- More contains Knowledge Setup, Data Tools, and Help until Knowledge And Schema
+  becomes a common primary mobile workflow.
 
 | Area                       | Web Source State                                                                                               | Mobile Current State                                                                                           | Parity Action                                                         |
 | -------------------------- | -------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
@@ -1772,9 +1886,17 @@ Risk: The shared feature model becomes too abstract.
 
 Mitigation: Build it screen by screen from current web behavior. Do not invent a generic form engine beyond the control descriptors needed for actual Valgaron screens.
 
-Risk: Mobile becomes less usable if forced to mimic desktop layout.
+Risk: Mobile web becomes less usable if forced to mimic desktop layout.
 
 Mitigation: Share behavior and control kind, not layout. Use mobile picker modals, compact sections, and native scrolling while preserving the same options and workflow.
+
+Risk: Mobile web drifts from native mobile because it is implemented in the web
+renderer.
+
+Mitigation: Treat mobile web as `mobile-web`, not just a CSS breakpoint. Test
+workflow order against native mobile, keep route intents shared, and require
+mobile viewport smoke coverage for Workbench, Timeline, Links, More, and the
+secondary routes launched from More.
 
 Risk: Web regressions during refactor.
 
@@ -1815,6 +1937,11 @@ virtualized lists.
 
 Full parity is achieved when:
 
+- Desktop web, mobile web, and native mobile each have explicit route,
+  workflow, and layout-mode contracts.
+- Mobile web and native mobile share the same Workbench, Timeline, Links, and
+  More primary workflow order and action labels, with Knowledge Setup, Data
+  Tools, and Help consistently launched from More.
 - Web and mobile import each other's full and active JSON exports.
 - Shared data round-trip tests cover custom sections, relationships, archived records, timeline data, and in-fiction worlds.
 - Each major screen has a shared feature model.

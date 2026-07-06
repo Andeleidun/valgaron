@@ -4,6 +4,8 @@ export type DestructiveActionId =
   | 'delete-workspace'
   | 'delete-planetary-world'
   | 'delete-entry-type'
+  | 'remove-entry-type-field'
+  | 'clear-hidden-entry-details'
   | 'reset-document'
   | 'import-document'
   | 'restore-snapshot'
@@ -48,6 +50,18 @@ export const destructiveActionCopy: Record<
     message:
       'Delete this custom entry type and its entries, then save a recovery snapshot first?',
     confirmLabel: 'Delete Type',
+  },
+  'remove-entry-type-field': {
+    title: 'Remove Field',
+    message:
+      'Remove this field from the custom type? Existing entry values stay saved as hidden details for review and cleanup.',
+    confirmLabel: 'Remove Field',
+  },
+  'clear-hidden-entry-details': {
+    title: 'Clear Hidden Details',
+    message:
+      'Clear all hidden detail values from entries in the current workspace and save a recovery snapshot first?',
+    confirmLabel: 'Clear Hidden Details',
   },
   'reset-document': {
     title: 'Reset Codex',
@@ -96,6 +110,10 @@ export function formatDestructiveActionTitle(
     case 'delete-entry-type':
     case 'delete-snapshot':
       return `Delete ${subjectName}?`;
+    case 'remove-entry-type-field':
+      return `Remove ${subjectName}?`;
+    case 'clear-hidden-entry-details':
+      return 'Clear hidden detail values?';
     case 'reset-document':
       return 'Reset this local workspace?';
     case 'import-document':

@@ -9,6 +9,7 @@ import {
   entryNameCopyFeedback,
   entryFromDraft,
   entryPinnedControl,
+  formatCodexRouteSearch,
   formatDestructiveActionTitle,
   formatDraftValidationErrors,
   getDetailValue,
@@ -30,14 +31,13 @@ import {
   getRelationshipEntryRouteById,
   getRelationshipFieldConfigsForEntryKind,
   getRelationshipManagementRoute,
-  getTimelineDiagnostics,
-  getTimelineEventItem,
-  getTimelineHighlights,
   getTimelineInvolvedEntryIdsByEvent,
+  getTimelineEraReassignmentUpdates,
   getTimelineOrderUpdates,
+  getTimelineSurfaceModel,
   relationshipFeatureCopy,
-  groupTimelineEventsByEra,
   buildRelationshipFieldTextMigrationOperation,
+  createEmptyRelationshipDraft,
   filterRelationshipTargetOptions,
   getRelationshipFieldLinks,
   getRelationshipFieldTextMigration,
@@ -47,13 +47,19 @@ import {
   relationshipTextReviewCopy,
   getRelationshipTargetOptionDisplay,
   getRelationshipTargetOptions,
+  createStagedRelationshipDraft,
+  deleteStagedRelationshipDraft,
+  draftTransactionEntryId,
   makeFieldRelationship,
-  sortTimelineEvents,
   timelineFeatureCopy,
+  upsertStagedRelationshipDraft,
   validateEntryDraft,
+  validateEntryDraftTransaction,
   type EntryDraft,
   type EntryListItem,
   type RelationshipFieldConfig,
+  type RelationshipDraft,
+  type StagedRelationshipDraft,
   type WorldCodex,
   type WorldDetailFieldKey,
   type WorldEntry,
@@ -75,6 +81,42 @@ function getDetailFieldSuggestionId(
     /[^a-zA-Z0-9_-]/g,
     '-'
   );
+}
+
+function getTimelineEventEditorRoute(
+  event: Pick<WorldEntry, 'id' | 'name'>
+): string {
+  return `/timeline${formatCodexRouteSearch({
+    entryId: event.id,
+    intent: 'edit',
+    query: event.name,
+  })}`;
+}
+
+function serializeStagedRelationshipDraft(
+  relationship: StagedRelationshipDraft
+): string {
+  return [
+    relationship.stagedId,
+    relationship.sourceEntryId,
+    relationship.targetEntryId,
+    relationship.type,
+    relationship.note,
+    relationship.directional ? 'directional' : 'mutual',
+    relationship.status,
+  ].join('\u0000');
+}
+
+function haveStagedRelationshipDraftsChanged(
+  baseline: readonly StagedRelationshipDraft[],
+  current: readonly StagedRelationshipDraft[]
+): boolean {
+  if (baseline.length !== current.length) {
+    return true;
+  }
+  const baselineKeys = baseline.map(serializeStagedRelationshipDraft).sort();
+  const currentKeys = current.map(serializeStagedRelationshipDraft).sort();
+  return baselineKeys.some((key, index) => key !== currentKeys[index]);
 }
 
 export function EntryCard({
@@ -311,21 +353,19 @@ export function TimelineOverview({
   sections: readonly WorldSectionConfig[];
   onSaveEvents: (events: readonly WorldEntry[]) => void;
 }) {
-  const groupedEvents = groupTimelineEventsByEra(events);
-  const sortedEvents = sortTimelineEvents(events);
-  const diagnostics = getTimelineDiagnostics(events, relationships);
-  const highlights = getTimelineHighlights(events);
-  const timelineEventItemById = new Map(
-    events.map((event) => [
-      event.id,
-      getTimelineEventItem(
-        { codex, entryTypes: sections, relationships },
-        event
-      ),
-    ])
+  const timelineSurface = getTimelineSurfaceModel(
+    { codex, entryTypes: sections, relationships },
+    events
   );
+  const { eraManager, groups, highlights, review, sortedEvents } =
+    timelineSurface;
+  const [eraReassignmentSource, setEraReassignmentSource] = useState(
+    () => eraManager.eras[0]?.era ?? ''
+  );
+  const [eraReassignmentTarget, setEraReassignmentTarget] = useState('');
   const involvedEntryIdsByEvent =
     getTimelineInvolvedEntryIdsByEvent(relationships);
+  const eventById = new Map(events.map((event) => [event.id, event]));
   const entryById = new Map(
     getRelationshipEntries(codex, sections).map((entry) => [entry.id, entry])
   );
@@ -335,38 +375,176 @@ export function TimelineOverview({
       onSaveEvents(updates);
     }
   };
+  const eraSourceOptions = useMemo(
+    () => [
+      ...eraManager.eras.map((era) => ({
+        label: `${era.era} (${era.eventCount})`,
+        value: era.era,
+      })),
+      ...(eraManager.unassignedCount > 0
+        ? [
+            {
+              label: `${timelineFeatureCopy.unassignedEraLabel} (${eraManager.unassignedCount})`,
+              value: '',
+            },
+          ]
+        : []),
+    ],
+    [eraManager.eras, eraManager.unassignedCount]
+  );
+  const canApplyEraReassignment =
+    eraReassignmentTarget.trim().length > 0 &&
+    eraReassignmentTarget.trim() !== eraReassignmentSource.trim();
+  const applyEraReassignment = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const updates = getTimelineEraReassignmentUpdates(events, {
+      sourceEra: eraReassignmentSource,
+      targetEra: eraReassignmentTarget,
+    });
+    if (updates.length > 0) {
+      onSaveEvents(updates);
+      setEraReassignmentTarget('');
+    }
+  };
+
+  useEffect(() => {
+    if (
+      eraSourceOptions.some((option) => option.value === eraReassignmentSource)
+    ) {
+      return;
+    }
+    setEraReassignmentSource(eraSourceOptions[0]?.value ?? '');
+  }, [eraReassignmentSource, eraSourceOptions]);
 
   return (
     <section className="vwb-panel vwb-timeline-overview">
       <div className="vwb-section-heading">
         <div>
-          <p className="vwb-kicker">{events.length} visible events</p>
+          <p className="vwb-kicker">
+            {timelineSurface.eventCount} visible events
+          </p>
           <h2>Timeline view</h2>
         </div>
       </div>
-      <div className="vwb-diagnostics-grid">
-        <article className="vwb-diagnostic-card">
-          <span className="vwb-entry-kind">
-            {timelineFeatureCopy.unorderedEventsLabel}
-          </span>
-          <strong>{diagnostics.unorderedEvents.length}</strong>
-          <p>Events without a numeric sort order.</p>
-        </article>
-        <article className="vwb-diagnostic-card">
-          <span className="vwb-entry-kind">
-            {timelineFeatureCopy.duplicateOrdersLabel}
-          </span>
-          <strong>{diagnostics.duplicateOrderGroups.length}</strong>
-          <p>Order values shared by more than one event.</p>
-        </article>
-        <article className="vwb-diagnostic-card">
-          <span className="vwb-entry-kind">
-            {timelineFeatureCopy.unlinkedEventsLabel}
-          </span>
-          <strong>{diagnostics.unlinkedEvents.length}</strong>
-          <p>Timeline events with no relationship links.</p>
-        </article>
-      </div>
+      <section
+        className="vwb-timeline-review-tray"
+        aria-labelledby="timeline-review-title"
+      >
+        <div className="vwb-section-heading">
+          <div>
+            <p className="vwb-kicker">
+              {review.totalIssueCount} review issue
+              {review.totalIssueCount === 1 ? '' : 's'}
+            </p>
+            <h3 id="timeline-review-title">{review.title}</h3>
+          </div>
+        </div>
+        <div className="vwb-timeline-review-grid">
+          {review.reviewSummary.items.map((summaryItem) => {
+            const detailItem = review.items.find(
+              (item) => item.id === summaryItem.id
+            );
+            return (
+              <article
+                className={`vwb-diagnostic-card vwb-review-${summaryItem.severity}`}
+                key={summaryItem.id}
+              >
+                <span className="vwb-entry-kind">{summaryItem.title}</span>
+                <strong>{summaryItem.countLabel}</strong>
+                <p>{summaryItem.detail}</p>
+                {detailItem && detailItem.targets.length > 0 ? (
+                  <ul className="vwb-compact-list">
+                    {detailItem.targets.map((target) => (
+                      <li key={`${detailItem.id}-${target.label}`}>
+                        <span>{target.label}</span>
+                        <span className="vwb-inline-link-row">
+                          {target.eventIds.map((eventId) => {
+                            const targetEvent = eventById.get(eventId);
+                            return targetEvent ? (
+                              <NavLink
+                                key={eventId}
+                                to={getTimelineEventEditorRoute(targetEvent)}
+                              >
+                                Open {targetEvent.name}
+                              </NavLink>
+                            ) : null;
+                          })}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
+              </article>
+            );
+          })}
+        </div>
+        {!review.hasIssues ? (
+          <p className="vwb-muted-note">
+            {timelineFeatureCopy.noReviewIssuesLabel}
+          </p>
+        ) : null}
+      </section>
+      {eraManager.totalEraCount > 0 || eraManager.unassignedCount > 0 ? (
+        <div className="vwb-timeline-era-manager">
+          <div className="vwb-section-heading">
+            <div>
+              <p className="vwb-kicker">
+                {eraManager.totalEraCount} named eras
+              </p>
+              <h3>{timelineFeatureCopy.eraManagerTitle}</h3>
+            </div>
+          </div>
+          <div className="vwb-tag-row" aria-label="Timeline eras">
+            {eraManager.eras.map((era) => (
+              <span className="vwb-tag" key={era.era}>
+                {era.era} ({era.eventCount})
+              </span>
+            ))}
+            {eraManager.unassignedCount > 0 ? (
+              <span className="vwb-tag">
+                {timelineFeatureCopy.unassignedEraLabel} (
+                {eraManager.unassignedCount})
+              </span>
+            ) : null}
+          </div>
+          <form className="vwb-filter-row" onSubmit={applyEraReassignment}>
+            <label>
+              {timelineFeatureCopy.eraReassignmentSourceLabel}
+              <select
+                value={eraReassignmentSource}
+                onChange={(event) =>
+                  setEraReassignmentSource(event.target.value)
+                }
+              >
+                {eraSourceOptions.map((option) => (
+                  <option key={option.label} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              {timelineFeatureCopy.eraReassignmentTargetLabel}
+              <input
+                value={eraReassignmentTarget}
+                onChange={(event) =>
+                  setEraReassignmentTarget(event.target.value)
+                }
+                placeholder={
+                  timelineFeatureCopy.eraReassignmentTargetPlaceholder
+                }
+              />
+            </label>
+            <button
+              className="vwb-secondary-button"
+              disabled={!canApplyEraReassignment}
+              type="submit"
+            >
+              {timelineFeatureCopy.eraReassignmentActionLabel}
+            </button>
+          </form>
+        </div>
+      ) : null}
       {highlights.length > 0 ? (
         <div
           className="vwb-timeline-highlight-list"
@@ -374,14 +552,9 @@ export function TimelineOverview({
         >
           {highlights.map((event) => (
             <article className="vwb-timeline-highlight" key={event.id}>
-              <span className="vwb-entry-kind">
-                {timelineEventItemById.get(event.id)?.contextText}
-              </span>
+              <span className="vwb-entry-kind">{event.contextText}</span>
               <strong>{event.name}</strong>
-              <p>
-                {timelineEventItemById.get(event.id)?.summaryText ??
-                  timelineFeatureCopy.noDateLabelSentence}
-              </p>
+              <p>{event.summaryText}</p>
             </article>
           ))}
         </div>
@@ -397,28 +570,36 @@ export function TimelineOverview({
                 <th scope="col">Date</th>
                 <th scope="col">Era</th>
                 <th scope="col">Links</th>
-                <th scope="col">Move</th>
+                <th scope="col">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {sortedEvents.map((event, index) => {
+              {sortedEvents.map((eventItem, index) => {
+                const event = eventById.get(eventItem.id);
                 const involvedEntryIds =
-                  involvedEntryIdsByEvent.get(event.id) ?? [];
-                const eventItem = timelineEventItemById.get(event.id);
+                  involvedEntryIdsByEvent.get(eventItem.id) ?? [];
                 return (
-                  <tr key={event.id}>
-                    <td>{eventItem?.orderText}</td>
-                    <td>{event.name}</td>
-                    <td>{eventItem?.dateText}</td>
-                    <td>{event.fields.era || 'Unassigned Era'}</td>
+                  <tr key={eventItem.id}>
+                    <td>{eventItem.orderText}</td>
+                    <td>{eventItem.name}</td>
+                    <td>{eventItem.dateText}</td>
+                    <td>{eventItem.era || 'Unassigned Era'}</td>
                     <td>{involvedEntryIds.length}</td>
                     <td>
                       <div className="vwb-table-actions">
+                        {event ? (
+                          <NavLink
+                            className="vwb-secondary-button"
+                            to={getTimelineEventEditorRoute(event)}
+                          >
+                            Open
+                          </NavLink>
+                        ) : null}
                         <button
                           className="vwb-secondary-button"
                           type="button"
                           disabled={index === 0}
-                          onClick={() => moveEvent(event.id, 'earlier')}
+                          onClick={() => moveEvent(eventItem.id, 'earlier')}
                         >
                           Earlier
                         </button>
@@ -426,7 +607,7 @@ export function TimelineOverview({
                           className="vwb-secondary-button"
                           type="button"
                           disabled={index === sortedEvents.length - 1}
-                          onClick={() => moveEvent(event.id, 'later')}
+                          onClick={() => moveEvent(eventItem.id, 'later')}
                         >
                           Later
                         </button>
@@ -439,26 +620,34 @@ export function TimelineOverview({
           </table>
         </div>
       ) : null}
-      {groupedEvents.length > 0 ? (
+      {groups.length > 0 ? (
         <div className="vwb-timeline-era-list">
-          {groupedEvents.map((group) => (
+          {groups.map((group) => (
             <section className="vwb-timeline-era" key={group.era}>
               <h3>{group.era}</h3>
               <div className="vwb-timeline-event-list">
-                {group.events.map((event) => {
+                {group.events.map((eventItem) => {
+                  const event = eventById.get(eventItem.id);
                   const involvedEntryIds =
-                    involvedEntryIdsByEvent.get(event.id) ?? [];
-                  const eventItem = timelineEventItemById.get(event.id);
+                    involvedEntryIdsByEvent.get(eventItem.id) ?? [];
                   return (
-                    <article className="vwb-timeline-event" key={event.id}>
+                    <article className="vwb-timeline-event" key={eventItem.id}>
                       <div>
                         <span className="vwb-entry-kind">
-                          {eventItem?.contextText}
+                          {eventItem.contextText}
                         </span>
-                        <h4>{event.name}</h4>
+                        <h4>{eventItem.name}</h4>
                       </div>
-                      <p>{eventItem?.summaryText}</p>
-                      {event.fields.consequences ? (
+                      {event ? (
+                        <NavLink
+                          className="vwb-secondary-button vwb-timeline-event-open"
+                          to={getTimelineEventEditorRoute(event)}
+                        >
+                          Open Event
+                        </NavLink>
+                      ) : null}
+                      <p>{eventItem.summaryText}</p>
+                      {event?.fields.consequences ? (
                         <p className="vwb-timeline-consequence">
                           {event.fields.consequences}
                         </p>
@@ -466,7 +655,7 @@ export function TimelineOverview({
                       {involvedEntryIds.length > 0 ? (
                         <div
                           className="vwb-tag-row"
-                          aria-label={`${event.name} involved entries`}
+                          aria-label={`${eventItem.name} involved entries`}
                         >
                           {involvedEntryIds.map((entryId) => {
                             const involvedEntry = entryById.get(entryId);
@@ -649,6 +838,8 @@ function RelationshipFieldControl({
   sections: readonly WorldSectionConfig[];
 }) {
   const [query, setQuery] = useState('');
+  const [expandedPreferredTargets, setExpandedPreferredTargets] =
+    useState(false);
   const [expandedUnusualTargets, setExpandedUnusualTargets] = useState(false);
   const fieldRelationships = getRelationshipFieldLinks(
     relationships,
@@ -673,6 +864,7 @@ function RelationshipFieldControl({
     selectedTargetIds
   );
   const optionDisplay = getRelationshipTargetOptionDisplay({
+    expandedPreferredTargets,
     expandedUnusualTargets,
     limit: RELATIONSHIP_TARGET_RESULT_LIMIT,
     options: filteredOptions,
@@ -681,6 +873,12 @@ function RelationshipFieldControl({
   });
   const visibleOptions = optionDisplay.visibleOptions;
   const hiddenPreferredCount = optionDisplay.hiddenPreferredCount;
+
+  useEffect(() => {
+    setQuery('');
+    setExpandedPreferredTargets(false);
+    setExpandedUnusualTargets(false);
+  }, [config.fieldKey, entry.id]);
 
   const saveLink = (
     targetEntryId: string,
@@ -743,7 +941,11 @@ function RelationshipFieldControl({
             Search {config.label}
             <input
               value={query}
-              onChange={(event) => setQuery(event.target.value)}
+              onChange={(event) => {
+                setQuery(event.target.value);
+                setExpandedPreferredTargets(false);
+                setExpandedUnusualTargets(false);
+              }}
               placeholder={relationshipFieldCopy.searchPlaceholder}
               type="search"
             />
@@ -799,10 +1001,21 @@ function RelationshipFieldControl({
               {relationshipFieldCopy.noMatchingTargetsMessage}
             </p>
           )}
+          {optionDisplay.canExpandPreferredTargets ? (
+            <button
+              className="vwb-secondary-button"
+              type="button"
+              aria-expanded={false}
+              onClick={() => setExpandedPreferredTargets(true)}
+            >
+              {optionDisplay.showPreferredTargetsLabel}
+            </button>
+          ) : null}
           {optionDisplay.canExpandUnusualTargets ? (
             <button
               className="vwb-secondary-button"
               type="button"
+              aria-expanded={false}
               onClick={() => setExpandedUnusualTargets(true)}
             >
               {optionDisplay.showUnusualTargetsLabel}
@@ -831,6 +1044,7 @@ export function EntryForm({
   sections,
   onArchive,
   onSave,
+  onSaveDraft,
   onCancel,
   onDelete,
   onDeleteRelationship,
@@ -840,17 +1054,24 @@ export function EntryForm({
   onSaveRelationship,
   onUseAsTemplate,
   initialDraft,
+  initialStagedRelationships,
   sectionEntries = [],
 }: {
   section: WorldSectionConfig;
   sectionEntries?: readonly WorldEntry[];
   selectedEntry?: WorldEntry;
   initialDraft?: EntryDraft;
+  initialStagedRelationships?: readonly StagedRelationshipDraft[];
   codex?: WorldCodex;
   relationships?: readonly WorldRelationship[];
   sections?: readonly WorldSectionConfig[];
   onArchive: (entry: WorldEntry) => void;
   onSave: (entry: WorldEntry) => void;
+  onSaveDraft?: (
+    draft: EntryDraft,
+    existingEntry?: WorldEntry,
+    stagedRelationships?: readonly StagedRelationshipDraft[]
+  ) => WorldEntry | null;
   onCancel: () => void;
   onDelete: (entry: WorldEntry) => void;
   onDeleteRelationship?: (relationshipId: string) => void;
@@ -867,14 +1088,30 @@ export function EntryForm({
         : initialDraft ?? createEmptyDraft(),
     [initialDraft, section, selectedEntry]
   );
+  const initialStagedRelationshipDrafts = useMemo(
+    () => initialStagedRelationships ?? [],
+    [initialStagedRelationships]
+  );
   const [draft, setDraft] = useState<EntryDraft>(() => baselineDraft);
+  const [stagedRelationships, setStagedRelationships] = useState<
+    StagedRelationshipDraft[]
+  >(() => [...initialStagedRelationshipDrafts]);
+  const [stagedTargetEntryId, setStagedTargetEntryId] = useState('');
+  const [stagedRelationshipType, setStagedRelationshipType] =
+    useState('references');
+  const [stagedRelationshipNote, setStagedRelationshipNote] = useState('');
   const [error, setError] = useState('');
   const [copyStatus, setCopyStatus] = useState('');
   const reportedBaselineDraftRef = useRef(baselineDraft);
   const isDirty = hasUnsavedChanges(baselineDraft, draft);
+  const hasStagedRelationshipChanges = haveStagedRelationshipDraftsChanged(
+    initialStagedRelationshipDrafts,
+    stagedRelationships
+  );
   const isBaselineResetPending =
     reportedBaselineDraftRef.current !== baselineDraft;
-  const reportedIsDirty = !isBaselineResetPending && isDirty;
+  const reportedIsDirty =
+    !isBaselineResetPending && (isDirty || hasStagedRelationshipChanges);
   const visibleDetailFields = useMemo(
     () => getDraftDetailFields(section, draft),
     [section, draft]
@@ -890,7 +1127,7 @@ export function EntryForm({
     activeRelationshipFieldConfigs.map((config) => config.fieldKey)
   );
   const editableDetailFields =
-    selectedEntry?.kind === 'place' || selectedEntry?.kind === 'character'
+    activeRelationshipFieldConfigs.length > 0
       ? visibleDetailFields.filter(
           (field) => !relationshipFieldKeys.has(field.key)
         )
@@ -928,15 +1165,43 @@ export function EntryForm({
       onDeleteRelationship &&
       onSaveRelationship
   );
+  const stagedRelationshipTargetOptions = useMemo(
+    () =>
+      codex && sections
+        ? getRelationshipEntries(codex, sections).filter(
+            (entry) =>
+              entry.id !== selectedEntry?.id && entry.status !== 'archived'
+          )
+        : [],
+    [codex, sections, selectedEntry]
+  );
+  const stagedRelationshipTargetById = useMemo(
+    () =>
+      new Map(
+        stagedRelationshipTargetOptions.map((entry) => [entry.id, entry])
+      ),
+    [stagedRelationshipTargetOptions]
+  );
+  const canStageRelationshipLinks = Boolean(
+    !selectedEntry &&
+      onSaveDraft &&
+      codex &&
+      sections &&
+      stagedRelationshipTargetOptions.length
+  );
 
   useUnsavedChangesWarning(reportedIsDirty);
 
   useEffect(() => {
     reportedBaselineDraftRef.current = baselineDraft;
     setDraft(baselineDraft);
+    setStagedRelationships([...initialStagedRelationshipDrafts]);
+    setStagedTargetEntryId('');
+    setStagedRelationshipType('references');
+    setStagedRelationshipNote('');
     setError('');
     setCopyStatus('');
-  }, [baselineDraft]);
+  }, [baselineDraft, initialStagedRelationshipDrafts]);
 
   useEffect(() => {
     onDirtyChange?.(reportedIsDirty);
@@ -982,14 +1247,76 @@ export function EntryForm({
       .catch(() => setCopyStatus(entryNameCopyFeedback.failed));
   };
 
+  const saveDraft = (
+    nextDraft: EntryDraft,
+    existingEntry?: WorldEntry
+  ): WorldEntry | null => {
+    const savedEntry = onSaveDraft
+      ? onSaveDraft(nextDraft, existingEntry, stagedRelationships)
+      : entryFromDraft(section, nextDraft, existingEntry);
+    if (!savedEntry) {
+      return null;
+    }
+    if (!onSaveDraft) {
+      onSave(savedEntry);
+    }
+    setStagedRelationships([]);
+    return savedEntry;
+  };
+
+  const stageRelationshipLink = () => {
+    if (!stagedTargetEntryId || !stagedRelationshipType.trim()) {
+      setError('Choose a target record and relationship type before staging.');
+      return;
+    }
+    const normalizedType = stagedRelationshipType.trim().toLowerCase();
+    if (
+      stagedRelationships.some(
+        (relationship) =>
+          relationship.targetEntryId === stagedTargetEntryId &&
+          relationship.type.trim().toLowerCase() === normalizedType
+      )
+    ) {
+      setError('That staged link is already in the save list.');
+      return;
+    }
+    const draftRelationship: RelationshipDraft = {
+      ...createEmptyRelationshipDraft(),
+      sourceEntryId: draftTransactionEntryId,
+      targetEntryId: stagedTargetEntryId,
+      type: stagedRelationshipType,
+      note: stagedRelationshipNote,
+    };
+    setStagedRelationships((current) =>
+      upsertStagedRelationshipDraft(
+        current,
+        createStagedRelationshipDraft(draftRelationship)
+      )
+    );
+    setStagedTargetEntryId('');
+    setStagedRelationshipNote('');
+    setError('');
+  };
+
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const validation = validateEntryDraft(section, draft);
+    const validation =
+      codex && onSaveDraft
+        ? validateEntryDraftTransaction({
+            codex,
+            entryDraft: draft,
+            existingEntry: selectedEntry,
+            section,
+            stagedRelationships,
+          })
+        : validateEntryDraft(section, draft);
     if (!validation.ok) {
       setError(formatDraftValidationErrors(validation));
       return;
     }
-    onSave(entryFromDraft(section, draft, selectedEntry));
+    if (!saveDraft(draft, selectedEntry)) {
+      return;
+    }
     setError('');
   };
 
@@ -1046,7 +1373,7 @@ export function EntryForm({
       },
     };
     setDraft(nextDraft);
-    onSave(entryFromDraft(section, nextDraft, selectedEntry));
+    saveDraft(nextDraft, selectedEntry);
   };
 
   return (
@@ -1244,6 +1571,103 @@ export function EntryForm({
         </section>
       ))}
 
+      {canStageRelationshipLinks ? (
+        <section
+          className="vwb-linked-field-panel"
+          aria-label="Staged relationship links"
+        >
+          <div>
+            <h3>Links to create on save</h3>
+            <p>
+              Stage relationship links while drafting this entry. They will be
+              saved together when the entry is saved.
+            </p>
+          </div>
+          <div className="vwb-form-grid">
+            <label>
+              Target record
+              <select
+                value={stagedTargetEntryId}
+                onChange={(event) => setStagedTargetEntryId(event.target.value)}
+              >
+                <option value="">Choose record</option>
+                {stagedRelationshipTargetOptions.map((entry) => (
+                  <option value={entry.id} key={entry.id}>
+                    {entry.name} ({entry.sectionTitle})
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Relationship type
+              <input
+                value={stagedRelationshipType}
+                onChange={(event) =>
+                  setStagedRelationshipType(event.target.value)
+                }
+                placeholder="references, member of, located in"
+              />
+            </label>
+            <label className="vwb-wide-field">
+              Note
+              <textarea
+                rows={3}
+                value={stagedRelationshipNote}
+                onChange={(event) =>
+                  setStagedRelationshipNote(event.target.value)
+                }
+                placeholder="Why this link matters"
+              />
+            </label>
+          </div>
+          <button
+            className="vwb-secondary-button"
+            type="button"
+            onClick={stageRelationshipLink}
+          >
+            Stage Link
+          </button>
+          {stagedRelationships.length > 0 ? (
+            <div className="vwb-relationship-list">
+              {stagedRelationships.map((relationship) => {
+                const target = stagedRelationshipTargetById.get(
+                  relationship.targetEntryId
+                );
+                return (
+                  <article
+                    className="vwb-relationship-row"
+                    key={relationship.stagedId}
+                  >
+                    <div>
+                      <span className="vwb-entry-kind">Staged link</span>
+                      <strong>
+                        This entry {relationship.type}{' '}
+                        {target?.name ?? relationship.targetEntryId}
+                      </strong>
+                    </div>
+                    {relationship.note ? <p>{relationship.note}</p> : null}
+                    <button
+                      className="vwb-secondary-button vwb-danger-button"
+                      type="button"
+                      onClick={() =>
+                        setStagedRelationships((current) =>
+                          deleteStagedRelationshipDraft(
+                            current,
+                            relationship.stagedId
+                          )
+                        )
+                      }
+                    >
+                      Remove
+                    </button>
+                  </article>
+                );
+              })}
+            </div>
+          ) : null}
+        </section>
+      ) : null}
+
       {selectedEntry && activeRelationshipFieldConfigs.length > 0 ? (
         <section
           className="vwb-linked-field-panel"
@@ -1357,7 +1781,11 @@ export function EntryForm({
       {error ? <p className="vwb-form-error">{error}</p> : null}
       <div className="vwb-form-actions">
         <button className="vwb-primary-button" type="submit">
-          {getEntryEditorSubmitLabel({ section, selectedEntry })}
+          {getEntryEditorSubmitLabel({
+            section,
+            selectedEntry,
+            stagedRelationshipCount: stagedRelationships.length,
+          })}
         </button>
         {selectedEntry && selectedActionModel ? (
           <>

@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { NavLink } from 'react-router-dom';
 import {
-  type EntryTypeDraft,
   formatDraftValidationErrors,
   formatDestructiveActionTitle,
   formatWorkspaceFeatureAccessibilityLabel,
@@ -9,20 +8,18 @@ import {
   getCodexScreenIntro,
   getDestructiveActionCopy,
   getWorkspaceFeatureModel,
-  entryTypeDraftFields,
-  emptyEntryTypeDraft,
   lastActiveWorkspaceArchiveMessage,
   normalizePlanetaryWorldDraft,
   normalizeWorkspaceDraft,
   planetaryWorldDraftFrom,
   planetaryWorldDraftFields,
   validatePlanetaryWorldDraft,
-  validateEntryTypeDraft,
   validateWorkspaceDraft,
   workspaceDraftFields,
   workspaceDraftFrom,
   workspaceFeatureActions,
   workspaceFeatureCopy,
+  workspaceFeatureResultLimit,
   getPlanetaryWorldFormKicker,
   getPlanetaryWorldFormTitle,
   getWorkspaceFormKicker,
@@ -42,12 +39,10 @@ import { useDialogFocus } from '../Utlilities/dialogFocus';
 
 type PendingDelete =
   | { type: 'workspace'; id: string; name: string }
-  | { type: 'entry-type'; id: string; name: string }
   | { type: 'planetary-world'; id: string; name: string };
 
 const pendingDeleteActionIdByType = {
   workspace: 'delete-workspace',
-  'entry-type': 'delete-entry-type',
   'planetary-world': 'delete-planetary-world',
 } as const satisfies Record<PendingDelete['type'], string>;
 
@@ -105,9 +100,7 @@ export function WorkspacesPage({
   activeWorld,
   document,
   onArchiveWorkspace,
-  onCreateEntryType,
   onCreateWorkspace,
-  onDeleteEntryType,
   onDeletePlanetaryWorld,
   onDeleteWorkspace,
   onDuplicateWorkspace,
@@ -123,9 +116,7 @@ export function WorkspacesPage({
     planetaryWorldId: string,
     archived: boolean
   ) => void;
-  onCreateEntryType: (draft: EntryTypeDraft) => void;
   onCreateWorkspace: (draft: WorkspaceDraft) => void;
-  onDeleteEntryType: (sectionId: string) => void;
   onDeletePlanetaryWorld: (planetaryWorldId: string) => void;
   onDeleteWorkspace: (workspaceId: string) => void;
   onDuplicateWorkspace: (workspaceId: string) => void;
@@ -143,10 +134,6 @@ export function WorkspacesPage({
     workspaceDraftFrom(activeWorld)
   );
   const [workspaceError, setWorkspaceError] = useState('');
-  const [entryTypeDraft, setEntryTypeDraft] = useState<EntryTypeDraft>(() =>
-    emptyEntryTypeDraft()
-  );
-  const [entryTypeError, setEntryTypeError] = useState('');
   const [selectedPlanetaryWorldId, setSelectedPlanetaryWorldId] = useState<
     string | null
   >(null);
@@ -154,8 +141,9 @@ export function WorkspacesPage({
     useState<PlanetaryWorldDraft>(() => planetaryWorldDraftFrom());
   const [planetaryWorldError, setPlanetaryWorldError] = useState('');
   const [workspaceQuery, setWorkspaceQuery] = useState('');
-  const [entryTypeQuery, setEntryTypeQuery] = useState('');
   const [planetaryWorldQuery, setPlanetaryWorldQuery] = useState('');
+  const [showAllWorkspaces, setShowAllWorkspaces] = useState(false);
+  const [showAllPlanetaryWorlds, setShowAllPlanetaryWorlds] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<PendingDelete | null>(
     null
   );
@@ -169,17 +157,23 @@ export function WorkspacesPage({
         document,
         queries: {
           workspaces: workspaceQuery,
-          customEntryTypes: entryTypeQuery,
           planetaryWorlds: planetaryWorldQuery,
+        },
+        resultLimits: {
+          workspaces: showAllWorkspaces ? Number.MAX_SAFE_INTEGER : undefined,
+          planetaryWorlds: showAllPlanetaryWorlds
+            ? Number.MAX_SAFE_INTEGER
+            : undefined,
         },
         selectedWorkspaceId,
       }),
     [
       activeWorld,
       document,
-      entryTypeQuery,
       planetaryWorldQuery,
       selectedWorkspaceId,
+      showAllPlanetaryWorlds,
+      showAllWorkspaces,
       workspaceQuery,
     ]
   );
@@ -196,7 +190,6 @@ export function WorkspacesPage({
   const workspaceBaselineDraft = workspaceDraftFrom(
     selectedWorkspace ?? undefined
   );
-  const entryTypeBaselineDraft = emptyEntryTypeDraft();
   const planetaryWorldBaselineDraft = planetaryWorldDraftFrom(
     selectedPlanetaryWorld ?? undefined
   );
@@ -204,18 +197,11 @@ export function WorkspacesPage({
     workspaceBaselineDraft,
     workspaceDraft
   );
-  const isEntryTypeDraftDirty = hasUnsavedChanges(
-    entryTypeBaselineDraft,
-    entryTypeDraft
-  );
   const isPlanetaryWorldDraftDirty = hasUnsavedChanges(
     planetaryWorldBaselineDraft,
     planetaryWorldDraft
   );
-  const hasDirtyDraft =
-    isWorkspaceDraftDirty ||
-    isEntryTypeDraftDirty ||
-    isPlanetaryWorldDraftDirty;
+  const hasDirtyDraft = isWorkspaceDraftDirty || isPlanetaryWorldDraftDirty;
 
   useUnsavedChangesWarning(hasDirtyDraft);
 
@@ -235,6 +221,14 @@ export function WorkspacesPage({
     setWorkspaceDraft(workspaceDraftFrom(selectedWorkspace ?? undefined));
     setWorkspaceError('');
   }, [selectedWorkspaceDraftKey]);
+
+  useEffect(() => {
+    setShowAllWorkspaces(false);
+  }, [activeWorld.id, workspaceQuery]);
+
+  useEffect(() => {
+    setShowAllPlanetaryWorlds(false);
+  }, [activeWorld.id, planetaryWorldQuery]);
 
   useEffect(() => {
     if (
@@ -264,18 +258,6 @@ export function WorkspacesPage({
       onCreateWorkspace(normalizeWorkspaceDraft(workspaceDraft));
     }
     setWorkspaceError('');
-  };
-
-  const submitEntryType = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const validation = validateEntryTypeDraft(entryTypeDraft);
-    if (!validation.ok) {
-      setEntryTypeError(formatDraftValidationErrors(validation));
-      return;
-    }
-    onCreateEntryType(entryTypeDraft);
-    setEntryTypeDraft(emptyEntryTypeDraft());
-    setEntryTypeError('');
   };
 
   const submitPlanetaryWorld = (event: FormEvent<HTMLFormElement>) => {
@@ -316,16 +298,6 @@ export function WorkspacesPage({
     }));
   };
 
-  const updateEntryTypeDraft = (
-    key: (typeof entryTypeDraftFields)[number]['key'],
-    value: string
-  ) => {
-    setEntryTypeDraft((currentDraft) => ({
-      ...currentDraft,
-      [key]: value,
-    }));
-  };
-
   const discardIfAllowed = (action: () => void) => {
     if (confirmDiscardUnsavedChanges(hasDirtyDraft)) {
       action();
@@ -338,9 +310,6 @@ export function WorkspacesPage({
     }
     if (pendingDelete.type === 'workspace') {
       onDeleteWorkspace(pendingDelete.id);
-    }
-    if (pendingDelete.type === 'entry-type') {
-      onDeleteEntryType(pendingDelete.id);
     }
     if (pendingDelete.type === 'planetary-world') {
       onDeletePlanetaryWorld(pendingDelete.id);
@@ -469,8 +438,26 @@ export function WorkspacesPage({
             )}
             {workspaceModel.workspaces.hiddenCount > 0 ? (
               <p className="vwb-inline-status">
-                {workspaceModel.workspaces.hiddenText}
+                {workspaceModel.workspaces.hiddenCount} more workspace
+                {workspaceModel.workspaces.hiddenCount === 1 ? '' : 's'}.
               </p>
+            ) : null}
+            {workspaceModel.workspaces.totalCount >
+            workspaceFeatureResultLimit ? (
+              <div className="vwb-action-row">
+                <button
+                  className="vwb-secondary-button"
+                  type="button"
+                  aria-expanded={showAllWorkspaces}
+                  onClick={() =>
+                    setShowAllWorkspaces((currentValue) => !currentValue)
+                  }
+                >
+                  {showAllWorkspaces
+                    ? 'Show Fewer Workspaces'
+                    : `Show ${workspaceModel.workspaces.hiddenCount} More Workspaces`}
+                </button>
+              </div>
             ) : null}
           </div>
           <form className="vwb-form" onSubmit={submitWorkspace}>
@@ -719,8 +706,27 @@ export function WorkspacesPage({
             )}
             {workspaceModel.planetaryWorlds.hiddenCount > 0 ? (
               <p className="vwb-inline-status">
-                {workspaceModel.planetaryWorlds.hiddenText}
+                {workspaceModel.planetaryWorlds.hiddenCount} more in-fiction
+                world
+                {workspaceModel.planetaryWorlds.hiddenCount === 1 ? '' : 's'}.
               </p>
+            ) : null}
+            {workspaceModel.planetaryWorlds.totalCount >
+            workspaceFeatureResultLimit ? (
+              <div className="vwb-action-row">
+                <button
+                  className="vwb-secondary-button"
+                  type="button"
+                  aria-expanded={showAllPlanetaryWorlds}
+                  onClick={() =>
+                    setShowAllPlanetaryWorlds((currentValue) => !currentValue)
+                  }
+                >
+                  {showAllPlanetaryWorlds
+                    ? 'Show Fewer In-Fiction Worlds'
+                    : `Show ${workspaceModel.planetaryWorlds.hiddenCount} More In-Fiction Worlds`}
+                </button>
+              </div>
             ) : null}
           </div>
           <form className="vwb-form" onSubmit={submitPlanetaryWorld}>
@@ -803,138 +809,6 @@ export function WorkspacesPage({
                 }
               >
                 {workspaceFeatureActions.newWorldDraft}
-              </button>
-            </div>
-          </form>
-        </div>
-      </section>
-
-      <section className="vwb-panel" aria-labelledby="custom-types-title">
-        <div className="vwb-section-heading">
-          <div>
-            <p className="vwb-kicker">
-              {workspaceModel.customEntryTypes.countLabel}
-            </p>
-            <h2 id="custom-types-title">
-              {workspaceFeatureCopy.sections.customEntryTypes}
-            </h2>
-          </div>
-        </div>
-        <div className="vwb-management-grid">
-          <div className="vwb-entry-list">
-            <label>
-              {workspaceModel.customEntryTypes.label}
-              <input
-                value={entryTypeQuery}
-                onChange={(event) => setEntryTypeQuery(event.target.value)}
-                placeholder={workspaceModel.customEntryTypes.placeholder}
-              />
-            </label>
-            {workspaceModel.customEntryTypes.rows.length > 0 ? (
-              workspaceModel.customEntryTypes.rows.map((entryTypeRow) => (
-                <article className="vwb-entry-card" key={entryTypeRow.id}>
-                  <div className="vwb-entry-card-header">
-                    <div>
-                      <p className="vwb-entry-kind">{entryTypeRow.kindLabel}</p>
-                      <h3>{entryTypeRow.title}</h3>
-                    </div>
-                    <span className="vwb-status-pill">
-                      {entryTypeRow.entryCountLabel}
-                    </span>
-                  </div>
-                  <p>{entryTypeRow.descriptionText}</p>
-                  <small>{entryTypeRow.fieldsLine}</small>
-                  <div className="vwb-form-actions">
-                    <button
-                      className="vwb-secondary-button vwb-danger-button"
-                      type="button"
-                      aria-label={formatWorkspaceFeatureAccessibilityLabel(
-                        'delete-custom-entry-type',
-                        entryTypeRow.title
-                      )}
-                      onClick={() =>
-                        discardIfAllowed(() =>
-                          setPendingDelete({
-                            type: 'entry-type',
-                            id: entryTypeRow.id,
-                            name: entryTypeRow.title,
-                          })
-                        )
-                      }
-                    >
-                      {workspaceFeatureActions.deleteType}
-                    </button>
-                  </div>
-                </article>
-              ))
-            ) : (
-              <div className="vwb-empty-results" role="status">
-                <strong>{workspaceModel.customEntryTypes.emptyText}</strong>
-              </div>
-            )}
-            {workspaceModel.customEntryTypes.hiddenCount > 0 ? (
-              <p className="vwb-inline-status">
-                {workspaceModel.customEntryTypes.hiddenText}
-              </p>
-            ) : null}
-          </div>
-          <form className="vwb-form" onSubmit={submitEntryType}>
-            <div className="vwb-section-heading">
-              <div>
-                <p className="vwb-kicker">
-                  {workspaceFeatureCopy.forms.newCustomSection}
-                </p>
-                <h3>{workspaceFeatureCopy.forms.createEntryType}</h3>
-              </div>
-              {isEntryTypeDraftDirty ? (
-                <span className="vwb-status-pill">
-                  {workspaceFeatureCopy.status.unsaved}
-                </span>
-              ) : null}
-            </div>
-            <div className="vwb-form-grid">
-              {entryTypeDraftFields.slice(0, 2).map((field) => (
-                <label key={field.key}>
-                  {field.label}
-                  <input
-                    value={entryTypeDraft[field.key]}
-                    onChange={(event) =>
-                      updateEntryTypeDraft(field.key, event.target.value)
-                    }
-                    placeholder={field.placeholder}
-                  />
-                </label>
-              ))}
-            </div>
-            {entryTypeDraftFields.slice(2).map((field) => (
-              <label key={field.key}>
-                {field.label}
-                {field.multiline ? (
-                  <textarea
-                    rows={3}
-                    value={entryTypeDraft[field.key]}
-                    onChange={(event) =>
-                      updateEntryTypeDraft(field.key, event.target.value)
-                    }
-                    placeholder={field.placeholder}
-                  />
-                ) : (
-                  <input
-                    value={entryTypeDraft[field.key]}
-                    onChange={(event) =>
-                      updateEntryTypeDraft(field.key, event.target.value)
-                    }
-                    placeholder={field.placeholder}
-                  />
-                )}
-              </label>
-            ))}
-            {entryTypeError ? (
-              <p className="vwb-form-error">{entryTypeError}</p>
-            ) : null}
-            <div className="vwb-form-actions">
-              <button className="vwb-primary-button" type="submit">
-                {workspaceFeatureActions.createEntryType}
               </button>
             </div>
           </form>

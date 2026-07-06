@@ -11,6 +11,13 @@ import {
   serializeWorldDocumentBackup,
   summarizeWorldDocument,
 } from './codexDataPortability';
+import {
+  addEntryTypeFieldsInActiveWorkspace,
+  createEntryTypeInActiveWorkspace,
+  moveEntryTypeFieldInActiveWorkspace,
+  renameEntryTypeFieldInActiveWorkspace,
+  removeEntryTypeFieldInActiveWorkspace,
+} from './documentMutations';
 import { createSeedWorldDocument } from './seedCodex';
 import { getActiveWorld } from './worldDocument';
 
@@ -115,6 +122,71 @@ describe('codexDataPortability', () => {
         worldCount: 2,
       },
     });
+  });
+
+  it('preserves custom entry type schema through full JSON export and import', () => {
+    const documentWithType = createEntryTypeInActiveWorkspace({
+      document: createSeedWorldDocument(),
+      draft: {
+        title: 'Artifacts',
+        singularTitle: 'Artifact',
+        description: 'Important crafted objects and relics.',
+        fields: 'Origin',
+      },
+    });
+    const documentWithFields = addEntryTypeFieldsInActiveWorkspace({
+      document: documentWithType,
+      sectionId: 'artifacts',
+      fieldsText:
+        'Notes (long); Status [Dormant | Active]; Current holder (suggest)',
+    });
+    const documentWithReorderedFields = moveEntryTypeFieldInActiveWorkspace({
+      direction: 'up',
+      document: documentWithFields,
+      fieldKey: 'status',
+      sectionId: 'artifacts',
+    });
+    const documentWithRenamedField = renameEntryTypeFieldInActiveWorkspace({
+      document: documentWithReorderedFields,
+      fieldKey: 'current-holder',
+      label: 'Current keeper',
+      sectionId: 'artifacts',
+    });
+    const document = removeEntryTypeFieldInActiveWorkspace({
+      document: documentWithRenamedField,
+      fieldKey: 'notes',
+      sectionId: 'artifacts',
+    });
+    const imported = parseWorldImport(serializeWorldDocumentBackup(document));
+
+    if (!imported.ok) {
+      throw new Error(imported.error);
+    }
+    const activeWorld = getActiveWorld(imported.document);
+    const customSection = activeWorld.entryTypes.find(
+      (section) => section.id === 'artifacts'
+    );
+
+    expect(customSection).toMatchObject({
+      id: 'artifacts',
+      custom: true,
+      title: 'Artifacts',
+      singularTitle: 'Artifact',
+    });
+    expect(customSection?.detailFields).toEqual([
+      { key: 'origin', label: 'Origin' },
+      {
+        key: 'status',
+        label: 'Status',
+        autocompleteOptions: ['Dormant', 'Active'],
+      },
+      {
+        key: 'current-holder',
+        label: 'Current keeper',
+        suggestFromExistingValues: true,
+      },
+    ]);
+    expect(activeWorld.codex.artifacts).toEqual([]);
   });
 
   it('parses valid imports and rejects invalid imports', () => {

@@ -38,11 +38,15 @@ describe('recovery snapshot summaries', () => {
       'workspace-delete',
       'planetary-world-delete',
       'entry-type-delete',
+      'schema-cleanup',
     ]);
     expect(isRecoverySnapshotReason('planetary-world-delete')).toBe(true);
     expect(isRecoverySnapshotReason('entry-delete')).toBe(false);
     expect(getRecoverySnapshotReasonTitle('entry-type-delete')).toBe(
       'Before custom entry type delete'
+    );
+    expect(getRecoverySnapshotReasonTitle('schema-cleanup')).toBe(
+      'Before schema cleanup'
     );
     expect(getRecoverySnapshotReasonPhrase('permanent-delete')).toBe(
       'before entry delete'

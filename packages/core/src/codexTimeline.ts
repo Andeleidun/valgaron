@@ -1,10 +1,20 @@
 import { entryDisplayCopy, getEntries } from './codexEntries';
 import {
+  createEmptyRelationshipDraft,
   findEntryById,
   getRelationshipEntries,
   type RelationshipGraphNode,
 } from './codexRelationships';
 import { getSearchableEntries, searchEntries } from './codexSearch';
+import {
+  createStagedRelationshipDraft,
+  draftTransactionEntryId,
+  type StagedRelationshipDraft,
+} from './entryDraftTransactions';
+import {
+  getReviewTraySummaryModel,
+  type ReviewTraySummaryModel,
+} from './reviewTray';
 import type {
   WorldCodex,
   WorldEntry,
@@ -44,6 +54,50 @@ export type TimelineSummaryModel = {
   unlinkedCount: number;
 };
 
+export type TimelineReviewItemId =
+  | 'unordered-events'
+  | 'duplicate-orders'
+  | 'unlinked-events';
+
+export type TimelineReviewTarget = {
+  label: string;
+  eventIds: readonly string[];
+};
+
+export type TimelineReviewItem = {
+  id: TimelineReviewItemId;
+  title: string;
+  count: number;
+  summary: string;
+  itemLabels: readonly string[];
+  targets: readonly TimelineReviewTarget[];
+};
+
+export type TimelineReviewModel = {
+  title: string;
+  totalIssueCount: number;
+  hasIssues: boolean;
+  items: readonly TimelineReviewItem[];
+  reviewSummary: ReviewTraySummaryModel;
+};
+
+export type TimelineEraManagerItem = {
+  era: string;
+  eventCount: number;
+};
+
+export type TimelineEraManagerModel = {
+  eras: readonly TimelineEraManagerItem[];
+  unassignedCount: number;
+  totalEraCount: number;
+};
+
+export type TimelineEraReassignmentDraft = {
+  sourceEra: string;
+  targetEra: string;
+  updatedAt?: string;
+};
+
 export type TimelineEventItem = {
   id: string;
   name: string;
@@ -65,6 +119,15 @@ export type TimelineEraBrowseGroup = {
   events: TimelineEventItem[];
 };
 
+export type TimelineSurfaceModel = {
+  eventCount: number;
+  review: TimelineReviewModel;
+  eraManager: TimelineEraManagerModel;
+  highlights: readonly TimelineEventItem[];
+  sortedEvents: readonly TimelineEventItem[];
+  groups: readonly TimelineEraBrowseGroup[];
+};
+
 export type TimelineBrowseFilters = TimelineFilters & {
   query?: string;
   showArchived?: boolean;
@@ -74,12 +137,13 @@ export type TimelineBrowseModel = {
   eras: readonly string[];
   involvedEntries: readonly RelationshipGraphNode[];
   groups: readonly TimelineEraBrowseGroup[];
+  review: TimelineReviewModel;
   unorderedNames: readonly string[];
   duplicateOrderLabels: readonly string[];
   unlinkedNames: readonly string[];
 };
 
-type TimelineEventItemSource = {
+export type TimelineEventItemSource = {
   codex: WorldCodex;
   entryTypes: readonly WorldSectionConfig[];
   relationships: readonly WorldRelationship[];
@@ -91,12 +155,18 @@ export const timelineFeatureCopy = {
   clearTimelineFiltersLabel: 'Clear Timeline Filters',
   duplicateOrdersLabel: 'Duplicate orders',
   duplicateOrderGroupsLabel: 'Duplicate order groups',
+  eraManagerTitle: 'Era Manager',
+  eraReassignmentActionLabel: 'Apply Era Change',
+  eraReassignmentSourceLabel: 'Era to change',
+  eraReassignmentTargetLabel: 'New or existing era',
+  eraReassignmentTargetPlaceholder: 'Era name',
   highlightsLabel: 'Highlights',
   needsOrderLabel: 'Needs order',
   noDateLabel: 'No date',
   noDateLabelSentence: 'No date label.',
   noInvolvedRecordsLabel: 'No involved records',
   noInvolvedSearchMatches: 'No involved records match this filter search.',
+  noReviewIssuesLabel: 'No timeline review issues found.',
   noTimelineEventsFoundTitle: 'No timeline events found.',
   noTimelineEventsFoundDetail:
     'Clear filters or add a timeline event to build chronology.',
@@ -104,11 +174,37 @@ export const timelineFeatureCopy = {
   noVisibleTimelineEvents: 'No visible timeline events.',
   searchInvolvedFiltersLabel: 'Search involved filters',
   timelineBrowserTitle: 'Timeline Browser',
+  timelineReviewTitle: 'Timeline Review',
   unlinkedEventsLabel: 'Unlinked events',
+  unassignedEraLabel: 'Unassigned Era',
   unorderedEventsLabel: 'Unordered events',
   unorderedLabel: 'Unordered',
   noOrderLabel: 'No order',
 } as const;
+
+export const timelineUnassignedEraFilterValue = '__timeline_unassigned_era__';
+
+export function createTimelineInvolvedRecordStagedRelationship(
+  targetEntryId: string,
+  stagedId?: string
+): StagedRelationshipDraft | null {
+  const normalizedTargetEntryId = targetEntryId.trim();
+  if (!normalizedTargetEntryId) {
+    return null;
+  }
+  return createStagedRelationshipDraft(
+    {
+      ...createEmptyRelationshipDraft(),
+      sourceEntryId: draftTransactionEntryId,
+      targetEntryId: normalizedTargetEntryId,
+      type: 'involves',
+      directional: false,
+      note: '',
+      status: 'draft',
+    },
+    stagedId
+  );
+}
 
 export function getTimelineEventDateLabel(
   event: Pick<TimelineEventItem, 'dateLabel'>
@@ -243,7 +339,12 @@ export function filterTimelineEvents(
   const involvedEntryIdsByEvent =
     getTimelineInvolvedEntryIdsByEvent(relationships);
   return events.filter((event) => {
-    const matchesEra = !filters.era || event.fields.era === filters.era;
+    const eventEra = event.fields.era?.trim() ?? '';
+    const matchesEra =
+      !filters.era ||
+      (filters.era === timelineUnassignedEraFilterValue
+        ? !eventEra
+        : eventEra === filters.era);
     const matchesTag = !filters.tag || event.tags.includes(filters.tag);
     const matchesStatus = !filters.status || event.status === filters.status;
     const matchesInvolvedEntry =
@@ -276,6 +377,53 @@ export function groupTimelineEventsByEra(
   }));
 }
 
+export function getTimelineEraManagerModel(
+  events: readonly WorldEntry[]
+): TimelineEraManagerModel {
+  const eraCounts = new Map<string, number>();
+  let unassignedCount = 0;
+  for (const event of events) {
+    const era = event.fields.era?.trim() ?? '';
+    if (!era) {
+      unassignedCount += 1;
+      continue;
+    }
+    eraCounts.set(era, (eraCounts.get(era) ?? 0) + 1);
+  }
+  const eras = Array.from(eraCounts, ([era, eventCount]) => ({
+    era,
+    eventCount,
+  })).sort((first, second) => first.era.localeCompare(second.era));
+
+  return {
+    eras,
+    unassignedCount,
+    totalEraCount: eras.length,
+  };
+}
+
+export function getTimelineEraReassignmentUpdates(
+  events: readonly WorldEntry[],
+  draft: TimelineEraReassignmentDraft
+): WorldEntry[] {
+  const sourceEra = draft.sourceEra.trim();
+  const targetEra = draft.targetEra.trim();
+  if (!targetEra || sourceEra === targetEra) {
+    return [];
+  }
+  const timestamp = draft.updatedAt ?? new Date().toISOString();
+  return events
+    .filter((event) => (event.fields.era?.trim() ?? '') === sourceEra)
+    .map((event) => ({
+      ...event,
+      fields: {
+        ...event.fields,
+        era: targetEra,
+      },
+      updatedAt: timestamp,
+    }));
+}
+
 export function getTimelineDiagnostics(
   events: readonly WorldEntry[],
   relationships: readonly WorldRelationship[]
@@ -301,6 +449,80 @@ export function getTimelineDiagnostics(
     unlinkedEvents: events.filter(
       (event) => (involvedEntryIdsByEvent.get(event.id) ?? []).length === 0
     ),
+  };
+}
+
+function formatDuplicateOrderLabel(group: {
+  order: number;
+  events: readonly WorldEntry[];
+}): string {
+  return `${group.order}: ${group.events
+    .map((event) => event.name)
+    .join(', ')}`;
+}
+
+function makeEventReviewTargets(
+  events: readonly WorldEntry[]
+): TimelineReviewTarget[] {
+  return events.map((event) => ({
+    label: event.name,
+    eventIds: [event.id],
+  }));
+}
+
+export function getTimelineReviewModel(
+  events: readonly WorldEntry[],
+  relationships: readonly WorldRelationship[]
+): TimelineReviewModel {
+  const diagnostics = getTimelineDiagnostics(events, relationships);
+  const duplicateOrderTargets = diagnostics.duplicateOrderGroups.map(
+    (group) => ({
+      label: formatDuplicateOrderLabel(group),
+      eventIds: group.events.map((event) => event.id),
+    })
+  );
+  const items: TimelineReviewItem[] = [
+    {
+      id: 'unordered-events',
+      title: timelineFeatureCopy.unorderedEventsLabel,
+      count: diagnostics.unorderedEvents.length,
+      summary: 'Events without a numeric sort order.',
+      itemLabels: diagnostics.unorderedEvents.map((event) => event.name),
+      targets: makeEventReviewTargets(diagnostics.unorderedEvents),
+    },
+    {
+      id: 'duplicate-orders',
+      title: timelineFeatureCopy.duplicateOrdersLabel,
+      count: diagnostics.duplicateOrderGroups.length,
+      summary: 'Order values shared by more than one event.',
+      itemLabels: duplicateOrderTargets.map((target) => target.label),
+      targets: duplicateOrderTargets,
+    },
+    {
+      id: 'unlinked-events',
+      title: timelineFeatureCopy.unlinkedEventsLabel,
+      count: diagnostics.unlinkedEvents.length,
+      summary: 'Events with no involved records.',
+      itemLabels: diagnostics.unlinkedEvents.map((event) => event.name),
+      targets: makeEventReviewTargets(diagnostics.unlinkedEvents),
+    },
+  ];
+
+  const totalIssueCount = items.reduce((total, item) => total + item.count, 0);
+  const reviewSummary = getReviewTraySummaryModel(
+    items.map((item) => ({
+      id: item.id,
+      title: item.title,
+      count: item.count,
+      detail: item.summary,
+    }))
+  );
+  return {
+    title: timelineFeatureCopy.timelineReviewTitle,
+    totalIssueCount,
+    hasIssues: totalIssueCount > 0,
+    items,
+    reviewSummary,
   };
 }
 
@@ -363,6 +585,27 @@ export function getTimelineEventItem(
   };
 }
 
+export function getTimelineSurfaceModel(
+  world: TimelineEventItemSource,
+  events: readonly WorldEntry[]
+): TimelineSurfaceModel {
+  return {
+    eventCount: events.length,
+    review: getTimelineReviewModel(events, world.relationships),
+    eraManager: getTimelineEraManagerModel(events),
+    highlights: getTimelineHighlights(events).map((event) =>
+      getTimelineEventItem(world, event)
+    ),
+    sortedEvents: sortTimelineEvents(events).map((event) =>
+      getTimelineEventItem(world, event)
+    ),
+    groups: groupTimelineEventsByEra(events).map((group) => ({
+      era: group.era,
+      events: group.events.map((event) => getTimelineEventItem(world, event)),
+    })),
+  };
+}
+
 export function getTimelineBrowseModel(
   world: WorldWorkspace,
   filters: TimelineBrowseFilters
@@ -422,6 +665,7 @@ export function getTimelineBrowseModel(
     filteredEvents,
     world.relationships
   );
+  const review = getTimelineReviewModel(filteredEvents, world.relationships);
 
   return {
     eras: getTimelineEras(optionBaseEvents),
@@ -433,10 +677,10 @@ export function getTimelineBrowseModel(
       era: group.era,
       events: group.events.map((event) => getTimelineEventItem(world, event)),
     })),
+    review,
     unorderedNames: diagnostics.unorderedEvents.map((event) => event.name),
     duplicateOrderLabels: diagnostics.duplicateOrderGroups.map(
-      (group) =>
-        `${group.order}: ${group.events.map((event) => event.name).join(', ')}`
+      formatDuplicateOrderLabel
     ),
     unlinkedNames: diagnostics.unlinkedEvents.map((event) => event.name),
   };

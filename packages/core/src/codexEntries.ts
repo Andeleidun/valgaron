@@ -245,13 +245,22 @@ export function getEntryEditorNewTitle(
 export function getEntryEditorSubmitLabel({
   section,
   selectedEntry,
+  stagedRelationshipCount = 0,
 }: {
   section: Pick<WorldSectionConfig, 'singularTitle'>;
   selectedEntry: WorldEntry | null | undefined;
+  stagedRelationshipCount?: number;
 }): string {
-  return selectedEntry
-    ? entryEditorCopy.saveChangesLabel
-    : getEntryEditorCreateTitle(section);
+  if (selectedEntry) {
+    return entryEditorCopy.saveChangesLabel;
+  }
+  const createLabel = getEntryEditorCreateTitle(section);
+  if (stagedRelationshipCount > 0) {
+    return `${createLabel} And ${stagedRelationshipCount} Link${
+      stagedRelationshipCount === 1 ? '' : 's'
+    }`;
+  }
+  return createLabel;
 }
 
 /** Return the display label for an entry status. */
@@ -382,6 +391,44 @@ export function getEntryEditorDetailFieldGroups({
           category: getCharacterCategoryFromFields(draft.details),
           fields,
         })
+      : section.kind === 'timeline'
+      ? [
+          {
+            id: 'timelineChronology',
+            label: 'Chronology',
+            fields: fields.filter((field) =>
+              ['order', 'dateLabel', 'era'].includes(field.key)
+            ),
+          },
+          {
+            id: 'timelineLinkedRecords',
+            label: 'Linked records',
+            fields: fields.filter((field) =>
+              ['involvedRecords'].includes(field.key)
+            ),
+          },
+          {
+            id: 'timelineOutcomes',
+            label: 'Outcomes',
+            fields: fields.filter((field) =>
+              ['consequences'].includes(field.key)
+            ),
+          },
+          {
+            id: 'timelineDetails',
+            label: 'Timeline Event details',
+            fields: fields.filter(
+              (field) =>
+                ![
+                  'order',
+                  'dateLabel',
+                  'era',
+                  'involvedRecords',
+                  'consequences',
+                ].includes(field.key)
+            ),
+          },
+        ]
       : [
           {
             id: `${section.kind}-details`,

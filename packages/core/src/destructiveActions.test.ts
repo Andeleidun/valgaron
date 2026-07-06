@@ -8,6 +8,7 @@ import {
 describe('destructive action copy', () => {
   it('requires confirmation copy for every destructive local workflow', () => {
     expect(Object.keys(destructiveActionCopy).sort()).toEqual([
+      'clear-hidden-entry-details',
       'delete-entry',
       'delete-entry-type',
       'delete-planetary-world',
@@ -15,14 +16,19 @@ describe('destructive action copy', () => {
       'delete-snapshot',
       'delete-workspace',
       'import-document',
+      'remove-entry-type-field',
       'reset-document',
       'restore-snapshot',
     ]);
   });
 
   it('keeps data-loss actions explicit about recovery snapshots', () => {
-    for (const copy of Object.values(destructiveActionCopy)) {
-      expect(copy.message).toContain('recovery snapshot');
+    for (const [actionId, copy] of Object.entries(destructiveActionCopy)) {
+      if (actionId === 'remove-entry-type-field') {
+        expect(copy.message).toContain('hidden details');
+      } else {
+        expect(copy.message).toContain('recovery snapshot');
+      }
     }
   });
 
@@ -34,5 +40,11 @@ describe('destructive action copy', () => {
     expect(getDestructiveActionCopy('delete-entry-type').confirmLabel).toBe(
       'Delete Type'
     );
+    expect(
+      formatDestructiveActionTitle('remove-entry-type-field', 'Power')
+    ).toBe('Remove Power?');
+    expect(
+      formatDestructiveActionTitle('clear-hidden-entry-details', 'unused')
+    ).toBe('Clear hidden detail values?');
   });
 });

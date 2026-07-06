@@ -5,12 +5,15 @@ import {
   valgaronProduct,
   type CodexShellRouteId,
 } from './shell';
+import { utilityRouteFocusTargetIds } from './workflowDestinations';
 
 export type CodexHelpFocusId =
   | 'start'
   | 'entries'
   | 'relationships'
   | 'timeline'
+  | 'knowledge'
+  | 'utilities'
   | 'workspaces'
   | 'data'
   | 'support'
@@ -34,7 +37,7 @@ export type CodexHelpSectionHeader = {
 export type CodexHelpQuickAction = {
   id: Extract<
     CodexShellRouteId,
-    'entries' | 'relationships' | 'workspaces' | 'data'
+    'entries' | 'timeline' | 'relationships' | 'knowledge' | 'utilities'
   >;
   label: string;
   path: string;
@@ -158,14 +161,19 @@ export const codexHelpQuickActions: readonly CodexHelpQuickAction[] = [
     path: codexShellRoutes.relationships.path,
   },
   {
-    id: 'workspaces',
-    label: `Open ${codexShellRoutes.workspaces.title}`,
-    path: codexShellRoutes.workspaces.path,
+    id: 'timeline',
+    label: `Open ${codexShellRoutes.timeline.title}`,
+    path: codexShellRoutes.timeline.path,
   },
   {
-    id: 'data',
-    label: `Open ${codexShellRoutes.data.title}`,
-    path: codexShellRoutes.data.path,
+    id: 'knowledge',
+    label: `Open ${codexShellRoutes.knowledge.title}`,
+    path: codexShellRoutes.knowledge.path,
+  },
+  {
+    id: 'utilities',
+    label: `Open ${codexShellRoutes.utilities.title}`,
+    path: `${codexShellRoutes.utilities.path}#${utilityRouteFocusTargetIds.projectTools}`,
   },
 ];
 
@@ -192,13 +200,25 @@ const codexHelpFocusTopicContent: readonly Omit<CodexHelpFocus, 'path'>[] = [
     id: 'timeline',
     title: 'Timeline',
     detail:
-      'Use explicit order, eras, involved-record filters, and relationship links to browse chronology without forcing exact dates.',
+      'Use explicit order, Era Manager reassignment, unassigned-era filters, involved-record filters, and contextual new-event drafts to browse and extend chronology without forcing exact dates.',
+  },
+  {
+    id: 'knowledge',
+    title: 'Knowledge',
+    detail:
+      'Use Knowledge to review schema, create custom entry types, inspect suggested choices and observed flexible values, and understand relationship-backed field rules.',
+  },
+  {
+    id: 'utilities',
+    title: 'Utilities',
+    detail:
+      'Use Utilities or mobile More for the Project Tools hub, focused Knowledge setup, Data tools, Workspaces, and Help without crowding daily drafting surfaces.',
   },
   {
     id: 'workspaces',
     title: 'Workspaces',
     detail:
-      'Keep project or universe workspaces separate from codex places, and manage custom entry types when the built-in sections are not enough.',
+      'Keep project or universe workspaces separate from codex places, and manage in-fiction worlds or planets for the active workspace.',
   },
   {
     id: 'data',
@@ -230,8 +250,9 @@ export const codexWorkflowHelpTopics: readonly CodexHelpTopic[] = [
   {
     title: 'Build the codex',
     items: [
-      'Use Overview to scan recent, pinned, incomplete, and quick-create records.',
-      'Use entry sections to create and edit characters, places, factions, lore, timeline events, and custom entry types.',
+      'Use Workbench to scan recent, pinned, incomplete, and review-needed records.',
+      'Use Workbench and section routes to create and edit characters, places, factions, lore, and timeline events.',
+      'Use Knowledge or mobile More to create custom entry types, inspect suggested choices, and review observed flexible values before adding more structure.',
       'Use character category to shape which character fields appear; ancestry and profession stay flexible creator-authored values rather than built-in lists.',
       'Use Places for worlds, planets, moons, settlements, terrain, realms, and other map-scale places inside a project.',
     ],
@@ -241,7 +262,7 @@ export const codexWorkflowHelpTopics: readonly CodexHelpTopic[] = [
     items: [
       'Use Relationships to link entries and inspect graph-style connections.',
       'Use relationship-backed character fields for facts that should be visible from both sides, such as homes, affiliations, mentors, origins, related lore, and notable events.',
-      'Use Timeline order controls to arrange events while keeping flexible prose dates and eras.',
+      'Use Timeline order controls, Era Manager reassignment, and filtered new-event drafts to arrange events while keeping flexible prose dates, eras, and involved-record links.',
       'Use tags, status, pinned records, and completeness prompts to keep unfinished work visible.',
     ],
   },

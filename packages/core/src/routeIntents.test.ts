@@ -105,6 +105,16 @@ describe('codex route intents', () => {
     });
     expect(
       getCodexWorkflowIntent(
+        '/entries?sectionId=characters&entryId=character-mira-rowan&intent=context&query=Mira%20Rowan'
+      )
+    ).toEqual({
+      entryId: 'character-mira-rowan',
+      kind: 'entry-context',
+      query: 'Mira Rowan',
+      sectionId: 'characters',
+    });
+    expect(
+      getCodexWorkflowIntent(
         '/relationships?entryId=character-mira-rowan&entryQuery=Mira%20Rowan&relationshipQuery=oath%3Dbroken'
       )
     ).toEqual({
@@ -112,6 +122,47 @@ describe('codex route intents', () => {
       entryQuery: 'Mira Rowan',
       kind: 'relationships',
       relationshipQuery: 'oath=broken',
+    });
+    expect(getCodexWorkflowIntent('/timeline')).toEqual({
+      kind: 'timeline',
+    });
+    expect(
+      getCodexWorkflowIntent(
+        '/timeline?intent=new&era=Charter%20Era&involvedEntryId=faction-cartographers-guild'
+      )
+    ).toEqual({
+      kind: 'entry-create',
+      query: '',
+      sectionId: 'timeline',
+      timelineContext: {
+        era: 'Charter Era',
+        involvedEntryId: 'faction-cartographers-guild',
+      },
+    });
+    expect(
+      getCodexWorkflowIntent(
+        '/timeline?entryId=timeline-founding&intent=edit&query=Founding%20of%20Valgaron'
+      )
+    ).toEqual({
+      entryId: 'timeline-founding',
+      kind: 'entry-edit',
+      query: 'Founding of Valgaron',
+      sectionId: 'timeline',
+    });
+    expect(getCodexWorkflowIntent('/knowledge')).toEqual({
+      kind: 'knowledge',
+    });
+    expect(getCodexWorkflowIntent('/utilities')).toEqual({
+      focusId: '',
+      kind: 'utilities',
+    });
+    expect(getCodexWorkflowIntent('/utilities#data-tools')).toEqual({
+      focusId: 'data-tools',
+      kind: 'utilities',
+    });
+    expect(getCodexWorkflowIntent('/utilities#missing')).toEqual({
+      focusId: '',
+      kind: 'utilities',
     });
     expect(getCodexWorkflowIntent('/data?mode=full-json#export')).toEqual({
       focusId: 'export',

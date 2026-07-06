@@ -3,6 +3,7 @@ import { applyEntry, entryFromDraft } from './codexEntries';
 import { relationshipFromDraft } from './codexRelationships';
 import { createSeedWorldDocument } from './seedCodex';
 import {
+  addCustomEntryTypeFields,
   createCustomEntryType,
   createWorkspace,
   deleteCustomEntryType,
@@ -11,12 +12,17 @@ import {
   duplicateWorkspace,
   emptyEntryTypeDraft,
   entryTypeDraftFields,
+  getEntryTypeDraftFieldPreview,
   getWorkspaceActionState,
   lastActiveWorkspaceArchiveMessage,
+  moveCustomEntryTypeField,
   normalizePlanetaryWorldDraft,
   normalizeWorkspaceDraft,
+  parseCustomDetailFields,
   planetaryWorldDraftFrom,
   planetaryWorldDraftFields,
+  renameCustomEntryTypeField,
+  removeCustomEntryTypeField,
   setActiveWorkspace,
   setPlanetaryWorldArchived,
   setWorkspaceArchived,
@@ -27,6 +33,7 @@ import {
   workspaceDraftFields,
 } from './workspaceManagement';
 import { getActiveWorld, parseWorldDocument } from './worldDocument';
+import { getEntryHiddenDetailCleanupModel } from './codexEntries';
 
 describe('workspace management', () => {
   it('creates shared workspace and entry type drafts', () => {
@@ -204,6 +211,12 @@ describe('workspace management', () => {
       'Description',
       'Detail fields',
     ]);
+    expect(
+      entryTypeDraftFields.find((field) => field.key === 'fields')
+    ).toMatchObject({
+      helperText:
+        'Separate fields with semicolons or new lines. Add (long) for notes, (suggest) for values learned from entries, or [Value | Value] for fixed choices.',
+    });
   });
 
   it('normalizes workspace drafts with the same trimming used by persistence', () => {
@@ -470,6 +483,399 @@ describe('workspace management', () => {
       { key: 'power-2', label: 'Power' },
       { key: 'field', label: 'Field!!!' },
     ]);
+  });
+
+  it('parses custom field definition hints into supported detail field metadata', () => {
+    expect(
+      parseCustomDetailFields(
+        'Origin, Power; Notes (long); Status [Dormant | Active]; Profession (suggest)'
+      )
+    ).toEqual([
+      { key: 'origin', label: 'Origin' },
+      { key: 'power', label: 'Power' },
+      { key: 'notes', label: 'Notes', multiline: true },
+      {
+        key: 'status',
+        label: 'Status',
+        autocompleteOptions: ['Dormant', 'Active'],
+      },
+      {
+        key: 'profession',
+        label: 'Profession',
+        suggestFromExistingValues: true,
+      },
+    ]);
+  });
+
+  it('previews custom field definition hints before type creation', () => {
+    expect(
+      getEntryTypeDraftFieldPreview(
+        'Notes (long); Status [Dormant | Active]; Profession (suggest); Origin'
+      )
+    ).toEqual([
+      {
+        key: 'notes',
+        label: 'Notes',
+        modeLabel: 'Long text',
+        detail: 'Multiline detail field.',
+      },
+      {
+        key: 'status',
+        label: 'Status',
+        modeLabel: 'Suggested choices',
+        detail: 'Dormant, Active',
+      },
+      {
+        key: 'profession',
+        label: 'Profession',
+        modeLabel: 'Suggested from entries',
+        detail: 'Suggests values already used in this field.',
+      },
+      {
+        key: 'origin',
+        label: 'Origin',
+        modeLabel: 'Text',
+        detail: 'Flexible text field.',
+      },
+    ]);
+  });
+
+  it('creates custom entry types with multiline and suggested custom fields', () => {
+    const document = createSeedWorldDocument();
+    const withCustomType = updateActiveWorkspace(document, (workspace) =>
+      createCustomEntryType(workspace, {
+        title: 'Orders',
+        singularTitle: 'Order',
+        description: 'Organizations with field rules.',
+        fields:
+          'Founding notes (long)\nStanding [Hidden, Public]\nProfession (suggest)',
+      })
+    );
+    const customSection = getActiveWorld(withCustomType).entryTypes.find(
+      (section) => section.id === 'orders'
+    );
+
+    expect(customSection?.detailFields).toEqual([
+      { key: 'founding-notes', label: 'Founding notes', multiline: true },
+      {
+        key: 'standing',
+        label: 'Standing',
+        autocompleteOptions: ['Hidden', 'Public'],
+      },
+      {
+        key: 'profession',
+        label: 'Profession',
+        suggestFromExistingValues: true,
+      },
+    ]);
+  });
+
+  it('adds fields to existing custom entry types without changing entries', () => {
+    const document = createSeedWorldDocument();
+    const withCustomType = updateActiveWorkspace(document, (workspace) =>
+      createCustomEntryType(workspace, {
+        title: 'Artifacts',
+        singularTitle: 'Artifact',
+        description: 'Objects with story weight.',
+        fields: 'Origin',
+      })
+    );
+    const customSection = getActiveWorld(withCustomType).entryTypes.find(
+      (section) => section.id === 'artifacts'
+    );
+    const customEntry = entryFromDraft(customSection!, {
+      name: 'Glass Key',
+      summary: 'A key made of dawn glass.',
+      notes: '',
+      tags: 'artifact',
+      status: 'draft',
+      pinned: false,
+      details: { origin: 'Glassroot Forest' },
+    });
+    const withCustomEntry = updateActiveWorkspace(
+      withCustomType,
+      (workspace) => ({
+        ...workspace,
+        codex: applyEntry(workspace.codex, customEntry, workspace.entryTypes),
+      })
+    );
+    const withAddedFields = updateActiveWorkspace(
+      withCustomEntry,
+      (workspace) =>
+        addCustomEntryTypeFields(
+          workspace,
+          'artifacts',
+          'Origin; Notes (long); Status [Dormant | Active]'
+        )
+    );
+    const activeWorld = getActiveWorld(withAddedFields);
+    const updatedSection = activeWorld.entryTypes.find(
+      (section) => section.id === 'artifacts'
+    );
+
+    expect(updatedSection?.detailFields).toEqual([
+      { key: 'origin', label: 'Origin' },
+      { key: 'origin-2', label: 'Origin' },
+      { key: 'notes', label: 'Notes', multiline: true },
+      {
+        key: 'status',
+        label: 'Status',
+        autocompleteOptions: ['Dormant', 'Active'],
+      },
+    ]);
+    expect(activeWorld.codex.artifacts[0].fields).toEqual({
+      origin: 'Glassroot Forest',
+    });
+  });
+
+  it('does not add fields to built-in entry types', () => {
+    const document = createSeedWorldDocument();
+    const activeWorld = getActiveWorld(document);
+    const updated = addCustomEntryTypeFields(
+      activeWorld,
+      'characters',
+      'Extra field'
+    );
+
+    expect(updated).toBe(activeWorld);
+  });
+
+  it('reorders custom entry type fields without changing entry data', () => {
+    const document = createSeedWorldDocument();
+    const withCustomType = updateActiveWorkspace(document, (workspace) =>
+      createCustomEntryType(workspace, {
+        title: 'Artifacts',
+        singularTitle: 'Artifact',
+        description: 'Objects with story weight.',
+        fields: 'Origin, Power, Current holder',
+      })
+    );
+    const customSection = getActiveWorld(withCustomType).entryTypes.find(
+      (section) => section.id === 'artifacts'
+    );
+    const customEntry = entryFromDraft(customSection!, {
+      name: 'Glass Key',
+      summary: 'A key made of dawn glass.',
+      notes: '',
+      tags: 'artifact',
+      status: 'draft',
+      pinned: false,
+      details: { origin: 'Glassroot Forest', power: 'Opens dawn doors' },
+    });
+    const withCustomEntry = updateActiveWorkspace(
+      withCustomType,
+      (workspace) => ({
+        ...workspace,
+        codex: applyEntry(workspace.codex, customEntry, workspace.entryTypes),
+      })
+    );
+    const movedDown = updateActiveWorkspace(withCustomEntry, (workspace) =>
+      moveCustomEntryTypeField(workspace, 'artifacts', 'origin', 'down')
+    );
+    const movedUp = updateActiveWorkspace(movedDown, (workspace) =>
+      moveCustomEntryTypeField(workspace, 'artifacts', 'current-holder', 'up')
+    );
+    const activeWorld = getActiveWorld(movedUp);
+    const updatedSection = activeWorld.entryTypes.find(
+      (section) => section.id === 'artifacts'
+    );
+
+    expect(updatedSection?.detailFields.map((field) => field.key)).toEqual([
+      'power',
+      'current-holder',
+      'origin',
+    ]);
+    expect(activeWorld.codex.artifacts[0].fields).toEqual({
+      origin: 'Glassroot Forest',
+      power: 'Opens dawn doors',
+    });
+  });
+
+  it('does not reorder built-in, missing, or boundary custom fields', () => {
+    const document = createSeedWorldDocument();
+    const withCustomType = updateActiveWorkspace(document, (workspace) =>
+      createCustomEntryType(workspace, {
+        title: 'Artifacts',
+        singularTitle: 'Artifact',
+        description: 'Objects with story weight.',
+        fields: 'Origin, Power',
+      })
+    );
+    const activeWorld = getActiveWorld(withCustomType);
+
+    expect(
+      moveCustomEntryTypeField(activeWorld, 'characters', 'name', 'down')
+    ).toBe(activeWorld);
+    expect(
+      moveCustomEntryTypeField(activeWorld, 'artifacts', 'missing', 'down')
+    ).toBe(activeWorld);
+    expect(
+      moveCustomEntryTypeField(activeWorld, 'artifacts', 'origin', 'up')
+    ).toBe(activeWorld);
+    expect(
+      moveCustomEntryTypeField(activeWorld, 'artifacts', 'power', 'down')
+    ).toBe(activeWorld);
+  });
+
+  it('renames custom entry type field labels without changing entry values', () => {
+    const document = createSeedWorldDocument();
+    const withCustomType = updateActiveWorkspace(document, (workspace) =>
+      createCustomEntryType(workspace, {
+        title: 'Artifacts',
+        singularTitle: 'Artifact',
+        description: 'Objects with story weight.',
+        fields: 'Origin, Power',
+      })
+    );
+    const customSection = getActiveWorld(withCustomType).entryTypes.find(
+      (section) => section.id === 'artifacts'
+    );
+    const customEntry = entryFromDraft(customSection!, {
+      name: 'Glass Key',
+      summary: 'A key made of dawn glass.',
+      notes: '',
+      tags: 'artifact',
+      status: 'draft',
+      pinned: false,
+      details: { origin: 'Glassroot Forest', power: 'Opens dawn doors' },
+    });
+    const withCustomEntry = updateActiveWorkspace(
+      withCustomType,
+      (workspace) => ({
+        ...workspace,
+        codex: applyEntry(workspace.codex, customEntry, workspace.entryTypes),
+      })
+    );
+    const renamed = updateActiveWorkspace(withCustomEntry, (workspace) =>
+      renameCustomEntryTypeField(workspace, 'artifacts', 'power', 'Story power')
+    );
+    const activeWorld = getActiveWorld(renamed);
+    const updatedSection = activeWorld.entryTypes.find(
+      (section) => section.id === 'artifacts'
+    );
+
+    expect(updatedSection?.detailFields).toEqual([
+      { key: 'origin', label: 'Origin' },
+      { key: 'power', label: 'Story power' },
+    ]);
+    expect(activeWorld.codex.artifacts[0].fields).toEqual({
+      origin: 'Glassroot Forest',
+      power: 'Opens dawn doors',
+    });
+  });
+
+  it('does not rename built-in, missing, empty, or unchanged custom field labels', () => {
+    const document = createSeedWorldDocument();
+    const withCustomType = updateActiveWorkspace(document, (workspace) =>
+      createCustomEntryType(workspace, {
+        title: 'Artifacts',
+        singularTitle: 'Artifact',
+        description: 'Objects with story weight.',
+        fields: 'Origin',
+      })
+    );
+    const activeWorld = getActiveWorld(withCustomType);
+
+    expect(
+      renameCustomEntryTypeField(activeWorld, 'characters', 'name', 'Name')
+    ).toBe(activeWorld);
+    expect(
+      renameCustomEntryTypeField(activeWorld, 'artifacts', 'missing', 'Label')
+    ).toBe(activeWorld);
+    expect(
+      renameCustomEntryTypeField(activeWorld, 'artifacts', 'origin', '   ')
+    ).toBe(activeWorld);
+    expect(
+      renameCustomEntryTypeField(activeWorld, 'artifacts', 'origin', 'Origin')
+    ).toBe(activeWorld);
+  });
+
+  it('removes custom entry type fields without deleting saved entry values', () => {
+    const document = createSeedWorldDocument();
+    const withCustomType = updateActiveWorkspace(document, (workspace) =>
+      createCustomEntryType(workspace, {
+        title: 'Artifacts',
+        singularTitle: 'Artifact',
+        description: 'Objects with story weight.',
+        fields: 'Origin, Power',
+      })
+    );
+    const customSection = getActiveWorld(withCustomType).entryTypes.find(
+      (section) => section.id === 'artifacts'
+    );
+    const customEntry = entryFromDraft(customSection!, {
+      name: 'Glass Key',
+      summary: 'A key made of dawn glass.',
+      notes: '',
+      tags: 'artifact',
+      status: 'draft',
+      pinned: false,
+      details: { origin: 'Glassroot Forest', power: 'Opens dawn doors' },
+    });
+    const withCustomEntry = updateActiveWorkspace(
+      withCustomType,
+      (workspace) => ({
+        ...workspace,
+        codex: applyEntry(workspace.codex, customEntry, workspace.entryTypes),
+      })
+    );
+    const removed = updateActiveWorkspace(withCustomEntry, (workspace) =>
+      removeCustomEntryTypeField(workspace, 'artifacts', 'power')
+    );
+    const activeWorld = getActiveWorld(removed);
+    const updatedSection = activeWorld.entryTypes.find(
+      (section) => section.id === 'artifacts'
+    );
+    const updatedEntry = activeWorld.codex.artifacts[0];
+
+    expect(updatedSection?.detailFields).toEqual([
+      { key: 'origin', label: 'Origin' },
+    ]);
+    expect(updatedEntry.fields).toEqual({
+      origin: 'Glassroot Forest',
+      power: 'Opens dawn doors',
+    });
+    expect(
+      getEntryHiddenDetailCleanupModel(updatedSection!, {
+        name: updatedEntry.name,
+        summary: updatedEntry.summary,
+        notes: updatedEntry.notes,
+        tags: updatedEntry.tags.join(', '),
+        status: updatedEntry.status,
+        pinned: updatedEntry.pinned,
+        details: updatedEntry.fields,
+      })
+    ).toEqual({
+      title: 'Hidden details',
+      fields: [
+        {
+          key: 'power',
+          label: 'Power',
+          value: 'Opens dawn doors',
+          clearLabel: 'Clear',
+        },
+      ],
+    });
+  });
+
+  it('does not remove built-in or missing custom fields', () => {
+    const document = createSeedWorldDocument();
+    const withCustomType = updateActiveWorkspace(document, (workspace) =>
+      createCustomEntryType(workspace, {
+        title: 'Artifacts',
+        singularTitle: 'Artifact',
+        description: 'Objects with story weight.',
+        fields: 'Origin',
+      })
+    );
+    const activeWorld = getActiveWorld(withCustomType);
+
+    expect(removeCustomEntryTypeField(activeWorld, 'characters', 'name')).toBe(
+      activeWorld
+    );
+    expect(
+      removeCustomEntryTypeField(activeWorld, 'artifacts', 'missing')
+    ).toBe(activeWorld);
   });
 });
 

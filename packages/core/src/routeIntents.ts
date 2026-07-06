@@ -12,6 +12,10 @@ import {
 } from './helpTopics';
 import { isCodexExportMode } from './codexDataPortability';
 import type { DataExportMode } from './dataFeatureModel';
+import {
+  getUtilitiesRouteFocusTargetId,
+  type UtilityRouteFocusTargetId,
+} from './workflowDestinations';
 
 export type CodexRouteIntent = {
   routeId: CodexShellRouteId;
@@ -30,6 +34,10 @@ export type CodexWorkflowIntent =
       sectionId: string;
     }
   | {
+      timelineContext?: {
+        era: string;
+        involvedEntryId: string;
+      };
       kind: 'entry-create';
       query: string;
       sectionId: string;
@@ -42,9 +50,25 @@ export type CodexWorkflowIntent =
     }
   | {
       entryId: string;
+      query: string;
+      sectionId: string;
+      kind: 'entry-context';
+    }
+  | {
+      kind: 'timeline';
+    }
+  | {
+      entryId: string;
       entryQuery: string;
       kind: 'relationships';
       relationshipQuery: string;
+    }
+  | {
+      kind: 'knowledge';
+    }
+  | {
+      focusId: UtilityRouteFocusTargetId | '';
+      kind: 'utilities';
     }
   | {
       kind: 'workspaces';
@@ -71,12 +95,22 @@ export const codexWorkflowRouteSamples = [
     query: 'Mira Rowan',
     sectionId: 'characters',
   }),
+  getCodexEntriesRoute({
+    entryId: 'character-mira-rowan',
+    intent: 'context',
+    query: 'Mira Rowan',
+    sectionId: 'characters',
+  }),
   getCodexEntriesRoute({ sectionId: 'places', intent: 'new' }),
   getCodexRelationshipsRoute({
     entryId: 'character-mira-rowan',
     entryQuery: 'Mira Rowan',
     relationshipQuery: 'oath=broken & owed',
   }),
+  '/timeline',
+  '/timeline?entryId=timeline-founding&intent=edit&query=Founding%20of%20Valgaron',
+  '/timeline?intent=new&era=Charter%20Era&involvedEntryId=faction-cartographers-guild',
+  '/utilities#data-tools',
   '/data#import-json-backup',
   '/data?mode=full-json#export',
   getCodexHelpRoute('timeline'),
@@ -145,6 +179,14 @@ export function getCodexWorkflowIntent(
       if (requestedIntent === 'new') {
         return { kind: 'entry-create', query, sectionId };
       }
+      if (requestedIntent === 'context') {
+        return {
+          entryId: entryId ?? '',
+          kind: 'entry-context',
+          query,
+          sectionId,
+        };
+      }
       if (entryId || requestedIntent === 'edit') {
         return {
           entryId: entryId ?? '',
@@ -159,12 +201,46 @@ export function getCodexWorkflowIntent(
         sectionId,
       };
     }
+    case 'timeline': {
+      const query = intent.params.query ?? '';
+      const requestedIntent = intent.params.intent;
+      const entryId = intent.params.entryId;
+      if (requestedIntent === 'new') {
+        return {
+          kind: 'entry-create',
+          query,
+          sectionId: 'timeline',
+          timelineContext: {
+            era: intent.params.era ?? '',
+            involvedEntryId: intent.params.involvedEntryId ?? '',
+          },
+        };
+      }
+      if (entryId || requestedIntent === 'edit') {
+        return {
+          entryId: entryId ?? '',
+          kind: 'entry-edit',
+          query,
+          sectionId: 'timeline',
+        };
+      }
+      return { kind: 'timeline' };
+    }
     case 'relationships':
       return {
         entryId: intent.params.entryId ?? '',
         entryQuery: intent.params.entryQuery ?? '',
         kind: 'relationships',
         relationshipQuery: intent.params.relationshipQuery ?? '',
+      };
+    case 'knowledge':
+      return { kind: 'knowledge' };
+    case 'utilities':
+      return {
+        focusId: getUtilitiesRouteFocusTargetId({
+          focusId: intent.focusId,
+        }),
+        kind: 'utilities',
       };
     case 'workspaces':
       return { kind: 'workspaces' };

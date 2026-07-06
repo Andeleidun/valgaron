@@ -5,23 +5,32 @@ import {
   upsertRelationship,
 } from './codexRelationships';
 import {
+  getTimelineEraReassignmentUpdates,
   getTimelineOrderUpdates,
+  type TimelineEraReassignmentDraft,
   type TimelineOrderDirection,
 } from './codexTimeline';
 import { getEntries } from './codexEntries';
+import { getHiddenEntryDetailValues } from './placeTaxonomy';
 import type {
   InFictionWorld,
+  WorldCodex,
   WorldDocument,
   WorldEntry,
   WorldRelationship,
 } from './types';
 import {
+  addCustomEntryTypeFields,
   createCustomEntryType,
   deleteCustomEntryType,
   deletePlanetaryWorld,
+  moveCustomEntryTypeField,
+  renameCustomEntryTypeField,
+  removeCustomEntryTypeField,
   setPlanetaryWorldArchived,
   updateActiveWorkspace,
   upsertPlanetaryWorld,
+  type CustomEntryTypeFieldMoveDirection,
   type EntryTypeDraft,
   type PlanetaryWorldDraft,
 } from './workspaceManagement';
@@ -151,6 +160,33 @@ export function moveTimelineEventInActiveWorkspace({
   });
 }
 
+export function reassignTimelineEraInActiveWorkspace({
+  document,
+  draft,
+}: {
+  document: WorldDocument;
+  draft: TimelineEraReassignmentDraft;
+}): WorldDocument {
+  return updateActiveWorld(document, (world) => {
+    const updates = getTimelineEraReassignmentUpdates(
+      getEntries(world.codex, 'timeline'),
+      draft
+    );
+    if (updates.length === 0) {
+      return world;
+    }
+    const timestamp = draft.updatedAt ?? new Date().toISOString();
+    return {
+      ...world,
+      codex: updates.reduce(
+        (codex, event) => applyEntry(codex, event, world.entryTypes),
+        world.codex
+      ),
+      updatedAt: timestamp,
+    };
+  });
+}
+
 export function savePlanetaryWorldInActiveWorkspace({
   document,
   draft,
@@ -201,6 +237,121 @@ export function createEntryTypeInActiveWorkspace({
   return updateActiveWorkspace(document, (workspace) =>
     createCustomEntryType(workspace, draft)
   );
+}
+
+export function addEntryTypeFieldsInActiveWorkspace({
+  document,
+  fieldsText,
+  sectionId,
+}: {
+  document: WorldDocument;
+  fieldsText: string;
+  sectionId: string;
+}): WorldDocument {
+  return updateActiveWorkspace(document, (workspace) =>
+    addCustomEntryTypeFields(workspace, sectionId, fieldsText)
+  );
+}
+
+export function moveEntryTypeFieldInActiveWorkspace({
+  direction,
+  document,
+  fieldKey,
+  sectionId,
+}: {
+  direction: CustomEntryTypeFieldMoveDirection;
+  document: WorldDocument;
+  fieldKey: string;
+  sectionId: string;
+}): WorldDocument {
+  return updateActiveWorkspace(document, (workspace) =>
+    moveCustomEntryTypeField(workspace, sectionId, fieldKey, direction)
+  );
+}
+
+export function renameEntryTypeFieldInActiveWorkspace({
+  document,
+  fieldKey,
+  label,
+  sectionId,
+}: {
+  document: WorldDocument;
+  fieldKey: string;
+  label: string;
+  sectionId: string;
+}): WorldDocument {
+  return updateActiveWorkspace(document, (workspace) =>
+    renameCustomEntryTypeField(workspace, sectionId, fieldKey, label)
+  );
+}
+
+export function removeEntryTypeFieldInActiveWorkspace({
+  document,
+  fieldKey,
+  sectionId,
+}: {
+  document: WorldDocument;
+  fieldKey: string;
+  sectionId: string;
+}): WorldDocument {
+  return updateActiveWorkspace(document, (workspace) =>
+    removeCustomEntryTypeField(workspace, sectionId, fieldKey)
+  );
+}
+
+export function clearHiddenEntryDetailsInActiveWorkspace({
+  document,
+  updatedAt,
+}: {
+  document: WorldDocument;
+  updatedAt?: string;
+}): WorldDocument {
+  const timestamp = mutationTimestamp(updatedAt);
+  return updateActiveWorld(document, (world) => {
+    let nextCodex: WorldCodex = world.codex;
+    let didClearHiddenDetails = false;
+
+    for (const section of world.entryTypes) {
+      const entries = getEntries(world.codex, section.id);
+      let didClearSection = false;
+      const nextEntries = entries.map((entry) => {
+        const hiddenDetails = getHiddenEntryDetailValues(section, entry.fields);
+        if (hiddenDetails.length === 0) {
+          return entry;
+        }
+
+        didClearHiddenDetails = true;
+        didClearSection = true;
+        const nextFields = { ...entry.fields };
+        for (const detail of hiddenDetails) {
+          delete nextFields[detail.key];
+        }
+
+        return {
+          ...entry,
+          fields: nextFields,
+          updatedAt: timestamp,
+        };
+      });
+
+      if (didClearSection) {
+        nextCodex = {
+          ...nextCodex,
+          [section.id]: nextEntries,
+        };
+      }
+    }
+
+    if (!didClearHiddenDetails) {
+      return world;
+    }
+
+    return {
+      ...world,
+      codex: nextCodex,
+      updatedAt: timestamp,
+    };
+  });
 }
 
 export function deleteEntryTypeFromActiveWorkspace({

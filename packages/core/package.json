@@ -66,6 +66,10 @@
       "types": "./src/helpTopics.ts",
       "default": "./src/helpTopics.ts"
     },
+    "./layoutModes": {
+      "types": "./src/layoutModes.ts",
+      "default": "./src/layoutModes.ts"
+    },
     "./overview": {
       "types": "./src/overview.ts",
       "default": "./src/overview.ts"

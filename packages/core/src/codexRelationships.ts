@@ -40,6 +40,18 @@ export const relationshipTypeOptions: readonly string[] = Array.from(
 );
 
 export const relationshipFeatureCopy = {
+  studioTitle: 'Relationship Studio',
+  studioDetail:
+    'Audit graph health, browse connected records, compose ad hoc links, and prepare bulk cleanup.',
+  studioReviewLabel: 'Review',
+  studioReviewDetail: 'Repair broken references and find unlinked records.',
+  studioGraphLabel: 'Graph',
+  studioGraphDetail:
+    'Browse connected records and inspect visible graph links.',
+  studioLinksLabel: 'Links',
+  studioLinksDetail: 'Search, edit, delete, or compose saved relationships.',
+  studioBulkEditLabel: 'Bulk Edit',
+  studioBulkEditDetail: 'Prepare larger relationship cleanup passes.',
   clearFiltersLabel: 'Clear Filters',
   clearGraphFiltersLabel: 'Clear Graph Filters',
   savedSectionTitle: 'Saved Relationships',
@@ -56,6 +68,13 @@ export const relationshipFeatureCopy = {
     'Relationships with a missing source or target after imports or deletes.',
   orphanedRecordsLabel: 'Orphaned records',
   orphanedRecordsDetail: 'Entries with no saved relationship links yet.',
+  duplicateRelationshipsLabel: 'Duplicate Relationships',
+  duplicateRelationshipsReviewLabel: 'Duplicate relationship review',
+  duplicateRelationshipsDetail:
+    'Saved relationships with the same source, target, type, status, direction, and note.',
+  duplicateRelationshipsCleanupLabel: 'Remove Duplicate Relationships',
+  duplicateRelationshipsCleanupBlockedMessage:
+    'Save or discard the current relationship draft before running bulk cleanup.',
   noBrokenRelationshipsTitle: 'No broken relationships.',
   noBrokenRelationshipsDetail:
     'Every saved relationship currently resolves to existing records.',
@@ -72,7 +91,7 @@ export const relationshipFeatureCopy = {
   filterListLabel: 'Filter List',
   minimumEntriesTitle: 'Create at least two entries first.',
   minimumEntriesDetail: 'Relationships need a source and a target record.',
-  openEntryLabel: 'Open Entry',
+  openEntryLabel: 'Review Context',
   openSourceLabel: 'Open Source',
   openTargetLabel: 'Open Target',
   relationshipFormTitle: 'Relationship Form',
@@ -99,6 +118,79 @@ export const relationshipFeatureCopy = {
   emptyTitle: 'No relationships yet.',
   emptyDetail: 'Add a link to start building the world graph.',
 } as const;
+
+export type RelationshipStudioModeId =
+  | 'review'
+  | 'graph'
+  | 'links'
+  | 'bulk-edit';
+
+export type RelationshipStudioModeOption = {
+  id: RelationshipStudioModeId;
+  label: string;
+  detail: string;
+  isActive: boolean;
+};
+
+export type RelationshipStudioModeModel = {
+  title: string;
+  detail: string;
+  activeMode: RelationshipStudioModeOption;
+  modes: readonly RelationshipStudioModeOption[];
+};
+
+const relationshipStudioModeDefinitions: readonly Omit<
+  RelationshipStudioModeOption,
+  'isActive'
+>[] = [
+  {
+    id: 'review',
+    label: relationshipFeatureCopy.studioReviewLabel,
+    detail: relationshipFeatureCopy.studioReviewDetail,
+  },
+  {
+    id: 'graph',
+    label: relationshipFeatureCopy.studioGraphLabel,
+    detail: relationshipFeatureCopy.studioGraphDetail,
+  },
+  {
+    id: 'links',
+    label: relationshipFeatureCopy.studioLinksLabel,
+    detail: relationshipFeatureCopy.studioLinksDetail,
+  },
+  {
+    id: 'bulk-edit',
+    label: relationshipFeatureCopy.studioBulkEditLabel,
+    detail: relationshipFeatureCopy.studioBulkEditDetail,
+  },
+];
+
+function isRelationshipStudioModeId(
+  value: string
+): value is RelationshipStudioModeId {
+  return relationshipStudioModeDefinitions.some((mode) => mode.id === value);
+}
+
+export function getRelationshipStudioModeModel(
+  activeMode: string = 'review'
+): RelationshipStudioModeModel {
+  const normalizedMode: RelationshipStudioModeId = isRelationshipStudioModeId(
+    activeMode
+  )
+    ? activeMode
+    : 'review';
+  const modes = relationshipStudioModeDefinitions.map((mode) => ({
+    ...mode,
+    isActive: mode.id === normalizedMode,
+  }));
+
+  return {
+    title: relationshipFeatureCopy.studioTitle,
+    detail: relationshipFeatureCopy.studioDetail,
+    activeMode: modes.find((mode) => mode.id === normalizedMode) ?? modes[0],
+    modes,
+  };
+}
 
 export type RelationshipDraft = {
   sourceEntryId: string;
@@ -630,6 +722,17 @@ export function getRelationshipEntryRoute(
   return getCodexEntriesRoute({
     entryId: target.entryId,
     intent: 'edit',
+    query: target.name,
+    sectionId: target.sectionId,
+  });
+}
+
+export function getRelationshipEntryContextRoute(
+  target: RelationshipEntryRouteTarget
+): string {
+  return getCodexEntriesRoute({
+    entryId: target.entryId,
+    intent: 'context',
     query: target.name,
     sectionId: target.sectionId,
   });

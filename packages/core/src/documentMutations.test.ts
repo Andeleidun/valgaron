@@ -1,19 +1,26 @@
 import { describe, expect, it } from '@jest/globals';
 import {
+  applyEntry,
   entryFromDraft,
   getSectionById,
   type EntryDraft,
 } from './codexEntries';
 import { relationshipFromDraft } from './codexRelationships';
 import {
+  addEntryTypeFieldsInActiveWorkspace,
   archiveEntryInActiveWorkspace,
   archivePlanetaryWorldInActiveWorkspace,
   createEntryTypeInActiveWorkspace,
+  clearHiddenEntryDetailsInActiveWorkspace,
   deleteEntryFromActiveWorkspace,
   deleteEntryTypeFromActiveWorkspace,
   deletePlanetaryWorldFromActiveWorkspace,
   deleteRelationshipFromActiveWorkspace,
   moveTimelineEventInActiveWorkspace,
+  moveEntryTypeFieldInActiveWorkspace,
+  renameEntryTypeFieldInActiveWorkspace,
+  removeEntryTypeFieldInActiveWorkspace,
+  reassignTimelineEraInActiveWorkspace,
   saveEntryInActiveWorkspace,
   savePlanetaryWorldInActiveWorkspace,
   saveRelationshipInActiveWorkspace,
@@ -21,6 +28,7 @@ import {
 import { createSeedWorldDocument } from './seedCodex';
 import { sortTimelineEvents } from './codexTimeline';
 import { getActiveWorld } from './worldDocument';
+import { updateActiveWorkspace } from './workspaceManagement';
 
 const updatedAt = '2026-07-04T12:00:00.000Z';
 
@@ -222,5 +230,180 @@ describe('document mutation commands', () => {
       )
     ).toBe(false);
     expect(getActiveWorld(deleted).codex.artifacts).toBeUndefined();
+  });
+
+  it('adds fields to custom entry types in the active workspace', () => {
+    const created = createEntryTypeInActiveWorkspace({
+      document: createSeedWorldDocument(),
+      draft: {
+        title: 'Artifacts',
+        singularTitle: 'Artifact',
+        description: 'Objects with worldbuilding importance.',
+        fields: 'Origin',
+      },
+    });
+    const updated = addEntryTypeFieldsInActiveWorkspace({
+      document: created,
+      sectionId: 'artifacts',
+      fieldsText: 'Notes (long); Status [Dormant | Active]',
+    });
+    const customSection = getActiveWorld(updated).entryTypes.find(
+      (section) => section.id === 'artifacts'
+    );
+
+    expect(customSection?.detailFields).toEqual([
+      { key: 'origin', label: 'Origin' },
+      { key: 'notes', label: 'Notes', multiline: true },
+      {
+        key: 'status',
+        label: 'Status',
+        autocompleteOptions: ['Dormant', 'Active'],
+      },
+    ]);
+  });
+
+  it('moves custom entry type fields in the active workspace', () => {
+    const created = createEntryTypeInActiveWorkspace({
+      document: createSeedWorldDocument(),
+      draft: {
+        title: 'Artifacts',
+        singularTitle: 'Artifact',
+        description: 'Objects with worldbuilding importance.',
+        fields: 'Origin, Power',
+      },
+    });
+    const updated = moveEntryTypeFieldInActiveWorkspace({
+      direction: 'down',
+      document: created,
+      fieldKey: 'origin',
+      sectionId: 'artifacts',
+    });
+    const customSection = getActiveWorld(updated).entryTypes.find(
+      (section) => section.id === 'artifacts'
+    );
+
+    expect(customSection?.detailFields.map((field) => field.key)).toEqual([
+      'power',
+      'origin',
+    ]);
+  });
+
+  it('renames custom entry type fields in the active workspace', () => {
+    const created = createEntryTypeInActiveWorkspace({
+      document: createSeedWorldDocument(),
+      draft: {
+        title: 'Artifacts',
+        singularTitle: 'Artifact',
+        description: 'Objects with worldbuilding importance.',
+        fields: 'Origin',
+      },
+    });
+    const updated = renameEntryTypeFieldInActiveWorkspace({
+      document: created,
+      fieldKey: 'origin',
+      label: 'Creation origin',
+      sectionId: 'artifacts',
+    });
+    const customSection = getActiveWorld(updated).entryTypes.find(
+      (section) => section.id === 'artifacts'
+    );
+
+    expect(customSection?.detailFields).toEqual([
+      { key: 'origin', label: 'Creation origin' },
+    ]);
+  });
+
+  it('removes custom entry type fields in the active workspace', () => {
+    const created = createEntryTypeInActiveWorkspace({
+      document: createSeedWorldDocument(),
+      draft: {
+        title: 'Artifacts',
+        singularTitle: 'Artifact',
+        description: 'Objects with worldbuilding importance.',
+        fields: 'Origin, Power',
+      },
+    });
+    const updated = removeEntryTypeFieldInActiveWorkspace({
+      document: created,
+      fieldKey: 'power',
+      sectionId: 'artifacts',
+    });
+    const customSection = getActiveWorld(updated).entryTypes.find(
+      (section) => section.id === 'artifacts'
+    );
+
+    expect(customSection?.detailFields).toEqual([
+      { key: 'origin', label: 'Origin' },
+    ]);
+  });
+
+  it('clears hidden entry details without changing visible custom fields', () => {
+    const created = createEntryTypeInActiveWorkspace({
+      document: createSeedWorldDocument(),
+      draft: {
+        title: 'Artifacts',
+        singularTitle: 'Artifact',
+        description: 'Objects with worldbuilding importance.',
+        fields: 'Origin, Power',
+      },
+    });
+    const artifactSection = getActiveWorld(created).entryTypes.find(
+      (section) => section.id === 'artifacts'
+    );
+    if (!artifactSection) {
+      throw new Error('Expected artifacts section.');
+    }
+    const artifact = entryFromDraft(artifactSection, {
+      name: 'Glass Key',
+      summary: 'A key made of dawn glass.',
+      notes: '',
+      tags: 'artifact',
+      status: 'draft',
+      pinned: false,
+      details: {
+        origin: 'Glassroot Forest',
+        power: 'Opens dawn doors',
+      },
+    });
+    const withEntry = updateActiveWorkspace(created, (workspace) => ({
+      ...workspace,
+      codex: applyEntry(workspace.codex, artifact, workspace.entryTypes),
+    }));
+    const withRemovedField = removeEntryTypeFieldInActiveWorkspace({
+      document: withEntry,
+      fieldKey: 'power',
+      sectionId: 'artifacts',
+    });
+
+    const cleaned = clearHiddenEntryDetailsInActiveWorkspace({
+      document: withRemovedField,
+      updatedAt,
+    });
+    const cleanedArtifact = getActiveWorld(cleaned).codex.artifacts[0];
+
+    expect(cleanedArtifact.fields).toEqual({
+      origin: 'Glassroot Forest',
+    });
+    expect(cleanedArtifact.updatedAt).toBe(updatedAt);
+    expect(getActiveWorld(cleaned).updatedAt).toBe(updatedAt);
+  });
+
+  it('reassigns timeline eras in the active workspace', () => {
+    const document = createSeedWorldDocument();
+    const reassigned = reassignTimelineEraInActiveWorkspace({
+      document,
+      draft: {
+        sourceEra: 'Survey Era',
+        targetEra: 'Exploration Era',
+        updatedAt,
+      },
+    });
+    const world = getActiveWorld(reassigned);
+
+    expect(
+      world.codex.timeline.find((event) => event.id === 'timeline-first-survey')
+        ?.fields.era
+    ).toBe('Exploration Era');
+    expect(world.updatedAt).toBe(updatedAt);
   });
 });

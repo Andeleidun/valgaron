@@ -177,6 +177,31 @@ export function getHiddenPlaceDetailValues(
     .sort((first, second) => first.label.localeCompare(second.label));
 }
 
+function formatGenericFieldLabel(key: string): string {
+  return key
+    .replace(/[-_]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/\b\w/g, (character) => character.toUpperCase());
+}
+
+function getHiddenGenericDetailValues(
+  section: WorldSectionConfig,
+  fields: Readonly<Record<string, string>>
+): HiddenPlaceDetailValue[] {
+  const visibleFieldKeys = new Set(
+    section.detailFields.map((field) => field.key)
+  );
+  return Object.entries(fields)
+    .filter(([key, value]) => !visibleFieldKeys.has(key) && value.trim())
+    .map(([key, value]) => ({
+      key,
+      label: formatGenericFieldLabel(key),
+      value,
+    }))
+    .sort((first, second) => first.label.localeCompare(second.label));
+}
+
 export function getHiddenEntryDetailValues(
   section: WorldSectionConfig,
   fields: Readonly<Record<string, string>>
@@ -184,7 +209,10 @@ export function getHiddenEntryDetailValues(
   if (section.kind === 'character') {
     return getHiddenCharacterDetailValues(fields);
   }
-  return getHiddenPlaceDetailValues(section, fields);
+  if (section.kind === 'place') {
+    return getHiddenPlaceDetailValues(section, fields);
+  }
+  return getHiddenGenericDetailValues(section, fields);
 }
 
 export function getPlaceCategoryProfileIds(

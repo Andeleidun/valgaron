@@ -81,6 +81,12 @@ describe('HelpScreen render smoke', () => {
     const markup = renderToStaticMarkup(React.createElement(HelpScreen));
 
     expect(markup).toContain('Build the codex');
+    expect(markup).toContain('Open Knowledge');
+    expect(markup).toContain('Open Utilities');
+    expect(markup).toContain(
+      'Use Knowledge or mobile More to create custom entry types'
+    );
+    expect(markup).toContain('observed flexible values');
     expect(markup).toContain(
       'Use character category to shape which character fields appear'
     );

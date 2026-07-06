@@ -6,6 +6,7 @@ import { mobileTabRoutes } from '../../src/navigation/mobileRoutes';
 export default function TabLayout() {
   return (
     <Tabs
+      initialRouteName="entries"
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: valgaronColors.accent,
@@ -27,7 +28,7 @@ export default function TabLayout() {
           name={route.screenName}
           options={{
             title: route.title,
-            tabBarAccessibilityLabel: `${route.title} tab`,
+            tabBarAccessibilityLabel: route.tabAccessibilityLabel,
             tabBarButtonTestID: `tab.${route.id}`,
             tabBarLabel: route.tabLabel,
             tabBarIcon: ({ color, size }) => (
@@ -36,6 +37,10 @@ export default function TabLayout() {
           }}
         />
       ))}
+      <Tabs.Screen name="index" options={{ href: null }} />
+      <Tabs.Screen name="workspaces" options={{ href: null }} />
+      <Tabs.Screen name="data" options={{ href: null }} />
+      <Tabs.Screen name="help" options={{ href: null }} />
     </Tabs>
   );
 }
