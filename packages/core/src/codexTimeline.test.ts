@@ -1,4 +1,6 @@
 import { describe, expect, it } from '@jest/globals';
+import { draftFromEntry } from './codexEntries';
+import { createSectionEntryDraft } from './codexTemplates';
 import {
   createTimelineInvolvedRecordStagedRelationship,
   filterTimelineEvents,
@@ -10,6 +12,7 @@ import {
   getTimelineEraManagerModel,
   getTimelineEraReassignmentUpdates,
   getTimelineEras,
+  getTimelineEventEditorModel,
   getTimelineHighlights,
   getTimelineInvolvedEntryIds,
   getTimelineOrderValue,
@@ -85,6 +88,107 @@ describe('codex timeline helpers', () => {
       status: 'draft',
     });
     expect(createTimelineInvolvedRecordStagedRelationship('   ')).toBeNull();
+  });
+
+  it('builds a custom timeline editor model for chronology and involved links', () => {
+    const world = createSeedWorld();
+    const section = world.entryTypes.find((item) => item.id === 'timeline');
+    const event = world.codex.timeline.find(
+      (entry) => entry.id === 'timeline-harbor-accord'
+    );
+    if (!section || !event) {
+      throw new Error('Expected seeded timeline event.');
+    }
+    const model = getTimelineEventEditorModel({
+      draft: draftFromEntry(event, section),
+      section,
+      selectedEntry: event,
+      world,
+    });
+
+    expect(model.title).toBe(`Edit ${event.name}`);
+    expect(model.submitLabel).toBe('Save Changes');
+    expect(model.chronology.fields.map((field) => field.key)).toEqual([
+      'order',
+      'dateLabel',
+      'era',
+    ]);
+    expect(model.outcomes.fields.map((field) => field.key)).toEqual([
+      'consequences',
+    ]);
+    expect(
+      model.involvedRecords.selectedRecords.map((record) => record.id)
+    ).toEqual(['faction-cartographers-guild']);
+    expect(model.involvedRecords.legacyText).toBeNull();
+  });
+
+  it('seeds new timeline editor models from route context and staged links', () => {
+    const world = createSeedWorld();
+    const section = world.entryTypes.find((item) => item.id === 'timeline');
+    if (!section) {
+      throw new Error('Expected timeline section.');
+    }
+    const stagedRelationship = createTimelineInvolvedRecordStagedRelationship(
+      'place-northwatch-harbor',
+      'staged-context-link'
+    );
+    if (!stagedRelationship) {
+      throw new Error('Expected staged relationship.');
+    }
+    const model = getTimelineEventEditorModel({
+      draft: createSectionEntryDraft(section, {
+        timelineEra: 'Northwatch Era',
+      }),
+      section,
+      stagedRelationships: [stagedRelationship],
+      world,
+    });
+
+    expect(model.title).toBe('New Timeline Event');
+    expect(model.submitLabel).toBe('Create Timeline Event And 1 Link');
+    expect(
+      model.chronology.fields.find((field) => field.key === 'era')?.value
+    ).toBe('Northwatch Era');
+    expect(model.involvedRecords.selectedRecords).toEqual([
+      expect.objectContaining({
+        id: 'place-northwatch-harbor',
+        selected: true,
+      }),
+    ]);
+  });
+
+  it('surfaces legacy involved-record text as cleanup support', () => {
+    const world = createSeedWorld();
+    const section = world.entryTypes.find((item) => item.id === 'timeline');
+    const event = world.codex.timeline.find(
+      (entry) => entry.id === 'timeline-harbor-accord'
+    );
+    if (!section || !event) {
+      throw new Error('Expected seeded timeline event.');
+    }
+    const draft = draftFromEntry(
+      {
+        ...event,
+        fields: {
+          ...event.fields,
+          involvedRecords: 'Mira Rowan',
+        },
+      },
+      section
+    );
+    const model = getTimelineEventEditorModel({
+      draft,
+      section,
+      selectedEntry: event,
+      world,
+    });
+
+    expect(model.involvedRecords.legacyText).toMatchObject({
+      label: 'Involved records',
+      value: 'Mira Rowan',
+      exactMatchCount: 1,
+      canMigrate: true,
+    });
   });
 
   it('reads numeric timeline order values with an unsorted fallback', () => {

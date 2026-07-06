@@ -109,8 +109,8 @@ const routeChecks = [
       'Timeline',
       'Create Timeline Event',
       'Charter Era',
-      'Links to create on save',
-      'This entry involves The Cartographers Guild',
+      'Involved records',
+      'The Cartographers Guild',
       'Create Timeline Event And 1 Link',
     ],
   },
@@ -597,7 +597,7 @@ async function assertTimelineContextCreateRouteReseeds(
     cdp = await createCdpClient(webSocketUrl);
     await waitForRuntimeCondition(
       cdp,
-      "document.body.textContent.includes('This entry involves The Cartographers Guild')"
+      "document.body.textContent.includes('The Cartographers Guild')"
     );
     await evaluateRuntime(
       cdp,
@@ -609,7 +609,7 @@ async function assertTimelineContextCreateRouteReseeds(
     );
     await waitForRuntimeCondition(
       cdp,
-      "document.body.textContent.includes('This entry involves Northwatch Harbor')"
+      "document.body.textContent.includes('Northwatch Harbor')"
     );
     const reseedResult = await evaluateRuntime(
       cdp,
@@ -619,10 +619,10 @@ async function assertTimelineContextCreateRouteReseeds(
         if (!bodyText.includes('Create Timeline Event')) {
           issues.push('timeline create editor is missing');
         }
-        if (!bodyText.includes('This entry involves Northwatch Harbor')) {
+        if (!bodyText.includes('Northwatch Harbor')) {
           issues.push('new involved-record staged link is missing');
         }
-        if (bodyText.includes('This entry involves The Cartographers Guild')) {
+        if (bodyText.includes('The Cartographers Guild')) {
           issues.push('previous involved-record staged link is still shown');
         }
         const northwatchEraInput = Array.from(document.querySelectorAll('input'))

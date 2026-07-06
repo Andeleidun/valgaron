@@ -526,7 +526,8 @@ describe('EntriesScreen render smoke', () => {
     expect(markup).toContain('Chronology');
     expect(markup).toContain('value="Charter Era"');
     expect(markup).toContain('Create Timeline Event And 1 Link');
-    expect(markup).toContain('This entry links to The Cartographers Guild');
+    expect(markup).toContain('Involved records');
+    expect(markup).toContain('Selected: The Cartographers Guild');
   });
 
   it('renders expandable mobile timeline involved-record filters', () => {

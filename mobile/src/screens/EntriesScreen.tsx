@@ -73,6 +73,7 @@ import {
   formatLimitedTextList,
   getTimelineSummaryModel,
   getTimelineBrowseModel,
+  getTimelineEventEditorModel,
   createTimelineInvolvedRecordStagedRelationship,
   getTimelineEraManagerModel,
   getWorkbenchRecordPickerModel,
@@ -220,6 +221,14 @@ export function EntriesScreen({
     useState(requestedTimelineInvolvedEntryId);
   const [timelineInvolvedEntryQuery, setTimelineInvolvedEntryQuery] =
     useState('');
+  const [
+    timelineEditorInvolvedRecordQuery,
+    setTimelineEditorInvolvedRecordQuery,
+  ] = useState('');
+  const [
+    expandedTimelineEditorInvolvedRecords,
+    setExpandedTimelineEditorInvolvedRecords,
+  ] = useState(false);
   const [showAllTimelineInvolvedEntries, setShowAllTimelineInvolvedEntries] =
     useState(false);
   const [expandedTimelineEventGroups, setExpandedTimelineEventGroups] =
@@ -523,6 +532,8 @@ export function EntriesScreen({
     [section.id]
   );
   const baseFields = getEntryEditorBaseFields(section, draft);
+  const leadingBaseFields =
+    section.id === 'timeline' ? baseFields.slice(0, 2) : baseFields.slice(0, 3);
   const notesPreview = getEntryEditorNotesPreviewModel(draft.notes);
   const editorModel = useMemo(
     () =>
@@ -583,6 +594,19 @@ export function EntriesScreen({
   const stagedRelationshipTargetById = new Map(
     stagedRelationshipPicker.items.map((item) => [item.id, item])
   );
+  const timelineEditorModel =
+    section.id === 'timeline'
+      ? getTimelineEventEditorModel({
+          draft,
+          expandedInvolvedRecords: expandedTimelineEditorInvolvedRecords,
+          involvedRecordLimit: mobileFeatureDisplayLimits.pickerResults,
+          involvedRecordQuery: timelineEditorInvolvedRecordQuery,
+          section,
+          selectedEntry,
+          stagedRelationships,
+          world: controller.activeWorld,
+        })
+      : null;
   function createMobileContextStagedRelationships(
     nextSection: WorldSectionConfig,
     involvedEntryId: string
@@ -908,6 +932,8 @@ export function EntriesScreen({
     setLinkedFieldQueries({});
     setExpandedLinkedFieldPreferredTargets({});
     setExpandedLinkedFieldTargets({});
+    setTimelineEditorInvolvedRecordQuery('');
+    setExpandedTimelineEditorInvolvedRecords(false);
   }
 
   function clearStagedRelationshipDrafts() {
@@ -964,6 +990,28 @@ export function EntriesScreen({
     );
     setStagedTargetEntryId('');
     setStagedRelationshipNote('');
+  }
+
+  function toggleTimelineStagedInvolvedRecord(targetEntryId: string) {
+    const existingRelationship = stagedRelationships.find(
+      (relationship) =>
+        relationship.type === 'involves' &&
+        relationship.targetEntryId === targetEntryId
+    );
+    if (existingRelationship) {
+      setStagedRelationships((current) =>
+        deleteStagedRelationshipDraft(current, existingRelationship.stagedId)
+      );
+      return;
+    }
+    const relationship =
+      createTimelineInvolvedRecordStagedRelationship(targetEntryId);
+    if (!relationship) {
+      return;
+    }
+    setStagedRelationships((current) =>
+      upsertStagedRelationshipDraft(current, relationship)
+    );
   }
 
   function duplicateSelectedEntry(entry: NonNullable<typeof selectedEntry>) {
@@ -2177,7 +2225,7 @@ export function EntriesScreen({
               {entryEditorCopy.unsavedDraftMessage}
             </StatusText>
           ) : null}
-          {baseFields.slice(0, 3).map((field) => (
+          {leadingBaseFields.map((field) => (
             <Field
               key={field.id}
               label={field.label}
@@ -2193,28 +2241,39 @@ export function EntriesScreen({
               placeholder={field.placeholder}
             />
           ))}
-          <View style={styles.notesPreview}>
-            <Text style={styles.notesPreviewTitle}>{notesPreview.title}</Text>
-            {notesPreview.hasContent ? (
-              <Text style={styles.notesPreviewText}>{notesPreview.body}</Text>
-            ) : (
-              <MutedText>{notesPreview.emptyText}</MutedText>
-            )}
-          </View>
-          {baseFields.slice(3).map((field) => (
-            <Field
-              autoCapitalize="none"
-              autoCorrect={false}
-              key={field.id}
-              label={field.label}
-              testID={field.id}
-              value={field.value}
-              onChangeText={(value) =>
-                setDraft((current) => ({ ...current, [field.key]: value }))
-              }
-              placeholder={field.placeholder}
-            />
-          ))}
+          {!timelineEditorModel ? (
+            <>
+              <View style={styles.notesPreview}>
+                <Text style={styles.notesPreviewTitle}>
+                  {notesPreview.title}
+                </Text>
+                {notesPreview.hasContent ? (
+                  <Text style={styles.notesPreviewText}>
+                    {notesPreview.body}
+                  </Text>
+                ) : (
+                  <MutedText>{notesPreview.emptyText}</MutedText>
+                )}
+              </View>
+              {baseFields.slice(3).map((field) => (
+                <Field
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  key={field.id}
+                  label={field.label}
+                  testID={field.id}
+                  value={field.value}
+                  onChangeText={(value) =>
+                    setDraft((current) => ({
+                      ...current,
+                      [field.key]: value,
+                    }))
+                  }
+                  placeholder={field.placeholder}
+                />
+              ))}
+            </>
+          ) : null}
           <SelectField
             accessibilityLabel={entryDraftStatusControl.accessibilityLabel}
             label={entryDraftStatusControl.label}
@@ -2232,38 +2291,203 @@ export function EntriesScreen({
               setDraft((current) => ({ ...current, pinned: checked }))
             }
           />
-          {detailFieldGroups.map((group) => (
-            <View
-              key={group.id}
-              style={detailFieldGroups.length > 1 ? styles.fieldGroup : null}
-            >
-              {detailFieldGroups.length > 1 ? (
-                <Text style={styles.fieldGroupTitle}>{group.label}</Text>
-              ) : null}
-              {group.fields.map((field) => (
-                <View key={field.key} style={styles.fieldWithSuggestions}>
-                  <Field
-                    label={field.label}
-                    value={field.value}
-                    multiline={field.multiline}
-                    testID={`entries.field.${field.key}`}
-                    onChangeText={(value) => setDetailValue(field.key, value)}
-                  />
-                  {field.suggestions.length > 0 ? (
-                    <ButtonRow>
-                      {field.suggestions.map((suggestion) => (
-                        <ActionButton
-                          key={suggestion}
-                          label={suggestion}
-                          onPress={() => setDetailValue(field.key, suggestion)}
-                        />
-                      ))}
-                    </ButtonRow>
-                  ) : null}
+          {timelineEditorModel ? (
+            <>
+              {[timelineEditorModel.chronology].map((group) => (
+                <View key={group.id} style={styles.fieldGroup}>
+                  <Text style={styles.fieldGroupTitle}>{group.label}</Text>
+                  {group.fields.map((field) => (
+                    <View key={field.key} style={styles.fieldWithSuggestions}>
+                      <Field
+                        label={field.label}
+                        value={field.value}
+                        multiline={field.multiline}
+                        testID={`entries.timeline.field.${field.key}`}
+                        onChangeText={(value) =>
+                          setDetailValue(field.key, value)
+                        }
+                      />
+                      {field.suggestions.length > 0 ? (
+                        <ButtonRow>
+                          {field.suggestions.map((suggestion) => (
+                            <ActionButton
+                              key={suggestion}
+                              label={suggestion}
+                              onPress={() =>
+                                setDetailValue(field.key, suggestion)
+                              }
+                            />
+                          ))}
+                        </ButtonRow>
+                      ) : null}
+                    </View>
+                  ))}
                 </View>
               ))}
-            </View>
-          ))}
+              <View style={styles.relationshipGroup}>
+                <Text style={styles.relationshipGroupTitle}>
+                  {timelineEditorModel.involvedRecords.title}
+                </Text>
+                <MutedText>
+                  {timelineEditorModel.involvedRecords.description}
+                </MutedText>
+                {selectedEntry ? (
+                  <MutedText>
+                    Use the relationship-backed controls below to update
+                    involved records.
+                  </MutedText>
+                ) : (
+                  <>
+                    <Field
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                      label="Search involved records"
+                      placeholder="Character, place, faction, or lore note"
+                      value={timelineEditorInvolvedRecordQuery}
+                      onChangeText={(value) => {
+                        setTimelineEditorInvolvedRecordQuery(value);
+                        setExpandedTimelineEditorInvolvedRecords(false);
+                      }}
+                    />
+                    <ButtonRow>
+                      {timelineEditorModel.involvedRecords.options.map(
+                        (record) => (
+                          <ActionButton
+                            key={record.id}
+                            label={record.name}
+                            selected={record.selected}
+                            testID={`entries.timeline.involved.${record.id}`}
+                            tone={record.selected ? 'accent' : 'neutral'}
+                            onPress={() =>
+                              toggleTimelineStagedInvolvedRecord(record.id)
+                            }
+                          />
+                        )
+                      )}
+                    </ButtonRow>
+                    {timelineEditorModel.involvedRecords.options.length ===
+                    0 ? (
+                      <MutedText>
+                        No involved records match this search.
+                      </MutedText>
+                    ) : null}
+                    {timelineEditorModel.involvedRecords.display
+                      .canExpandPreferredTargets ||
+                    timelineEditorModel.involvedRecords.display
+                      .canExpandUnusualTargets ? (
+                      <ActionButton
+                        expanded={expandedTimelineEditorInvolvedRecords}
+                        label={
+                          timelineEditorModel.involvedRecords.display
+                            .showPreferredTargetsLabel ||
+                          timelineEditorModel.involvedRecords.display
+                            .showUnusualTargetsLabel
+                        }
+                        onPress={() =>
+                          setExpandedTimelineEditorInvolvedRecords(true)
+                        }
+                      />
+                    ) : null}
+                  </>
+                )}
+                {timelineEditorModel.involvedRecords.selectedRecords.length >
+                0 ? (
+                  <MutedText>
+                    Selected:{' '}
+                    {timelineEditorModel.involvedRecords.selectedRecords
+                      .map((record) => record.name)
+                      .join(', ')}
+                  </MutedText>
+                ) : null}
+              </View>
+              {[timelineEditorModel.outcomes].map((group) => (
+                <View key={group.id} style={styles.fieldGroup}>
+                  <Text style={styles.fieldGroupTitle}>{group.label}</Text>
+                  {group.fields.map((field) => (
+                    <Field
+                      key={field.key}
+                      label={field.label}
+                      multiline={field.multiline}
+                      testID={`entries.timeline.field.${field.key}`}
+                      value={field.value}
+                      onChangeText={(value) => setDetailValue(field.key, value)}
+                    />
+                  ))}
+                </View>
+              ))}
+              <Field
+                label={entryEditorCopy.notesLabel}
+                multiline
+                placeholder="Markdown-style drafting notes"
+                testID="entries.editor.notes"
+                value={draft.notes}
+                onChangeText={(value) =>
+                  setDraft((current) => ({ ...current, notes: value }))
+                }
+              />
+              <View style={styles.notesPreview}>
+                <Text style={styles.notesPreviewTitle}>
+                  {notesPreview.title}
+                </Text>
+                {notesPreview.hasContent ? (
+                  <Text style={styles.notesPreviewText}>
+                    {notesPreview.body}
+                  </Text>
+                ) : (
+                  <MutedText>{notesPreview.emptyText}</MutedText>
+                )}
+              </View>
+              {baseFields.slice(3).map((field) => (
+                <Field
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  key={field.id}
+                  label={field.label}
+                  testID={field.id}
+                  value={field.value}
+                  onChangeText={(value) =>
+                    setDraft((current) => ({ ...current, [field.key]: value }))
+                  }
+                  placeholder={field.placeholder}
+                />
+              ))}
+            </>
+          ) : (
+            detailFieldGroups.map((group) => (
+              <View
+                key={group.id}
+                style={detailFieldGroups.length > 1 ? styles.fieldGroup : null}
+              >
+                {detailFieldGroups.length > 1 ? (
+                  <Text style={styles.fieldGroupTitle}>{group.label}</Text>
+                ) : null}
+                {group.fields.map((field) => (
+                  <View key={field.key} style={styles.fieldWithSuggestions}>
+                    <Field
+                      label={field.label}
+                      value={field.value}
+                      multiline={field.multiline}
+                      testID={`entries.field.${field.key}`}
+                      onChangeText={(value) => setDetailValue(field.key, value)}
+                    />
+                    {field.suggestions.length > 0 ? (
+                      <ButtonRow>
+                        {field.suggestions.map((suggestion) => (
+                          <ActionButton
+                            key={suggestion}
+                            label={suggestion}
+                            onPress={() =>
+                              setDetailValue(field.key, suggestion)
+                            }
+                          />
+                        ))}
+                      </ButtonRow>
+                    ) : null}
+                  </View>
+                ))}
+              </View>
+            ))
+          )}
           {selectedEntry && activeRelationshipFieldConfigs.length > 0 ? (
             <View
               style={styles.relationshipGroup}
@@ -2538,7 +2762,7 @@ export function EntriesScreen({
               ))}
             </View>
           ) : null}
-          {canStageRelationshipLinks ? (
+          {!timelineEditorModel && canStageRelationshipLinks ? (
             <View style={styles.relationshipGroup}>
               <Text style={styles.relationshipGroupTitle}>
                 Links to create on save

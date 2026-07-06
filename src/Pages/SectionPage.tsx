@@ -55,6 +55,7 @@ import {
   EntryCard,
   EntryDetail,
   EntryForm,
+  TimelineEventEditor,
   TimelineOverview,
 } from '../Components/Codex/CodexEntryViews';
 
@@ -1112,7 +1113,7 @@ export function SectionPage({
         className="vwb-panel"
         aria-label={`${section.singularTitle} editor`}
       >
-        {selectedEntry ? (
+        {selectedEntry && section.id !== 'timeline' ? (
           <EntryDetail
             codex={codex}
             entry={selectedEntry}
@@ -1121,82 +1122,154 @@ export function SectionPage({
             sections={sections}
           />
         ) : null}
-        <EntryForm
-          key={`${section.id}-${
-            selectedEntry?.id ?? templateDraft?.name ?? 'new'
-          }`}
-          onCancel={() => {
-            setSelectedEntryId(null);
-            setTemplateDraft(createContextEntryDraft(section));
-            setTemplateStagedRelationships(
-              createContextStagedRelationships(section)
-            );
-          }}
-          onArchive={(entry) => {
-            onArchiveEntry(entry, true);
-            setSelectedEntryId(null);
-            setTemplateDraft(null);
-            setTemplateStagedRelationships([]);
-          }}
-          onDelete={(entry) => setEntryPendingDelete(entry)}
-          onDuplicate={(entry) => {
-            const duplicatedEntry = duplicateEntry(section, entry);
-            onSaveEntry(duplicatedEntry);
-            setSelectedEntryId(duplicatedEntry.id);
-            setTemplateDraft(null);
-            setTemplateStagedRelationships([]);
-          }}
-          onRestore={(entry) => {
-            onArchiveEntry(entry, false);
-            setSelectedEntryId(entry.id);
-            setTemplateDraft(null);
-            setTemplateStagedRelationships([]);
-            setShowArchived(true);
-          }}
-          onSave={(entry) => {
-            onSaveEntry(entry);
-            setSelectedEntryId(entry.id);
-            setTemplateDraft(null);
-            setTemplateStagedRelationships([]);
-          }}
-          onSaveDraft={(draft, existingEntry, stagedRelationships = []) => {
-            const result = commitEntryDraftTransaction({
-              codex,
-              entryDraft: draft,
-              existingEntry,
-              relationships,
-              section,
-              stagedRelationships,
-            });
-            onSaveEntry(result.entry);
-            result.savedRelationships.forEach(onSaveRelationship);
-            setSelectedEntryId(result.entry.id);
-            setTemplateDraft(null);
-            setTemplateStagedRelationships([]);
-            return result.entry;
-          }}
-          onDeleteRelationship={onDeleteRelationship}
-          onSaveRelationship={onSaveRelationship}
-          onUseAsTemplate={(entry) => {
-            const nextTemplateDraft = draftFromEntry(entry, section);
-            setTemplateDraft({
-              ...nextTemplateDraft,
-              name: `${entry.name} Template`,
-              status: 'draft',
-            });
-            setSelectedEntryId(null);
-            setTemplateStagedRelationships([]);
-          }}
-          section={section}
-          sectionEntries={entries}
-          selectedEntry={selectedEntry}
-          initialDraft={templateDraft ?? undefined}
-          initialStagedRelationships={initialStagedRelationships}
-          onDirtyChange={setIsEntryFormDirty}
-          codex={codex}
-          relationships={relationships}
-          sections={sections}
-        />
+        {section.id === 'timeline' ? (
+          <TimelineEventEditor
+            key={`${section.id}-${
+              selectedEntry?.id ?? templateDraft?.name ?? 'new'
+            }`}
+            onCancel={() => {
+              setSelectedEntryId(null);
+              setTemplateDraft(createContextEntryDraft(section));
+              setTemplateStagedRelationships(
+                createContextStagedRelationships(section)
+              );
+            }}
+            onArchive={(entry) => {
+              onArchiveEntry(entry, true);
+              setSelectedEntryId(null);
+              setTemplateDraft(null);
+              setTemplateStagedRelationships([]);
+            }}
+            onDelete={(entry) => setEntryPendingDelete(entry)}
+            onDuplicate={(entry) => {
+              const duplicatedEntry = duplicateEntry(section, entry);
+              onSaveEntry(duplicatedEntry);
+              setSelectedEntryId(duplicatedEntry.id);
+              setTemplateDraft(null);
+              setTemplateStagedRelationships([]);
+            }}
+            onRestore={(entry) => {
+              onArchiveEntry(entry, false);
+              setSelectedEntryId(entry.id);
+              setTemplateDraft(null);
+              setTemplateStagedRelationships([]);
+              setShowArchived(true);
+            }}
+            onSaveDraft={(draft, existingEntry, stagedRelationships = []) => {
+              const result = commitEntryDraftTransaction({
+                codex,
+                entryDraft: draft,
+                existingEntry,
+                relationships,
+                section,
+                stagedRelationships,
+              });
+              onSaveEntry(result.entry);
+              result.savedRelationships.forEach(onSaveRelationship);
+              setSelectedEntryId(result.entry.id);
+              setTemplateDraft(null);
+              setTemplateStagedRelationships([]);
+              return result.entry;
+            }}
+            onDeleteRelationship={onDeleteRelationship}
+            onSaveRelationship={onSaveRelationship}
+            onUseAsTemplate={(entry) => {
+              const nextTemplateDraft = draftFromEntry(entry, section);
+              setTemplateDraft({
+                ...nextTemplateDraft,
+                name: `${entry.name} Template`,
+                status: 'draft',
+              });
+              setSelectedEntryId(null);
+              setTemplateStagedRelationships([]);
+            }}
+            section={section}
+            selectedEntry={selectedEntry}
+            initialDraft={templateDraft ?? undefined}
+            initialStagedRelationships={initialStagedRelationships}
+            onDirtyChange={setIsEntryFormDirty}
+            codex={codex}
+            relationships={relationships}
+            sections={sections}
+          />
+        ) : (
+          <EntryForm
+            key={`${section.id}-${
+              selectedEntry?.id ?? templateDraft?.name ?? 'new'
+            }`}
+            onCancel={() => {
+              setSelectedEntryId(null);
+              setTemplateDraft(createContextEntryDraft(section));
+              setTemplateStagedRelationships(
+                createContextStagedRelationships(section)
+              );
+            }}
+            onArchive={(entry) => {
+              onArchiveEntry(entry, true);
+              setSelectedEntryId(null);
+              setTemplateDraft(null);
+              setTemplateStagedRelationships([]);
+            }}
+            onDelete={(entry) => setEntryPendingDelete(entry)}
+            onDuplicate={(entry) => {
+              const duplicatedEntry = duplicateEntry(section, entry);
+              onSaveEntry(duplicatedEntry);
+              setSelectedEntryId(duplicatedEntry.id);
+              setTemplateDraft(null);
+              setTemplateStagedRelationships([]);
+            }}
+            onRestore={(entry) => {
+              onArchiveEntry(entry, false);
+              setSelectedEntryId(entry.id);
+              setTemplateDraft(null);
+              setTemplateStagedRelationships([]);
+              setShowArchived(true);
+            }}
+            onSave={(entry) => {
+              onSaveEntry(entry);
+              setSelectedEntryId(entry.id);
+              setTemplateDraft(null);
+              setTemplateStagedRelationships([]);
+            }}
+            onSaveDraft={(draft, existingEntry, stagedRelationships = []) => {
+              const result = commitEntryDraftTransaction({
+                codex,
+                entryDraft: draft,
+                existingEntry,
+                relationships,
+                section,
+                stagedRelationships,
+              });
+              onSaveEntry(result.entry);
+              result.savedRelationships.forEach(onSaveRelationship);
+              setSelectedEntryId(result.entry.id);
+              setTemplateDraft(null);
+              setTemplateStagedRelationships([]);
+              return result.entry;
+            }}
+            onDeleteRelationship={onDeleteRelationship}
+            onSaveRelationship={onSaveRelationship}
+            onUseAsTemplate={(entry) => {
+              const nextTemplateDraft = draftFromEntry(entry, section);
+              setTemplateDraft({
+                ...nextTemplateDraft,
+                name: `${entry.name} Template`,
+                status: 'draft',
+              });
+              setSelectedEntryId(null);
+              setTemplateStagedRelationships([]);
+            }}
+            section={section}
+            sectionEntries={entries}
+            selectedEntry={selectedEntry}
+            initialDraft={templateDraft ?? undefined}
+            initialStagedRelationships={initialStagedRelationships}
+            onDirtyChange={setIsEntryFormDirty}
+            codex={codex}
+            relationships={relationships}
+            sections={sections}
+          />
+        )}
       </section>
       {entryPendingDelete ? (
         <ConfirmationDialog

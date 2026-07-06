@@ -1,4 +1,12 @@
-import { entryDisplayCopy, getEntries } from './codexEntries';
+import {
+  entryDisplayCopy,
+  getEntries,
+  getEntryEditorDetailFieldModels,
+  getEntryEditorNewTitle,
+  getEntryEditorSubmitLabel,
+  type EntryDraft,
+  type EntryEditorDetailFieldModel,
+} from './codexEntries';
 import {
   createEmptyRelationshipDraft,
   findEntryById,
@@ -11,6 +19,19 @@ import {
   draftTransactionEntryId,
   type StagedRelationshipDraft,
 } from './entryDraftTransactions';
+import {
+  filterRelationshipTargetOptions,
+  getRelationshipFieldConfigsForEntryKind,
+  getRelationshipFieldLinks,
+  getRelationshipFieldTargetId,
+  getRelationshipFieldTextMigration,
+  getRelationshipTargetOptionDisplay,
+  getRelationshipTargetOptions,
+  relationshipTextReviewCopy,
+  type RelationshipFieldConfig,
+  type RelationshipTargetOption,
+  type RelationshipTargetOptionDisplay,
+} from './relationshipFields';
 import {
   getReviewTraySummaryModel,
   type ReviewTraySummaryModel,
@@ -143,6 +164,62 @@ export type TimelineBrowseModel = {
   unlinkedNames: readonly string[];
 };
 
+export type TimelineEditorFieldGroup = {
+  id: string;
+  label: string;
+  fields: readonly EntryEditorDetailFieldModel[];
+};
+
+export type TimelineEditorInvolvedRecord = {
+  id: string;
+  name: string;
+  sectionTitle: string;
+  selected: boolean;
+};
+
+export type TimelineEditorLegacyInvolvedText = {
+  title: string;
+  label: string;
+  value: string;
+  exactMatchCount: number;
+  remainingText: string;
+  canMigrate: boolean;
+};
+
+export type TimelineEditorInvolvedRecordsModel = {
+  title: string;
+  description: string;
+  options: readonly TimelineEditorInvolvedRecord[];
+  selectedRecords: readonly TimelineEditorInvolvedRecord[];
+  display: RelationshipTargetOptionDisplay;
+  legacyText: TimelineEditorLegacyInvolvedText | null;
+  duplicateStagedTargetIds: readonly string[];
+};
+
+export type TimelineEventEditorModel = {
+  title: string;
+  submitLabel: string;
+  chronology: TimelineEditorFieldGroup;
+  outcomes: TimelineEditorFieldGroup;
+  extraDetails: TimelineEditorFieldGroup | null;
+  involvedRecords: TimelineEditorInvolvedRecordsModel;
+};
+
+export type TimelineEventEditorModelOptions = {
+  draft: EntryDraft;
+  expandedInvolvedRecords?: boolean;
+  involvedRecordLimit?: number;
+  involvedRecordQuery?: string;
+  section: WorldSectionConfig;
+  selectedEntry?: WorldEntry | null;
+  stagedRelationships?: readonly StagedRelationshipDraft[];
+  world: {
+    codex: WorldCodex;
+    entryTypes: readonly WorldSectionConfig[];
+    relationships: readonly WorldRelationship[];
+  };
+};
+
 export type TimelineEventItemSource = {
   codex: WorldCodex;
   entryTypes: readonly WorldSectionConfig[];
@@ -184,6 +261,91 @@ export const timelineFeatureCopy = {
 
 export const timelineUnassignedEraFilterValue = '__timeline_unassigned_era__';
 
+const timelineChronologyFieldKeys = ['order', 'dateLabel', 'era'] as const;
+const timelineOutcomeFieldKeys = ['consequences'] as const;
+const timelineLegacyInvolvedFieldKey = 'involvedRecords';
+
+function getTimelineRelationshipConfig(
+  section: WorldSectionConfig
+): RelationshipFieldConfig {
+  const config = getRelationshipFieldConfigsForEntryKind(section.kind).find(
+    (candidate) => candidate.fieldKey === timelineLegacyInvolvedFieldKey
+  );
+  if (!config) {
+    throw new Error('Timeline involved record relationship config is missing.');
+  }
+  return config;
+}
+
+function getTimelineEditorFieldGroup({
+  fieldKeys,
+  fields,
+  id,
+  label,
+}: {
+  fieldKeys: readonly string[];
+  fields: readonly EntryEditorDetailFieldModel[];
+  id: string;
+  label: string;
+}): TimelineEditorFieldGroup {
+  const fieldKeySet = new Set(fieldKeys);
+  return {
+    id,
+    label,
+    fields: fields.filter((field) => fieldKeySet.has(field.key)),
+  };
+}
+
+function getTimelineStagedTargetId(
+  relationship: StagedRelationshipDraft
+): string {
+  return relationship.sourceEntryId === draftTransactionEntryId
+    ? relationship.targetEntryId
+    : relationship.sourceEntryId;
+}
+
+function getTimelineEditorCurrentEntry({
+  draft,
+  section,
+  selectedEntry,
+}: {
+  draft: EntryDraft;
+  section: WorldSectionConfig;
+  selectedEntry?: WorldEntry | null;
+}): WorldEntry {
+  if (selectedEntry) {
+    return selectedEntry;
+  }
+  return {
+    id: draftTransactionEntryId,
+    kind: section.kind,
+    name: draft.name,
+    summary: draft.summary,
+    notes: draft.notes,
+    tags: draft.tags
+      .split(',')
+      .map((tag) => tag.trim())
+      .filter(Boolean),
+    status: draft.status,
+    pinned: draft.pinned,
+    createdAt: '',
+    updatedAt: '',
+    fields: draft.details,
+  };
+}
+
+function formatTimelineInvolvedRecord(
+  option: RelationshipTargetOption,
+  selectedTargetIds: ReadonlySet<string>
+): TimelineEditorInvolvedRecord {
+  return {
+    id: option.entry.id,
+    name: option.entry.name,
+    sectionTitle: option.section.title,
+    selected: selectedTargetIds.has(option.entry.id),
+  };
+}
+
 export function createTimelineInvolvedRecordStagedRelationship(
   targetEntryId: string,
   stagedId?: string
@@ -204,6 +366,152 @@ export function createTimelineInvolvedRecordStagedRelationship(
     },
     stagedId
   );
+}
+
+export function getTimelineEventEditorModel({
+  draft,
+  expandedInvolvedRecords = false,
+  involvedRecordLimit = 60,
+  involvedRecordQuery = '',
+  section,
+  selectedEntry,
+  stagedRelationships = [],
+  world,
+}: TimelineEventEditorModelOptions): TimelineEventEditorModel {
+  const sectionEntries = getEntries(world.codex, section.id);
+  const fieldModels = getEntryEditorDetailFieldModels({
+    draft,
+    fields: section.detailFields,
+    sectionEntries,
+  });
+  const chronology = getTimelineEditorFieldGroup({
+    fieldKeys: timelineChronologyFieldKeys,
+    fields: fieldModels,
+    id: 'timelineEditorChronology',
+    label: 'Chronology',
+  });
+  const outcomes = getTimelineEditorFieldGroup({
+    fieldKeys: timelineOutcomeFieldKeys,
+    fields: fieldModels,
+    id: 'timelineEditorOutcomes',
+    label: 'Outcomes',
+  });
+  const ownedFieldKeys = new Set([
+    ...timelineChronologyFieldKeys,
+    ...timelineOutcomeFieldKeys,
+    timelineLegacyInvolvedFieldKey,
+  ]);
+  const extraFields = fieldModels.filter(
+    (field) => !ownedFieldKeys.has(field.key)
+  );
+  const config = getTimelineRelationshipConfig(section);
+  const currentEntry = getTimelineEditorCurrentEntry({
+    draft,
+    section,
+    selectedEntry,
+  });
+  const selectedTargetIds = new Set<string>(
+    selectedEntry
+      ? [
+          ...getRelationshipFieldLinks(
+            world.relationships,
+            selectedEntry,
+            config
+          )
+            .map((relationship) =>
+              getRelationshipFieldTargetId(relationship, config)
+            )
+            .filter(Boolean),
+          ...getTimelineInvolvedEntryIds(selectedEntry, world.relationships),
+        ]
+      : []
+  );
+  const stagedTargetIds = stagedRelationships
+    .filter((relationship) => relationship.type === config.relationshipType)
+    .map(getTimelineStagedTargetId)
+    .filter(Boolean);
+  stagedTargetIds.forEach((targetId) => selectedTargetIds.add(targetId));
+  const duplicateStagedTargetIds = stagedTargetIds.filter(
+    (targetId, index) => stagedTargetIds.indexOf(targetId) !== index
+  );
+  const targetOptions = getRelationshipTargetOptions({
+    codex: world.codex,
+    config,
+    currentEntry,
+    includedTargetIds: selectedTargetIds,
+    sections: world.entryTypes,
+  });
+  const filteredOptions = filterRelationshipTargetOptions(
+    targetOptions,
+    involvedRecordQuery,
+    selectedTargetIds
+  );
+  const display = getRelationshipTargetOptionDisplay({
+    expandedPreferredTargets: expandedInvolvedRecords,
+    expandedUnusualTargets: expandedInvolvedRecords,
+    limit: involvedRecordLimit,
+    options: filteredOptions,
+    selectedTargetIds,
+    targetCategoryBehavior: config.targetCategoryBehavior,
+  });
+  const visibleRecords = display.visibleOptions.map((option) =>
+    formatTimelineInvolvedRecord(option, selectedTargetIds)
+  );
+  const selectedRecords = targetOptions
+    .filter((option) => selectedTargetIds.has(option.entry.id))
+    .map((option) => formatTimelineInvolvedRecord(option, selectedTargetIds));
+  const legacyValue =
+    draft.details[timelineLegacyInvolvedFieldKey]?.trim() ?? '';
+  const legacyMigration =
+    selectedEntry && legacyValue
+      ? getRelationshipFieldTextMigration({
+          codex: world.codex,
+          config,
+          currentEntry: selectedEntry,
+          sections: world.entryTypes,
+          value: legacyValue,
+        })
+      : null;
+
+  return {
+    title: selectedEntry
+      ? `Edit ${selectedEntry.name}`
+      : getEntryEditorNewTitle(section),
+    submitLabel: getEntryEditorSubmitLabel({
+      section,
+      selectedEntry,
+      stagedRelationshipCount: stagedRelationships.length,
+    }),
+    chronology,
+    outcomes,
+    extraDetails:
+      extraFields.length > 0
+        ? {
+            id: 'timelineEditorDetails',
+            label: 'Additional details',
+            fields: extraFields,
+          }
+        : null,
+    involvedRecords: {
+      title: 'Involved records',
+      description:
+        'Link the characters, places, factions, and lore notes involved in this event.',
+      options: visibleRecords,
+      selectedRecords,
+      display,
+      legacyText: legacyValue
+        ? {
+            title: relationshipTextReviewCopy.savedTextLinkNotesTitle,
+            label: config.label,
+            value: legacyValue,
+            exactMatchCount: legacyMigration?.targetIds.length ?? 0,
+            remainingText: legacyMigration?.remainingText ?? legacyValue,
+            canMigrate: Boolean(legacyMigration?.targetIds.length),
+          }
+        : null,
+      duplicateStagedTargetIds,
+    },
+  };
 }
 
 export function getTimelineEventDateLabel(

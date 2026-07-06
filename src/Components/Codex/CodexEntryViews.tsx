@@ -6,6 +6,7 @@ import {
   draftFromEntry,
   entryDraftStatusControl,
   entryEditorCopy,
+  entryEditorFieldCopy,
   entryNameCopyFeedback,
   entryFromDraft,
   entryPinnedControl,
@@ -32,8 +33,10 @@ import {
   getRelationshipFieldConfigsForEntryKind,
   getRelationshipManagementRoute,
   getTimelineInvolvedEntryIdsByEvent,
+  createTimelineInvolvedRecordStagedRelationship,
   getTimelineEraReassignmentUpdates,
   getTimelineOrderUpdates,
+  getTimelineEventEditorModel,
   getTimelineSurfaceModel,
   relationshipFeatureCopy,
   buildRelationshipFieldTextMigrationOperation,
@@ -56,10 +59,12 @@ import {
   validateEntryDraft,
   validateEntryDraftTransaction,
   type EntryDraft,
+  type EntryEditorDetailFieldModel,
   type EntryListItem,
   type RelationshipFieldConfig,
   type RelationshipDraft,
   type StagedRelationshipDraft,
+  type TimelineEventEditorModel,
   type WorldCodex,
   type WorldDetailFieldKey,
   type WorldEntry,
@@ -1033,6 +1038,642 @@ function RelationshipFieldControl({
         </p>
       )}
     </section>
+  );
+}
+
+export function TimelineEventEditor({
+  section,
+  selectedEntry,
+  codex,
+  relationships,
+  sections,
+  onArchive,
+  onSaveDraft,
+  onCancel,
+  onDelete,
+  onDeleteRelationship,
+  onDuplicate,
+  onDirtyChange,
+  onRestore,
+  onSaveRelationship,
+  onUseAsTemplate,
+  initialDraft,
+  initialStagedRelationships,
+}: {
+  section: WorldSectionConfig;
+  selectedEntry?: WorldEntry;
+  initialDraft?: EntryDraft;
+  initialStagedRelationships?: readonly StagedRelationshipDraft[];
+  codex: WorldCodex;
+  relationships: readonly WorldRelationship[];
+  sections: readonly WorldSectionConfig[];
+  onArchive: (entry: WorldEntry) => void;
+  onSaveDraft: (
+    draft: EntryDraft,
+    existingEntry?: WorldEntry,
+    stagedRelationships?: readonly StagedRelationshipDraft[]
+  ) => WorldEntry | null;
+  onCancel: () => void;
+  onDelete: (entry: WorldEntry) => void;
+  onDeleteRelationship: (relationshipId: string) => void;
+  onDuplicate: (entry: WorldEntry) => void;
+  onDirtyChange?: (isDirty: boolean) => void;
+  onRestore: (entry: WorldEntry) => void;
+  onSaveRelationship: (relationship: WorldRelationship) => void;
+  onUseAsTemplate: (entry: WorldEntry) => void;
+}) {
+  const baselineDraft = useMemo(
+    () =>
+      selectedEntry
+        ? draftFromEntry(selectedEntry, section)
+        : initialDraft ?? createEmptyDraft(),
+    [initialDraft, section, selectedEntry]
+  );
+  const initialStagedRelationshipDrafts = useMemo(
+    () => initialStagedRelationships ?? [],
+    [initialStagedRelationships]
+  );
+  const [draft, setDraft] = useState<EntryDraft>(() => baselineDraft);
+  const [stagedRelationships, setStagedRelationships] = useState<
+    StagedRelationshipDraft[]
+  >(() => [...initialStagedRelationshipDrafts]);
+  const [involvedRecordQuery, setInvolvedRecordQuery] = useState('');
+  const [expandedInvolvedRecords, setExpandedInvolvedRecords] = useState(false);
+  const [error, setError] = useState('');
+  const [copyStatus, setCopyStatus] = useState('');
+  const reportedBaselineDraftRef = useRef(baselineDraft);
+  const isDirty = hasUnsavedChanges(baselineDraft, draft);
+  const hasStagedRelationshipChanges = haveStagedRelationshipDraftsChanged(
+    initialStagedRelationshipDrafts,
+    stagedRelationships
+  );
+  const isBaselineResetPending =
+    reportedBaselineDraftRef.current !== baselineDraft;
+  const reportedIsDirty =
+    !isBaselineResetPending && (isDirty || hasStagedRelationshipChanges);
+  const baseFields = getEntryEditorBaseFields(section, draft);
+  const notesPreview = getEntryEditorNotesPreviewModel(draft.notes);
+  const hiddenDetailCleanup = getEntryHiddenDetailCleanupModel(section, draft);
+  const selectedActionModel = selectedEntry
+    ? getEntryEditorSelectedActionModel(selectedEntry)
+    : null;
+  const relationshipConfig = getRelationshipFieldConfigsForEntryKind(
+    section.kind
+  ).find((config) => config.fieldKey === 'involvedRecords');
+  const canEditSavedInvolvedRecords = Boolean(
+    selectedEntry && relationshipConfig && !isDirty
+  );
+  const model = getTimelineEventEditorModel({
+    draft,
+    expandedInvolvedRecords,
+    involvedRecordQuery,
+    section,
+    selectedEntry,
+    stagedRelationships,
+    world: {
+      codex,
+      entryTypes: sections,
+      relationships,
+    },
+  });
+
+  useUnsavedChangesWarning(reportedIsDirty);
+
+  useEffect(() => {
+    reportedBaselineDraftRef.current = baselineDraft;
+    setDraft(baselineDraft);
+    setStagedRelationships([...initialStagedRelationshipDrafts]);
+    setInvolvedRecordQuery('');
+    setExpandedInvolvedRecords(false);
+    setError('');
+    setCopyStatus('');
+  }, [baselineDraft, initialStagedRelationshipDrafts]);
+
+  useEffect(() => {
+    onDirtyChange?.(reportedIsDirty);
+  }, [onDirtyChange, reportedIsDirty]);
+
+  const updateDetail = (key: WorldDetailFieldKey, value: string) => {
+    setDraft((currentDraft) => ({
+      ...currentDraft,
+      details: { ...currentDraft.details, [key]: value },
+    }));
+  };
+
+  const discardIfAllowed = (action: () => void) => {
+    if (confirmDiscardUnsavedChanges(isDirty || hasStagedRelationshipChanges)) {
+      action();
+    }
+  };
+
+  const saveDraft = (
+    nextDraft: EntryDraft,
+    existingEntry?: WorldEntry
+  ): WorldEntry | null => {
+    const savedEntry = onSaveDraft(
+      nextDraft,
+      existingEntry,
+      stagedRelationships
+    );
+    if (!savedEntry) {
+      return null;
+    }
+    setStagedRelationships([]);
+    return savedEntry;
+  };
+
+  const copyEntryName = () => {
+    const name = getEntryNameCopyText(selectedEntry?.name ?? draft.name);
+    if (!name) {
+      setCopyStatus(entryNameCopyFeedback.missingName);
+      return;
+    }
+    if (typeof navigator === 'undefined' || !navigator.clipboard?.writeText) {
+      setCopyStatus(entryNameCopyFeedback.unavailable);
+      return;
+    }
+    navigator.clipboard
+      .writeText(name)
+      .then(() => setCopyStatus(getEntryNameCopiedMessage(name)))
+      .catch(() => setCopyStatus(entryNameCopyFeedback.failed));
+  };
+
+  const toggleStagedInvolvedRecord = (targetEntryId: string) => {
+    const existingRelationship = stagedRelationships.find(
+      (relationship) => relationship.targetEntryId === targetEntryId
+    );
+    if (existingRelationship) {
+      setStagedRelationships((current) =>
+        deleteStagedRelationshipDraft(current, existingRelationship.stagedId)
+      );
+      return;
+    }
+    const relationship =
+      createTimelineInvolvedRecordStagedRelationship(targetEntryId);
+    if (!relationship) {
+      return;
+    }
+    setStagedRelationships((current) =>
+      upsertStagedRelationshipDraft(current, relationship)
+    );
+  };
+
+  const migrateLegacyInvolvedText = () => {
+    if (
+      !selectedEntry ||
+      !relationshipConfig ||
+      isDirty ||
+      !model.involvedRecords.legacyText?.canMigrate
+    ) {
+      return;
+    }
+    const migration = getRelationshipFieldTextMigration({
+      codex,
+      config: relationshipConfig,
+      currentEntry: selectedEntry,
+      sections,
+      value: model.involvedRecords.legacyText.value,
+    });
+    const operation = buildRelationshipFieldTextMigrationOperation({
+      config: relationshipConfig,
+      entry: selectedEntry,
+      migration,
+      relationships,
+    });
+    operation.relationshipIdsToDelete.forEach(onDeleteRelationship);
+    operation.relationshipsToSave.forEach(({ relationship }) =>
+      onSaveRelationship(relationship)
+    );
+    const nextDraft = {
+      ...draft,
+      details: {
+        ...draft.details,
+        involvedRecords: operation.fields.involvedRecords ?? '',
+      },
+    };
+    setDraft(nextDraft);
+    saveDraft(nextDraft, selectedEntry);
+  };
+
+  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const validation = validateEntryDraftTransaction({
+      codex,
+      entryDraft: draft,
+      existingEntry: selectedEntry,
+      section,
+      stagedRelationships,
+    });
+    if (!validation.ok) {
+      setError(formatDraftValidationErrors(validation));
+      return;
+    }
+    if (!saveDraft(draft, selectedEntry)) {
+      return;
+    }
+    setError('');
+  };
+
+  const renderTimelineField = (field: EntryEditorDetailFieldModel) => {
+    const suggestionId = getDetailFieldSuggestionId(section.id, field.key);
+    return (
+      <label
+        className={field.multiline ? 'vwb-wide-field' : undefined}
+        key={field.key}
+      >
+        {field.label}
+        {field.multiline ? (
+          <textarea
+            value={field.value}
+            onChange={(event) => updateDetail(field.key, event.target.value)}
+            rows={field.rows}
+          />
+        ) : (
+          <>
+            <input
+              value={field.value}
+              onChange={(event) => updateDetail(field.key, event.target.value)}
+              list={field.suggestions.length > 0 ? suggestionId : undefined}
+            />
+            {field.suggestions.length > 0 ? (
+              <datalist id={suggestionId}>
+                {field.suggestions.map((option) => (
+                  <option value={option} key={option} />
+                ))}
+              </datalist>
+            ) : null}
+          </>
+        )}
+      </label>
+    );
+  };
+
+  const renderTimelineFieldGroup = (
+    group: TimelineEventEditorModel['chronology']
+  ) =>
+    group.fields.length > 0 ? (
+      <section className="vwb-field-group" aria-label={group.label}>
+        <h3>{group.label}</h3>
+        <div className="vwb-form-grid">
+          {group.fields.map(renderTimelineField)}
+        </div>
+      </section>
+    ) : null;
+
+  return (
+    <form className="vwb-form vwb-timeline-editor" onSubmit={handleSubmit}>
+      <div className="vwb-section-heading">
+        <div>
+          <p className="vwb-kicker">
+            {selectedEntry ? entryEditorCopy.editKicker : 'Timeline event'}
+          </p>
+          <h2>{model.title}</h2>
+        </div>
+        {reportedIsDirty ? (
+          <span className="vwb-status-pill">
+            {entryEditorCopy.unsavedLabel}
+          </span>
+        ) : null}
+        {selectedEntry ? (
+          <button
+            className="vwb-secondary-button"
+            type="button"
+            onClick={() => discardIfAllowed(onCancel)}
+          >
+            {entryEditorCopy.newLabel}
+          </button>
+        ) : null}
+      </div>
+
+      {baseFields.slice(0, 2).map((field) => (
+        <label
+          className={field.multiline ? 'vwb-wide-field' : undefined}
+          key={field.id}
+        >
+          {field.label}
+          {field.multiline ? (
+            <textarea
+              value={field.value}
+              onChange={(event) =>
+                setDraft((currentDraft) => ({
+                  ...currentDraft,
+                  [field.key]: event.target.value,
+                }))
+              }
+              placeholder={field.placeholder}
+              rows={field.rows}
+            />
+          ) : (
+            <input
+              value={field.value}
+              onChange={(event) =>
+                setDraft((currentDraft) => ({
+                  ...currentDraft,
+                  [field.key]: event.target.value,
+                }))
+              }
+              placeholder={field.placeholder}
+            />
+          )}
+        </label>
+      ))}
+
+      <div className="vwb-form-grid">
+        <label>
+          {entryDraftStatusControl.label}
+          <select
+            aria-label={entryDraftStatusControl.accessibilityLabel}
+            value={draft.status}
+            onChange={(event) =>
+              setDraft((currentDraft) => ({
+                ...currentDraft,
+                status: event.target.value as EntryDraft['status'],
+              }))
+            }
+          >
+            {entryDraftStatusControl.options.map((option) => (
+              <option value={option.value} key={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="vwb-checkbox-field">
+          <input
+            aria-label={entryPinnedControl.accessibilityLabel}
+            checked={draft.pinned}
+            onChange={(event) =>
+              setDraft((currentDraft) => ({
+                ...currentDraft,
+                pinned: event.target.checked,
+              }))
+            }
+            type="checkbox"
+          />
+          {entryPinnedControl.label}
+        </label>
+      </div>
+
+      {renderTimelineFieldGroup(model.chronology)}
+
+      <section
+        className="vwb-linked-field-panel"
+        aria-label={model.involvedRecords.title}
+      >
+        <div>
+          <h3>{model.involvedRecords.title}</h3>
+          <p>{model.involvedRecords.description}</p>
+        </div>
+        {selectedEntry && relationshipConfig ? (
+          canEditSavedInvolvedRecords ? (
+            <RelationshipFieldControl
+              codex={codex}
+              config={relationshipConfig}
+              entry={selectedEntry}
+              onDeleteRelationship={onDeleteRelationship}
+              onSaveRelationship={onSaveRelationship}
+              relationships={relationships}
+              sections={sections}
+            />
+          ) : (
+            <p className="vwb-inline-status">
+              Save this timeline event before editing involved records.
+            </p>
+          )
+        ) : (
+          <>
+            <label className="vwb-search-field">
+              Search involved records
+              <input
+                value={involvedRecordQuery}
+                onChange={(event) => {
+                  setInvolvedRecordQuery(event.target.value);
+                  setExpandedInvolvedRecords(false);
+                }}
+                placeholder="Character, place, faction, or lore note"
+                type="search"
+              />
+            </label>
+            {model.involvedRecords.options.length > 0 ? (
+              <div
+                className="vwb-tag-filter-group"
+                aria-label="Choose involved records"
+              >
+                {model.involvedRecords.options.map((record) => (
+                  <button
+                    aria-pressed={record.selected}
+                    className={`vwb-tag-filter ${
+                      record.selected ? 'is-active' : ''
+                    }`}
+                    key={record.id}
+                    type="button"
+                    onClick={() => toggleStagedInvolvedRecord(record.id)}
+                  >
+                    {record.name} ({record.sectionTitle})
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <p className="vwb-inline-status">
+                No involved records match this search.
+              </p>
+            )}
+            {model.involvedRecords.display.canExpandPreferredTargets ||
+            model.involvedRecords.display.canExpandUnusualTargets ? (
+              <button
+                className="vwb-secondary-button"
+                type="button"
+                aria-expanded={expandedInvolvedRecords}
+                onClick={() => setExpandedInvolvedRecords(true)}
+              >
+                {model.involvedRecords.display.showPreferredTargetsLabel ||
+                  model.involvedRecords.display.showUnusualTargetsLabel}
+              </button>
+            ) : null}
+          </>
+        )}
+        {model.involvedRecords.selectedRecords.length > 0 ? (
+          <div className="vwb-tag-row" aria-label="Selected involved records">
+            {model.involvedRecords.selectedRecords.map((record) => (
+              <span className="vwb-tag" key={record.id}>
+                {record.name}
+              </span>
+            ))}
+          </div>
+        ) : null}
+      </section>
+
+      {model.involvedRecords.legacyText ? (
+        <section
+          className="vwb-hidden-detail-panel"
+          aria-label={model.involvedRecords.legacyText.title}
+        >
+          <h3>{model.involvedRecords.legacyText.title}</h3>
+          <dl className="vwb-detail-list">
+            <div>
+              <dt>{model.involvedRecords.legacyText.label}</dt>
+              <dd>
+                <span>{model.involvedRecords.legacyText.value}</span>
+                {model.involvedRecords.legacyText.canMigrate ? (
+                  <button
+                    className="vwb-secondary-button"
+                    disabled={isDirty}
+                    type="button"
+                    onClick={migrateLegacyInvolvedText}
+                  >
+                    {relationshipTextReviewCopy.exactMatchMigrationLabel}
+                  </button>
+                ) : null}
+                <button
+                  className="vwb-secondary-button"
+                  type="button"
+                  onClick={() => updateDetail('involvedRecords', '')}
+                >
+                  {entryEditorCopy.clearLabel}
+                </button>
+              </dd>
+            </div>
+          </dl>
+        </section>
+      ) : null}
+
+      {renderTimelineFieldGroup(model.outcomes)}
+
+      <label className="vwb-wide-field">
+        {entryEditorCopy.notesLabel}
+        <textarea
+          value={draft.notes}
+          onChange={(event) =>
+            setDraft((currentDraft) => ({
+              ...currentDraft,
+              notes: event.target.value,
+            }))
+          }
+          placeholder={entryEditorFieldCopy.notesPlaceholder}
+          rows={4}
+        />
+      </label>
+
+      <section className="vwb-markdown-preview" aria-label={notesPreview.title}>
+        <div className="vwb-section-heading">
+          <div>
+            <p className="vwb-kicker">{notesPreview.kicker}</p>
+            <h3>{notesPreview.title}</h3>
+          </div>
+        </div>
+        {notesPreview.hasContent ? (
+          <pre>{notesPreview.body}</pre>
+        ) : (
+          <p>{notesPreview.emptyText}</p>
+        )}
+      </section>
+
+      {baseFields.slice(3).map((field) => (
+        <label key={field.id}>
+          {field.label}
+          <input
+            value={field.value}
+            onChange={(event) =>
+              setDraft((currentDraft) => ({
+                ...currentDraft,
+                [field.key]: event.target.value,
+              }))
+            }
+            placeholder={field.placeholder}
+          />
+        </label>
+      ))}
+
+      {model.extraDetails ? renderTimelineFieldGroup(model.extraDetails) : null}
+
+      {hiddenDetailCleanup.fields.length > 0 ? (
+        <section
+          className="vwb-hidden-detail-panel"
+          aria-label={hiddenDetailCleanup.title}
+        >
+          <h3>{hiddenDetailCleanup.title}</h3>
+          <dl className="vwb-detail-list">
+            {hiddenDetailCleanup.fields.map((field) => (
+              <div key={field.key}>
+                <dt>{field.label}</dt>
+                <dd>
+                  <span>{field.value}</span>
+                  <button
+                    className="vwb-secondary-button"
+                    type="button"
+                    onClick={() => updateDetail(field.key, '')}
+                  >
+                    {field.clearLabel}
+                  </button>
+                </dd>
+              </div>
+            ))}
+          </dl>
+        </section>
+      ) : null}
+
+      {copyStatus ? <p className="vwb-inline-status">{copyStatus}</p> : null}
+      {error ? <p className="vwb-form-error">{error}</p> : null}
+      <div className="vwb-form-actions">
+        <button className="vwb-primary-button" type="submit">
+          {model.submitLabel}
+        </button>
+        <button
+          className="vwb-secondary-button"
+          type="button"
+          onClick={() => discardIfAllowed(onCancel)}
+        >
+          {entryEditorCopy.newDraftLabel}
+        </button>
+        <button
+          className="vwb-secondary-button"
+          type="button"
+          onClick={copyEntryName}
+        >
+          {entryNameCopyFeedback.actionLabel}
+        </button>
+        {selectedEntry && selectedActionModel ? (
+          <>
+            <button
+              aria-label={selectedActionModel.archiveAccessibilityLabel}
+              className="vwb-secondary-button"
+              type="button"
+              onClick={() =>
+                selectedEntry.status === 'archived'
+                  ? onRestore(selectedEntry)
+                  : onArchive(selectedEntry)
+              }
+            >
+              {selectedActionModel.archiveLabel}
+            </button>
+            <button
+              aria-label={selectedActionModel.duplicateAccessibilityLabel}
+              className="vwb-secondary-button"
+              type="button"
+              onClick={() => onDuplicate(selectedEntry)}
+            >
+              {selectedActionModel.duplicateLabel}
+            </button>
+            <button
+              aria-label={selectedActionModel.useAsTemplateAccessibilityLabel}
+              className="vwb-secondary-button"
+              type="button"
+              onClick={() => onUseAsTemplate(selectedEntry)}
+            >
+              {selectedActionModel.useAsTemplateLabel}
+            </button>
+            <button
+              aria-label={selectedActionModel.deleteAccessibilityLabel}
+              className="vwb-secondary-button vwb-danger-button"
+              type="button"
+              onClick={() => onDelete(selectedEntry)}
+            >
+              {selectedActionModel.deleteLabel}
+            </button>
+          </>
+        ) : null}
+      </div>
+    </form>
   );
 }
 
