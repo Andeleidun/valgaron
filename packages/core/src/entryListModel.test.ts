@@ -36,10 +36,20 @@ describe('entry list model', () => {
         id: 'characters',
         isActive: false,
         label: 'Characters',
-        path: '/characters',
+        path: '/entries?sectionId=characters',
       },
-      { id: 'places', isActive: true, label: 'Places', path: '/places' },
-      { id: 'factions', isActive: false, label: 'Factions', path: '/factions' },
+      {
+        id: 'places',
+        isActive: true,
+        label: 'Places',
+        path: '/entries?sectionId=places',
+      },
+      {
+        id: 'factions',
+        isActive: false,
+        label: 'Factions',
+        path: '/entries?sectionId=factions',
+      },
     ]);
   });
 

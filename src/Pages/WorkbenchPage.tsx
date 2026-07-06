@@ -83,10 +83,12 @@ export function WorkbenchPage({
   const routeSelectedEntryId = searchParams.get('entryId') ?? '';
   const routeSectionId = searchParams.get('sectionId') ?? '';
   const routeViewId = searchParams.get('view') ?? '';
+  const routeIntent = searchParams.get('intent') ?? '';
   const routeStateKey = [
     routeQuery,
     routeSelectedEntryId,
     routeSectionId,
+    routeIntent,
     routeViewId,
   ].join('|');
   const appliedRouteStateKeyRef = useRef(routeStateKey);
@@ -103,7 +105,9 @@ export function WorkbenchPage({
   const [showAllDraftingPrompts, setShowAllDraftingPrompts] = useState(false);
   const [isEntryFormDirty, setIsEntryFormDirty] = useState(false);
   const [templateDraft, setTemplateDraft] = useState<EntryDraft | null>(null);
-  const [templateSectionId, setTemplateSectionId] = useState('');
+  const [templateSectionId, setTemplateSectionId] = useState(() =>
+    routeIntent === 'new' ? routeSectionId : ''
+  );
   const [entryPendingDelete, setEntryPendingDelete] =
     useState<WorldEntry | null>(null);
   const model = useMemo(
@@ -167,15 +171,20 @@ export function WorkbenchPage({
 
     const routeWillReplaceEditor =
       routeSelectedEntryId !== selectedEntryId ||
-      routeSectionId !== activeSectionId;
+      routeSectionId !== activeSectionId ||
+      routeIntent === 'new';
     const applyRouteState = () => {
       setQuery(routeQuery);
-      setSelectedEntryId(routeSelectedEntryId);
+      setSelectedEntryId(routeIntent === 'new' ? '' : routeSelectedEntryId);
       setActiveSectionId(routeSectionId);
       setActiveViewId(
         isWorkbenchRecordViewId(routeViewId) ? routeViewId : 'recent'
       );
-      if (routeWillReplaceEditor) {
+      if (routeIntent === 'new') {
+        setTemplateDraft(null);
+        setTemplateSectionId(routeSectionId);
+        setIsEntryFormDirty(false);
+      } else if (routeWillReplaceEditor) {
         resetInlineEditor();
       }
       appliedRouteStateKeyRef.current = routeStateKey;
@@ -195,6 +204,7 @@ export function WorkbenchPage({
     activeSectionId,
     isEntryFormDirty,
     routeQuery,
+    routeIntent,
     routeSectionId,
     routeSelectedEntryId,
     routeStateKey,
@@ -212,11 +222,13 @@ export function WorkbenchPage({
 
   const updateWorkbenchRoute = ({
     entryId = selectedEntryId,
+    intent,
     query: nextQuery = query,
     sectionId = activeSectionId,
     viewId = activeViewId,
   }: {
     entryId?: string;
+    intent?: 'context' | 'edit' | 'new';
     query?: string;
     sectionId?: string;
     viewId?: WorkbenchRecordViewId;
@@ -230,7 +242,9 @@ export function WorkbenchPage({
     }
     if (entryId) {
       nextParams.set('entryId', entryId);
-      nextParams.set('intent', 'context');
+      nextParams.set('intent', intent ?? 'context');
+    } else if (intent === 'new') {
+      nextParams.set('intent', intent);
     }
     if (nextQuery.trim()) {
       nextParams.set('query', nextQuery);
@@ -266,6 +280,7 @@ export function WorkbenchPage({
       setActiveViewId('recent');
       updateWorkbenchRoute({
         entryId: '',
+        intent: 'new',
         sectionId,
         viewId: 'recent',
       });

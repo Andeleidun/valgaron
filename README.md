@@ -7,7 +7,8 @@ Valgaron World Codex is a local-first tool for drafting and organizing fiction o
 - Workbench overview with section totals, recent records, pinned records,
   review prompts, selected-record review summaries, and selected-record
   context.
-- Codex sections for Characters, Places, Factions, Lore, and Timeline.
+- Workbench-managed records for Characters, Places, Factions, Lore, and
+  Timeline.
 - Create and edit entries with required names, optional summaries, comma-separated tags, and section-specific fields.
 - Markdown-style notes, authoring status, and pinned-entry metadata.
 - Archive, restore, duplicate, and permanent-delete controls for entries.

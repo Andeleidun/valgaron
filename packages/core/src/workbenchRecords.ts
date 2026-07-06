@@ -17,11 +17,7 @@ import {
   getReviewTraySummaryModel,
   type ReviewTraySummaryModel,
 } from './reviewTray';
-import {
-  formatCodexRouteSearch,
-  getCodexEntriesRoute,
-  getCodexRelationshipsRoute,
-} from './shell';
+import { getCodexEntriesRoute, getCodexRelationshipsRoute } from './shell';
 import type {
   WorldEntryStatus,
   WorldRelationship,
@@ -215,11 +211,12 @@ function buildWorkbenchRecordIndexItem({
       query: entry.name,
       sectionId: entry.sectionId,
     }),
-    editorRoute: `/${entry.sectionId}${formatCodexRouteSearch({
+    editorRoute: getCodexEntriesRoute({
+      sectionId: entry.sectionId,
       entryId: entry.id,
       intent: 'edit',
       query: entry.name,
-    })}`,
+    }),
     contextText: getSearchResultContext(entry),
     summaryText: entry.summary || entryDisplayCopy.emptySummary,
     status: entry.status,

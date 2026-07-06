@@ -3584,11 +3584,14 @@ Recommended path:
 ## Implementation Principles
 
 - Favor shared view models over shared rendered components.
-- Preserve route compatibility while introducing new destinations.
+- Keep route helpers aligned to the current product surfaces instead of
+  preserving obsolete section-page paths.
 - Keep every slice shippable and testable.
 - Do not introduce backend, auth, sync, collaboration, or security claims.
 - Keep English-only UI copy.
-- Treat local data and import/export compatibility as product-critical.
+- Treat current local document import/export behavior as product-critical
+  without carrying browser route compatibility for users or data that do not
+  exist.
 - Prefer simple typed objects and migrations over abstract plugin systems.
 - Defer schema power until high-friction authoring workflows are improved.
 
@@ -3602,19 +3605,64 @@ Build in `@valgaron/core`:
 - `knowledge` route id, possibly hidden behind utilities until implemented.
 - `utilities` or route grouping model without necessarily changing physical
   URLs immediately.
-- Compatibility helpers that translate:
-  - `/characters` to Workbench with `sectionId=characters`.
-  - `/places` to Workbench with `sectionId=places`.
-  - `/timeline` to Timeline.
-  - `/entries?sectionId=timeline` to Timeline or Workbench depending on the
-    selected rollout gate.
+- Canonical route helpers that send record browsing, editing, and creation to
+  `/entries?sectionId=...`.
+- Direct browser pages for Characters, Places, Factions, and Lore should not be
+  retained as visible navigation items or compatibility routes.
+- Timeline remains a dedicated route because chronology has distinct filters,
+  ordering, era management, and involved-record workflows.
 
 Tests:
 
 - Route intent parsing.
 - Web route order.
 - Mobile tab route order.
-- Compatibility redirects.
+- Canonical Workbench record, editor, and quick-create routes.
+
+### Completed Slice: Remove Legacy Browser Section Pages
+
+Evaluation before change:
+
+- The browser still exposed Characters, Places, Factions, and Lore as direct
+  top-nav pages and accepted `/:sectionId` catch-all routes.
+- Internal Workbench editor links and Knowledge reusable-lore routes still
+  emitted `/characters`, `/factions`, or `/lore?...` style paths.
+- This was no longer needed because there are no live users, no live data, and
+  no route migration burden. The root cause was earlier implementation slices
+  preserving compatibility as a default engineering habit after the product
+  direction had already moved to a centralized Workbench.
+
+Best path:
+
+- Remove direct section links from the desktop browser shell.
+- Remove the generic browser `/:sectionId` route.
+- Keep `/entries` as the canonical record browsing, editing, context, and
+  quick-create route.
+- Update shared route helpers, Workbench record links, Knowledge schema links,
+  browser smoke checks, and documentation to use Workbench section filters.
+- Keep Timeline as a dedicated route because it is a chronology workflow, not a
+  generic record-section page.
+
+Implementation completed:
+
+- Browser top navigation now shows primary workflows only.
+- Characters, Places, Factions, and Lore are reached through Workbench filters
+  such as `/entries?sectionId=characters`.
+- Workbench editor links now use `/entries?sectionId=...&entryId=...`.
+- Workbench hydrates `/entries?sectionId=...&intent=new` quick-create links.
+- Knowledge field, reusable-lore, and hidden-detail routes now resolve to
+  Workbench.
+- Browser smoke coverage now validates Workbench section and editor routes
+  instead of proving the removed direct pages still work.
+
+Re-evaluation:
+
+- The duplicate browser page model is removed from navigation, route matching,
+  internal links, tests, and documentation.
+- Remaining `SectionPage` usage is limited to the Timeline implementation
+  wrapper, where the page model still matches chronology-specific workflows.
+- No live-user compatibility route remains for Characters, Places, Factions, or
+  Lore.
 
 ### Workbench View Model
 

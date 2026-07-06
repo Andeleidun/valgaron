@@ -24,7 +24,7 @@ describe('workbench record index', () => {
       route:
         '/entries?sectionId=characters&entryId=character-mira-rowan&intent=context&query=Mira%20Rowan',
       editorRoute:
-        '/characters?entryId=character-mira-rowan&intent=edit&query=Mira%20Rowan',
+        '/entries?sectionId=characters&entryId=character-mira-rowan&intent=edit&query=Mira%20Rowan',
       relationshipCount: 1,
       status: 'draft',
     });

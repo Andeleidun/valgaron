@@ -6,7 +6,6 @@ import {
   NavLink,
   Route,
   Routes,
-  useLocation,
 } from 'react-router-dom';
 import './App.css';
 import { ResetConfirmationDialog } from './Components/Codex/CodexEntryViews';
@@ -26,10 +25,6 @@ import {
   valgaronProduct,
   webPrimaryRouteOrder,
   type DataShellExportAction,
-  type WorldEntry,
-  type WorldRelationship,
-  type WorldSectionConfig,
-  type WorldWorkspace,
 } from '@valgaron/core';
 import { downloadTextFile, slugFilename } from './Utlilities/fileDownloads';
 import { useBeforeUnloadWarning } from './Utlilities/unsavedChanges';
@@ -39,7 +34,6 @@ import { HelpPage } from './Pages/HelpPage';
 import { KnowledgePage } from './Pages/KnowledgePage';
 import { Overview } from './Pages/OverviewPage';
 import { RelationshipsPage } from './Pages/RelationshipsPage';
-import { SectionPage } from './Pages/SectionPage';
 import { TimelinePage } from './Pages/TimelinePage';
 import { UtilitiesPage } from './Pages/UtilitiesPage';
 import { WorkbenchPage } from './Pages/WorkbenchPage';
@@ -54,9 +48,6 @@ const mobileWebPrimaryRoutes = getCodexShellRoutes(mobileWebPrimaryRouteOrder);
 const webOverviewRoute = codexShellRoutes.overview;
 const webSecondaryRoutes = webPrimaryRoutes.filter(
   (route) => route.id !== 'overview'
-);
-const webPrimaryRoutePaths = new Set(
-  webPrimaryRoutes.map((route) => route.path)
 );
 
 function saveButtonText(
@@ -74,70 +65,6 @@ function saveButtonText(
     case 'saved':
       return 'Saved';
   }
-}
-
-function EntriesRouteRedirect({
-  sections,
-}: {
-  sections: readonly WorldSectionConfig[];
-}) {
-  const location = useLocation();
-  const searchParams = new URLSearchParams(location.search);
-  const requestedSectionId = searchParams.get('sectionId');
-  const section =
-    sections.find((item) => item.id === requestedSectionId) ?? sections[0];
-
-  if (!section) {
-    return <Navigate to="/" replace />;
-  }
-
-  searchParams.delete('sectionId');
-  const search = searchParams.toString();
-  return (
-    <Navigate
-      to={`/${section.id}${search ? `?${search}` : ''}${location.hash}`}
-      replace
-    />
-  );
-}
-
-function WorkbenchRoute({
-  activeWorld,
-  onArchiveEntry,
-  onDeleteEntry,
-  onDeleteRelationship,
-  onSaveEntry,
-  onSaveRelationship,
-  sections,
-}: {
-  activeWorld: WorldWorkspace;
-  onArchiveEntry: (entry: WorldEntry, archived: boolean) => void;
-  onDeleteEntry: (entry: WorldEntry) => void;
-  onDeleteRelationship: (relationshipId: string) => void;
-  onSaveEntry: (entry: WorldEntry) => void;
-  onSaveRelationship: (relationship: WorldRelationship) => void;
-  sections: readonly WorldSectionConfig[];
-}) {
-  const location = useLocation();
-  const searchParams = new URLSearchParams(location.search);
-  const requestedIntent = searchParams.get('intent');
-  const shouldOpenLegacySectionRoute =
-    requestedIntent === 'new' ||
-    requestedIntent === 'edit' ||
-    (requestedIntent !== 'context' && searchParams.has('entryId'));
-
-  return shouldOpenLegacySectionRoute ? (
-    <EntriesRouteRedirect sections={sections} />
-  ) : (
-    <WorkbenchPage
-      activeWorld={activeWorld}
-      onArchiveEntry={onArchiveEntry}
-      onDeleteEntry={onDeleteEntry}
-      onDeleteRelationship={onDeleteRelationship}
-      onSaveEntry={onSaveEntry}
-      onSaveRelationship={onSaveRelationship}
-    />
-  );
 }
 
 function AppShell() {
@@ -312,7 +239,7 @@ function AppShell() {
           </NavLink>
           <nav
             className="vwb-top-nav vwb-desktop-primary-nav"
-            aria-label="Codex sections"
+            aria-label="Primary workflows"
           >
             <NavLink
               className={({ isActive }) =>
@@ -334,19 +261,6 @@ function AppShell() {
                 {route.title}
               </NavLink>
             ))}
-            {sections
-              .filter((section) => !webPrimaryRoutePaths.has(`/${section.id}`))
-              .map((section) => (
-                <NavLink
-                  className={({ isActive }) =>
-                    `vwb-nav-link ${isActive ? 'is-active' : ''}`
-                  }
-                  key={section.id}
-                  to={`/${section.id}`}
-                >
-                  {section.title}
-                </NavLink>
-              ))}
           </nav>
           <nav
             className="vwb-top-nav vwb-mobile-primary-nav"
@@ -585,29 +499,13 @@ function AppShell() {
             <Route
               path="/entries"
               element={
-                <WorkbenchRoute
+                <WorkbenchPage
                   activeWorld={activeWorld}
                   onArchiveEntry={archiveEntry}
                   onDeleteEntry={permanentlyDeleteEntry}
                   onDeleteRelationship={removeRelationship}
                   onSaveEntry={saveEntry}
                   onSaveRelationship={saveRelationship}
-                  sections={sections}
-                />
-              }
-            />
-            <Route
-              path="/:sectionId"
-              element={
-                <SectionPage
-                  codex={codex}
-                  onArchiveEntry={archiveEntry}
-                  onDeleteEntry={permanentlyDeleteEntry}
-                  onDeleteRelationship={removeRelationship}
-                  onSaveEntry={saveEntry}
-                  onSaveRelationship={saveRelationship}
-                  relationships={relationships}
-                  sections={sections}
                 />
               }
             />

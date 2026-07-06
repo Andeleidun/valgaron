@@ -109,7 +109,7 @@ describe('knowledgeSchema', () => {
         }),
         expect.objectContaining({
           id: 'characters:ancestry',
-          route: '/characters',
+          route: '/entries?sectionId=characters',
           sourceLabel: 'Observed values',
           summary:
             '1 observed workspace value can guide whether this field stays flexible or becomes reusable knowledge.',
@@ -240,14 +240,14 @@ describe('knowledgeSchema', () => {
         label: 'Navigation practice',
         count: 1,
         countLabel: '1 lore note',
-        route: '/lore?query=Navigation%20practice',
+        route: '/entries?sectionId=lore&query=Navigation%20practice',
       },
       {
         id: 'travel-custom',
         label: 'Travel custom',
         count: 1,
         countLabel: '1 lore note',
-        route: '/lore?query=Travel%20custom',
+        route: '/entries?sectionId=lore&query=Travel%20custom',
       },
     ]);
   });

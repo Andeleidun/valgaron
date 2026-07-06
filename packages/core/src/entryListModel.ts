@@ -12,6 +12,7 @@ import {
 } from './codexSearch';
 import { filterTimelineEvents, sortTimelineEvents } from './codexTimeline';
 import type { EntrySortControlValue } from './controlDescriptors';
+import { getCodexEntriesRoute } from './shell';
 import type {
   WorldEntry,
   WorldEntryStatus,
@@ -123,7 +124,7 @@ export function getEntrySectionNavigationOptions(
     id: section.id,
     isActive: section.id === activeSectionId,
     label: section.title,
-    path: `/${section.id}`,
+    path: getCodexEntriesRoute({ sectionId: section.id }),
     section,
   }));
 }

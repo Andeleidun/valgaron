@@ -40,18 +40,32 @@ const routeChecks = [
     ],
   },
   {
-    path: '/characters',
-    expectedText: ['Characters', 'Search this section', 'Mira Rowan'],
+    path: '/entries?sectionId=characters',
+    expectedText: [
+      'Workbench',
+      'Find and choose a record',
+      'Characters',
+      'Mira Rowan',
+    ],
+  },
+  {
+    path: '/entries?sectionId=characters&intent=new',
+    expectedText: [
+      'Workbench',
+      'New Character',
+      'Character basics',
+      'Create Character',
+    ],
   },
   {
     path: '/entries?sectionId=characters&entryId=character-mira-rowan&intent=edit&query=Mira%20Rowan',
     expectedText: [
+      'Workbench',
       'Characters',
       'Edit entry',
       'Mira Rowan',
       'Record basics',
       'Linked character fields',
-      'Migrate Exact Matches',
     ],
   },
   {
@@ -71,8 +85,10 @@ const routeChecks = [
     ],
   },
   {
-    path: '/factions?entryId=faction-cartographers-guild&intent=edit&query=Cartographers',
+    path: '/entries?sectionId=factions&entryId=faction-cartographers-guild&intent=edit&query=Cartographers',
     expectedText: [
+      'Workbench',
+      'Edit entry',
       'The Cartographers Guild',
       'Linked records',
       'Mira Rowan',
@@ -280,7 +296,11 @@ const screenshotChecks = [
   { name: 'overview-mobile', path: '/', size: '375,900' },
   { name: 'workbench-mobile', path: '/entries', size: '375,900' },
   { name: 'timeline-mobile', path: '/timeline', size: '375,900' },
-  { name: 'characters-mobile', path: '/characters', size: '375,900' },
+  {
+    name: 'characters-mobile',
+    path: '/entries?sectionId=characters',
+    size: '375,900',
+  },
   { name: 'links-mobile', path: '/relationships', size: '375,900' },
   { name: 'knowledge-mobile', path: '/knowledge', size: '375,900' },
   { name: 'more-mobile', path: '/utilities', size: '375,900' },
@@ -308,21 +328,20 @@ const layoutChecks = [
 const characterEditorLayoutChecks = [
   {
     name: 'character-editor-direct-route',
-    path: '/characters?entryId=character-mira-rowan&intent=edit&query=Mira%20Rowan',
+    path: '/entries?sectionId=characters&entryId=character-mira-rowan&intent=edit&query=Mira%20Rowan',
     selectEntry: false,
     size: '1365,900',
-    verifyReviewMigration: true,
   },
   {
     name: 'character-editor-desktop',
-    path: '/characters',
-    selectEntry: true,
+    path: '/entries?sectionId=characters&entryId=character-mira-rowan&intent=edit&query=Mira%20Rowan',
+    selectEntry: false,
     size: '1365,900',
   },
   {
     name: 'character-editor-mobile',
-    path: '/characters',
-    selectEntry: true,
+    path: '/entries?sectionId=characters&entryId=character-mira-rowan&intent=edit&query=Mira%20Rowan',
+    selectEntry: false,
     size: '375,1000',
   },
 ];
@@ -1795,22 +1814,6 @@ async function assertCharacterEditorLayout(browserPath, profilePrefix, check) {
           .filter(Boolean);
         if (!headings.some((heading) => heading === 'Mira Rowan')) {
           issues.push('selected character editor is not open');
-        }
-        const reviewPanel = document.querySelector('[aria-label="Legacy relationship link text review"]');
-        if (!reviewPanel) {
-          issues.push('legacy relationship text review panel is missing');
-        } else {
-          const reviewText = reviewPanel.textContent || '';
-          for (const text of [
-            'Legacy Link Text',
-            'Mira Rowan',
-            'Affiliations',
-            'Unresolved: None. 1 exact match available.'
-          ]) {
-            if (!reviewText.includes(text)) {
-              issues.push('missing legacy review detail: ' + text);
-            }
-          }
         }
         const requiredHeadings = [
           'Record basics',

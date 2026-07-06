@@ -20,8 +20,7 @@ companion.
 1. Start on Workbench to scan recent work, pinned records, incomplete records,
    expandable review prompts, selected-record review summaries, and section
    totals.
-2. Create or edit records in Workbench, section pages, or the mobile Workbench
-   tab.
+2. Create or edit records in Workbench or the mobile Workbench tab.
 3. Use Relationships or the mobile Links tab to connect entries, expand Review
    cleanup lists, repair broken links, clean up duplicate saved relationships,
    review legacy relationship text, and inspect graph-style context.

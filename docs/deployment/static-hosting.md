@@ -22,7 +22,7 @@ It runs on pushes to `main` and manual `workflow_dispatch`, installs dependencie
 VITE_BASE_PATH=/${{ github.event.repository.name }}/ npm run build:pages
 ```
 
-`build:pages` runs the normal production build and then copies `dist/index.html` to `dist/404.html`. The copied fallback lets GitHub Pages serve the React app shell for direct route refreshes such as `/valgaron/characters`.
+`build:pages` runs the normal production build and then copies `dist/index.html` to `dist/404.html`. The copied fallback lets GitHub Pages serve the React app shell for direct route refreshes such as `/valgaron/entries?sectionId=characters`.
 
 For a custom domain or user/organization root site, set `VITE_BASE_PATH=/` in the Pages workflow.
 
@@ -68,7 +68,7 @@ npm run check:release
 After a Pages deployment:
 
 1. Open the deployed root URL and verify the Overview route loads.
-2. Refresh a nested route such as `/characters` and verify the app shell still loads.
+2. Refresh a nested route such as `/entries?sectionId=characters` and verify the app shell still loads.
 3. In Chrome, confirm the manifest is detected and the app is installable.
 4. In Firefox and Chrome, verify the app still loads after one online visit when the network is disabled.
 5. Create a small test entry, use the header Save button, refresh, and confirm

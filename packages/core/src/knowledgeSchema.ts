@@ -175,7 +175,7 @@ const fieldModeLabels: Record<KnowledgeFieldMode, string> = {
 };
 
 function getFieldRoute(section: WorldSectionConfig): string {
-  return `/${section.id}`;
+  return getCodexEntriesRoute({ sectionId: section.id });
 }
 
 function getFieldDetail({
@@ -368,7 +368,7 @@ function getLoreDefinitionRows(
       label,
       count,
       countLabel: `${count} ${count === 1 ? 'lore note' : 'lore notes'}`,
-      route: `/lore?query=${encodeURIComponent(label)}`,
+      route: getCodexEntriesRoute({ sectionId: 'lore', query: label }),
     }));
 }
 
