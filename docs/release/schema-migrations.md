@@ -28,6 +28,14 @@ load behavior are covered by `src/Utlilities/codexStorage.test.ts`.
 
 ## Adding A Future Schema
 
+Do not introduce schema `3` for review-only Knowledge behavior. The current
+schema `2` already supports custom entry types, custom fields stored in entry
+type definitions, relationship-backed records, observed vocabulary review, and
+hidden detail cleanup. Add schema `3` only when a product decision requires new
+durable document data, such as workspace-owned editable vocabularies or built-in
+field definitions that cannot be represented by the current `WorldDetailField`
+metadata.
+
 When adding schema `3` or later:
 
 1. keep the previous parser or migration path until an explicit deprecation

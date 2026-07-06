@@ -35,7 +35,10 @@ The service worker is intentionally conservative:
 - Same-origin scripts, styles, images, and the manifest use stale-while-revalidate for offline repeat visits.
 - The app registers the service worker only in production builds.
 
-The app must not promise cloud durability. Offline support means the app shell can load without a network after installation or a previous production visit; it does not protect against browser-profile deletion.
+The app must not promise cloud durability. Offline support means the app shell
+can load without a network after installation or a previous production visit;
+it does not protect against browser-profile deletion, private browsing cleanup,
+or browser storage failures.
 
 ## Security Headers
 

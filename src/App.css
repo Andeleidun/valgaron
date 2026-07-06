@@ -167,6 +167,13 @@
   padding: 0 14px;
 }
 
+.vwb-secondary-button.is-active,
+.vwb-secondary-button[aria-current='page'] {
+  border-color: var(--vwb-accent);
+  background: var(--vwb-accent-soft);
+  color: var(--vwb-heading);
+}
+
 .vwb-secondary-link {
   display: inline-flex;
   align-items: center;

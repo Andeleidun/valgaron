@@ -1,6 +1,8 @@
 import { useEffect } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import {
+  formatUtilityOverviewActionAccessibilityLabel,
+  formatWorkflowDestinationAccessibilityLabel,
   getCodexScreenIntro,
   getUtilitiesOverviewModel,
   getUtilitiesRouteFocusTargetId,
@@ -62,6 +64,9 @@ export function UtilitiesPage({
             <div className="vwb-action-row">
               {overview.knowledgeSummary.actions.map((action) => (
                 <NavLink
+                  aria-label={formatUtilityOverviewActionAccessibilityLabel(
+                    action
+                  )}
                   className="vwb-secondary-button"
                   key={action.id}
                   to={action.path}
@@ -70,6 +75,53 @@ export function UtilitiesPage({
                 </NavLink>
               ))}
             </div>
+          </article>
+          <article className="vwb-utility-summary-card">
+            <h3>{overview.shortcutSummary.title}</h3>
+            <p>{overview.shortcutSummary.detail}</p>
+            <div className="vwb-action-row">
+              {overview.shortcutSummary.actions.map((action) => (
+                <NavLink
+                  aria-label={formatUtilityOverviewActionAccessibilityLabel(
+                    action
+                  )}
+                  className="vwb-secondary-button"
+                  key={action.id}
+                  to={action.path}
+                >
+                  {action.actionLabel}
+                </NavLink>
+              ))}
+            </div>
+          </article>
+          <article className="vwb-utility-summary-card">
+            <h3>{overview.reviewSummary.title}</h3>
+            <p>{overview.reviewSummary.detail}</p>
+            <ul className="vwb-utility-metrics">
+              {overview.reviewSummary.metrics.map((metric) => (
+                <li key={metric}>{metric}</li>
+              ))}
+            </ul>
+            {overview.reviewSummary.actions.length > 0 ? (
+              <div className="vwb-action-row">
+                {overview.reviewSummary.actions.map((action) => (
+                  <NavLink
+                    aria-label={formatUtilityOverviewActionAccessibilityLabel(
+                      action
+                    )}
+                    className="vwb-secondary-button"
+                    key={action.id}
+                    to={action.path}
+                  >
+                    {action.actionLabel}
+                  </NavLink>
+                ))}
+              </div>
+            ) : (
+              <p className="vwb-muted-note">
+                No cross-surface review hotspots need action.
+              </p>
+            )}
           </article>
         </div>
       </section>
@@ -84,7 +136,13 @@ export function UtilitiesPage({
         >
           <h2 id={`utilities-${destination.id}-title`}>{destination.title}</h2>
           <p>{destination.detail}</p>
-          <NavLink className="vwb-secondary-button" to={destination.path}>
+          <NavLink
+            aria-label={formatWorkflowDestinationAccessibilityLabel(
+              destination
+            )}
+            className="vwb-secondary-button"
+            to={destination.path}
+          >
             {destination.actionLabel}
           </NavLink>
         </section>

@@ -6,9 +6,10 @@ chooses to share files or text.
 
 ## Before Reporting A Problem
 
-1. Export a full-document JSON backup from Data if the app still opens.
-2. Download Diagnostics from Data if the issue involves storage, import/export,
+1. Download Diagnostics from Data if the issue involves storage, import/export,
    routing, or rendering.
+2. Export a full-document JSON backup from Data for your own recovery records
+   if the app still opens. Do not share it by default.
 3. For web issues, record the browser name and version.
 4. For web issues, record whether the app was installed as a PWA or opened in a
    browser tab.
@@ -46,9 +47,9 @@ If saved data appears missing:
 2. Check Data for recovery snapshots and restore or delete only the intended
    selected snapshot.
 3. Export the current full-document JSON state, even if it appears wrong.
-4. Check whether the browser profile, device, or private browsing session
-   changed.
-5. Look for downloaded JSON backups outside the browser.
+4. Check whether the browser profile, mobile app install/storage area, device,
+   or private browsing session changed.
+5. Look for downloaded JSON backups outside the browser or mobile app.
 6. Use diagnostics to report storage load state and recovery messages.
 
 ## Current Support Expectation

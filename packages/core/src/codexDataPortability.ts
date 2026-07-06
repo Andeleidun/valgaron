@@ -78,7 +78,7 @@ export const codexExportOptions: readonly CodexExportOption[] = [
     kicker: 'Active workspace backup',
     heading: 'Active workspace JSON',
     description:
-      'This backup contains the current project/universe workspace only. Use full document JSON when you need every workspace in this browser profile or device.',
+      'This backup contains the current project/universe workspace only. Use full document JSON when you need every workspace in this browser profile or mobile app storage area.',
     downloadLabel: 'Download Active JSON',
     filename: 'active-workspace-json',
     shareTitle: `${valgaronProduct.name} active workspace JSON backup`,

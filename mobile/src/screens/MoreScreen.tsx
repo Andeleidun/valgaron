@@ -4,6 +4,8 @@ import { router, useLocalSearchParams } from 'expo-router';
 import {
   emptyEntryTypeDraft,
   entryTypeDraftFields,
+  formatUtilityOverviewActionAccessibilityLabel,
+  formatWorkflowDestinationAccessibilityLabel,
   getCodexScreenIntro,
   getEntryTypeDraftFieldPreview,
   getFeedbackTone,
@@ -245,6 +247,7 @@ export function MoreScreen() {
         }}
       >
         <BodyText>{overview.detail}</BodyText>
+        <MutedText>{overview.knowledgeSummary.title}</MutedText>
         <MutedText>
           {overview.knowledgeSummary.metrics.slice(0, 3).join(', ')}.
         </MutedText>
@@ -252,12 +255,50 @@ export function MoreScreen() {
         <ButtonRow>
           {overview.knowledgeSummary.actions.map((action) => (
             <ActionButton
+              accessibilityLabel={formatUtilityOverviewActionAccessibilityLabel(
+                action
+              )}
               key={action.id}
               label={action.actionLabel}
               onPress={() => router.push(getMobileRouteHref(action.path))}
             />
           ))}
         </ButtonRow>
+        <MutedText>{overview.shortcutSummary.title}</MutedText>
+        <MutedText>{overview.shortcutSummary.detail}</MutedText>
+        <ButtonRow>
+          {overview.shortcutSummary.actions.map((action) => (
+            <ActionButton
+              accessibilityLabel={formatUtilityOverviewActionAccessibilityLabel(
+                action
+              )}
+              key={action.id}
+              label={action.actionLabel}
+              onPress={() => router.push(getMobileRouteHref(action.path))}
+            />
+          ))}
+        </ButtonRow>
+        <MutedText>{overview.reviewSummary.title}</MutedText>
+        <MutedText>{overview.reviewSummary.detail}</MutedText>
+        {overview.reviewSummary.metrics.map((metric) => (
+          <MutedText key={metric}>{metric}</MutedText>
+        ))}
+        {overview.reviewSummary.actions.length > 0 ? (
+          <ButtonRow>
+            {overview.reviewSummary.actions.map((action) => (
+              <ActionButton
+                accessibilityLabel={formatUtilityOverviewActionAccessibilityLabel(
+                  action
+                )}
+                key={action.id}
+                label={action.actionLabel}
+                onPress={() => router.push(getMobileRouteHref(action.path))}
+              />
+            ))}
+          </ButtonRow>
+        ) : (
+          <MutedText>No cross-surface review hotspots need action.</MutedText>
+        )}
       </SectionBlock>
 
       <SectionBlock title={schemaModel.title}>
@@ -742,6 +783,9 @@ export function MoreScreen() {
           <MutedText>{destination.detail}</MutedText>
           <ButtonRow>
             <ActionButton
+              accessibilityLabel={formatWorkflowDestinationAccessibilityLabel(
+                destination
+              )}
               label={destination.actionLabel}
               onPress={() => router.push(getMobileRouteHref(destination.path))}
             />

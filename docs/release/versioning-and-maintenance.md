@@ -33,6 +33,14 @@ the same package version.
 
 ## Schema Migration Expectations
 
+Before treating schema impact as migration work, confirm the change actually
+requires a new saved-document shape. Review-only Knowledge behavior,
+vocabulary inspection, and local review summaries should not advance the schema
+version. Schema `3` or later should be reserved for documented product
+decisions that require new durable document data, such as workspace-owned
+editable vocabularies or built-in field definitions that do not fit current
+field metadata.
+
 World document schema changes must include:
 
 - parser or migration behavior when feasible;

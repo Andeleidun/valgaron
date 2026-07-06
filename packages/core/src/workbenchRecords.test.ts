@@ -85,6 +85,18 @@ describe('workbench record index', () => {
     expect(model.selectedContext.record?.id).toBe('place-needs-review');
     expect(model.selectedContext.section?.id).toBe('places');
     expect(model.selectedContext.incompletePrompts.length).toBeGreaterThan(0);
+    expect(model.selectedContext.reviewSummary.items).toEqual([
+      expect.objectContaining({
+        count: model.selectedContext.incompletePrompts.length,
+        id: 'drafting-prompts',
+        title: 'Drafting prompts',
+      }),
+      expect.objectContaining({
+        count: 0,
+        id: 'legacy-link-text',
+        title: 'Legacy link text',
+      }),
+    ]);
   });
 
   it('validates Workbench view ids for route parameters', () => {
@@ -113,6 +125,21 @@ describe('workbench record index', () => {
     expect(model.selectedContext.relationshipStudioRoute).toBe(
       '/relationships?entryId=character-mira-rowan&entryQuery=Mira%20Rowan'
     );
+    expect(model.selectedContext.reviewSummary).toMatchObject({
+      hasIssues: true,
+      items: [
+        {
+          id: 'drafting-prompts',
+          title: 'Drafting prompts',
+        },
+        {
+          count: 2,
+          countLabel: '2 fields',
+          id: 'legacy-link-text',
+          title: 'Legacy link text',
+        },
+      ],
+    });
   });
 
   it('filters the index by shared search before building views', () => {
@@ -180,6 +207,10 @@ describe('workbench record index', () => {
       relationships: [],
       completionPercent: null,
       incompletePrompts: [],
+      reviewSummary: {
+        hasIssues: false,
+        totalIssueCount: 0,
+      },
     });
   });
 

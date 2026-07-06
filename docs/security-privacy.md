@@ -7,11 +7,13 @@ no maintainer access to user data.
 ## Local Data
 
 World documents and recovery snapshots are saved in browser `localStorage` on
-web and device storage in the mobile companion. Browser data is readable by
-JavaScript running on the same origin and removable by browser data cleanup.
-Mobile data is local to the installed app storage area. This is acceptable for
-the first local-only release only because users are told to keep downloaded JSON
-backups.
+web and the installed app's local storage area in the mobile companion. Browser
+data is readable by JavaScript running on the same origin and removable by
+browser data cleanup, private browsing cleanup, browser profile removal, or
+storage failures. Mobile data is local to the installed app storage area and can
+be removed by app uninstall, device loss, or storage failures. This is
+acceptable for the first local-only release only because users are told to keep
+downloaded JSON backups.
 
 ## Import Safety
 

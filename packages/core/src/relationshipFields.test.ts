@@ -700,6 +700,37 @@ describe('relationship-backed field helpers', () => {
     ]);
   });
 
+  it('filters legacy link text review items by entry id when requested', () => {
+    const reviewCodex = {
+      ...codex,
+      places: [
+        {
+          ...codex.places[0],
+          fields: {
+            ...codex.places[0].fields,
+            tributaries: 'Moon Fork',
+          },
+        },
+        ...codex.places.slice(1),
+      ],
+    } as WorldCodex;
+
+    expect(
+      getRelationshipTextReviewItems({
+        codex: reviewCodex,
+        entryIds: ['place-river-main'],
+        sections: [placeSection],
+      }).map((item) => item.entryId)
+    ).toEqual(['place-river-main']);
+    expect(
+      getRelationshipTextReviewItems({
+        codex: reviewCodex,
+        entryIds: ['place-river-source'],
+        sections: [placeSection],
+      })
+    ).toEqual([]);
+  });
+
   it('builds batch migrations that clear exact-only legacy link text', () => {
     const entry = {
       ...codex.places[0],

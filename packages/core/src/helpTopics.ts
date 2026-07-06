@@ -200,7 +200,7 @@ const codexHelpFocusTopicContent: readonly Omit<CodexHelpFocus, 'path'>[] = [
     id: 'timeline',
     title: 'Timeline',
     detail:
-      'Use explicit order, Era Manager reassignment, unassigned-era filters, involved-record filters, and contextual new-event drafts to browse and extend chronology without forcing exact dates.',
+      'Use explicit order, grouped event editing, Era Manager reassignment, unassigned-era filters, involved-record filters, contextual new-event drafts, and saved relationship summaries to browse and extend chronology without forcing exact dates.',
   },
   {
     id: 'knowledge',
@@ -212,7 +212,7 @@ const codexHelpFocusTopicContent: readonly Omit<CodexHelpFocus, 'path'>[] = [
     id: 'utilities',
     title: 'Utilities',
     detail:
-      'Use Utilities or mobile More for the Project Tools hub, focused Knowledge setup, Data tools, Workspaces, and Help without crowding daily drafting surfaces.',
+      'Use Utilities or mobile More for the Project Tools hub, Review Hotspots, top-level Data, Workspaces, and Help shortcuts, focused Knowledge setup, and secondary tools without crowding daily drafting surfaces.',
   },
   {
     id: 'workspaces',
@@ -250,9 +250,10 @@ export const codexWorkflowHelpTopics: readonly CodexHelpTopic[] = [
   {
     title: 'Build the codex',
     items: [
-      'Use Workbench to scan recent, pinned, incomplete, and review-needed records.',
+      'Use Workbench to scan recent, pinned, incomplete, and review-needed records, then check selected-record review summaries before editing or managing links.',
       'Use Workbench and section routes to create and edit characters, places, factions, lore, and timeline events.',
       'Use Knowledge or mobile More to create custom entry types, inspect suggested choices, and review observed flexible values before adding more structure.',
+      'Use Project Tools shortcuts and Review Hotspots in Utilities or mobile More when you need backups, Workspaces, focused Help, or a jump to existing cleanup surfaces from the secondary tools hub.',
       'Use character category to shape which character fields appear; ancestry and profession stay flexible creator-authored values rather than built-in lists.',
       'Use Places for worlds, planets, moons, settlements, terrain, realms, and other map-scale places inside a project.',
     ],
@@ -262,7 +263,7 @@ export const codexWorkflowHelpTopics: readonly CodexHelpTopic[] = [
     items: [
       'Use Relationships to link entries and inspect graph-style connections.',
       'Use relationship-backed character fields for facts that should be visible from both sides, such as homes, affiliations, mentors, origins, related lore, and notable events.',
-      'Use Timeline order controls, Era Manager reassignment, and filtered new-event drafts to arrange events while keeping flexible prose dates, eras, and involved-record links.',
+      'Use Timeline order controls, grouped event editing, Era Manager reassignment, saved relationship summaries, and filtered new-event drafts to arrange events while keeping flexible prose dates, eras, and involved-record links.',
       'Use tags, status, pinned records, and completeness prompts to keep unfinished work visible.',
     ],
   },
@@ -271,8 +272,8 @@ export const codexWorkflowHelpTopics: readonly CodexHelpTopic[] = [
     items: [
       'On web, use the header Save button before relying on browser-local changes later; on mobile, confirm the latest device-save status before closing the app.',
       'Export JSON backups regularly; active-workspace JSON is focused and full-document JSON includes every local workspace.',
-      'Recovery snapshots help undo destructive local actions in the same browser profile or device storage area only.',
-      'Export before clearing browser data, switching browsers, using private browsing, or changing devices.',
+      'Recovery snapshots help undo destructive local actions in the same browser profile or mobile app storage area only.',
+      'Export before clearing browser data, switching browsers, using private browsing, uninstalling the mobile app, or changing devices.',
     ],
   },
 ];
@@ -302,7 +303,7 @@ export const codexDataHelpTopics: readonly CodexHelpTopic[] = [
 export const codexFirstUseHelp =
   'The starter workspace is neutral sample content. Rename it, create a new project/universe workspace, or duplicate it from Workspaces. Use Places for worlds, planets, realms, settlements, terrain, and other map-scale places inside a workspace.';
 
-export const codexDataHelpSummary = `On web, the header Save button writes current progress to ${localPersistenceCopy.browserSaveTarget}; on mobile, edits save to device storage through the Expo app. ${localPersistenceCopy.noAccountOrSync} JSON export is the backup you control.`;
+export const codexDataHelpSummary = `On web, the header Save button writes current progress to ${localPersistenceCopy.browserSaveTarget}; on mobile, edits save to the installed app's local storage area through the Expo app. ${localPersistenceCopy.noAccountOrSync} JSON export is the backup you control.`;
 
 export const codexDataHelpDetails: readonly CodexHelpDetail[] = [
   {
@@ -335,7 +336,7 @@ export const codexSupportHelp =
   'Use Data > Diagnostics when reporting a storage or rendering problem. Diagnostics include app version, schema version, storage target, recovery status, counts, and web route/browser or mobile device-save state where available. They omit world names, entry names, notes, summaries, tags, relationship notes, and ids by default.';
 
 export const codexOfflineHelp =
-  'The published GitHub Pages build can be installed as a PWA after a successful visit in a supported browser. Offline use means the app shell can load without a network; it does not protect data from browser-profile deletion, private browsing cleanup, device loss, or storage quota failures.';
+  'The published GitHub Pages build can be installed as a PWA after a successful visit in a supported browser. Offline use means the app shell can load without a network; it does not protect data from browser-profile deletion, private browsing cleanup, mobile app uninstall, device loss, or storage quota failures.';
 
 export const codexPrivacyHelp =
   'Valgaron does not send analytics, usage events, backups, diagnostics, or world content to a server. Maintainers cannot recover local data unless you choose to share a backup or diagnostic report.';

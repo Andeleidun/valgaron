@@ -203,7 +203,8 @@ export function getMobileWorkbenchModeModel({
           title: 'Workbench view',
           indexLabel: 'Index',
           indexDetail: 'Find and filter records.',
-          contextDetail: 'Review links, cleanup, and selected-record context.',
+          contextDetail:
+            'Review links, cleanup, and selected-record review summaries.',
           editDetail: 'Create or update the current draft.',
         };
   const options = [

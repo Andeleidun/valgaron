@@ -16,6 +16,10 @@ import {
   getUtilitiesRouteFocusTargetId,
   type UtilityRouteFocusTargetId,
 } from './workflowDestinations';
+import {
+  isWorkbenchRecordViewId,
+  type WorkbenchRecordViewId,
+} from './workbenchRecords';
 
 export type CodexRouteIntent = {
   routeId: CodexShellRouteId;
@@ -32,6 +36,7 @@ export type CodexWorkflowIntent =
       kind: 'entries-browse';
       query: string;
       sectionId: string;
+      viewId: WorkbenchRecordViewId | '';
     }
   | {
       timelineContext?: {
@@ -101,6 +106,7 @@ export const codexWorkflowRouteSamples = [
     query: 'Mira Rowan',
     sectionId: 'characters',
   }),
+  '/entries?view=unlinked',
   getCodexEntriesRoute({ sectionId: 'places', intent: 'new' }),
   getCodexRelationshipsRoute({
     entryId: 'character-mira-rowan',
@@ -110,10 +116,15 @@ export const codexWorkflowRouteSamples = [
   '/timeline',
   '/timeline?entryId=timeline-founding&intent=edit&query=Founding%20of%20Valgaron',
   '/timeline?intent=new&era=Charter%20Era&involvedEntryId=faction-cartographers-guild',
+  '/utilities#project-tools',
+  '/utilities#knowledge-setup',
   '/utilities#data-tools',
+  '/utilities#workspaces',
+  '/utilities#help',
   '/data#import-json-backup',
   '/data?mode=full-json#export',
   getCodexHelpRoute('timeline'),
+  getCodexHelpRoute('utilities'),
 ] as const;
 
 function getRouteIdForPathname(pathname: string): CodexShellRouteId {
@@ -174,6 +185,12 @@ export function getCodexWorkflowIntent(
     case 'entries': {
       const sectionId = intent.params.sectionId ?? '';
       const query = intent.params.query ?? '';
+      const requestedViewId = intent.params.view ?? '';
+      const viewId: WorkbenchRecordViewId | '' = isWorkbenchRecordViewId(
+        requestedViewId
+      )
+        ? requestedViewId
+        : '';
       const requestedIntent = intent.params.intent;
       const entryId = intent.params.entryId;
       if (requestedIntent === 'new') {
@@ -199,6 +216,7 @@ export function getCodexWorkflowIntent(
         kind: 'entries-browse',
         query,
         sectionId,
+        viewId,
       };
     }
     case 'timeline': {

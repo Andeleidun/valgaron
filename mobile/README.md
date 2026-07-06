@@ -4,28 +4,37 @@ Valgaron Mobile is a local-first Expo companion for the browser World Codex
 prototype. It keeps the same world document model and visual language while
 using compact native tabs for repeated editing on a phone.
 
-- It stores the active world document on the current device with AsyncStorage.
+- It stores the active world document in the installed app's local storage area
+  with AsyncStorage.
 - It uses the same shared codex schema and seed data as the web prototype.
 - It stays local to the current device and does not add remote or account-based workflows.
+- Uninstalling the app can remove local data; use JSON export for portable backups.
 - The main tabs are Workbench, Timeline, Links, and More.
-- Workbench supports browsing, search, editing, custom sections, and archived
-  records.
+- Workbench supports browsing, search, editing, custom sections, archived
+  records, and selected-record review summaries.
 - Timeline keeps chronology browsing, expandable dense era groups, event
-  ordering, era filters, era reassignment, involved records, contextual
-  new-event drafts, and review actions in a dedicated tab.
+  ordering, grouped event editing, era filters, era reassignment,
+  relationship-backed involved records, existing relationship summaries,
+  contextual new-event drafts, and review actions in a dedicated tab.
 - Links supports relationship editing, broken-link repair, duplicate
   relationship cleanup, orphan diagnostics, graph filters, graph record search,
   and selected record context.
 - More opens the Project Tools hub, Knowledge setup, project/universe
-  workspaces, Data, and Help, with expandable compact summaries for dense
-  schema and workspace lists.
+  workspaces, Data, and Help, with top-level tool shortcuts and expandable
+  compact summaries for dense schema and workspace lists.
+- More also shows Review Hotspots that route to existing Workbench, Timeline,
+  Links, and Knowledge cleanup surfaces when review signals are present.
+- Workbench review hotspot links preserve shared queue routes such as
+  `/entries?view=unlinked`, so mobile opens the same review target as the
+  browser instead of the default Workbench index.
 - Knowledge setup covers custom entry type management, custom field hints such
   as multiline fields and suggested choices, controlled values, lore definition
   types, observed flexible values, and relationship-backed field rules.
 - Data supports JSON import/export, Markdown reference export, diagnostics,
   reset, and selected recovery snapshot restore or delete.
 - Help keeps focused entry, timeline, relationship, workspace, local-device,
-  backup, diagnostics, support, and release-limit guidance available.
+  backup, diagnostics, support, and release-limit guidance available, with a
+  topic picker that marks the active focused topic.
 
 Run from the repository root after installing workspace dependencies:
 

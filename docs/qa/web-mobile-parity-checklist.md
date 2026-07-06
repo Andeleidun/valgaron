@@ -10,36 +10,36 @@ capability difference is explicitly documented.
 Track each known mismatch until it is fixed, intentionally accepted as a
 platform capability difference, or removed from supported scope.
 
-| Debt                              | Root Cause                              | Source Of Truth         | Web Status                                                            | Mobile Status                            | Close In | Acceptance Test                                                                         |
-| --------------------------------- | --------------------------------------- | ----------------------- | --------------------------------------------------------------------- | ---------------------------------------- | -------- | --------------------------------------------------------------------------------------- |
-| In-fiction worlds/planets         | Resolved with shared field descriptors  | README and core model   | Visible workspace workflow                                            | Visible workspace workflow               | Closed   | Create/edit/archive/delete/export/import                                                |
-| Workspace list/search model       | Resolved with shared feature model      | Core workspace model    | Shared rows and search                                                | Shared rows and search                   | Closed   | Same row copy, filters, count labels, and hidden counts                                 |
-| Workspace section headings        | Resolved with shared feature copy       | Core workspace model    | Shared section headings                                               | Shared section headings                  | Closed   | Same screen and form heading source                                                     |
-| Workspace form field labels       | Resolved with shared draft descriptors  | Core workspace model    | Shared field descriptors                                              | Shared field descriptors                 | Closed   | Same labels, placeholders, multiline fields                                             |
-| Workspace action labels           | Resolved with shared action copy        | Core workspace model    | Shared command labels                                                 | Shared command labels                    | Closed   | Same command names, destructive wording, and action accessible names                    |
-| Relationship source/target        | Resolved with shared descriptors        | Web relationship form   | Selects                                                               | Selects plus supplemental picker rows    | Closed   | Same control kind and valid options                                                     |
-| Relationship status               | Resolved with shared descriptors        | Web relationship form   | Full status select                                                    | Full status select                       | Closed   | All statuses selectable                                                                 |
-| Relationship navigation routes    | Resolved with shared route helpers      | Core relationship model | Shared route helpers                                                  | Shared route helpers                     | Closed   | Same entry edit and manage-link routes                                                  |
-| Entry status/sort/filter controls | Resolved with shared descriptors        | Web section page        | Selects/checks/chips                                                  | Selects/checks/chips                     | Closed   | Matching control descriptors                                                            |
-| Place relationship fields         | Resolved with shared place field model  | Core place taxonomy     | Linked field controls                                                 | Linked field controls                    | Closed   | Same targets, warnings, lazy expansion, and soft display                                |
-| Character logical tree fields     | Resolved with shared character taxonomy | Core character taxonomy | Grouped field controls                                                | Grouped field controls                   | Closed   | Same category fields, local suggestions, and relationship controls                      |
-| Entry notes preview/copy name     | Resolved with mobile editor controls    | Web entry form          | Present                                                               | Present with guarded clipboard feedback  | Closed   | Same actions and feedback                                                               |
-| Data export/import review state   | Resolved with shared Data model         | Core data model         | Shared export/import logic                                            | Shared export/import logic               | Closed   | Same export text, preview, and review state                                             |
-| Data export workflow copy         | Resolved with shared Data model         | Core data model         | Shared export option copy                                             | Shared export action/status copy         | Closed   | Same export/share labels and draft prompts                                              |
-| Data import copy                  | Resolved with shared Data model         | Core data model         | Shared import copy                                                    | Shared import copy                       | Closed   | Same import labels, placeholder, actions                                                |
-| Data recovery snapshot rows       | Resolved with shared Data model         | Core data model         | Shared recovery row model                                             | Shared recovery row model                | Closed   | Same snapshot text, empty state, actions                                                |
-| Data reset copy                   | Resolved with shared Data model         | Core data model         | Shared reset copy                                                     | Shared reset copy                        | Closed   | Same reset title, description, action label                                             |
-| Data storage status               | Resolved with shared Data model         | Core data model         | Storage status copy                                                   | Shared storage status copy               | Closed   | Same load/save/recovery status semantics                                                |
-| Help offline/install limits       | Resolved with shared Help copy          | Core help topics        | Shared offline section                                                | Shared offline section                   | Closed   | Same install/offline limitation copy                                                    |
-| Help section headers/routes       | Resolved with shared Help model         | Core help topics        | Shared section headers                                                | Shared section headers and topic routes  | Closed   | Same Help labels and focused-topic routes                                               |
-| Route focused workflows           | Resolved with shared route helpers      | Core route intents      | Query/hash routes                                                     | Route focus param and Data scroll target | Closed   | Route intent, mobile route, Data focus tests                                            |
-| Diagnostics schema                | Resolved with shared diagnostics report | Core diagnostics        | Shared diagnostics export                                             | Shared diagnostics export                | Closed   | Shared fixture tests, no content leakage                                                |
-| Runtime recovery                  | Resolved with shared recovery copy      | Core recovery model     | Retry/Data/diagnostics                                                | Retry/Data recovery path                 | Closed   | Same recovery copy and recovery actions                                                 |
-| Save status affordance            | Resolved with shared save model         | Web save button/status  | Header Save button                                                    | Overview Save Status section             | Closed   | Shared save status model                                                                |
-| Large-world mobile behavior       | Resolved with shared mobile budgets     | Shared feature model    | Performance smoke exists                                              | Shared limits with reachability tests    | Closed   | Records remain findable/editable                                                        |
-| Duplicate derivation helpers      | Resolved with shared feature models     | Shared feature layer    | Retired duplicate wrappers                                            | Retired `mobileCodexViewModels`          | Closed   | Boundary test plus deletion checklist                                                   |
-| Mobile web stacked workflow       | Resolved with responsive shell contract | Native mobile flow      | Desktop Workbench at wide widths, stacked mobile web at narrow widths | Native stacked screens                   | Closed   | Browser smoke asserts Workbench, Timeline, Links, More visible order at 375px and 320px |
-| Mobile web route smoke coverage   | Resolved with browser smoke artifacts   | Shared route intents    | Browser mobile viewport screenshots                                   | Native route model tests                 | Closed   | Workbench, Timeline, Links, More, Knowledge, Data, Workspaces, and Help smoke artifacts |
+| Debt                              | Root Cause                              | Source Of Truth         | Web Status                                                            | Mobile Status                                                 | Close In | Acceptance Test                                                                         |
+| --------------------------------- | --------------------------------------- | ----------------------- | --------------------------------------------------------------------- | ------------------------------------------------------------- | -------- | --------------------------------------------------------------------------------------- |
+| In-fiction worlds/planets         | Resolved with shared field descriptors  | README and core model   | Visible workspace workflow                                            | Visible workspace workflow                                    | Closed   | Create/edit/archive/delete/export/import                                                |
+| Workspace list/search model       | Resolved with shared feature model      | Core workspace model    | Shared rows and search                                                | Shared rows and search                                        | Closed   | Same row copy, filters, count labels, and hidden counts                                 |
+| Workspace section headings        | Resolved with shared feature copy       | Core workspace model    | Shared section headings                                               | Shared section headings                                       | Closed   | Same screen and form heading source                                                     |
+| Workspace form field labels       | Resolved with shared draft descriptors  | Core workspace model    | Shared field descriptors                                              | Shared field descriptors                                      | Closed   | Same labels, placeholders, multiline fields                                             |
+| Workspace action labels           | Resolved with shared action copy        | Core workspace model    | Shared command labels                                                 | Shared command labels                                         | Closed   | Same command names, destructive wording, and action accessible names                    |
+| Relationship source/target        | Resolved with shared descriptors        | Web relationship form   | Selects                                                               | Selects plus supplemental picker rows                         | Closed   | Same control kind and valid options                                                     |
+| Relationship status               | Resolved with shared descriptors        | Web relationship form   | Full status select                                                    | Full status select                                            | Closed   | All statuses selectable                                                                 |
+| Relationship navigation routes    | Resolved with shared route helpers      | Core relationship model | Shared route helpers                                                  | Shared route helpers                                          | Closed   | Same entry edit and manage-link routes                                                  |
+| Entry status/sort/filter controls | Resolved with shared descriptors        | Web section page        | Selects/checks/chips                                                  | Selects/checks/chips                                          | Closed   | Matching control descriptors                                                            |
+| Place relationship fields         | Resolved with shared place field model  | Core place taxonomy     | Linked field controls                                                 | Linked field controls                                         | Closed   | Same targets, warnings, lazy expansion, and soft display                                |
+| Character logical tree fields     | Resolved with shared character taxonomy | Core character taxonomy | Grouped field controls                                                | Grouped field controls                                        | Closed   | Same category fields, local suggestions, and relationship controls                      |
+| Entry notes preview/copy name     | Resolved with mobile editor controls    | Web entry form          | Present                                                               | Present with guarded clipboard feedback                       | Closed   | Same actions and feedback                                                               |
+| Data export/import review state   | Resolved with shared Data model         | Core data model         | Shared export/import logic                                            | Shared export/import logic                                    | Closed   | Same export text, preview, and review state                                             |
+| Data export workflow copy         | Resolved with shared Data model         | Core data model         | Shared export option copy                                             | Shared export action/status copy                              | Closed   | Same export/share labels and draft prompts                                              |
+| Data import copy                  | Resolved with shared Data model         | Core data model         | Shared import copy                                                    | Shared import copy                                            | Closed   | Same import labels, placeholder, actions                                                |
+| Data recovery snapshot rows       | Resolved with shared Data model         | Core data model         | Shared recovery row model                                             | Shared recovery row model                                     | Closed   | Same snapshot text, empty state, actions                                                |
+| Data reset copy                   | Resolved with shared Data model         | Core data model         | Shared reset copy                                                     | Shared reset copy                                             | Closed   | Same reset title, description, action label                                             |
+| Data storage status               | Resolved with shared Data model         | Core data model         | Storage status copy                                                   | Shared storage status copy                                    | Closed   | Same load/save/recovery status semantics                                                |
+| Help offline/install limits       | Resolved with shared Help copy          | Core help topics        | Shared offline section                                                | Shared offline section                                        | Closed   | Same install/offline limitation copy                                                    |
+| Help section headers/routes       | Resolved with shared Help model         | Core help topics        | Shared section headers, topic routes, and active topic picker         | Shared section headers, topic routes, and active topic picker | Closed   | Same Help labels, focused-topic routes, topic picker, and selected topic state          |
+| Route focused workflows           | Resolved with shared route helpers      | Core route intents      | Query/hash routes                                                     | Route focus param and Data scroll target                      | Closed   | Route intent, mobile route, Data focus tests                                            |
+| Diagnostics schema                | Resolved with shared diagnostics report | Core diagnostics        | Shared diagnostics export                                             | Shared diagnostics export                                     | Closed   | Shared fixture tests, no content leakage                                                |
+| Runtime recovery                  | Resolved with shared recovery copy      | Core recovery model     | Retry/Data/diagnostics                                                | Retry/Data recovery path                                      | Closed   | Same recovery copy and recovery actions                                                 |
+| Save status affordance            | Resolved with shared save model         | Web save button/status  | Header Save button                                                    | Overview Save Status section                                  | Closed   | Shared save status model                                                                |
+| Large-world mobile behavior       | Resolved with shared mobile budgets     | Shared feature model    | Performance smoke exists                                              | Shared limits with reachability tests                         | Closed   | Records remain findable/editable                                                        |
+| Duplicate derivation helpers      | Resolved with shared feature models     | Shared feature layer    | Retired duplicate wrappers                                            | Retired `mobileCodexViewModels`                               | Closed   | Boundary test plus deletion checklist                                                   |
+| Mobile web stacked workflow       | Resolved with responsive shell contract | Native mobile flow      | Desktop Workbench at wide widths, stacked mobile web at narrow widths | Native stacked screens                                        | Closed   | Browser smoke asserts Workbench, Timeline, Links, More visible order at 375px and 320px |
+| Mobile web route smoke coverage   | Resolved with browser smoke artifacts   | Shared route intents    | Browser mobile viewport screenshots                                   | Native route model tests                                      | Closed   | Workbench, Timeline, Links, More, Knowledge, Data, Workspaces, and Help smoke artifacts |
 
 ## Feature Change Checklist
 
@@ -62,6 +62,20 @@ Before merging a frontend feature change, confirm:
    pagination, or virtualization.
 10. Any old web utility wrapper or mobile view-model helper made obsolete by the
     shared model is deleted or marked with a target removal phase.
+11. Schema version changes require a documented product decision; review-only
+    Knowledge or vocabulary visibility changes must not create a v3 migration.
+12. Project Tools may summarize Review Hotspots that route to existing review
+    surfaces. Durable cross-surface triage with assignment, dismissal,
+    severity ordering, or progress tracking still requires an intentional
+    product decision.
+13. Workbench review hotspot routes must preserve the shared `view` parameter
+    on web and mobile so users land in the intended review queue, such as
+    Unlinked or Needs Review, rather than the default record index.
+14. Workbench review hotspot labels and accessible names must include the target
+    queue and count on web and mobile without duplicating the same count phrase.
+15. Help topic navigation must expose the shared focused-topic list on web and
+    mobile, with the active topic visibly selected and announced through
+    platform-appropriate selected/current state.
 
 ## Standard Workflow
 
@@ -70,7 +84,8 @@ Run this workflow on web and mobile after each parity-significant change:
 1. Open the codex.
 2. Create or edit a place.
 3. Create or edit a character, including category, ancestry, profession, and
-   relationship-backed fields.
+   relationship-backed fields, then confirm Workbench selected context shows
+   matching review-summary signals on web and mobile.
 4. Create or edit an in-fiction world/planet if the feature remains supported.
 5. Create a relationship linking the character and place.
 6. Save or confirm persisted state.
@@ -79,7 +94,9 @@ Run this workflow on web and mobile after each parity-significant change:
 9. Confirm the imported document has the same workspaces, entries,
    relationships, in-fiction worlds, custom entry types, appended and reordered
    custom fields, renamed custom field labels, removed custom fields with
-   retained hidden values visible in the cleanup queue, and timeline data.
+   retained hidden values visible in the cleanup queue, and timeline data,
+   including event chronology fields, era values, involved-record links, and
+   existing relationship summaries.
 
 ## Large-World Manual QA
 
@@ -114,6 +131,19 @@ Before release, confirm:
   Knowledge, Data, Workspaces, and Help routes without horizontal overflow.
 - Shared control descriptor tests cover entry and relationship control kinds,
   accessible labels, and canonical options.
+- Timeline editor checks cover chronology field grouping, contextual event
+  creation from era and involved-record filters, and saved relationship
+  summaries on both browser and mobile.
+- Schema/vocabulary changes preserve schema `2` unless a durable v3 product
+  decision is documented in the UX plan and schema migration docs.
+- Review-summary changes preserve local review surfaces unless a unified
+  cross-surface triage workflow is intentionally introduced.
+- Browser smoke and mobile route/render tests cover direct Workbench review
+  queue routes such as `/entries?view=unlinked`.
+- Browser smoke and mobile render tests cover count-bearing Workbench hotspot
+  labels and deduplicated accessible names.
+- Browser smoke and mobile render tests cover focused Help topic navigation,
+  including active Utilities topic state and the Help to Project Tools action.
 - `npm test` covers shared data round trips for web-compatible exports.
 - `npm test` covers the standard place, character, in-fiction world,
   relationship, save/export/import workflow through shared core helpers.

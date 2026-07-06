@@ -57,6 +57,7 @@ let mockRouteParams: {
   status?: string;
   tag?: string;
   updatedWithinDays?: string;
+  view?: string;
 };
 
 jest.mock('../state/MobileCodexContext', () => ({
@@ -326,6 +327,19 @@ describe('EntriesScreen render smoke', () => {
     expect(markup).not.toContain('Refine section search or filters');
   });
 
+  it('hydrates mobile Workbench review queues from shared view routes', () => {
+    mockRouteParams = {
+      view: 'unlinked',
+    };
+
+    const markup = renderToStaticMarkup(React.createElement(EntriesScreen));
+
+    expect(markup).toContain('Workbench Unlinked');
+    expect(markup).toContain('1 record in this review queue.');
+    expect(markup).toContain('The Ember Court');
+    expect(markup).toContain('Review context for The Ember Court');
+  });
+
   it('renders the direct character context route with summary actions', () => {
     mockRouteParams = {
       entryId: 'character-mira-rowan',
@@ -372,6 +386,12 @@ describe('EntriesScreen render smoke', () => {
     expect(markup).toContain('Mira Rowan');
     expect(markup).toContain('Relationships:');
     expect(markup).toContain('Completeness:');
+    expect(markup).toContain('Review summary:');
+    expect(markup).toContain('Drafting prompts: 7 prompts.');
+    expect(markup).toContain('Legacy link text: 2 fields.');
+    expect(markup).toContain(
+      'Review links, cleanup, and selected-record review summaries.'
+    );
     expect(markup).toContain('Reviewing context for Mira Rowan.');
     expect(markup).toContain('Edit Record');
     expect(markup).toContain('Back to Index');
@@ -826,12 +846,43 @@ describe('EntriesScreen render smoke', () => {
     const markup = renderToStaticMarkup(React.createElement(MoreScreen));
 
     expect(markup).toContain('Knowledge Schema');
+    expect(markup.match(/Knowledge Schema/g)).toHaveLength(2);
     expect(markup).toContain('entry types');
     expect(markup).toContain('relationship-backed fields');
     expect(markup).toContain('6 hidden detail cleanup targets');
     expect(markup).toContain('Characters');
     expect(markup).toContain('Open Places');
     expect(markup).toContain('Open Type Setup');
+    expect(markup).toContain('Tool shortcuts');
+    expect(markup).toContain('Open Data');
+    expect(markup).toContain('Open Help');
+    expect(markup).toContain('Review hotspots');
+    expect(markup).toContain('Open 11 Incomplete Records');
+    expect(markup).toContain('aria-label="Open 11 Incomplete Records.');
+    expect(markup).toContain(
+      'Open the Incomplete Workbench queue before reviewing other record signals.'
+    );
+    expect(markup).not.toContain(
+      'Open 11 Incomplete Records. 11 incomplete records.'
+    );
+    expect(markup).toContain(
+      'aria-label="Open Knowledge Setup. Manage custom entry types, reusable fields, and knowledge structure."'
+    );
+    expect(markup).toContain('data-testid="more.knowledge-setup"');
+    expect(markup).toContain('data-testid="more.data-tools"');
+    expect(markup).toContain('data-testid="more.workspaces"');
+    expect(markup).toContain('data-testid="more.help"');
+    expect(markup).toContain(
+      'aria-label="Open Data. Export backups, import JSON, review diagnostics, and reset seeds."'
+    );
+    expect(markup).toContain(
+      'aria-label="Open Workspaces. Manage project/universe workspaces and in-fiction worlds or planets."'
+    );
+    expect(markup).toContain(
+      'aria-label="Open Help. Review workflow guidance, data limits, and local prototype notes."'
+    );
+    expect(markup).toContain('Open Relationship Review');
+    expect(markup).toContain('Open Knowledge Cleanup');
     expect(markup).toContain('Review Cleanup');
     expect(markup).toContain('data-testid="more.custom-entry-types"');
     expect(markup).toContain('Custom entry types');

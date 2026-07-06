@@ -75,6 +75,7 @@ describe('layout mode contracts', () => {
     ).toMatchObject({
       disabled: true,
       isActive: false,
+      detail: 'Review links, cleanup, and selected-record review summaries.',
     });
   });
 

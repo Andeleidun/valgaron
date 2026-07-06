@@ -58,7 +58,7 @@ export const overviewFeatureCopy = {
   incompleteKicker: 'Needs attention',
   incompleteTitle: 'Incomplete records',
   localDataNoticeDetail:
-    'Use the header Save button to write current progress to this browser profile. Export JSON backups regularly, especially before clearing browser data or changing devices.',
+    'Use the header Save button to write current progress to this browser profile. Export JSON backups regularly, especially before clearing browser data, switching browsers, using private browsing, uninstalling the mobile app, or changing devices.',
   localDataNoticeLabel: 'Local data notice',
   localDataNoticeTitle: 'Local browser data.',
   noRecentRecordsTitle: 'No recent records yet.',

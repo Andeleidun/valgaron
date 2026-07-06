@@ -78,6 +78,7 @@ import {
   getTimelineEraManagerModel,
   getWorkbenchRecordPickerModel,
   getWorkbenchRecordIndexModel,
+  isWorkbenchRecordViewId,
   buildRelationshipFieldTextMigrationOperation,
   makeFieldRelationship,
   mobileFeatureDisplayLimits,
@@ -86,6 +87,8 @@ import {
   timelineUnassignedEraFilterValue,
   upsertStagedRelationshipDraft,
   type MobileWorkbenchModeId,
+  type WorkbenchRecordIndexItem,
+  type WorkbenchRecordViewId,
 } from '@valgaron/core';
 import {
   valgaronColors,
@@ -133,12 +136,19 @@ export function EntriesScreen({
     status?: string;
     tag?: string;
     updatedWithinDays?: string;
+    view?: string;
   }>();
   const requestedSectionId =
     fixedSectionId ?? getMobileRouteParam(routeParams.sectionId);
   const requestedEntryId = getMobileRouteParam(routeParams.entryId);
   const requestedIntent = getMobileRouteParam(routeParams.intent);
   const requestedQuery = getMobileRouteParam(routeParams.query);
+  const requestedWorkbenchViewParam =
+    getMobileRouteParam(routeParams.view) ?? '';
+  const requestedWorkbenchViewId =
+    !fixedSectionId && isWorkbenchRecordViewId(requestedWorkbenchViewParam)
+      ? requestedWorkbenchViewParam
+      : '';
   const requestedTimelineEra =
     fixedSectionId === 'timeline'
       ? getMobileRouteParam(routeParams.era) ?? ''
@@ -284,6 +294,9 @@ export function EntriesScreen({
         ? 'edit'
         : 'index'
   );
+  const [activeWorkbenchViewId, setActiveWorkbenchViewId] = useState<
+    WorkbenchRecordViewId | ''
+  >(() => requestedWorkbenchViewId);
   const [showAllWorkbenchDraftingPrompts, setShowAllWorkbenchDraftingPrompts] =
     useState(false);
   const [copyStatus, setCopyStatus] = useState('');
@@ -476,6 +489,21 @@ export function EntriesScreen({
       }).selectedContext,
     [controller.activeWorld, section.id, selectedEntry?.id]
   );
+  const routedWorkbenchView = useMemo(() => {
+    if (!activeWorkbenchViewId) {
+      return null;
+    }
+    return getWorkbenchRecordIndexModel(controller.activeWorld, {
+      viewId: activeWorkbenchViewId,
+      viewLimit: mobileFeatureDisplayLimits.entryResults,
+    }).activeView;
+  }, [activeWorkbenchViewId, controller.activeWorld]);
+  const routedWorkbenchHiddenRecordCount = routedWorkbenchView
+    ? Math.max(
+        routedWorkbenchView.count - routedWorkbenchView.records.length,
+        0
+      )
+    : 0;
   const visibleWorkbenchDraftingPrompts = showAllWorkbenchDraftingPrompts
     ? selectedWorkbenchContext.incompletePrompts
     : selectedWorkbenchContext.incompletePrompts.slice(0, 3);
@@ -522,7 +550,7 @@ export function EntriesScreen({
     selectedEntryName: selectedEntry?.name,
     stagedRelationshipCount: stagedRelationships.length,
     surface: fixedSectionId === 'timeline' ? 'timeline' : 'workbench',
-    visibleRecordCount: entries.length,
+    visibleRecordCount: routedWorkbenchView?.count ?? entries.length,
   });
   const entrySortOptions = useMemo(
     () =>
@@ -715,6 +743,7 @@ export function EntriesScreen({
       requestedTimelineStatus,
       requestedTimelineTag,
       requestedTimelineUpdatedWithinDays ?? '',
+      requestedWorkbenchViewId,
     ].join('|');
     if (appliedRouteKeyRef.current === routeKey) {
       return;
@@ -724,8 +753,10 @@ export function EntriesScreen({
       !requestedEntryId &&
       !requestedIntent &&
       requestedQuery === undefined &&
+      !requestedWorkbenchViewId &&
       fixedSectionId !== 'timeline'
     ) {
+      setActiveWorkbenchViewId('');
       appliedRouteKeyRef.current = routeKey;
       return;
     }
@@ -740,7 +771,8 @@ export function EntriesScreen({
       sectionChanged ||
       requestedIntent === 'new' ||
       Boolean(requestedSectionId && !requestedEntryId) ||
-      Boolean(requestedEntryId);
+      Boolean(requestedEntryId) ||
+      Boolean(requestedWorkbenchViewId);
 
     const applyRouteState = () => {
       if (sectionChanged) {
@@ -776,6 +808,14 @@ export function EntriesScreen({
         setShowArchived(requestedTimelineShowArchived);
         setSortKey(requestedTimelineSortKey);
         setUpdatedWithinDays(requestedTimelineUpdatedWithinDays);
+      }
+      setActiveWorkbenchViewId(requestedWorkbenchViewId);
+      if (requestedWorkbenchViewId) {
+        setSelectedEntryId(null);
+        setDraft(createSectionEntryDraft(nextSection));
+        resetLinkedFieldPickerState();
+        clearStagedRelationshipDrafts();
+        setWorkbenchMode('index');
       }
       if (requestedIntent === 'new') {
         setSelectedEntryId(null);
@@ -849,12 +889,14 @@ export function EntriesScreen({
     requestedTimelineStatus,
     requestedTimelineTag,
     requestedTimelineUpdatedWithinDays,
+    requestedWorkbenchViewId,
     section,
   ]);
 
   function chooseSection(nextSection: WorldSectionConfig) {
     confirmDiscardUnsavedChangesOnMobile(isDraftDirty, () => {
       setSectionId(nextSection.id);
+      setActiveWorkbenchViewId('');
       setQuery('');
       setSelectedEntryId(null);
       setActiveTag('');
@@ -890,6 +932,33 @@ export function EntriesScreen({
     confirmDiscardUnsavedChangesOnMobile(isDraftDirty, () => {
       setSelectedEntryId(entry.id);
       setDraft(draftFromEntry(entry, section));
+      resetLinkedFieldPickerState();
+      setWorkbenchMode(nextMode);
+      clearStagedRelationshipDrafts();
+    });
+  }
+
+  function chooseWorkbenchRecord(
+    record: WorkbenchRecordIndexItem,
+    nextMode: MobileWorkbenchModeId = 'edit'
+  ) {
+    const nextSection =
+      controller.sections.find((item) => item.id === record.sectionId) ??
+      section;
+    const entry = getEntries(controller.activeWorld.codex, nextSection.id).find(
+      (item) => item.id === record.id
+    );
+    if (!entry) {
+      return;
+    }
+    if (entry.id === selectedEntryId) {
+      setWorkbenchMode(nextMode);
+      return;
+    }
+    confirmDiscardUnsavedChangesOnMobile(isDraftDirty, () => {
+      setSectionId(nextSection.id);
+      setSelectedEntryId(entry.id);
+      setDraft(draftFromEntry(entry, nextSection));
       resetLinkedFieldPickerState();
       setWorkbenchMode(nextMode);
       clearStagedRelationshipDrafts();
@@ -1978,8 +2047,61 @@ export function EntriesScreen({
       ) : null}
 
       {showIndexMode ? (
-        <SectionBlock title={section.title}>
-          {entries.length > 0 ? (
+        <SectionBlock
+          title={
+            routedWorkbenchView
+              ? `Workbench ${routedWorkbenchView.label}`
+              : section.title
+          }
+        >
+          {routedWorkbenchView ? (
+            routedWorkbenchView.records.length > 0 ? (
+              <>
+                <MutedText>
+                  {routedWorkbenchView.count}{' '}
+                  {routedWorkbenchView.count === 1 ? 'record' : 'records'} in
+                  this review queue.
+                </MutedText>
+                {routedWorkbenchView.records.map((record) => (
+                  <View key={record.id} style={styles.entryRow}>
+                    <View style={styles.entryText}>
+                      <Text style={styles.entryTitle}>{record.name}</Text>
+                      <MutedText>
+                        {record.sectionTitle} - {record.status}
+                      </MutedText>
+                      <MutedText>{record.summaryText}</MutedText>
+                      <MutedText>{record.updatedText}</MutedText>
+                    </View>
+                    <ButtonRow>
+                      <ActionButton
+                        accessibilityLabel={`Edit ${record.name}`}
+                        label="Edit"
+                        onPress={() => chooseWorkbenchRecord(record)}
+                      />
+                      <ActionButton
+                        accessibilityLabel={`Review context for ${record.name}`}
+                        label="Context"
+                        onPress={() => chooseWorkbenchRecord(record, 'context')}
+                      />
+                    </ButtonRow>
+                  </View>
+                ))}
+                {routedWorkbenchHiddenRecordCount > 0 ? (
+                  <MutedText>
+                    {routedWorkbenchHiddenRecordCount} more record
+                    {routedWorkbenchHiddenRecordCount === 1 ? '' : 's'}.
+                  </MutedText>
+                ) : null}
+              </>
+            ) : (
+              <>
+                <MutedText>No records in this review queue.</MutedText>
+                <MutedText>
+                  Open another Workbench view or clear filters.
+                </MutedText>
+              </>
+            )
+          ) : entries.length > 0 ? (
             <>
               {displayedEntries.map(({ entry, index }) => (
                 <View key={entry.id} style={styles.entryRow}>
@@ -2079,6 +2201,18 @@ export function EntriesScreen({
               : `${selectedWorkbenchContext.completionPercent}%`}
             .
           </MutedText>
+          {selectedWorkbenchContext.reviewSummary.hasIssues ? (
+            <>
+              <MutedText>Review summary:</MutedText>
+              {selectedWorkbenchContext.reviewSummary.items
+                .filter((item) => item.hasIssues)
+                .map((item) => (
+                  <MutedText key={item.id}>
+                    {item.title}: {item.countLabel}. {item.detail}
+                  </MutedText>
+                ))}
+            </>
+          ) : null}
           {selectedWorkbenchContext.incompletePrompts.length > 0 ? (
             <>
               <MutedText>Drafting prompts:</MutedText>

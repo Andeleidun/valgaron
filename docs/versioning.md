@@ -18,6 +18,11 @@ The current world document schema version is `2`.
 Schema details and migration expectations are tracked in
 `docs/release/schema-migrations.md`.
 
+Do not advance the saved document schema for review-only Knowledge behavior.
+Schema `3` or later should be reserved for product decisions that require new
+durable document data, such as workspace-owned editable vocabularies or built-in
+field definitions that no longer fit the current field metadata.
+
 Schema changes must include:
 
 1. parser or migration behavior for existing saved documents when feasible;

@@ -18,7 +18,8 @@ companion.
 ## Everyday Workflow
 
 1. Start on Workbench to scan recent work, pinned records, incomplete records,
-   expandable review prompts, and section totals.
+   expandable review prompts, selected-record review summaries, and section
+   totals.
 2. Create or edit records in Workbench, section pages, or the mobile Workbench
    tab.
 3. Use Relationships or the mobile Links tab to connect entries, expand Review
@@ -30,15 +31,20 @@ companion.
    custom entry types and review expandable schema overviews, field behavior,
    controlled values, observed flexible values, lore definition types, and
    relationship-backed field rules.
-6. Use Workspaces from Utilities or More when switching projects or managing
+6. Use Project Tools shortcuts and Review Hotspots in Utilities or More to
+   reach Data, Workspaces, focused Help, and existing cleanup surfaces without
+   leaving the secondary tools hub. Workbench review hotspots open the relevant
+   queue, such as Unlinked or Needs Review, on both browser and mobile.
+7. Use Workspaces from Utilities or More when switching projects or managing
    in-fiction worlds/planets, expanding dense workspace or world lists when
    needed.
-7. Use Data from Utilities or More regularly to download active-workspace or
+8. Use Data from Utilities or More regularly to download active-workspace or
    full-document JSON backups.
 
 Use contextual Help links in Workbench, timeline, relationship, Knowledge,
-workspace, and data workflows when you need focused guidance without leaving the
-current product surface.
+Utilities, workspace, and data workflows when you need focused guidance. Help
+also includes a topic picker on browser and mobile so you can switch focused
+topics and see which topic is currently active.
 
 ## Timeline
 
@@ -48,8 +54,13 @@ Choose an era to change, enter a new or existing era name, and apply the change
 to rename an era, merge one era into another, or assign unassigned events. Use
 the Unassigned Era filter when you need to review unassigned events before
 assigning them. Creating a new event while an era or involved-record filter is
-active starts the draft with that context. On mobile, compact era groups can
-expand in place when an era has more events than the default scan view shows.
+active starts the draft with that context. Editing an event groups chronology,
+linked records, and outcomes so order, date, era, involved records, and
+consequences stay together. Saved events also summarize existing relationships
+that connect other records to the event, while newly selected involved records
+use the relationship-backed linked-field editor. On mobile, compact era groups
+can expand in place when an era has more events than the default scan view
+shows.
 
 ## Knowledge Setup
 
@@ -91,8 +102,9 @@ customs, abilities, or ancestry and profession notes.
 ## Local Data And Backups
 
 The browser app saves in the current browser profile with `localStorage`. The
-mobile companion saves on the current device. There is no account, hosted
-database, telemetry, cloud sync, collaboration, or remote backup.
+mobile companion saves in the installed app's local storage area. There is no
+account, hosted database, telemetry, cloud sync, collaboration, or remote
+backup.
 
 Downloaded JSON is the portable backup. Active-workspace JSON backs up the
 current project/universe workspace. Full-document JSON backs up every workspace
@@ -100,6 +112,7 @@ stored in the local document. Export JSON before:
 
 - clearing browser data;
 - switching browsers;
+- uninstalling the mobile app;
 - changing devices;
 - using private browsing;
 - importing a backup;
@@ -123,8 +136,8 @@ current local document matters.
 Recovery snapshots are local restore points created before destructive actions
 when possible. The Data route or tab lists available snapshots so you can
 restore or delete the intended snapshot. They are useful for undoing local
-mistakes in the same browser profile or device storage area, but they are not
-portable and can be lost with local storage data.
+mistakes in the same browser profile or mobile app storage area, but they are
+not portable and can be lost with local storage data.
 
 Keep downloaded JSON backups for work that cannot be lost.
 
@@ -133,8 +146,8 @@ Keep downloaded JSON backups for work that cannot be lost.
 The published GitHub Pages build can be installed as a PWA in supported
 browsers. Offline use means the app shell can load after a successful visit or
 installation. Offline support does not protect local data from browser cleanup,
-device loss, profile corruption, private browsing cleanup, or storage quota
-failure.
+mobile app uninstall, device loss, profile corruption, private browsing
+cleanup, or storage quota failure.
 
 ## Diagnostics
 

@@ -27,6 +27,15 @@ describe('help topics', () => {
       'Use Knowledge or mobile More to create custom entry types'
     );
     expect(codexWorkflowHelpTopics[0]?.items.join(' ')).toContain(
+      'Project Tools shortcuts'
+    );
+    expect(codexWorkflowHelpTopics[0]?.items.join(' ')).toContain(
+      'Review Hotspots'
+    );
+    expect(codexWorkflowHelpTopics[0]?.items.join(' ')).toContain(
+      'selected-record review summaries'
+    );
+    expect(codexWorkflowHelpTopics[0]?.items.join(' ')).toContain(
       'observed flexible values'
     );
     expect(codexWorkflowHelpTopics[0]?.items.join(' ')).toContain(
@@ -48,6 +57,12 @@ describe('help topics', () => {
       'Era Manager reassignment'
     );
     expect(codexWorkflowHelpTopics[1]?.items.join(' ')).toContain(
+      'grouped event editing'
+    );
+    expect(codexWorkflowHelpTopics[1]?.items.join(' ')).toContain(
+      'saved relationship summaries'
+    );
+    expect(codexWorkflowHelpTopics[1]?.items.join(' ')).toContain(
       'filtered new-event drafts'
     );
     expect(codexWorkflowHelpTopics[1]?.items.join(' ')).not.toContain('forms');
@@ -65,10 +80,18 @@ describe('help topics', () => {
     expect(codexDataHelpSummary).toContain('web');
     expect(codexDataHelpSummary).toContain('header Save button');
     expect(codexDataHelpSummary).toContain('mobile');
-    expect(codexDataHelpSummary).toContain('device storage');
+    expect(codexDataHelpSummary).toContain(
+      "installed app's local storage area"
+    );
+    expect(codexWorkflowHelpTopics[2]?.items.join(' ')).toContain(
+      'mobile app storage area'
+    );
     expect(codexDataHelpSummary).toContain('does not add account');
     expect(codexWorkflowHelpTopics[2]?.items[0]).toContain(
       'on mobile, confirm the latest device-save status'
+    );
+    expect(codexWorkflowHelpTopics[2]?.items.join(' ')).toContain(
+      'uninstalling the mobile app'
     );
     expect(codexDataHelpDetails.map((detail) => detail.term)).toEqual([
       'JSON export',
@@ -79,6 +102,7 @@ describe('help topics', () => {
     ]);
     expect(codexOfflineHelp).toContain('Offline use');
     expect(codexOfflineHelp).toContain('does not protect data');
+    expect(codexOfflineHelp).toContain('mobile app uninstall');
     expect(codexHelpSectionTitles.offline).toBe('Installable app limits');
     expect(codexHelpScreenSections.quickActions.title).toBe(
       'Open a workspace area'
@@ -110,7 +134,13 @@ describe('help topics', () => {
       'Era Manager reassignment'
     );
     expect(getCodexHelpFocus('timeline')?.detail).toContain(
+      'grouped event editing'
+    );
+    expect(getCodexHelpFocus('timeline')?.detail).toContain(
       'contextual new-event drafts'
+    );
+    expect(getCodexHelpFocus('timeline')?.detail).toContain(
+      'saved relationship summaries'
     );
     expect(getCodexHelpFocus('knowledge')?.detail).toContain(
       'create custom entry types'
@@ -121,6 +151,10 @@ describe('help topics', () => {
     expect(getCodexHelpFocus('utilities')?.detail).toContain(
       'Project Tools hub'
     );
+    expect(getCodexHelpFocus('utilities')?.detail).toContain(
+      'top-level Data, Workspaces, and Help shortcuts'
+    );
+    expect(getCodexHelpFocus('utilities')?.detail).toContain('Review Hotspots');
     expect(getCodexHelpFocus('workspaces')?.detail).not.toContain(
       'custom entry types'
     );

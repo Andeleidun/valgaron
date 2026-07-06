@@ -31,6 +31,8 @@ describe('codexDataPortability', () => {
     ]);
     expect(getCodexExportOption('active-json')).toMatchObject({
       heading: 'Active workspace JSON',
+      description:
+        'This backup contains the current project/universe workspace only. Use full document JSON when you need every workspace in this browser profile or mobile app storage area.',
       downloadLabel: 'Download Active JSON',
       filename: 'active-workspace-json',
     });

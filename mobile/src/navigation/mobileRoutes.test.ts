@@ -87,6 +87,12 @@ describe('mobile route model', () => {
     expect(getMobileRouteHref('/entries?query=Mira+Rowan').params).toEqual({
       query: 'Mira Rowan',
     });
+    expect(getMobileRouteHref('/entries?view=unlinked')).toEqual({
+      pathname: '/entries',
+      params: {
+        view: 'unlinked',
+      },
+    });
     expect(getMobileRouteHref('/data#import-json-backup')).toEqual({
       pathname: '/data',
       params: {
@@ -137,10 +143,34 @@ describe('mobile route model', () => {
       pathname: '/more',
       params: {},
     });
+    expect(getMobileRouteHref('/utilities#project-tools')).toEqual({
+      pathname: '/more',
+      params: {
+        [mobileRouteFocusParam]: 'project-tools',
+      },
+    });
+    expect(getMobileRouteHref('/utilities#knowledge-setup')).toEqual({
+      pathname: '/more',
+      params: {
+        [mobileRouteFocusParam]: 'knowledge-setup',
+      },
+    });
     expect(getMobileRouteHref('/utilities#data-tools')).toEqual({
       pathname: '/more',
       params: {
         [mobileRouteFocusParam]: 'data-tools',
+      },
+    });
+    expect(getMobileRouteHref('/utilities#workspaces')).toEqual({
+      pathname: '/more',
+      params: {
+        [mobileRouteFocusParam]: 'workspaces',
+      },
+    });
+    expect(getMobileRouteHref('/utilities#help')).toEqual({
+      pathname: '/more',
+      params: {
+        [mobileRouteFocusParam]: 'help',
       },
     });
     expect(getMobileRouteHref('/knowledge')).toEqual({
@@ -170,6 +200,12 @@ describe('mobile route model', () => {
       pathname: '/help',
       params: {
         topic: 'timeline',
+      },
+    });
+    expect(getMobileRouteHref(getCodexHelpRoute('utilities'))).toEqual({
+      pathname: '/help',
+      params: {
+        topic: 'utilities',
       },
     });
   });

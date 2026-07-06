@@ -33,6 +33,8 @@ describe('overview summary', () => {
       globalSearchTitle: 'Find anything in this world',
       incompleteKicker: 'Needs attention',
       incompleteTitle: 'Incomplete records',
+      localDataNoticeDetail:
+        'Use the header Save button to write current progress to this browser profile. Export JSON backups regularly, especially before clearing browser data, switching browsers, using private browsing, uninstalling the mobile app, or changing devices.',
       localDataNoticeTitle: 'Local browser data.',
       noRecentRecordsTitle: 'No recent records yet.',
       noRecentRecordsDetail:

@@ -552,66 +552,74 @@ function getSuggestedTargetsForUnresolvedFragments(
 
 export function getRelationshipTextReviewItems({
   codex,
+  entryIds,
   sections,
 }: {
   codex: WorldCodex;
+  entryIds?: readonly string[];
   sections: readonly WorldSectionConfig[];
 }): RelationshipTextReviewItem[] {
+  const entryIdFilter = entryIds ? new Set(entryIds) : null;
   return sections
     .filter(
       (section) =>
         getRelationshipFieldConfigsForEntryKind(section.kind).length > 0
     )
     .flatMap((section) =>
-      getEntries(codex, section.id).flatMap((entry) => {
-        const visibleFieldKeys = new Set(
-          getEntryDetailFields(section, entry).map((field) => field.key)
-        );
-        return getRelationshipFieldConfigsForEntryKind(section.kind)
-          .filter((config) => visibleFieldKeys.has(config.fieldKey))
-          .flatMap((config) => {
-            const value = entry.fields[config.fieldKey]?.trim() ?? '';
-            if (!value) {
-              return [];
-            }
-            const options = getRelationshipTargetOptions({
-              codex,
-              config,
-              sections,
-              currentEntry: entry,
-            });
-            const migration = buildRelationshipTextMigration(
-              value,
-              options.map((option) => ({
-                id: option.entry.id,
-                name: option.entry.name,
-              })),
-              config.cardinality
-            );
-            if (migration.targetIds.length === 0 && !migration.remainingText) {
-              return [];
-            }
-            return [
-              {
-                entryId: entry.id,
-                entryName: entry.name,
-                sectionId: section.id,
-                fieldKey: config.fieldKey,
-                fieldLabel: config.label,
+      getEntries(codex, section.id)
+        .filter((entry) => !entryIdFilter || entryIdFilter.has(entry.id))
+        .flatMap((entry) => {
+          const visibleFieldKeys = new Set(
+            getEntryDetailFields(section, entry).map((field) => field.key)
+          );
+          return getRelationshipFieldConfigsForEntryKind(section.kind)
+            .filter((config) => visibleFieldKeys.has(config.fieldKey))
+            .flatMap((config) => {
+              const value = entry.fields[config.fieldKey]?.trim() ?? '';
+              if (!value) {
+                return [];
+              }
+              const options = getRelationshipTargetOptions({
+                codex,
+                config,
+                sections,
+                currentEntry: entry,
+              });
+              const migration = buildRelationshipTextMigration(
                 value,
-                exactMatchCount: migration.targetIds.length,
-                exactTargetIds: migration.targetIds,
-                remainingText: migration.remainingText,
-                unresolvedFragments: migration.unmatchedFragments,
-                suggestedTargets: getSuggestedTargetsForUnresolvedFragments(
-                  migration.unmatchedFragments,
-                  options
-                ),
-                ambiguousFragments: migration.ambiguousFragments,
-              },
-            ];
-          });
-      })
+                options.map((option) => ({
+                  id: option.entry.id,
+                  name: option.entry.name,
+                })),
+                config.cardinality
+              );
+              if (
+                migration.targetIds.length === 0 &&
+                !migration.remainingText
+              ) {
+                return [];
+              }
+              return [
+                {
+                  entryId: entry.id,
+                  entryName: entry.name,
+                  sectionId: section.id,
+                  fieldKey: config.fieldKey,
+                  fieldLabel: config.label,
+                  value,
+                  exactMatchCount: migration.targetIds.length,
+                  exactTargetIds: migration.targetIds,
+                  remainingText: migration.remainingText,
+                  unresolvedFragments: migration.unmatchedFragments,
+                  suggestedTargets: getSuggestedTargetsForUnresolvedFragments(
+                    migration.unmatchedFragments,
+                    options
+                  ),
+                  ambiguousFragments: migration.ambiguousFragments,
+                },
+              ];
+            });
+        })
     );
 }
 

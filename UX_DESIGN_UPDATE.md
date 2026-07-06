@@ -1056,7 +1056,9 @@ Evaluation after implementation:
 - Existing timeline diagnostics continue to treat all relationships connected to
   an event as involved; this slice adds a structured authoring path for new
   involved links.
-- A custom Timeline event editor remains future work.
+- This slice was later extended by shared Timeline editor grouping and existing
+  relationship summaries, so the current custom-editor gap is closed for the
+  prototype.
 
 ### Completed Slice: Browser Timeline Event Open Actions
 
@@ -1083,8 +1085,9 @@ Evaluation after implementation:
 - The route-intent improvement closes a cross-platform semantics gap found
   during review; tools that reason about workflows can now distinguish Timeline
   overview from Timeline event editing.
-- No additional UI iteration was needed after validation; a future custom
-  Timeline event editor can reuse the same route contract.
+- No additional UI iteration was needed after validation. Later completed
+  Timeline editor slices reused this route contract for grouped event editing,
+  contextual involved-record links, and saved relationship summaries.
 
 ### Completed Slice: Mobile Timeline Event Actions
 
@@ -2364,8 +2367,10 @@ Re-evaluation after implementation:
 
 - Users can now evolve and organize custom entry type fields incrementally on
   both browser and mobile.
-- Rename and delete remain intentionally deferred because they require explicit
-  behavior for existing entry data and hidden-field cleanup.
+- At this point, rename and delete were intentionally deferred because they
+  required explicit behavior for existing entry data and hidden-field cleanup.
+  Later completed slices added label-only rename and non-destructive field
+  removal with hidden-detail cleanup.
 
 ### Completed Slice: Rename Custom Field Labels
 
@@ -2395,8 +2400,9 @@ Re-evaluation after implementation:
 
 - Users can correct and clarify custom field labels on browser and mobile
   without losing data.
-- Field deletion remains deferred because it needs explicit handling for saved
-  values and hidden-field cleanup.
+- Field deletion was deferred at this point because it needed explicit handling
+  for saved values and hidden-field cleanup. The later non-destructive removal
+  slice closed that gap for the current custom-field MVP.
 
 ### Completed Slice: Remove Custom Fields Non-Destructively
 
@@ -3557,8 +3563,8 @@ Recommended path:
 
 Current mobile state:
 
-- `MobileCodexProvider` commits document changes to device storage after
-  mutations.
+- `MobileCodexProvider` commits document changes to the installed app's local
+  storage area after mutations.
 - Mobile `EntriesScreen` already combines section switching, list, editor,
   timeline browsing, linked fields, and review.
 - Mobile `RelationshipsScreen` already combines health, repair, graph, pickers,
@@ -4010,9 +4016,12 @@ Tasks:
 
 Re-evaluation:
 
-- Event creation, era assignment, ordering, review, and involved records are
-  reachable from the Timeline workflow on both platforms. A custom event editor
-  remains future work only if the shared entry editor proves insufficient.
+- Event creation, era assignment, ordering, review, involved records,
+  chronology grouping, outcome grouping, contextual create-and-link, and
+  existing relationship summaries are reachable from the Timeline workflow on
+  both platforms. The shared entry editor is sufficient for the current
+  prototype; richer controls such as date parsing or numeric order steppers
+  should be evaluated separately against observed friction.
 
 ### Phase 8: Relationship Studio
 
@@ -4051,16 +4060,23 @@ Evaluation before work:
   vocabulary review, lore definition overview, hidden-detail cleanup, focus
   routing, and portability coverage.
 
-Tasks:
+Completed tasks:
 
-- Design v3 document schema for user field definitions if required.
-- Add migration from v2.
-- Add field definitions for built-in and custom entry types.
 - Move custom entry type management from Workspaces into Knowledge.
-- Add controlled vocabularies.
-- Add lore definition types.
-- Add field backing rules for Lore/Faction/Place/Character/Timeline targets.
-- Add import/export compatibility tests.
+- Add field management for custom entry types inside Knowledge/More.
+- Add controlled-value and observed flexible-value review.
+- Add lore definition type overview.
+- Add field backing rules for Lore, Faction, Place, Character, and Timeline
+  targets.
+- Add import/export coverage for Knowledge-created custom type schemas.
+
+Remaining product-decision tasks:
+
+- Design v3 document schema for durable built-in field definitions only when
+  the current `WorldDetailField` metadata is no longer sufficient.
+- Add migration from v2 only when a v3 write path is introduced.
+- Add editable controlled vocabularies only after the product decision is made
+  to turn observed flexible values into durable workspace-owned lists.
 
 Re-evaluation:
 
@@ -5013,6 +5029,2331 @@ Re-evaluation after implementation:
   keeping the check fast and deterministic.
 - No additional Knowledge dialog coverage gap was found in this pass.
 
+### Completed Slice: Browser Workbench Dirty Route Guard
+
+Status: completed on 2026-07-05.
+
+What changed:
+
+- Browser Workbench route hydration now checks whether an incoming route change
+  would replace the selected inline editor while the current draft is dirty.
+- If the route change would replace the editor target, the existing discard
+  confirmation runs before applying the new `sectionId` or `entryId`.
+- Query and view-only route updates still apply without confirmation because
+  they do not discard the active draft.
+- Browser smoke coverage now dirties a Workbench inline editor, simulates a
+  route change, cancels the discard prompt, and verifies the dirty draft remains
+  in place.
+
+Evaluation before implementation:
+
+- Re-review found the Workbench UI protected user-initiated section and record
+  changes, but external URL/history changes were still applied directly.
+- This was still needed because Workbench is now a primary drafting surface;
+  losing an inline draft from a route update would violate the low-friction
+  creative editing workflow.
+- The issue was browser-specific because mobile route rehydration already uses
+  the platform discard confirmation before replacing dirty editor state.
+
+Root cause and best path:
+
+- Root cause: the Workbench route synchronization effect treated URL state as
+  authoritative and updated `sectionId` or `entryId` without checking the dirty
+  inline editor state.
+- The best path was a narrow route-state guard that only blocks
+  editor-replacing route updates, keeping search and view changes lightweight.
+
+Re-evaluation after implementation:
+
+- Browser smoke now verifies canceled route replacement preserves the dirty
+  Workbench draft.
+- Existing Workbench selection, inline create, save, delete, and route-persisted
+  view behavior remain unchanged.
+- No further dirty-route replacement gap was found in this pass.
+
+### Completed Slice: Timeline Editor Existing Relationship Summary
+
+Status: completed on 2026-07-05.
+
+What changed:
+
+- The shared Timeline editor model now summarizes selected involved records from
+  both canonical `involves` field relationships and broader saved relationships
+  connected to an existing timeline event.
+- Existing timeline events now show the same involved-record context that the
+  Timeline browser already uses for filtering, review, and event summaries.
+- New timeline drafts and staged create-and-link flows still use canonical
+  `involves` relationships for newly selected involved records.
+
+Evaluation before implementation:
+
+- The custom Timeline editor had the right chronology and involved-record
+  controls, but a focused test showed existing broader timeline relationships
+  were not appearing in the editor's selected involved-record summary.
+- The gap was still needed because users expect the editor, browse view, and
+  review context to agree on which records are involved in an event.
+- Changing seed relationship types would have broken Relationship Studio
+  examples, so the fix needed to align the editor model rather than narrowing
+  the world data.
+
+Root cause and best path:
+
+- Root cause: `getTimelineEventEditorModel` read selected records only through
+  the `involves` relationship-field config, while the rest of Timeline treats
+  any relationship connected to a timeline event as relevant event context.
+- The best path was to union canonical involved-field links with the existing
+  Timeline involved-entry index for saved events, then keep staged new links
+  scoped to canonical `involves` relationships.
+
+Re-evaluation after implementation:
+
+- Focused Timeline model coverage now verifies the seeded Harbor Accord shows
+  the Cartographers Guild in the editor selected-record summary.
+- Full test and typecheck gates pass with the broader Timeline/Relationship
+  relationship semantics intact.
+- No additional editor/browser summary mismatch was found in this pass.
+
+### Completed Slice: Timeline Editor Documentation Alignment
+
+Status: completed on 2026-07-06.
+
+What changed:
+
+- README now describes Timeline event authoring as grouped chronology editing
+  with relationship-backed involved records and existing relationship summaries.
+- The user guide now explains that Timeline editing groups chronology, linked
+  records, and outcomes, and that saved events summarize existing relationships
+  connected to the event.
+- Mobile README now names grouped event editing, relationship-backed involved
+  records, existing relationship summaries, and contextual new-event drafts as
+  part of the dedicated Timeline tab.
+- Manual release and web/mobile parity QA now include Timeline chronology
+  grouping, contextual event creation, involved-record links, and existing
+  relationship summaries.
+- Older UX plan wording that still framed a custom event editor as future work
+  was updated to reflect the current shared-editor baseline.
+
+Evaluation before implementation:
+
+- The runtime and tests now support custom Timeline editor grouping, contextual
+  creation, and broader saved relationship summaries, but public docs and QA
+  checks still only described generic chronology browsing or contextual
+  creation.
+- The gap was still needed because future release checks should verify the same
+  workflow behavior users see in browser and mobile, not only the older event
+  list and Era Manager behavior.
+
+Root cause and best path:
+
+- Root cause: implementation slices had moved faster than the user-facing docs
+  and release checklists, leaving the Timeline editor capabilities discoverable
+  in-app but under-specified in durable project documentation.
+- The best path was a documentation-only alignment slice because no runtime
+  behavior, persistence shape, or shared model change was needed.
+
+Re-evaluation after implementation:
+
+- Timeline docs now consistently describe browsing, event editing, contextual
+  creation, involved-record linked fields, and existing relationship summaries
+  across browser and mobile.
+- QA checklists now ask testers to exercise the editor-specific behavior that
+  previously depended on source tests and smoke coverage alone.
+- No further high-signal Timeline editor documentation mismatch was found in
+  this pass.
+
+### Completed Slice: Timeline Editor Help Alignment
+
+Status: completed on 2026-07-06.
+
+What changed:
+
+- Shared focused Timeline Help now mentions grouped event editing and saved
+  relationship summaries alongside explicit order, Era Manager reassignment,
+  filters, and contextual new-event drafts.
+- Shared workflow Help now points users to grouped event editing and saved
+  relationship summaries when arranging events.
+- Help topic tests now assert the new Timeline editor guidance so future Help
+  copy changes do not regress the browser/mobile explanation.
+
+Evaluation before implementation:
+
+- The user guide and QA docs now described the Timeline editor behavior, but
+  in-app Help still framed Timeline mostly as browsing, ordering, and filtered
+  new-event drafting.
+- The gap was still needed because Help is visible from both browser and mobile
+  workflows and should match the current authoring surface, not lag behind the
+  durable project docs.
+
+Root cause and best path:
+
+- Root cause: shared Help copy had been updated for Era Manager and contextual
+  creation, but not for the later editor grouping and existing relationship
+  summary slices.
+- The best path was a small shared Help copy update in `@valgaron/core` because
+  browser and mobile both consume the same Help model.
+
+Re-evaluation after implementation:
+
+- Browser and mobile Help now communicate the same Timeline workflow model as
+  README, user guide, QA checklists, and runtime behavior.
+- Focused Help tests cover grouped event editing and saved relationship
+  summaries.
+- No further Timeline Help mismatch was found in this pass.
+
+### Completed Slice: Review Tray Follow-Up Reframing
+
+Status: completed on 2026-07-06.
+
+What changed:
+
+- The final remaining-followups section now treats basic Relationship/Timeline
+  review-tray consolidation as complete for the current prototype.
+- The remaining review-related decision is reframed as selected-record
+  Workbench review context or cross-surface aggregation, which matches the
+  earlier shared Review Tray summary model re-evaluation.
+
+Evaluation before implementation:
+
+- The plan still listed Relationship/Timeline review-tray consolidation as a
+  large remaining product decision, but the implemented baseline already has a
+  shared Review Tray summary model consumed by Relationship Studio, browser
+  Timeline, mobile Links, and mobile Timeline.
+- Leaving the older phrasing would overstate the next slice and risk pushing a
+  broad rewrite when the real remaining opportunity is narrower.
+
+Root cause and best path:
+
+- Root cause: the final recommendation was not updated after the shared Review
+  Tray summary model shipped.
+- The best path was to update the plan language only, because runtime summary
+  consistency already exists and detailed domain-specific actions should remain
+  in their current surfaces until a concrete aggregation workflow is needed.
+
+Re-evaluation after implementation:
+
+- The final implementation recommendation now distinguishes completed
+  Relationship/Timeline summary consistency from still-open review aggregation
+  decisions.
+- No code or QA change was needed for this slice because it corrects planning
+  scope rather than user-visible behavior.
+
+### Completed Slice: Utilities Focused Help Destination
+
+Status: completed on 2026-07-06.
+
+What changed:
+
+- The shared Utilities/More Help destination now opens focused Utilities Help
+  instead of generic Help.
+- Core destination tests now assert `/help?topic=utilities` for the Help
+  destination.
+- Mobile route adapter tests now verify focused Utilities Help routes preserve
+  the `topic=utilities` parameter.
+
+Evaluation before implementation:
+
+- Utilities/More already had a Help destination, but it routed to generic Help
+  even though the shared Help model includes a Utilities-focused topic.
+- The gap was still needed because users opening Help from Project Tools are
+  more likely trying to understand Utilities/More organization, Data,
+  Workspaces, Knowledge, and local prototype limits than the whole Help index.
+
+Root cause and best path:
+
+- Root cause: the destination model was created before focused Help topics were
+  fully aligned with Utilities/More, so the Help card kept the base `/help`
+  path.
+- The best path was a shared destination-model change because browser
+  Utilities and mobile More both consume `getUtilitiesOverviewModel` and
+  `utilityWorkflowDestinations`.
+
+Re-evaluation after implementation:
+
+- Browser and mobile now open directly to the Utilities-focused Help topic from
+  the Project Tools Help destination.
+- The route remains portable across web and mobile because it uses the existing
+  shared Help route and mobile route adapter.
+- Focused validation caught and removed a Help/Utilities circular import, so
+  the final implementation uses the stable Help route string from the shared
+  shell route instead of importing the Help module.
+- No further route, persistence, or UI component change was needed for this
+  slice.
+
+### Completed Slice: Utilities Focused Help Route Coverage
+
+Status: completed on 2026-07-06.
+
+What changed:
+
+- Shared workflow route samples now include focused Utilities Help:
+  `/help?topic=utilities`.
+- Route-intent tests now verify the focused Utilities Help route classifies as
+  a Help workflow with `topic: "utilities"`.
+- Mobile route adapter sample coverage now exercises the same focused Help
+  route through the existing `codexWorkflowRouteSamples` loop.
+
+Evaluation before implementation:
+
+- The Utilities Help destination now depends on focused Utilities Help, but the
+  shared workflow route samples still only exercised Timeline-focused Help.
+- The gap was still needed because route samples are used as a compact parity
+  net for browser/mobile route adaptation, and focused Help routes are part of
+  the cross-platform navigation contract.
+
+Root cause and best path:
+
+- Root cause: the destination change introduced a new route dependency without
+  adding it to the shared route sample set.
+- The best path was to add the focused Utilities Help route to
+  `codexWorkflowRouteSamples` and assert direct workflow classification rather
+  than create separate browser or mobile navigation logic.
+
+Re-evaluation after implementation:
+
+- Focused Utilities Help is now covered by shared route-intent classification
+  and mobile route adaptation sample coverage.
+- No runtime behavior change was needed; this slice hardens the route contract
+  for the previous Utilities destination slice.
+
+### Completed Slice: Focused Help Documentation Alignment
+
+Status: completed on 2026-07-06.
+
+What changed:
+
+- README now lists Knowledge and Utilities alongside entry, timeline,
+  relationship, workspace, and data workflows as focused Help link sources.
+
+Evaluation before implementation:
+
+- Runtime Help and route coverage now support Knowledge and Utilities-focused
+  Help, but the README still described only the older focused Help sources.
+- The gap was still needed because README is the public feature summary and
+  should not understate the current browser/mobile guidance model.
+
+Root cause and best path:
+
+- Root cause: focused Help expanded incrementally across Knowledge and
+  Utilities slices, but the top-level documentation sentence was not updated
+  with those newer surfaces.
+- The best path was a single README alignment edit; no runtime or QA workflow
+  needed to change.
+
+Re-evaluation after implementation:
+
+- README, user guide, shared Help copy, and route tests now agree that
+  Knowledge and Utilities participate in focused Help.
+- No further focused Help documentation mismatch was found in this pass.
+
+### Completed Slice: Selected Workbench Review Summary
+
+Status: completed on 2026-07-06.
+
+What changed:
+
+- The shared Workbench selected-record context now includes a Review Tray
+  summary for record-specific drafting prompts and legacy relationship-backed
+  text.
+- Browser Workbench selected context renders the summary as compact review
+  cards before the detailed drafting prompt list.
+- Mobile Workbench Context mode renders the same summary text before detailed
+  prompts and relationship context.
+- Core Workbench model tests, mobile render tests, and browser smoke route
+  expectations now cover the selected-record review summary.
+- A re-evaluation pass added an optional selected-entry filter to the legacy
+  relationship text review helper, so Workbench context can count only the
+  selected record instead of scanning unresolved text for the whole workspace.
+
+Evaluation before implementation:
+
+- Workbench already showed selected-record relationship count, completeness,
+  and drafting prompts, but the review signal was split across plain fields and
+  deeper Context or Relationship Studio workflows.
+- The gap was still needed because the remaining review-consolidation follow-up
+  called out selected-record Workbench context as the narrow next opportunity,
+  while broad cross-surface aggregation remains a larger product decision.
+
+Root cause and best path:
+
+- Root cause: Workbench selected context had useful underlying signals but did
+  not package them with the shared Review Tray model used by Timeline and
+  Relationship Studio.
+- The best path was to centralize only selected-record prompt and legacy-link
+  counts in the shared Workbench model, then render them in the existing
+  browser/mobile context blocks without adding a new dashboard or route.
+
+Re-evaluation after implementation:
+
+- Selected Workbench context now gives users an immediate record-specific
+  review summary before they decide whether to edit the record or manage links.
+- The implementation reuses existing Review Tray semantics and keeps detailed
+  actions in the established drafting prompt and relationship text review
+  workflows.
+- Focused helper coverage now verifies selected-entry legacy text review counts
+  can be scoped without changing existing full-workspace callers.
+- Cross-surface review aggregation remains intentionally out of scope until a
+  concrete workflow requires it.
+
+### Completed Slice: Workbench Review Summary Documentation Alignment
+
+Status: completed on 2026-07-06.
+
+What changed:
+
+- README, mobile README, user guide, and QA checklists now describe
+  selected-record Workbench review summaries.
+- Shared workflow Help now tells users to check selected-record review
+  summaries before editing or managing links.
+- Help topic tests now protect the selected-record review summary guidance.
+
+Evaluation before implementation:
+
+- Browser and mobile Workbench now show selected-record review summaries, but
+  durable docs and shared Help still described Workbench primarily as prompts,
+  context, and section totals.
+- The gap was still needed because Workbench is the primary daily drafting
+  surface and users should understand that review signals are available before
+  opening editor or link-management workflows.
+
+Root cause and best path:
+
+- Root cause: the Workbench review summary slice changed the selected context
+  behavior after the existing Workbench documentation had already stabilized.
+- The best path was a documentation and shared Help copy alignment slice; the
+  runtime model and renderers were already updated.
+
+Re-evaluation after implementation:
+
+- README, user guide, mobile README, QA checklists, shared Help, and runtime
+  Workbench behavior now describe the same selected-record review summary
+  workflow.
+- No additional Workbench review-summary documentation gap was found in this
+  pass.
+
+### Completed Slice: Utilities Top-Level Tool Shortcuts
+
+Status: completed on 2026-07-06.
+
+What changed:
+
+- The shared Utilities overview model now exposes a Tool Shortcuts summary for
+  Data, Workspaces, and focused Utilities Help.
+- Browser Utilities renders those shortcuts in the Project Tools overview
+  alongside the Knowledge schema summary.
+- Mobile More renders the same shortcuts at the top of Project Tools before the
+  longer inline Knowledge setup sections.
+- Core destination tests, mobile render coverage, and browser smoke
+  expectations now verify the shortcuts.
+
+Evaluation before implementation:
+
+- Utilities/More had destination cards for Data, Workspaces, and Help, but on
+  mobile those cards appeared after the long Knowledge setup, vocabulary,
+  cleanup, reusable knowledge, and lore definition sections.
+- The gap was still needed because Project Tools is meant to consolidate
+  secondary workflows; requiring mobile users to scroll through the full
+  Knowledge setup area to reach backup or Help actions undercut that goal.
+
+Root cause and best path:
+
+- Root cause: the top Project Tools summary had become Knowledge-heavy as
+  schema ownership moved into More, while the other secondary tools remained
+  available only as lower destination cards.
+- The best path was a shared shortcut summary that promotes Data, Workspaces,
+  and Help without duplicating Knowledge Setup, because Knowledge already has
+  the primary schema summary and setup actions in the same block.
+
+Re-evaluation after implementation:
+
+- Browser and mobile now expose backup, workspace, and focused Help shortcuts
+  from the first Project Tools block.
+- Detailed destination cards remain available lower on the page for users who
+  scroll, preserving focused route targets and existing destination structure.
+- No schema, persistence, or navigation-route change was needed for this slice.
+
+### Completed Slice: Utilities Shortcut Documentation Alignment
+
+Status: completed on 2026-07-06.
+
+What changed:
+
+- The user guide now describes Project Tools shortcuts for Data, Workspaces,
+  and focused Help.
+- Mobile README now describes top-level tool shortcuts inside More.
+- Focused Utilities Help and shared workflow Help now mention the top-level
+  Data, Workspaces, and Help shortcuts.
+- Help topic tests now guard the shortcut guidance.
+
+Evaluation before implementation:
+
+- Runtime Utilities/More now exposed top-level tool shortcuts, but Help and
+  durable docs still described Utilities primarily as a container for secondary
+  destinations.
+- The gap was still needed because the shortcut row exists specifically to
+  reduce mobile scroll cost; users need the Help and guide language to match
+  the new interaction model.
+
+Root cause and best path:
+
+- Root cause: the shortcut runtime slice changed the first Project Tools block
+  after Utilities documentation had already been aligned around destination
+  cards.
+- The best path was a small documentation and shared Help copy update; no
+  routing or component behavior needed further changes.
+
+Re-evaluation after implementation:
+
+- Runtime Project Tools, mobile README, user guide, focused Utilities Help, and
+  shared workflow Help now all describe top-level tool shortcuts.
+- No further Utilities shortcut documentation mismatch was found in this pass.
+
+### Completed Slice: Mobile Workbench Context Copy Alignment
+
+Status: completed on 2026-07-06.
+
+What changed:
+
+- Shared mobile Workbench Context mode copy now names selected-record review
+  summaries instead of generic selected-record context.
+- Layout-mode tests now guard the updated Context mode detail.
+- Mobile render coverage now verifies the updated guidance appears on a direct
+  character Context route.
+
+Evaluation before implementation:
+
+- Browser and mobile Workbench now expose selected-record review summaries, and
+  durable docs describe them, but the mobile mode switcher still described
+  Context mode as generic selected-record context.
+- The gap was still needed because mobile users rely on the mode summary to
+  understand why Context is distinct from Edit and Index.
+
+Root cause and best path:
+
+- Root cause: Context mode copy was created before selected-record review
+  summaries were added to the shared Workbench context model.
+- The best path was a shared layout-mode copy update, because the mobile
+  Workbench and Timeline mode framework already centralizes this language.
+
+Re-evaluation after implementation:
+
+- Mobile Context mode guidance now matches the selected-record review summary
+  behavior.
+- No additional renderer, route, or model change was needed for this slice.
+
+### Completed Slice: Utilities Follow-Up Reframing
+
+Status: completed on 2026-07-06.
+
+What changed:
+
+- The final recommendation no longer lists further Utilities consolidation as a
+  known remaining gap.
+- Additional Utilities consolidation is now framed as evidence-driven work that
+  should wait for observed navigation friction.
+
+Evaluation before implementation:
+
+- The plan still listed further Utilities consolidation as a remaining larger
+  follow-up after the Project Tools hub gained top-level Data, Workspaces, and
+  focused Help shortcuts.
+- The gap was still worth reviewing because leaving Utilities in the remaining
+  list would imply more known work even though the current browser and mobile
+  hub now exposes all secondary destinations from the first Project Tools
+  block.
+
+Root cause and best path:
+
+- Root cause: the final recommendation had not been updated after the
+  top-level shortcut slice resolved the concrete Utilities navigation friction.
+- The best path was a planning-language update only; no runtime change was
+  needed after the shortcut implementation and documentation alignment.
+
+Re-evaluation after implementation:
+
+- Remaining follow-ups now distinguish true product decisions from completed
+  Utilities consolidation.
+- Future Utilities work remains allowed, but only when a new observed
+  navigation friction point appears.
+
+### Completed Slice: Schema V3 Decision Guard
+
+Status: completed on 2026-07-06.
+
+What changed:
+
+- Phase 9 now separates completed Knowledge MVP tasks from remaining
+  product-decision tasks for durable schema work.
+- Schema migration documentation now states that review-only Knowledge behavior
+  should not introduce schema `3`.
+- The v3 gate is now tied to concrete durable document needs such as
+  workspace-owned editable vocabularies or built-in field definitions that no
+  longer fit current `WorldDetailField` metadata.
+
+Evaluation before implementation:
+
+- Knowledge already owns custom entry type management, custom field management,
+  vocabulary review, lore definition overview, field backing rules, cleanup,
+  and portability coverage, but the Phase 9 task list still mixed completed MVP
+  work with future v3 decisions.
+- The gap was still needed because an unclear task list could push a schema
+  migration before there is a durable data requirement.
+
+Root cause and best path:
+
+- Root cause: implementation slices completed most Knowledge MVP tasks without
+  revising the original Phase 9 task list or release schema guidance.
+- The best path was a planning and release-doc guard, not a runtime schema
+  change, because the current schema still supports the implemented MVP.
+
+Re-evaluation after implementation:
+
+- The plan now clearly says v3 is only for future durable document data, not
+  current Knowledge review surfaces.
+- Release schema docs now give the same gate for future maintainers.
+- No source schema, parser, import/export, or storage-key change was needed.
+
+### Completed Slice: Cross-Surface Review Aggregation Guard
+
+Status: completed on 2026-07-06.
+
+What changed:
+
+- The final recommendation now treats cross-surface review aggregation as a
+  product decision that needs observed workflow evidence before implementation.
+- The plan clarifies that the current prototype already has review summaries in
+  the right local workflow surfaces: Workbench selected context, Timeline
+  Review, and Relationship Studio Review.
+- Future aggregation is scoped to a unified triage queue only if users need to
+  compare or resolve review work across surfaces from one place.
+
+Evaluation before implementation:
+
+- Workbench, Timeline, and Relationship Studio now all use shared review
+  summary semantics, but a global review dashboard would add another navigation
+  surface and force unresolved prioritization rules.
+- The gap was still worth reviewing because the remaining follow-up said
+  "cross-surface review aggregation" without naming the trigger for when that
+  extra surface becomes worth the interaction cost.
+
+Root cause and best path:
+
+- Root cause: review-summary consolidation happened in focused workflow
+  surfaces, while the original plan still left aggregation as a broad remaining
+  phrase.
+- The best path was to record the aggregation decision gate: keep review work
+  local until users need unified cross-surface triage, then design that queue
+  from observed review paths rather than from implementation convenience.
+
+Re-evaluation after implementation:
+
+- The plan now preserves the current low-friction local review model and avoids
+  adding a speculative global review surface.
+- Cross-surface aggregation remains available as future work, but it has a
+  concrete trigger and scope.
+- No runtime change was needed because current review summaries already cover
+  the active Workbench, Timeline, and Relationship Studio workflows.
+
+### Completed Slice: Release Gate Decision Guard Alignment
+
+Status: completed on 2026-07-06.
+
+What changed:
+
+- Versioning docs now repeat the schema guard: do not advance the saved
+  document schema for review-only Knowledge behavior.
+- Manual release checks now require schema, Knowledge vocabulary editing, and
+  review aggregation changes to confirm the UX plan, versioning docs, and
+  schema migration docs still describe the intended decision gate.
+- Web/mobile parity checks now require documented product decisions for schema
+  version changes and cross-surface review aggregation.
+
+Evaluation before implementation:
+
+- The UX plan and schema migration doc already captured the v3 and review
+  aggregation guards, but release reviewers could still miss those decisions
+  because the QA checklists did not reference them.
+- The gap was still needed because future work in schema or review surfaces is
+  high-blast-radius: it can affect persistence, import/export, route surfaces,
+  and user workflow expectations.
+
+Root cause and best path:
+
+- Root cause: the decision guards were added after the release and parity
+  checklists had already stabilized around general validation gates.
+- The best path was to align release documentation rather than add runtime code;
+  the current implementation already follows the guarded behavior.
+
+Re-evaluation after implementation:
+
+- Product-decision guards now appear in the plan, schema migration docs,
+  versioning docs, manual release checks, and web/mobile parity checks.
+- Future schema or cross-surface review work has an explicit review checkpoint
+  before implementation can be considered complete.
+- No source, schema, route, or UI change was needed for this slice.
+
+### Completed Slice: Release Operations Schema Guard Alignment
+
+Status: completed on 2026-07-06.
+
+What changed:
+
+- The release operations playbook now says to confirm that a change actually
+  needs a new saved-document shape before treating it as migration work.
+- `docs/release/versioning-and-maintenance.md` now repeats the same schema
+  guard as the versioning and schema migration docs: review-only Knowledge
+  behavior, vocabulary inspection, and local review summaries should not
+  advance the schema version.
+- Future schema `3` or later work is tied to documented product decisions for
+  durable document data, such as workspace-owned editable vocabularies or
+  built-in field definitions that no longer fit current field metadata.
+
+Evaluation before implementation:
+
+- The prior release checklist and schema migration docs carried the decision
+  gate, but the operational release playbook still framed schema impact as a
+  migration-review step without naming the no-migration case.
+- The gap was still needed because release operators are likely to start from
+  the operations playbook during version updates, not from the deeper schema
+  migration note.
+
+Root cause and best path:
+
+- Root cause: the schema guard was added to product and QA documents after the
+  release operations playbook had already defined its general schema review
+  language.
+- The best path was documentation alignment, not source work, because the
+  runtime schema remains unchanged and already supports the completed Knowledge
+  MVP.
+
+Re-evaluation after implementation:
+
+- The product plan, versioning policy, schema migration guide, release
+  operations playbook, manual release checklist, and parity checklist now use
+  the same schema decision boundary.
+- No parser, storage-key, import/export, route, or UI work was needed.
+
+### Completed Slice: Support Diagnostics-First Alignment
+
+Status: completed on 2026-07-06.
+
+What changed:
+
+- The support guide now asks users to download Diagnostics before exporting a
+  full-document JSON backup when reporting storage, import/export, routing, or
+  rendering issues.
+- The guide still recommends exporting a full JSON backup for the user's own
+  recovery records when the app opens, but explicitly says not to share it by
+  default.
+
+Evaluation before implementation:
+
+- `docs/release/versioning-and-maintenance.md` already said support starts with
+  diagnostics, not world backups, while `docs/support.md` listed full-document
+  JSON export first.
+- The gap was worth fixing because support copy affects privacy expectations
+  and issue-reporting friction even though the prototype is local-only.
+
+Root cause and best path:
+
+- Root cause: support recovery advice and support reporting advice had been
+  combined in one ordered list, making private backup creation appear like the
+  first reporting artifact.
+- The best path was to reorder and clarify the instructions so diagnostics are
+  the default support artifact while private backups remain part of data
+  recovery hygiene.
+
+Re-evaluation after implementation:
+
+- Support guidance now matches the release operations support policy and the
+  local-only privacy model.
+- No application behavior change was needed because Data already exposes both
+  Diagnostics and full-document JSON export.
+
+### Completed Slice: Privacy Mobile Surface Alignment
+
+Status: completed on 2026-07-06.
+
+What changed:
+
+- `PRIVACY.md` now describes Valgaron as a local-only web app with a native
+  mobile companion instead of a browser-only app.
+- The storage explanation now covers both browser `localStorage` and the
+  mobile companion's installed-app local storage area.
+- The local data risk list now includes uninstalling the mobile app alongside
+  browser data clearing, private browsing, browser profile switching, device
+  loss, storage quota limits, and local storage corruption.
+- The README documentation index now describes `PRIVACY.md` as covering local
+  web and mobile storage.
+
+Evaluation before implementation:
+
+- The main README, user guide, support docs, and security/privacy notes already
+  describe both web and mobile local storage, but the top-level privacy note
+  still only named browser storage.
+- The gap was still needed because the current UX direction treats web and
+  mobile as equal first-class surfaces, and privacy expectations must be
+  consistent across both.
+
+Root cause and best path:
+
+- Root cause: `PRIVACY.md` predated the mobile companion work and had not been
+  revisited during the later mobile parity slices.
+- The best path was a narrow privacy-copy update; no runtime behavior needed
+  to change because both platforms already store data locally and expose JSON
+  export.
+
+Re-evaluation after implementation:
+
+- Privacy, support, security/privacy, README, and user-guide copy now all
+  describe the same local-only web and mobile storage model.
+- No source, storage, schema, or UI change was needed.
+
+### Completed Slice: README Mobile Scope Alignment
+
+Status: completed on 2026-07-06.
+
+What changed:
+
+- README product-scope copy no longer says the phase excludes a high-rigor
+  native parity program.
+- The same scope sentence now preserves the no-account, no-backend, no-sync,
+  no-collaboration, no-sharing, no-social, and no-messaging boundaries while
+  explicitly saying web and mobile are local prototype surfaces with shared
+  models and paired workflow checks.
+
+Evaluation before implementation:
+
+- The README already described the Expo companion, mobile tabs, mobile tests,
+  parity checklist, and local web/mobile storage model, but its exclusion list
+  still included native parity.
+- The gap was still needed because the current UX plan and implementation treat
+  mobile as an equal paired surface for workflows, even though the product
+  remains local-only and web-first in architecture.
+
+Root cause and best path:
+
+- Root cause: old prototype-scope copy was not updated after the mobile
+  companion and web/mobile parity workflow became part of the active baseline.
+- The best path was a single README wording change, not a runtime or QA change,
+  because parity checks and mobile tests already exist and the product boundary
+  still excludes hosted sync or collaboration.
+
+Re-evaluation after implementation:
+
+- README now distinguishes local paired web/mobile workflow quality from
+  hosted multi-device or account-backed product scope.
+- The scope copy no longer conflicts with mobile README, privacy, user guide,
+  or the web/mobile parity checklist.
+- No source, route, schema, or UI change was needed.
+
+### Completed Slice: Mobile Storage-Risk Help Alignment
+
+Status: completed on 2026-07-06.
+
+What changed:
+
+- Shared Help now tells users to export before uninstalling the mobile app,
+  alongside browser data clearing, browser switching, private browsing, and
+  device changes.
+- Shared offline Help now names mobile app uninstall as a data-loss risk that
+  offline or installable app behavior does not protect against.
+- README and the user guide now include mobile app uninstall in their backup
+  and offline/storage-risk guidance.
+- Core Help tests and mobile Help render coverage now guard the mobile
+  app-uninstall guidance.
+
+Evaluation before implementation:
+
+- Privacy copy already listed uninstalling the mobile app as a local data risk,
+  but in-app Help, README backup guidance, and user guide offline guidance did
+  not.
+- The gap was still needed because Help is a live workflow surface on both web
+  and mobile, and storage-risk copy directly affects whether users protect
+  creative work before high-risk local actions.
+
+Root cause and best path:
+
+- Root cause: privacy documentation was updated after the shared Help and
+  backup docs had already stabilized around browser-profile and device-change
+  risks.
+- The best path was to update the shared Help source of truth first, then align
+  durable docs and focused tests rather than duplicate platform-specific Help
+  copy.
+
+Re-evaluation after implementation:
+
+- In-app Help, README, user guide, Privacy, support, and security/privacy copy
+  now describe the same local web/mobile storage risk model.
+- Mobile Help render coverage verifies the guidance appears in the native Help
+  surface.
+- No storage behavior, schema, route, or UI layout change was needed.
+
+### Completed Slice: Data Storage-Risk Copy Alignment
+
+Status: completed on 2026-07-06.
+
+What changed:
+
+- Shared Data storage guidance now uses the same backup-risk set as Help and
+  docs: clearing browser data, switching browsers, using private browsing,
+  uninstalling the mobile app, and changing devices.
+- Data feature model coverage now guards the expanded manual-save guidance.
+
+Evaluation before implementation:
+
+- The previous slice aligned Help, README, user guide, and Privacy, but the
+  web Data route still rendered older manual-save guidance that omitted private
+  browsing and mobile app uninstall.
+- The gap was still needed because Data is the highest-intent backup surface;
+  stale copy there would undercut the storage-risk guidance users see in Help.
+
+Root cause and best path:
+
+- Root cause: Data storage copy lives in the shared Data feature model rather
+  than the Help model, so the prior Help-focused change did not update it.
+- The best path was a copy-only shared model update with focused model
+  coverage; mobile Data does not render the web manual-save sentence, so no
+  mobile layout change was needed.
+
+Re-evaluation after implementation:
+
+- Data, Help, README, user guide, Privacy, support, and security/privacy copy
+  now use a consistent local storage risk model.
+- No persistence behavior, route, schema, or layout change was needed.
+
+### Completed Slice: Overview Storage-Risk Copy Alignment
+
+Status: completed on 2026-07-06.
+
+What changed:
+
+- The shared Overview local data notice now uses the same backup-risk set as
+  Help and Data: clearing browser data, switching browsers, using private
+  browsing, uninstalling the mobile app, and changing devices.
+- Overview model coverage now guards the expanded local data notice.
+
+Evaluation before implementation:
+
+- Help, Data, README, user guide, and Privacy had been aligned around the
+  current web/mobile storage-risk model, but the Overview first-screen local
+  data notice still only mentioned clearing browser data or changing devices.
+- The gap was still needed because Overview is a high-visibility entry point
+  and can be the first place a user learns that local storage is not durable.
+
+Root cause and best path:
+
+- Root cause: the Overview notice has its own shared feature copy and was not
+  covered by the prior Help/Data storage-risk slices.
+- The best path was a narrow shared-copy update with focused model coverage;
+  the notice still accurately uses browser-specific save wording because the
+  header Save button is a web behavior.
+
+Re-evaluation after implementation:
+
+- Overview, Data, Help, README, user guide, Privacy, support, and
+  security/privacy copy now use the same local storage risk model.
+- No persistence behavior, route, schema, or UI layout change was needed.
+
+### Completed Slice: Storage-Risk Documentation Completion
+
+Status: completed on 2026-07-06.
+
+What changed:
+
+- README backup guidance now includes private browsing in the same risk set as
+  Data, Help, and Overview.
+- `PRIVACY.md` now says recovery snapshots stay in the same browser profile or
+  mobile app storage area, and can be removed when browser data is cleared or
+  the mobile app is uninstalled.
+- Support recovery triage now asks whether the mobile app install/storage area
+  changed and tells users to look for downloaded JSON backups outside the
+  browser or mobile app.
+
+Evaluation before implementation:
+
+- The runtime copy had been aligned, but durable documentation still had three
+  smaller mismatches: README omitted private browsing in the backup-risk
+  sentence, Privacy described recovery snapshots as browser-only, and support
+  triage did not explicitly ask about mobile app storage changes.
+- The gap was still needed because backup, privacy, and support guidance are
+  where users make recovery decisions after local storage loss.
+
+Root cause and best path:
+
+- Root cause: storage-risk alignment happened incrementally across Help, Data,
+  Overview, and Privacy, leaving adjacent durable docs with partial versions of
+  the same local storage model.
+- The best path was a documentation-only correction because the runtime storage
+  model and recovery snapshot behavior already match the intended local-only
+  architecture.
+
+Re-evaluation after implementation:
+
+- Durable backup, privacy, support, user-guide, Help, Data, and Overview copy
+  now agree on browser profile, mobile app storage, private browsing, app
+  uninstall, device, quota, and local-corruption risks.
+- No source behavior, schema, route, or UI layout change was needed.
+
+### Completed Slice: Mobile README Storage-Risk Alignment
+
+Status: completed on 2026-07-06.
+
+What changed:
+
+- Mobile README now tells developers and testers that uninstalling the app can
+  remove local data.
+- The same bullet points users toward JSON export as the portable backup path.
+
+Evaluation before implementation:
+
+- User-facing Help, README, user guide, Privacy, support, Data, and Overview
+  now describe mobile app uninstall as a local data risk, but the mobile
+  workspace README still only said the document is stored on the current
+  device.
+- The gap was still needed because mobile setup and QA readers often start
+  from `mobile/README.md`, especially when testing local device behavior.
+
+Root cause and best path:
+
+- Root cause: mobile README predated the detailed storage-risk alignment and
+  summarized only the positive local-storage behavior.
+- The best path was a single mobile README bullet rather than duplicating the
+  full privacy policy; detailed recovery and support guidance remains in the
+  shared docs.
+
+Re-evaluation after implementation:
+
+- Mobile README now matches the local-only storage expectation documented in
+  Help, Data, Overview, README, user guide, Privacy, and support docs.
+- No source behavior, route, schema, or UI layout change was needed.
+
+### Completed Slice: Security And Deployment Storage-Risk Alignment
+
+Status: completed on 2026-07-06.
+
+What changed:
+
+- Security/privacy notes now explain that browser data can be removed by
+  browser data cleanup, private browsing cleanup, browser profile removal, or
+  storage failures.
+- Security/privacy notes now explain that mobile app data can be removed by
+  app uninstall, device loss, or storage failures.
+- Static-hosting deployment docs now describe PWA offline support as app-shell
+  availability only and clarify that it does not protect against
+  browser-profile deletion, private browsing cleanup, or browser storage
+  failures.
+
+Evaluation before implementation:
+
+- User-facing backup, Help, Data, Overview, Privacy, support, and mobile README
+  copy had converged on the current local storage risk model, but
+  security/privacy and deployment docs still used narrower storage-risk
+  wording.
+- The gap was still needed because these docs define what the project may
+  safely claim during release and deployment reviews.
+
+Root cause and best path:
+
+- Root cause: storage-risk alignment moved through product surfaces first,
+  while security and deployment docs still carried earlier browser-centered
+  phrasing.
+- The best path was a documentation-only alignment because runtime storage
+  behavior, diagnostics, export/import, and recovery snapshots already match
+  the local-only product boundary.
+
+Re-evaluation after implementation:
+
+- Security/privacy, deployment, Help, Data, Overview, README, user guide,
+  Privacy, support, and mobile README now use compatible storage-risk claims.
+- No source behavior, route, schema, or UI layout change was needed.
+
+### Completed Slice: Active Backup Storage-Scope Copy Alignment
+
+Status: completed on 2026-07-06.
+
+What changed:
+
+- The shared Active Workspace JSON export description now tells users to choose
+  Full Document JSON when they need every workspace in the current browser
+  profile or mobile app storage area.
+- Data portability tests now guard that shared export description.
+
+Evaluation before implementation:
+
+- The broader storage-risk pass aligned most live copy around browser profiles
+  and mobile app storage areas, but the active-workspace export description
+  still used the broader phrase "browser profile or device."
+- The gap was still needed because export-mode selection is where users decide
+  whether to back up one workspace or the whole local document.
+
+Root cause and best path:
+
+- Root cause: export option copy lives in the data portability model, separate
+  from Data storage guidance, Help, Overview, and durable documentation.
+- The best path was a small shared copy update because the same option text is
+  consumed by web Data and mobile Data.
+
+Re-evaluation after implementation:
+
+- Data export copy now matches the same browser profile and mobile app storage
+  model used by Help, Data storage status, Overview, README, user guide,
+  Privacy, support, security/privacy, deployment, and mobile README.
+- No export format, import behavior, schema, route, or UI layout change was
+  needed.
+
+### Completed Slice: Mobile App Storage Scope Copy Alignment
+
+Status: completed on 2026-07-06.
+
+What changed:
+
+- README local-data copy now says mobile edits save to the installed app's
+  local storage area and that local data remains in the current browser profile
+  or mobile app storage area unless exported.
+- README recovery snapshot copy now uses "mobile app storage area" instead of
+  the broader "device storage area."
+- User guide local-data and recovery snapshot copy now uses the installed
+  app's local storage area / mobile app storage area model.
+- Shared Help backup guidance now says mobile edits save to the installed
+  app's local storage area and that recovery snapshots stay in the same browser
+  profile or mobile app storage area only.
+- Help topic tests now guard the mobile app storage area wording.
+
+Evaluation before implementation:
+
+- The active export, Privacy, support, and security docs used the more precise
+  mobile app storage-area model, but README, user guide, and shared Help still
+  used broader "device" or "device storage" wording in a few places.
+- The gap was still needed because users could infer that mobile data survives
+  app uninstall as long as the device remains available.
+
+Root cause and best path:
+
+- Root cause: earlier mobile copy described the platform at the device level
+  before the storage-risk slices clarified that the installed app storage area
+  is the relevant boundary.
+- The best path was to align shared Help and durable docs without changing
+  storage behavior or adding platform-specific implementation logic.
+
+Re-evaluation after implementation:
+
+- Help, README, user guide, Privacy, support, security/privacy, deployment,
+  active export copy, and mobile README now describe mobile local data as
+  scoped to the installed app's storage area.
+- No storage behavior, export format, schema, route, or UI layout change was
+  needed.
+
+### Completed Slice: Mobile Storage Summary Copy Alignment
+
+Status: completed on 2026-07-06.
+
+What changed:
+
+- README now describes the Expo companion as using installed-app local storage
+  instead of generic local device storage.
+- Privacy now says the mobile companion stores data in the installed app's
+  local storage area.
+- Security/privacy notes now describe mobile storage as the installed app's
+  local storage area.
+- Mobile README now says the active document is stored in the installed app's
+  local storage area with AsyncStorage.
+
+Evaluation before implementation:
+
+- Detailed backup and recovery copy had been aligned to the mobile app storage
+  boundary, but several summary bullets still used broad "device storage"
+  language.
+- The gap was still needed because these summaries are often the first copy a
+  reader sees, and broad device wording can imply stronger persistence than the
+  local app storage model provides.
+
+Root cause and best path:
+
+- Root cause: high-level summary bullets were written before the storage-risk
+  slices clarified the app-install boundary.
+- The best path was a documentation-only summary alignment while preserving
+  immediate save-status wording such as "Saved on this device," which remains
+  useful feedback for mobile users.
+
+Re-evaluation after implementation:
+
+- Summary, detailed backup, Help, Data, Overview, Privacy, support,
+  security/privacy, export, and mobile README copy now all use the same mobile
+  app storage boundary.
+- No source behavior, export format, schema, route, or UI layout change was
+  needed.
+
+### Completed Slice: Historical Plan Follow-Up Cleanup
+
+Status: completed on 2026-07-06.
+
+What changed:
+
+- Older Timeline event action notes now state that later Timeline editor slices
+  reused the route contract for grouped event editing, contextual
+  involved-record links, and saved relationship summaries.
+- Older custom-field ordering and rename notes now clarify that later slices
+  added label-only rename and non-destructive field removal with hidden-detail
+  cleanup.
+
+Evaluation before implementation:
+
+- The final recommendation already treated Timeline editor grouping and custom
+  field management as complete for the current MVP, but a few historical
+  completed-slice notes still described those items as future or deferred.
+- The gap was still worth fixing because the user is asking to keep selecting
+  the next logical implementation slice from this plan; stale follow-up notes
+  can make completed work look like an open action.
+
+Root cause and best path:
+
+- Root cause: the plan is an iterative running document, so earlier completed
+  slices kept their original re-evaluation text after later slices closed the
+  gaps.
+- The best path was to annotate only stale historical statements that conflict
+  with the current baseline, without rewriting the original sequence of
+  implementation history.
+
+Re-evaluation after implementation:
+
+- The plan now consistently treats Timeline editor grouping, custom field
+  rename, and custom field removal as completed prototype capabilities.
+- No source behavior, route, schema, test, or UI layout change was needed.
+
+### Completed Slice: Cross-Surface Review Hotspots
+
+Status: completed on 2026-07-06.
+
+What changed:
+
+- Project Tools now includes a shared Review Hotspots summary that aggregates
+  existing review signals from Workbench record queues, Timeline review,
+  Relationship Studio review, and Knowledge hidden-detail cleanup.
+- Browser Utilities renders the shared review summary beside Knowledge schema
+  status and tool shortcuts.
+- Mobile More renders the same review summary and uses the same route model for
+  Workbench, Timeline, Relationship Studio, and Knowledge cleanup actions.
+- Shared workflow destination tests guard the review summary and route targets;
+  mobile render coverage now verifies the new summary and actions.
+
+Evaluation before implementation:
+
+- Earlier plan review correctly rejected a full global triage queue as a
+  product decision because it would imply new ownership, severity rules,
+  dismissal state, and cross-surface cleanup workflows.
+- Re-evaluation showed a smaller gap remained: users still had to know which
+  primary surface owned each review queue before deciding where to clean up
+  records, chronology, links, or schema residue.
+- The slice was still needed because Project Tools is already the shared
+  cross-platform hub for secondary workflows, and the existing models already
+  compute these signals without new data storage.
+
+Root cause and best path:
+
+- Root cause: review work had become more powerful across individual surfaces,
+  but the hub only summarized Knowledge cleanup and tool shortcuts.
+- The best path was a non-durable overview model that exposes route shortcuts
+  only when existing review signals are present, avoiding new schema, migration,
+  dismissal, or queue-state decisions.
+
+Re-evaluation after implementation:
+
+- The slice resolves the practical discovery gap while preserving existing
+  surface ownership: Workbench owns record queues, Timeline owns chronology,
+  Relationship Studio owns link health, and Knowledge owns schema cleanup.
+- A larger unified triage queue remains a deliberate product decision and is
+  still not needed until users need cross-surface assignment, dismissal,
+  severity ordering, or progress tracking.
+- No stored data, schema version, import/export format, or destructive workflow
+  changed.
+
+### Completed Slice: Review Hotspots Documentation Alignment
+
+Status: completed on 2026-07-06.
+
+What changed:
+
+- Focused Utilities Help and shared workflow Help now name Review Hotspots as
+  part of Project Tools.
+- README, mobile README, and the user guide now describe Review Hotspots as
+  shortcuts to existing cleanup surfaces rather than a durable triage queue.
+- The web/mobile parity checklist now distinguishes lightweight Review Hotspots
+  from product-gated durable triage.
+- Manual release QA now asks testers to open Project Tools on browser and
+  mobile and follow available hotspot actions to the owning review surfaces.
+
+Evaluation before implementation:
+
+- Runtime Project Tools now exposed Review Hotspots, but Help and durable docs
+  still described the hub as Knowledge/Data/Workspaces/Help only.
+- The gap was still needed because the user experience plan explicitly treats
+  Project Tools as the shared cross-platform secondary workflow hub, and release
+  checks should verify the new discovery point.
+
+Root cause and best path:
+
+- Root cause: the runtime slice intentionally stayed narrow, so existing
+  documentation and QA guardrails did not yet distinguish lightweight hotspot
+  navigation from a durable global triage queue.
+- The best path was a documentation-only alignment that names the new summary
+  while preserving the product-decision gate for assignment, dismissal,
+  severity ordering, or progress tracking.
+
+Re-evaluation after implementation:
+
+- Runtime copy, focused Help, README, mobile README, user guide, manual QA, and
+  parity guardrails now describe the same Project Tools review model.
+- No additional source, schema, route, or persistence change was needed.
+
+### Completed Slice: Review Hotspots Route And Smoke Coverage
+
+Status: completed on 2026-07-06.
+
+What changed:
+
+- Shared workflow route samples now include `/utilities#project-tools`.
+- Route-intent tests now verify the Project Tools focus hash resolves as a
+  Utilities workflow focus target.
+- Mobile route adapter tests now verify `/utilities#project-tools` maps to the
+  More tab with the shared focus parameter.
+- Browser smoke route checks now require Utilities to render Review Hotspots
+  and the Workbench/Relationship review shortcut actions.
+- Browser smoke focused Timeline Help expectations now match the current
+  grouped-event-editing Help copy.
+- Timeline contextual create-route smoke now scopes involved-record reseed
+  assertions to the selected involved-record row instead of the full page text.
+
+Evaluation before implementation:
+
+- Runtime, mobile render tests, Help, and durable docs now covered Review
+  Hotspots, but browser smoke still only checked the older Knowledge schema and
+  tool-shortcut text on Utilities.
+- The gap was still needed because browser smoke is the fast release-facing
+  check that confirms the web route renders the cross-platform Project Tools
+  hub from a real browser DOM.
+
+Root cause and best path:
+
+- Root cause: the runtime slice added a new Project Tools summary after the
+  Utilities route smoke expectations had already been written.
+- The best path was a coverage-only slice: add the Project Tools focus route to
+  shared route samples, verify mobile route adaptation, and require the browser
+  smoke DOM to include the new review summary and actions.
+
+Re-evaluation after implementation:
+
+- Browser route smoke, shared route intents, mobile route adaptation, shared
+  model tests, mobile render tests, Help, and durable docs now cover the same
+  Review Hotspots behavior.
+- The re-run exposed and corrected a stale Timeline Help smoke string, so the
+  browser smoke text checks now match the current Help model.
+- The re-run also exposed a false-positive Timeline reseed assertion: the
+  previous involved record could appear elsewhere on the page even after the
+  selected staged record was reseeded. The smoke check now verifies the selected
+  involved-record row directly.
+- No runtime behavior, schema, persistence, or UI layout change was needed.
+
+### Completed Slice: Workbench Hotspot Target Precision
+
+Status: completed on 2026-07-06.
+
+What changed:
+
+- The shared Project Tools Review Hotspots model now routes the Workbench
+  hotspot to the highest-priority active Workbench review view instead of always
+  opening `Incomplete`.
+- Workbench hotspot routing now prioritizes `Needs Review`, then `Incomplete`,
+  then `Unlinked`.
+- Shared workflow destination tests now cover complete unlinked records and
+  complete needs-review records so the hotspot lands on the relevant queue.
+
+Evaluation before implementation:
+
+- Review Hotspots made cross-surface cleanup easier to discover, but the
+  Workbench action always linked to `/entries?view=incomplete` whenever any
+  Workbench review signal existed.
+- The gap was still needed because a user with only unlinked records or only
+  needs-review records could follow the hotspot and land in an unrelated or
+  empty queue, adding avoidable navigation cost.
+
+Root cause and best path:
+
+- Root cause: the first hotspot slice counted all Workbench review signals but
+  hardcoded the action route to the first historical Workbench review queue.
+- The best path was a small shared-model fix that chooses the active queue
+  before formatting the route, preserving the single compact hotspot action
+  rather than adding multiple Workbench buttons.
+
+Re-evaluation after implementation:
+
+- The Workbench hotspot now opens the most relevant active queue for the current
+  workspace while keeping Project Tools compact on browser and mobile.
+- Focused model tests cover the previously risky unlinked-only and needs-review
+  cases.
+- No stored data, schema, mobile adapter, or UI layout change was needed.
+
+### Completed Slice: Mobile Workbench Hotspot View Hydration
+
+Status: completed on 2026-07-06.
+
+What changed:
+
+- Mobile Workbench now reads shared `view` route parameters when opened from a
+  Review Hotspot.
+- A routed mobile Workbench review queue renders the same shared Workbench view
+  records used by the browser route, with Edit and Context actions for each
+  record.
+- Selecting a routed review-queue record switches to the record's owning section
+  before opening Edit or Context.
+- Mobile render coverage now verifies the shared `view=unlinked` route opens a
+  Workbench review queue with seed unlinked records.
+
+Evaluation before implementation:
+
+- The shared mobile route adapter preserved `/entries?view=...`, but
+  `EntriesScreen` did not read the `view` parameter.
+- The gap was still needed because Project Tools Review Hotspots are shared
+  across browser and mobile; a mobile user tapping Workbench Review should land
+  on the relevant review queue, not the default section index.
+
+Root cause and best path:
+
+- Root cause: browser Workbench had universal review views, while mobile
+  Workbench was still section-index driven and only hydrated section, entry, and
+  Timeline route params.
+- The best path was to reuse `getWorkbenchRecordIndexModel` inside mobile Index
+  mode when a shared view route is present, avoiding a separate mobile-only
+  review model or extra Project Tools action.
+
+Re-evaluation after implementation:
+
+- Mobile More Review Hotspots can now route to mobile Workbench review queues
+  with the same shared `view` parameter used on browser.
+- Back-to-index behavior remains useful because the routed review queue stays
+  active while the user inspects a record from that queue.
+- A follow-up re-evaluation also cleared routed review-queue state when an
+  already-mounted mobile Workbench receives the plain `/entries` route again.
+- No stored data, schema, export/import, or route-adapter change was needed.
+
+### Completed Slice: Workbench Review Queue Route Evidence
+
+Status: completed on 2026-07-06.
+
+What changed:
+
+- Shared workflow route samples now include `/entries?view=unlinked`.
+- Shared workflow intent parsing now preserves valid Workbench review `view`
+  parameters for browse routes and rejects unknown view ids to the empty state.
+- Browser smoke now opens the direct Workbench review queue route and verifies
+  the Unlinked view is the active Workbench view.
+- Browser smoke also verifies the seed unlinked record appears in that queue
+  and that the route does not render the empty-state copy.
+- README, mobile README, user guide, manual release QA, and the web/mobile
+  parity checklist now state that Workbench Review Hotspots should land in the
+  intended review queue on both platforms.
+
+Evaluation before implementation:
+
+- The shared model routed Workbench hotspots to active queues, and mobile render
+  coverage proved that `view=unlinked` hydrated the mobile Workbench queue.
+- The gap was still needed because browser smoke only verified that Utilities
+  showed the Workbench Review action, not that the direct queue route activated
+  the requested Workbench view.
+
+Root cause and best path:
+
+- Root cause: the first route coverage slice proved Project Tools discovery,
+  while the later hotspot precision slice introduced queue-specific routing
+  without a browser DOM assertion for the target route.
+- The best path was a small evidence slice: add the queue route to shared route
+  samples, add a browser smoke assertion that inspects the active Workbench view
+  state, and update release guidance so manual QA checks the target queue.
+
+Re-evaluation after implementation:
+
+- Browser route smoke, mobile route adaptation, mobile render coverage, shared
+  workflow intent parsing, shared route samples, README, user guide, and QA docs
+  now describe and verify the same Workbench review queue behavior.
+- The slice did not need data-model, persistence, schema, or UI layout changes.
+
+### Completed Slice: Workbench Review Hotspot Label Precision
+
+Status: completed on 2026-07-06.
+
+What changed:
+
+- The Workbench Review Hotspot action label now names the active target queue,
+  such as `Open Incomplete Records`, `Open Unlinked Record`, or
+  `Open Needs Review Record`.
+- The Workbench hotspot title and detail now name the selected queue instead of
+  describing Workbench review generically.
+- Shared model tests, mobile render coverage, and browser smoke expectations now
+  verify the queue-specific action label.
+
+Evaluation before implementation:
+
+- The Workbench hotspot already routed to the highest-priority active review
+  queue, but the visible action still said `Open Workbench Review`.
+- The gap was still needed because the generic label increased interaction cost:
+  users could not tell whether the action would open Incomplete, Needs Review,
+  or Unlinked records until after navigation.
+
+Root cause and best path:
+
+- Root cause: the first hotspot implementation added dynamic routing while
+  keeping the original static action label.
+- The best path was to derive the label from the same active Workbench view that
+  already drives the route, keeping one compact action while making its target
+  explicit on browser and mobile.
+
+Re-evaluation after implementation:
+
+- Project Tools now tells users which Workbench queue will open before they
+  navigate, reducing surprise while preserving the compact hotspot summary.
+- The change did not require new schema, persistence, route, or layout behavior.
+
+### Completed Slice: Project Tools Action Accessibility Context
+
+Status: completed on 2026-07-06.
+
+What changed:
+
+- Shared Utilities action models now have a formatter for accessibility labels
+  that includes the action label, count label when present, and detail text.
+- Browser Utilities applies the shared accessibility label to Knowledge,
+  shortcut, and Review Hotspot links.
+- Mobile More applies the same accessibility label to the matching Project
+  Tools action buttons.
+- Shared model tests, mobile render coverage, and browser smoke now verify the
+  richer Review Hotspot accessibility label.
+
+Evaluation before implementation:
+
+- Project Tools actions already carried `title`, `detail`, and `countLabel`
+  data, but browser and mobile controls exposed only terse visible labels to
+  assistive technology.
+- The gap was still needed because queue-specific labels reduced visual
+  ambiguity, but users of assistive technology still benefited from the action
+  count and purpose without adding more visible copy to the compact hub.
+
+Root cause and best path:
+
+- Root cause: Project Tools reused simple link/button rendering and did not
+  consume the richer shared action metadata for accessible names.
+- The best path was to add a shared formatter and apply it on both platforms,
+  avoiding platform-specific accessibility copy drift.
+
+Re-evaluation after implementation:
+
+- Browser and mobile Project Tools now expose the same action purpose and count
+  context through accessible labels while keeping the visual UI compact.
+- No data, schema, routing, persistence, or visible layout change was needed.
+
+### Completed Slice: Utilities Destination Accessibility Context
+
+Status: completed on 2026-07-06.
+
+What changed:
+
+- Shared workflow destinations now have an accessibility-label formatter that
+  combines the visible action label with the destination detail.
+- Browser Utilities applies the shared label to the lower detailed destination
+  card links.
+- Mobile More applies the same label to the matching destination action buttons.
+- Shared model tests, mobile render coverage, and browser smoke now verify the
+  Knowledge Setup destination exposes its purpose in the accessible label.
+
+Evaluation before implementation:
+
+- The Project Tools action buttons now exposed richer accessibility context, but
+  the lower detailed destination cards still exposed only their terse action
+  labels.
+- The gap was still needed because Utilities has two entry points to the same
+  secondary workflows; users should get consistent action purpose whether they
+  use the compact hub or the detailed card below it.
+
+Root cause and best path:
+
+- Root cause: detailed destination cards predated the new shared accessibility
+  formatter work and still rendered direct labels.
+- The best path was a small shared destination formatter used by both browser
+  and mobile, mirroring the Project Tools action formatter without changing the
+  visual layout.
+
+Re-evaluation after implementation:
+
+- Compact Project Tools actions and detailed Utilities destination cards now use
+  the same shared accessibility-context pattern on browser and mobile.
+- No data, schema, routing, persistence, or visible layout change was needed.
+
+### Completed Slice: Workbench Hotspot Queue Count Precision
+
+Status: completed on 2026-07-06.
+
+What changed:
+
+- The Workbench Review Hotspot action count now describes the specific queue
+  being opened, such as `1 unlinked record` or `{n} incomplete records`.
+- The broader Review Hotspots metric still reports the total Workbench record
+  signal count across incomplete, unlinked, and needs-review queues.
+- Shared model tests and mobile render coverage now verify the queue-specific
+  count context.
+
+Evaluation before implementation:
+
+- The action label and route had become queue-specific, but the action
+  `countLabel` still used the aggregate Workbench review signal count.
+- The gap was still needed because an accessible label could say
+  `Open Incomplete Records` followed by a total record-signal count that did not
+  necessarily equal the number of records in the Incomplete queue.
+
+Root cause and best path:
+
+- Root cause: the initial Review Hotspot model stored one Workbench issue count
+  before the later queue-specific routing and labeling slices were added.
+- The best path was to keep the summary metric aggregate and change only the
+  action count to use the selected Workbench view's count and label.
+
+Re-evaluation after implementation:
+
+- Review Hotspots now distinguish aggregate Workbench signal volume from the
+  exact queue count a user will open.
+- No data, schema, route, persistence, or visible layout change was needed.
+
+### Completed Slice: Workbench Hotspot Queue Copy Normalization
+
+Status: completed on 2026-07-06.
+
+What changed:
+
+- Workbench Review Hotspot detail copy now uses canonical queue names such as
+  `Incomplete`, `Unlinked`, and `Needs Review`.
+- Queue count labels keep natural lowercase noun phrases such as
+  `1 unlinked record` and `{n} incomplete records`.
+- Shared model tests, mobile render coverage, and browser smoke now verify the
+  canonical queue detail copy.
+
+Evaluation before implementation:
+
+- The queue-specific action detail was generated by lowercasing the Workbench
+  view label, which worked for `Incomplete` and `Unlinked` but produced less
+  polished copy for `Needs Review`.
+- The gap was still needed because this detail is used in accessibility labels
+  and should read as deliberate product copy for every supported queue.
+
+Root cause and best path:
+
+- Root cause: the first queue-label slice reused the display label directly
+  instead of defining separate copy for queue names and count noun phrases.
+- The best path was a small shared queue-copy helper that keeps each phrase
+  explicit while preserving the existing route and count behavior.
+
+Re-evaluation after implementation:
+
+- Workbench Review Hotspot accessible detail now uses canonical queue names and
+  stable count phrases across all target queues.
+- No data, schema, route, persistence, or visible layout change was needed.
+
+### Completed Slice: Workbench Hotspot Visible Queue Count
+
+Status: completed on 2026-07-06.
+
+What changed:
+
+- The visible Workbench Review Hotspot action label now includes the target
+  queue count, such as `Open {n} Incomplete Records` or
+  `Open 1 Unlinked Record`.
+- Shared model tests, mobile render coverage, and browser smoke now verify the
+  count-bearing visible label.
+
+Evaluation before implementation:
+
+- Accessibility labels already included the exact target queue count, but the
+  visible button still only named the queue.
+- The gap was still needed because sighted users should receive the same
+  pre-navigation specificity without needing to infer the target count from
+  aggregate Review Hotspots metrics.
+
+Root cause and best path:
+
+- Root cause: the first label precision slice added queue names but intentionally
+  left the compact visible label count-free, while the later count precision
+  slice exposed the count only through action metadata and accessibility labels.
+- The best path was to include the target queue count in the same shared
+  Workbench hotspot label formatter, preserving one button and avoiding extra
+  visible helper text.
+
+Re-evaluation after implementation:
+
+- Browser and mobile Project Tools now show the target Workbench queue and exact
+  count before navigation.
+- No data, schema, route, persistence, or layout structure change was needed.
+
+### Completed Slice: Project Tools Accessibility Count Deduplication
+
+Status: completed on 2026-07-06.
+
+What changed:
+
+- The shared Project Tools action accessibility-label formatter now omits the
+  count label when the visible action label already contains the same count
+  phrase.
+- Shared model coverage verifies count context is preserved when useful and
+  deduplicated when the visible Workbench label already says the count.
+
+Evaluation before implementation:
+
+- Adding visible Workbench queue counts made the accessible label repeat the
+  same information, for example `Open {n} Incomplete Records. {n} incomplete
+records`.
+- The gap was still needed because the accessibility formatter is shared across
+  browser and mobile and should improve context without adding repetitive
+  speech output.
+
+Root cause and best path:
+
+- Root cause: the formatter always appended `countLabel`, which was correct
+  before Workbench labels gained visible counts.
+- The best path was to deduplicate only when the normalized action label already
+  contains the normalized count phrase, preserving count context for other
+  actions such as Relationship Review.
+
+Re-evaluation after implementation:
+
+- Workbench hotspot accessible labels avoid repeated count copy while other
+  review actions still announce their count context.
+- No data, schema, route, persistence, or visible layout change was needed.
+
+### Completed Slice: Workbench Hotspot Count QA Alignment
+
+Status: completed on 2026-07-06.
+
+What changed:
+
+- Manual release QA now asks testers to confirm Workbench hotspot labels include
+  the target queue count before following the action.
+- The web/mobile parity checklist now requires Workbench hotspot visible labels
+  and accessible names to include target queue and count context without
+  duplicate count phrases.
+- Release-gate notes now call out browser smoke and mobile render coverage for
+  count-bearing hotspot labels.
+
+Evaluation before implementation:
+
+- Runtime and automated checks now verified count-bearing Workbench hotspot
+  labels, but manual QA still only asked testers to confirm the destination
+  queue after navigation.
+- The gap was still needed because release reviewers should validate the
+  interaction-cost improvement, not only the route target.
+
+Root cause and best path:
+
+- Root cause: QA documentation predated the visible-count and accessibility
+  deduplication slices.
+- The best path was a documentation-only alignment that adds the new acceptance
+  criteria without expanding product scope or creating a durable triage
+  workflow.
+
+Re-evaluation after implementation:
+
+- Runtime behavior, automated coverage, manual QA, and parity criteria now
+  describe the same Workbench hotspot count behavior.
+- No source, route, schema, persistence, or UI layout change was needed.
+
+### Completed Slice: Workbench Hotspot Count Example Plan Alignment
+
+Status: completed on 2026-07-06.
+
+What changed:
+
+- UX plan examples for Workbench hotspot counts now use count-neutral examples
+  such as `{n} incomplete records` instead of fixture-specific starter counts.
+
+Evaluation before implementation:
+
+- Runtime behavior and tests correctly use the current fixture counts, but the
+  plan examples used specific counts that can vary between the browser starter
+  world and mobile render fixtures.
+- The gap was still needed because the UX plan should describe the product
+  behavior, not freeze incidental seed counts into the design direction.
+
+Root cause and best path:
+
+- Root cause: documentation examples were written while validating against a
+  specific fixture, then mobile fixture setup added custom records that changed
+  the count.
+- The best path was documentation-only: keep exact counts in tests and smoke
+  checks, but make the UX plan examples count-neutral.
+
+Re-evaluation after implementation:
+
+- The plan now describes the count-bearing behavior without becoming stale when
+  seed data or test fixtures change.
+- No source, route, schema, persistence, or UI layout change was needed.
+
+### Completed Slice: Utilities Focus Route Coverage
+
+Status: completed on 2026-07-06.
+
+What changed:
+
+- Shared workflow route samples now include the remaining Utilities focus
+  targets: `knowledge-setup`, `workspaces`, and `help`.
+- Shared route-intent tests now verify every Utilities focus target resolves to
+  a typed Utilities workflow intent.
+- Mobile route adapter tests now verify every Utilities focus target maps to the
+  More tab with the shared `routeFocusId` parameter.
+
+Evaluation before implementation:
+
+- Runtime focus handling supported all Utilities destination ids, but route
+  samples and mobile route tests only covered `project-tools` and `data-tools`.
+- The gap was still needed because focused Utilities routes are how browser and
+  mobile users land directly in dense secondary workflows without scanning the
+  whole tools page.
+
+Root cause and best path:
+
+- Root cause: earlier slices added focus coverage around the newly introduced
+  Project Tools hub and Data shortcut, but did not expand the coverage to every
+  existing destination card.
+- The best path was a route-coverage-only slice that exercises the existing
+  route model without changing runtime behavior or adding new pages.
+
+Re-evaluation after implementation:
+
+- Shared samples, route-intent tests, and mobile route-adapter tests now cover
+  all current Utilities focus targets.
+- No UI, schema, persistence, or route-format change was needed.
+
+### Completed Slice: Browser Utilities Focus Route Smoke Coverage
+
+Status: completed on 2026-07-06.
+
+What changed:
+
+- Browser smoke now loads the remaining Utilities focus routes directly:
+  `/utilities#knowledge-setup`, `/utilities#workspaces`, and
+  `/utilities#help`.
+- Each route check verifies the focused destination content and action text are
+  present after a direct browser load.
+
+Evaluation before implementation:
+
+- Shared route samples and mobile route tests covered every Utilities focus
+  target, but browser smoke only refreshed the base Utilities route and
+  `/utilities#data-tools`.
+- The gap was still needed because direct browser refreshes of hash-focused
+  Utilities routes should remain part of the release-facing smoke evidence.
+
+Root cause and best path:
+
+- Root cause: earlier browser smoke coverage was added around Data Tools first
+  and was not expanded after the route sample set was completed.
+- The best path was to add direct DOM text checks for the remaining focused
+  destination routes without adding new browser interaction steps.
+
+Re-evaluation after implementation:
+
+- Shared route samples, route-intent tests, mobile route-adapter tests, and
+  browser smoke now cover every current Utilities focus target.
+- No UI, schema, persistence, or route-format change was needed.
+
+### Completed Slice: Browser Project Tools Focus Smoke Coverage
+
+Implemented:
+
+- Browser smoke now directly opens `/utilities#project-tools` and verifies the
+  Project Tools hub, Knowledge Schema, Tool Shortcuts, Review Hotspots, and
+  Workbench hotspot action render after a focused hash refresh.
+- The check complements the existing shared route-intent coverage and mobile
+  route-adapter coverage for the same focus target.
+
+Evaluation before implementation:
+
+- Shared route samples, route-intent tests, and mobile route-adapter tests
+  already covered `/utilities#project-tools`.
+- Browser smoke covered the unfocused `/utilities` route plus each destination
+  hash, but the primary Project Tools hash itself was only indirectly covered.
+
+Root cause and best path:
+
+- Root cause: Project Tools became the primary Utilities hub before the later
+  destination-hash smoke slice expanded browser refresh coverage.
+- The best path was an evidence-only browser smoke addition because the runtime
+  focus behavior and route model were already implemented.
+
+Re-evaluation after implementation:
+
+- Browser smoke now covers both the primary Project Tools focus hash and every
+  destination focus hash in the current Utilities model.
+- No UI, schema, persistence, mobile route, or route-intent change was needed.
+
+### Completed Slice: Browser Utilities Help Topic Smoke Coverage
+
+Implemented:
+
+- Browser smoke now opens `/help?topic=utilities` directly and verifies the
+  focused Utilities Help topic renders the Project Tools hub, Review Hotspots,
+  and Utilities action context.
+
+Evaluation before implementation:
+
+- The shared Help model, route-intent tests, and mobile route adapter already
+  covered focused Utilities Help.
+- Browser smoke still only exercised focused Timeline Help, even though the
+  Utilities Help destination now routes users to `/help?topic=utilities`.
+
+Root cause and best path:
+
+- Root cause: focused Help smoke coverage was created for Timeline first and
+  was not expanded when Utilities became a first-class focused Help destination.
+- The best path was an evidence-only browser route check because no Help copy,
+  route parser, mobile adapter, or UI behavior change was needed.
+
+Re-evaluation after implementation:
+
+- Browser smoke now covers focused Help for both Timeline authoring and the
+  Utilities/Project Tools workflow hub.
+- No source-model, schema, persistence, mobile route, or layout change was
+  needed.
+
+### Completed Slice: Mobile Utilities Help Topic Render Coverage
+
+Implemented:
+
+- Mobile Help render coverage now passes `topic=utilities` through the mocked
+  Expo route params and verifies the focused Utilities Help topic renders.
+- The test asserts the mobile Help screen exposes the Project Tools hub,
+  Review Hotspots, and Open Utilities guidance from the shared Help model.
+
+Evaluation before implementation:
+
+- Shared Help model tests and mobile route-adapter tests covered the focused
+  Utilities topic, and browser smoke now exercises `/help?topic=utilities`.
+- Mobile Help render coverage still only rendered the default Help screen, so
+  it did not prove the installed app surface displays focused Utilities Help
+  when opened through route params.
+
+Root cause and best path:
+
+- Root cause: the mobile Help render mock always returned empty route params,
+  which was sufficient before focused Help destinations became part of the
+  Project Tools workflow.
+- The best path was a focused render test that keeps the existing component and
+  shared model unchanged while verifying mobile route-param hydration.
+
+Re-evaluation after implementation:
+
+- Focused Utilities Help is now covered in shared core tests, mobile route
+  adaptation, browser smoke, and mobile rendered output.
+- No UI copy, schema, persistence, route parser, or component behavior change
+  was needed.
+
+### Completed Slice: Mobile Utilities Destination Focus Render Coverage
+
+Implemented:
+
+- Mobile More render coverage now verifies every Utilities destination section
+  exists with its focusable section test id: Knowledge Setup, Data Tools,
+  Workspaces, and Help.
+- The same test now verifies the destination actions expose the shared
+  accessibility labels with action and detail context.
+
+Evaluation before implementation:
+
+- Mobile More already registered layout offsets for destination ids and rendered
+  the shared destination action labels, but the render test only checked some
+  destination labels incidentally.
+- The gap was still useful because `/utilities#...` mobile focus routes depend
+  on those destination ids existing as stable rendered sections.
+
+Root cause and best path:
+
+- Root cause: earlier route-focus tests covered shared route adaptation, while
+  mobile render coverage concentrated on Project Tools and Knowledge cleanup
+  content rather than every Utilities destination anchor.
+- The best path was a focused render-coverage update because the implementation
+  already used the shared destination ids and accessibility formatter.
+
+Re-evaluation after implementation:
+
+- Mobile Utilities destination route targets now have shared route-adapter
+  coverage and rendered-section coverage.
+- No UI, schema, persistence, route parser, or component behavior change was
+  needed.
+
+### Completed Slice: Mobile Focused Help Selected-State Coverage
+
+Implemented:
+
+- Mobile Help render coverage now preserves `accessibilityState` from the
+  shared `ActionButton` primitive in its React Native mock.
+- The focused Utilities Help render test now verifies exactly one focus-topic
+  action is selected and that the selected action is Utilities.
+
+Evaluation before implementation:
+
+- The Help screen passed `selected` and accent tone to the active focus-topic
+  action, but the render test mock discarded the selected accessibility state.
+- The gap was still useful because focused Help is now part of the
+  Project Tools loop, and mobile users should get clear selected-state feedback
+  while moving between focused topics.
+
+Root cause and best path:
+
+- Root cause: the smaller Help render mock predated the broader mobile
+  accessibility-state coverage used by the Entries render tests.
+- The best path was to align the Help mock with the shared primitive contract
+  and assert the focused Utilities topic state without changing production
+  component behavior.
+
+Re-evaluation after implementation:
+
+- Mobile focused Help now has rendered content coverage and focused-topic
+  selected-state coverage.
+- No UI copy, schema, persistence, route parser, or production component change
+  was needed.
+
+### Completed Slice: Mobile Project Tools Knowledge Label
+
+Implemented:
+
+- Mobile More now renders the shared `Knowledge Schema` group label inside
+  Project Tools before the compact Knowledge metrics and action.
+- Mobile render coverage now verifies the Knowledge Schema label appears both
+  in Project Tools and in the detailed Knowledge Schema section.
+
+Evaluation before implementation:
+
+- Browser Project Tools showed three clearly labeled groups: Knowledge Schema,
+  Tool Shortcuts, and Review Hotspots.
+- Mobile Project Tools showed Tool Shortcuts and Review Hotspots labels but
+  jumped directly from the Project Tools detail into Knowledge metrics, making
+  that first group less scannable.
+
+Root cause and best path:
+
+- Root cause: the mobile Project Tools implementation reused the metrics and
+  actions from the shared Knowledge summary but omitted its title to keep the
+  compact mobile block short.
+- The best path was to render the existing shared title rather than introduce
+  new copy or a separate mobile-only grouping model.
+
+Re-evaluation after implementation:
+
+- Mobile Project Tools now labels all three compact groups consistently while
+  preserving the detailed Knowledge Schema section below.
+- No schema, persistence, route, or shared model change was needed.
+
+### Completed Slice: Browser Help Utilities Link Smoke Coverage
+
+Implemented:
+
+- Browser smoke route checks now support optional expected link assertions in
+  addition to text assertions.
+- The focused Utilities Help smoke check now verifies the `Open Utilities`
+  quick action points to `/utilities#project-tools`.
+
+Evaluation before implementation:
+
+- Shared Help model tests already asserted the Utilities quick action path, and
+  browser smoke already verified `/utilities#project-tools` renders correctly.
+- Browser smoke for `/help?topic=utilities` only checked visible text, so it
+  would not catch a broken Help-page link from focused Utilities Help back to
+  the Project Tools hub.
+
+Root cause and best path:
+
+- Root cause: route smoke checks were originally text-only and focused on page
+  rendering, while later UX slices made specific cross-page focus links part of
+  the workflow contract.
+- The best path was to add a reusable optional link assertion to the existing
+  smoke route-check structure instead of adding a separate one-off browser
+  interaction.
+
+Re-evaluation after implementation:
+
+- The browser Help to Project Tools loop now has source-model, destination
+  render, and direct link-href smoke coverage.
+- No UI copy, schema, persistence, route parser, or production component change
+  was needed.
+
+### Completed Slice: Browser Help Focus Topic Navigation
+
+Implemented:
+
+- Browser Help now renders the shared Help Topics list from
+  `helpModel.focusTopics`, matching the mobile Help topic picker.
+- The active focused topic is marked with `aria-current="page"` and a visible
+  selected secondary-button state.
+- Browser smoke now verifies the Help Topics section renders on generic Help
+  and focused Utilities Help.
+
+Evaluation before implementation:
+
+- Mobile Help already let users move between focused Help topics in place.
+- Browser Help could display a focused topic from the URL, but it did not
+  render the shared focus-topic list, so users had to rely on external links or
+  know topic URLs to switch topics.
+
+Root cause and best path:
+
+- Root cause: the shared Help model exposed `focusTopics`, but the browser page
+  only consumed focused topic content, quick actions, workflow sections, and
+  data/support sections.
+- The best path was to render the existing shared focus-topic model on browser
+  with standard links and active-state semantics instead of introducing new
+  Help state or browser-only topic data.
+
+Re-evaluation after implementation:
+
+- Browser and mobile Help now both support focused topic browsing from the
+  shared topic model.
+- No schema, persistence, route parser, or mobile behavior change was needed.
+
+### Completed Slice: Browser Help Active Topic Smoke Coverage
+
+Implemented:
+
+- Browser smoke link assertions now inspect rendered anchor elements and can
+  require `aria-current="page"`.
+- Focused Utilities Help smoke now verifies the Utilities Help topic link points
+  to `/help?topic=utilities` and is the active current topic.
+
+Evaluation before implementation:
+
+- Browser Help now rendered the shared focus-topic picker with active-state
+  semantics, but smoke only verified the Help Topics text and the separate
+  `Open Utilities` quick-action link.
+- The gap was still useful because selected-state regressions would make the
+  browser topic picker less clear while leaving the page text intact.
+
+Root cause and best path:
+
+- Root cause: the first Help topic smoke addition reused the existing link-href
+  assertion for navigation but did not validate active-topic semantics.
+- The best path was to extend the reusable smoke link assertion with an
+  optional current-link check.
+
+Re-evaluation after implementation:
+
+- Browser focused Help now has smoke coverage for rendered topic navigation,
+  the active topic state, and the Help to Project Tools quick-action link.
+- No production UI, schema, persistence, or route parser change was needed.
+
+### Completed Slice: Browser Smoke Route Timeout Headroom
+
+Implemented:
+
+- Browser smoke route DOM-dump checks now use a configurable
+  `VWB_BROWSER_TIMEOUT_MS` value with a 90-second default.
+
+Evaluation before implementation:
+
+- After adding focused Help topic and link assertions, the smoke suite timed out
+  during browser DOM dumps without producing a content assertion failure.
+- The gap was still worth addressing because the route-smoke suite now covers a
+  larger set of focused workflow routes, screenshots, and layout checks.
+
+Root cause and best path:
+
+- Root cause: the route DOM-dump timeout remained at the earlier 30-second
+  value even as the smoke suite expanded across more focused workflow routes
+  and occasionally cold-started both Chrome and Edge.
+- The best path was modest, configurable timeout headroom rather than weakening
+  route assertions or removing coverage.
+
+Re-evaluation after implementation:
+
+- Route smoke remains content/assertion-driven while allowing slower local
+  browser startup to complete.
+- Re-evaluation after additional Help link assertions showed 45 seconds could
+  still time out during early DOM dumps on this local machine; the default was
+  increased to 90 seconds while preserving the environment override.
+- No production UI, schema, persistence, route parser, or app behavior changed.
+
+### Completed Slice: Help Topic Navigation QA Alignment
+
+Implemented:
+
+- The web/mobile parity checklist now requires browser and mobile Help to expose
+  the shared focused-topic picker with visible selected/current state.
+- Manual release QA now asks testers to open focused Utilities Help on browser
+  and mobile, confirm Utilities is selected, and follow Open Utilities back to
+  Project Tools.
+- The user guide now explains that Help includes a topic picker on both browser
+  and mobile.
+
+Evaluation before implementation:
+
+- Runtime behavior, browser smoke, and mobile render tests covered focused Help
+  topic navigation, but release-facing QA still only described focused Help
+  links and general Help coverage.
+- The gap was still useful because Help topic switching is now an explicit
+  cross-platform workflow, not just a route detail.
+
+Root cause and best path:
+
+- Root cause: browser Help topic navigation was added after the earlier focused
+  Help documentation alignment slices.
+- The best path was documentation-only alignment across parity QA, manual QA,
+  and user guidance because runtime behavior and automated evidence already
+  existed.
+
+Re-evaluation after implementation:
+
+- The Help topic picker is now represented in implementation, automated
+  evidence, parity acceptance criteria, manual QA, and user guidance.
+- No UI, schema, persistence, route parser, or production behavior change was
+  needed for this slice.
+
+### Completed Slice: Help Topic Navigation README Alignment
+
+Implemented:
+
+- README now describes the Help topic picker alongside focused Help links.
+- Mobile README now states that Help includes a topic picker and marks the
+  active focused topic.
+
+Evaluation before implementation:
+
+- User guide and QA documentation now described Help topic navigation, but the
+  top-level browser and mobile READMEs still described focused Help only as
+  available guidance.
+- The gap was still useful because the READMEs are the quickest orientation
+  docs for contributors checking browser/mobile feature scope.
+
+Root cause and best path:
+
+- Root cause: the Help topic picker was added after the earlier README focused
+  Help alignment.
+- The best path was a documentation-only update because runtime behavior,
+  automated evidence, parity QA, and user-guide copy were already aligned.
+
+Re-evaluation after implementation:
+
+- Browser README, mobile README, user guide, parity QA, manual QA, smoke, and
+  render tests now all describe or verify the focused Help topic picker.
+- No UI, schema, persistence, route parser, or production behavior change was
+  needed.
+
+### Completed Slice: Generic Browser Help Topic Link Smoke Coverage
+
+Implemented:
+
+- Browser smoke for `/help` now verifies the `Open Utilities` quick action links
+  to `/utilities#project-tools`.
+- Browser smoke for `/help` now verifies at least one focused topic link,
+  `Timeline`, points to `/help?topic=timeline`.
+
+Evaluation before implementation:
+
+- Focused Utilities Help smoke verified active topic state and the Project Tools
+  quick action, but generic Help smoke only checked visible Help text.
+- The gap was still useful because generic Help is the default Help entry point
+  and should expose the same topic-switching and Project Tools loop as focused
+  Help.
+
+Root cause and best path:
+
+- Root cause: link-href smoke assertions were introduced around the focused
+  Utilities Help workflow first.
+- The best path was to reuse the optional `expectedLinks` route-check contract
+  on generic Help rather than adding another browser interaction flow.
+
+Re-evaluation after implementation:
+
+- Both generic Help and focused Utilities Help now have browser smoke coverage
+  for Help topic navigation and the Help to Project Tools route.
+- No UI, schema, persistence, route parser, or production behavior change was
+  needed.
+
+### Review Fix: Needs Review Hotspot Count Copy
+
+Implemented:
+
+- Workbench Review Hotspot count copy now uses `needs review record` rather
+  than the internal status id phrase `needs-review record`.
+- Shared accessibility-label coverage now verifies `Open 1 Needs Review Record`
+  does not repeat the same count phrase before the queue detail.
+- The shared accessibility-label formatter now uses deterministic English
+  lowercase comparison rather than locale-sensitive casing.
+
+Evaluation before implementation:
+
+- Review found that the visible Needs Review hotspot label used user-facing
+  words, while the count label used the internal hyphenated status id.
+- The gap was still worth fixing because the accessibility formatter only
+  deduplicates count context when the visible label already contains the same
+  normalized phrase.
+
+Root cause and best path:
+
+- Root cause: the queue-copy helper reused the internal status spelling for the
+  count noun phrase while using display copy for the visible queue label.
+- The best path was to correct the shared queue copy and add focused formatter
+  coverage, without changing routes, queue priority, or visible button layout.
+
+Re-evaluation after implementation:
+
+- Needs Review hotspot visible copy, count copy, and accessible copy now use the
+  same user-facing wording.
+- The formatter remains English-only and environment-independent.
+- No schema, persistence, route, or UI layout change was needed.
+
+### Completed Slice: Custom Timeline Event Editor
+
+Status: completed on 2026-07-05.
+
+What changed:
+
+- Added a shared Timeline event editor model that organizes chronology,
+  involved records, outcomes, extra fields, submit copy, era suggestions, and
+  legacy involved-record text cleanup without changing the stored `WorldEntry`
+  schema.
+- Browser Timeline now uses a custom event editor instead of the generic
+  section editor, while preserving contextual create routes, dirty-route
+  guards, draft transactions, destructive actions, and relationship-backed
+  saves.
+- Mobile Timeline Edit mode now uses the same shared editor model for
+  chronology-first editing and relationship-backed involved-record staging.
+- New Timeline events still save route-seeded era and involved-record links in
+  one transaction.
+- Saved Timeline events display existing relationship context as involved
+  records, including older relationship types already used by Timeline
+  overview.
+
+Evaluation before implementation:
+
+- Timeline already had first-class browse, review, era, ordering, and route
+  behavior, but event authoring still used the generic entry form.
+- The generic form made users work through ordinary detail-field groups and a
+  generic staged-link panel for the most common Timeline authoring task:
+  creating an ordered event with date, era, consequences, and involved records.
+- The gap was still real because Timeline is one of the primary creative
+  workflows and because the existing route context already knew enough to seed
+  a richer editor.
+
+Root cause and best path:
+
+- Root cause: Timeline had workflow-specific browse and review surfaces, but
+  no workflow-specific authoring model.
+- The best path was a shared editor view model over the existing `WorldEntry`
+  timeline fields rather than a new event schema or migration.
+- Relationship-backed involved records remain the primary model; legacy
+  `involvedRecords` text is treated as cleanup/support.
+
+Re-evaluation after implementation:
+
+- The editor now matches the Timeline workflow shape on browser and mobile:
+  identity, chronology, involved records, outcomes, notes, tags, and actions.
+- Existing contextual create routes still seed era and staged involved links.
+- Existing saved Timeline relationships are visible as involved context, so
+  older seed data and user-created relationships do not disappear from the
+  editor.
+- No schema migration, durable vocabulary change, or route redesign was needed.
+
 ## Final Implementation Recommendation
 
 The first milestone described above is now implemented for the current
@@ -5039,11 +7380,26 @@ Current completed baseline includes:
 - Relationship Studio review, graph, link creation, and bulk cleanup modes.
 - Knowledge-owned custom entry types, user field management, vocabulary review,
   hidden-detail cleanup, and schema portability coverage.
-- Utilities/More consolidation that keeps daily creative workflows primary.
+- Custom Timeline event editor grouping for chronology, outcomes, involved
+  records, contextual create-and-link, and existing relationship summaries.
+- Browser Workbench dirty-route protection for inline editor state.
+- Selected-record Workbench review summaries for drafting prompts and legacy
+  link text.
+- Utilities/More consolidation with top-level Data, Workspaces, and focused
+  Help shortcuts that keep daily creative workflows primary.
+- Cross-surface Review Hotspots in Project Tools that route to existing
+  Workbench, Timeline, Relationship Studio, and Knowledge review surfaces
+  without introducing a durable triage queue.
 
-Remaining larger follow-ups are deliberate product decisions: custom Timeline
-event editor, durable v3 schema/vocabulary editing, Relationship/Timeline
-review-tray consolidation, and further Utilities consolidation.
+Remaining larger follow-ups are deliberate product decisions: durable v3
+schema/vocabulary editing and a durable cross-surface triage queue.
+Cross-surface triage should wait until users need assignment, dismissal,
+severity ordering, or progress tracking across Workbench selected context,
+Timeline Review, Relationship Studio Review, and Knowledge cleanup.
+Additional Utilities consolidation should only proceed after observed
+navigation friction, because the current Project Tools hub exposes Knowledge
+setup, Data, Workspaces, and focused Help from the first screenful on browser
+and mobile.
 
 No remaining implementation gaps were found that require changing the core
 direction. The next work should stay slice-based: evaluate whether a friction

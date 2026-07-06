@@ -1,4 +1,4 @@
-import { NavLink, useSearchParams } from 'react-router-dom';
+import { Link, NavLink, useSearchParams } from 'react-router-dom';
 import { getCodexHelpScreenModel, getCodexScreenIntro } from '@valgaron/core';
 
 export function HelpPage() {
@@ -60,6 +60,33 @@ export function HelpPage() {
               {action.label}
             </NavLink>
           ))}
+        </div>
+      </section>
+
+      <section className="vwb-panel" aria-labelledby="help-topics-title">
+        <div className="vwb-section-heading">
+          <div>
+            <h2 id="help-topics-title">
+              {helpModel.sections.focusTopics.title}
+            </h2>
+          </div>
+        </div>
+        <div className="vwb-action-row">
+          {helpModel.focusTopics.map((topic) => {
+            const isFocused = focusedTopic?.id === topic.id;
+            return (
+              <Link
+                aria-current={isFocused ? 'page' : undefined}
+                className={`vwb-secondary-button ${
+                  isFocused ? 'is-active' : ''
+                }`}
+                key={topic.id}
+                to={topic.path}
+              >
+                {topic.title}
+              </Link>
+            );
+          })}
         </div>
       </section>
 

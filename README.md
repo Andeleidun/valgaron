@@ -5,7 +5,8 @@ Valgaron World Codex is a local-first tool for drafting and organizing fiction o
 ## Current Slice
 
 - Workbench overview with section totals, recent records, pinned records,
-  review prompts, and selected-record context.
+  review prompts, selected-record review summaries, and selected-record
+  context.
 - Codex sections for Characters, Places, Factions, Lore, and Timeline.
 - Create and edit entries with required names, optional summaries, comma-separated tags, and section-specific fields.
 - Markdown-style notes, authoring status, and pinned-entry metadata.
@@ -14,9 +15,10 @@ Valgaron World Codex is a local-first tool for drafting and organizing fiction o
 - Global search across names, notes, tags, summaries, and configured details.
 - Search within each codex section and narrow entries by tag, status, archived state, and updated date.
 - Sort section entries by recent update, recent creation, name, or status.
-- Timeline events support explicit sort order, era filtering, era reassignment,
-  involved-entry filtering through relationships, grouped era browsing, and
-  contextual new-event drafts from active era or involved-record filters.
+- Timeline events support explicit sort order, grouped chronology fields, era
+  filtering, era reassignment, involved-record linked fields, existing
+  relationship summaries, grouped era browsing, and contextual new-event drafts
+  from active era or involved-record filters.
 - Archived entries are hidden from normal section browsing unless explicitly shown.
 - Pinned entries appear on the overview.
 - Rule-based section templates and completeness prompts for underdeveloped records.
@@ -27,11 +29,12 @@ Valgaron World Codex is a local-first tool for drafting and organizing fiction o
   relationship cleanup, and ad hoc links.
 - Relationship diagnostics for broken references, duplicate relationships, and orphaned records, repair/delete actions for broken links, graph filters, graph record search, custom relationship type input, and selectable graph nodes.
 - Timeline diagnostics, highlight cards, stable table view, era manager
-  reassignment, involved-entry browsing filters, contextual event creation, and
-  earlier/later order controls for chronology work.
+  reassignment, involved-entry browsing filters, contextual event creation,
+  relationship-backed involved-record editing, and earlier/later order controls
+  for chronology work.
 - Web Data route and mobile Data tab for active-workspace JSON export, full-document JSON export, Markdown reference export, diagnostics, validated JSON import preview, and reset-to-seed confirmation.
 - Header Save writes the current session state to browser localStorage on demand.
-- Expo mobile companion with local device storage, shared codex schema,
+- Expo mobile companion with installed-app local storage, shared codex schema,
   Workbench, Timeline, Links, More, data import/export, recovery snapshot
   history, and Help guidance.
 - Runtime recovery screens with retry and Data access when a web or mobile render failure is caught.
@@ -44,12 +47,23 @@ Valgaron World Codex is a local-first tool for drafting and organizing fiction o
   multiline fields and suggested choices, controlled values, lore definition
   types, relationship-backed field rules, observed flexible-value review,
   hidden detail cleanup review, and recovery-snapshotted hidden detail clearing.
+- Utilities and mobile More Project Tools include Review Hotspots that route to
+  existing Workbench, Timeline, Relationship Studio, and Knowledge cleanup
+  surfaces without adding a durable triage queue. Workbench review hotspots use
+  shared review queue routes such as `/entries?view=unlinked` so browser and
+  mobile land on the same cleanup target.
 - Unsaved-change warnings for entry, relationship, import, workspace management forms, and unsaved document edits before browser reload or close.
 - Markdown notes preview, overview quick-create links, copy-name, and duplicate-as-template entry actions.
-- In-app Help route for workflow, backup, offline, diagnostics, support, and release-limit guidance, with focused Help links from entry, timeline, relationship, workspace, and data workflows.
+- In-app Help route for workflow, backup, offline, diagnostics, support, and
+  release-limit guidance, with focused Help links from entry, timeline,
+  relationship, Knowledge, Utilities, workspace, and data workflows plus a
+  Help topic picker for switching focused topics.
 - Reset action that loads the neutral starter codex for review before manual Save.
 
-This phase has no accounts, authentication, backend sync, collaboration, sharing, moderation, social discovery, messaging, or high-rigor native parity program.
+This phase has no accounts, authentication, backend sync, collaboration,
+sharing, moderation, social discovery, or messaging. Web and mobile remain
+local prototype surfaces with shared models and paired workflow checks, not
+hosted multi-device sync.
 
 ## Scripts
 
@@ -98,11 +112,11 @@ Pages** will publish the site.
 
 ## Local Data
 
-The app loads neutral starter data when no saved world document exists or when saved data cannot be parsed as a known document shape. Legacy codex data is migrated into the current versioned world document shape. When saved data is unreadable or invalid, the Data route shows the recovery status and local storage issues instead of silently hiding the fallback. Web edits remain in the current browser session until the header Save button writes them to localStorage; mobile edits save to device storage through the Expo app. Local data remains in the current browser profile or device storage area unless exported by the user.
+The app loads neutral starter data when no saved world document exists or when saved data cannot be parsed as a known document shape. Legacy codex data is migrated into the current versioned world document shape. When saved data is unreadable or invalid, the Data route shows the recovery status and local storage issues instead of silently hiding the fallback. Web edits remain in the current browser session until the header Save button writes them to localStorage; mobile edits save to the installed app's local storage area through the Expo app. Local data remains in the current browser profile or mobile app storage area unless exported by the user.
 
 Deleting an entry also removes relationships attached to that entry so local graph views do not keep broken links. Archiving an entry keeps it addressable by existing relationships. Active-workspace JSON export produces a focused backup for the current project/universe workspace. Full-document JSON export produces a backup containing every local workspace, in-fiction world/planet record, custom entry type, entry, and relationship. Both JSON backup shapes include export metadata and can be pasted back into the import preview.
 
-Local storage is not a cloud backup. Export JSON backups regularly, especially before clearing browser data, switching browsers, or changing devices. The app also keeps local recovery snapshots before import, reset, permanent entry delete, relationship delete, workspace delete, in-fiction world/planet delete, custom entry type delete, and selected recovery snapshot restore actions; those snapshots stay in the same browser profile or device storage area and are not a replacement for downloaded JSON backups.
+Local storage is not a cloud backup. Export JSON backups regularly, especially before clearing browser data, switching browsers, using private browsing, uninstalling the mobile app, or changing devices. The app also keeps local recovery snapshots before import, reset, permanent entry delete, relationship delete, workspace delete, in-fiction world/planet delete, custom entry type delete, and selected recovery snapshot restore actions; those snapshots stay in the same browser profile or mobile app storage area and are not a replacement for downloaded JSON backups.
 
 Diagnostics are local-only JSON reports for debugging storage or rendering failures. They include counts, status messages, app/schema version, storage target, recovery state, and platform runtime context such as web route/browser or mobile device-save state where available. They intentionally exclude workspace names, entry names, summaries, notes, tags, relationship notes, and ids by default. Use `docs/qa/runtime-recovery.md` for manual corrupt-storage, failed-write, import-rejection, and render-recovery checks.
 
@@ -110,7 +124,7 @@ Diagnostics are local-only JSON reports for debugging storage or rendering failu
 
 - `docs/user-guide.md` explains core concepts, everyday workflows, local data, exports, imports, snapshots, offline use, diagnostics, and release limits.
 - `docs/support.md` explains how to report issues without sharing world content by default.
-- `PRIVACY.md` explains local browser storage, diagnostics, and what the app does not collect.
+- `PRIVACY.md` explains local web and mobile storage, diagnostics, and what the app does not collect.
 - `docs/security-privacy.md` documents import safety, Markdown safety, diagnostics scope, static-host header limitations, and dependency review.
 - `docs/deployment/static-hosting.md` explains GitHub Pages and PWA deployment behavior.
 - `docs/versioning.md` defines release, schema, and dependency update expectations.

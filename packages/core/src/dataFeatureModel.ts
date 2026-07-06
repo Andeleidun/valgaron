@@ -269,7 +269,7 @@ export const dataStorageCopy = {
   kicker: 'Storage status',
   title: 'Manual local save',
   manualSaveGuidance:
-    'Edits stay in this session until you use the header Save button. Export JSON backups before clearing browser data, switching browsers, or changing devices.',
+    'Edits stay in this session until you use the header Save button. Export JSON backups before clearing browser data, switching browsers, using private browsing, uninstalling the mobile app, or changing devices.',
   mobileCurrentWorkspaceLabel: 'Current workspace',
   mobileSavedTimestampLabel: 'Saved timestamp',
   diagnosticsLabel: 'Diagnostics',

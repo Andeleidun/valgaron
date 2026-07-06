@@ -12,6 +12,11 @@ import {
   type SearchableEntry,
 } from './codexSearch';
 import { getIncompleteEntries } from './codexTemplates';
+import { getRelationshipTextReviewItems } from './relationshipFields';
+import {
+  getReviewTraySummaryModel,
+  type ReviewTraySummaryModel,
+} from './reviewTray';
 import {
   formatCodexRouteSearch,
   getCodexEntriesRoute,
@@ -79,6 +84,7 @@ export type WorkbenchSelectedRecordContext = {
   relatedRecordChips: readonly WorkbenchEntityChip[];
   completionPercent: number | null;
   incompletePrompts: readonly string[];
+  reviewSummary: ReviewTraySummaryModel;
 };
 
 export type WorkbenchRecordIndexModel = {
@@ -430,6 +436,40 @@ export function getWorkbenchSelectedRecordContext({
         workspace.relationships
       )[0] ?? null
     : null;
+  const legacyTextItemCount = record
+    ? getRelationshipTextReviewItems({
+        codex: workspace.codex,
+        entryIds: [record.id],
+        sections: workspace.entryTypes,
+      }).length
+    : 0;
+  const incompletePromptCount = incompleteEntry?.prompts.length ?? 0;
+  const reviewSummary = getReviewTraySummaryModel([
+    {
+      id: 'drafting-prompts',
+      title: 'Drafting prompts',
+      count: incompletePromptCount,
+      countLabel: `${incompletePromptCount} ${
+        incompletePromptCount === 1 ? 'prompt' : 'prompts'
+      }`,
+      detail:
+        incompletePromptCount > 0
+          ? 'Open prompts point to fields that would strengthen this record.'
+          : 'No drafting prompts remain for this record.',
+    },
+    {
+      id: 'legacy-link-text',
+      title: 'Legacy link text',
+      count: legacyTextItemCount,
+      countLabel: `${legacyTextItemCount} ${
+        legacyTextItemCount === 1 ? 'field' : 'fields'
+      }`,
+      detail:
+        legacyTextItemCount > 0
+          ? 'Relationship-backed text can be reviewed or migrated into links.'
+          : 'No legacy relationship-backed text is waiting for review.',
+    },
+  ]);
 
   return {
     record,
@@ -446,6 +486,7 @@ export function getWorkbenchSelectedRecordContext({
     completionPercent:
       incompleteEntry?.percent ?? record?.completionPercent ?? null,
     incompletePrompts: incompleteEntry?.prompts ?? [],
+    reviewSummary,
   };
 }
 

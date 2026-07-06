@@ -15,15 +15,20 @@ const port = Number(process.env.VWB_SMOKE_PORT ?? 5373);
 const baseUrl = `http://${host}:${port}`;
 const rootDir = process.cwd();
 const artifactDir = join(rootDir, '.tmp', 'browser-smoke');
-const profileRoot = join(
-  artifactDir,
-  'profiles',
-  `run-${process.pid}-${Date.now()}`
-);
-const screenshotDir = join(artifactDir, 'screenshots');
+const runId = `run-${process.pid}-${Date.now()}`;
+const profileRoot = join(artifactDir, 'profiles', runId);
+const screenshotDir = join(artifactDir, 'screenshots', runId);
 const serverReadyTimeoutMs = 15000;
-const browserTimeoutMs = 30000;
+const browserTimeoutMs = Number(process.env.VWB_BROWSER_TIMEOUT_MS ?? 90000);
 const cdpTimeoutMs = 20000;
+
+function removePathIfPossible(path) {
+  try {
+    rmSync(path, { recursive: true, force: true });
+  } catch (error) {
+    writeLine(`warning: could not remove ${path}: ${error.message}`);
+  }
+}
 
 const routeChecks = [
   {
@@ -58,6 +63,8 @@ const routeChecks = [
       'Mira Rowan',
       'Relationships',
       'Completeness',
+      'Review summary',
+      'Legacy link text',
       'The Cartographers Guild',
       'Open Editor',
       'Manage Links',
@@ -154,15 +161,46 @@ const routeChecks = [
       'Knowledge Schema',
       '5 entry types',
       'No hidden detail cleanup targets.',
+      'Tool shortcuts',
+      'Open Data',
+      'Open Help',
+      'Review hotspots',
+      'Open 10 Incomplete Records',
+      'Open the Incomplete Workbench queue before reviewing other record signals.',
+      'Open Relationship Review',
       'Knowledge Setup',
+      'Open Knowledge Setup. Manage custom entry types, reusable fields, and knowledge structure.',
       'Data Tools',
       'Workspaces',
       'Help',
     ],
   },
   {
+    path: '/utilities#project-tools',
+    expectedText: [
+      'Utilities',
+      'Project Tools',
+      'Knowledge Schema',
+      'Tool shortcuts',
+      'Review hotspots',
+      'Open 10 Incomplete Records',
+    ],
+  },
+  {
     path: '/utilities#data-tools',
     expectedText: ['Utilities', 'Data Tools', 'Open Data'],
+  },
+  {
+    path: '/utilities#knowledge-setup',
+    expectedText: ['Utilities', 'Knowledge Setup', 'Open Knowledge Setup'],
+  },
+  {
+    path: '/utilities#workspaces',
+    expectedText: ['Utilities', 'Workspaces', 'Open Workspaces'],
+  },
+  {
+    path: '/utilities#help',
+    expectedText: ['Utilities', 'Help', 'Open Help'],
   },
   {
     path: '/data',
@@ -187,11 +225,22 @@ const routeChecks = [
     path: '/help',
     expectedText: [
       'Help',
+      'Help topics',
       'Backups and recovery',
       'Use character category to shape which character fields appear',
       'Use relationship-backed character fields',
       'related lore',
       'Report problems without world content',
+    ],
+    expectedLinks: [
+      {
+        href: '/utilities#project-tools',
+        label: 'Open Utilities',
+      },
+      {
+        href: '/help?topic=timeline',
+        label: 'Timeline',
+      },
     ],
   },
   {
@@ -199,7 +248,29 @@ const routeChecks = [
     expectedText: [
       'Focused help',
       'Timeline',
-      'Use explicit order, Era Manager reassignment',
+      'Use explicit order, grouped event editing, Era Manager reassignment',
+    ],
+  },
+  {
+    path: '/help?topic=utilities',
+    expectedText: [
+      'Focused help',
+      'Utilities',
+      'Use Utilities or mobile More for the Project Tools hub',
+      'Help topics',
+      'Review Hotspots',
+      'Open Utilities',
+    ],
+    expectedLinks: [
+      {
+        current: true,
+        href: '/help?topic=utilities',
+        label: 'Utilities',
+      },
+      {
+        href: '/utilities#project-tools',
+        label: 'Open Utilities',
+      },
     ],
   },
 ];
@@ -412,6 +483,10 @@ function runBrowser(browserPath, args) {
   return result;
 }
 
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 function assertRouteText(browserPath, profilePrefix, routeCheck) {
   const url = `${baseUrl}${routeCheck.path}`;
   const routeSlug = routeCheck.path.replace(/[^a-z0-9]+/gi, '-') || 'root';
@@ -431,6 +506,34 @@ function assertRouteText(browserPath, profilePrefix, routeCheck) {
       `${routeCheck.path} did not render expected text: ${missingText.join(
         ', '
       )}. DOM saved to ${domPath}`
+    );
+  }
+  const anchors = [...dom.matchAll(/<a\b[^>]*>[\s\S]*?<\/a>/g)].map(
+    (match) => match[0]
+  );
+  const missingLinks = (routeCheck.expectedLinks ?? []).filter((link) => {
+    const escapedLabel = escapeRegExp(link.label);
+    const escapedRelativeHref = escapeRegExp(link.href);
+    const escapedAbsoluteHref = escapeRegExp(`${baseUrl}${link.href}`);
+    const hrefPattern = new RegExp(
+      `href="(?:${escapedRelativeHref}|${escapedAbsoluteHref})"`
+    );
+    const labelPattern = new RegExp(escapedLabel);
+    const currentPattern = /aria-current="page"/;
+    return !anchors.some(
+      (anchor) =>
+        hrefPattern.test(anchor) &&
+        labelPattern.test(anchor) &&
+        (!link.current || currentPattern.test(anchor))
+    );
+  });
+  if (missingLinks.length > 0) {
+    const domPath = join(artifactDir, `dom-${profilePrefix}-${routeSlug}.html`);
+    writeFileSync(domPath, dom);
+    throw new Error(
+      `${routeCheck.path} did not render expected links: ${missingLinks
+        .map((link) => `${link.label} -> ${link.href}`)
+        .join(', ')}. DOM saved to ${domPath}`
     );
   }
 }
@@ -615,14 +718,17 @@ async function assertTimelineContextCreateRouteReseeds(
       cdp,
       `(() => {
         const bodyText = document.body.textContent || '';
+        const selectedInvolvedText =
+          document.querySelector('[aria-label="Selected involved records"]')
+            ?.textContent || '';
         const issues = [];
         if (!bodyText.includes('Create Timeline Event')) {
           issues.push('timeline create editor is missing');
         }
-        if (!bodyText.includes('Northwatch Harbor')) {
+        if (!selectedInvolvedText.includes('Northwatch Harbor')) {
           issues.push('new involved-record staged link is missing');
         }
-        if (bodyText.includes('The Cartographers Guild')) {
+        if (selectedInvolvedText.includes('The Cartographers Guild')) {
           issues.push('previous involved-record staged link is still shown');
         }
         const northwatchEraInput = Array.from(document.querySelectorAll('input'))
@@ -632,7 +738,8 @@ async function assertTimelineContextCreateRouteReseeds(
         }
         return {
           issues,
-          location: window.location.pathname + window.location.search
+          location: window.location.pathname + window.location.search,
+          selectedInvolvedText
         };
       })()`
     );
@@ -773,6 +880,90 @@ async function assertWorkbenchDirtyRouteGuard(browserPath, profilePrefix) {
         `workbench dirty route guard issues: ${guardResult.issues.join(
           ', '
         )}. Details: ${JSON.stringify(guardResult)}`
+      );
+    }
+  } finally {
+    cdp?.close();
+    child.kill();
+    await new Promise((resolve) => {
+      child.once('exit', resolve);
+      setTimeout(resolve, 1000);
+    });
+    if (child.exitCode && child.exitCode !== 0) {
+      writeError(output);
+    }
+  }
+}
+
+async function assertWorkbenchReviewQueueRoute(browserPath, profilePrefix) {
+  const debugPort = 61750 + (process.pid % 1000);
+  const path = '/entries?view=unlinked';
+  const url = `${baseUrl}${path}`;
+  const child = spawn(
+    browserPath,
+    [
+      ...browserCdpBaseArgs(
+        profilePrefix,
+        'workbench-review-queue-route',
+        '1280,900'
+      ),
+      `--remote-debugging-port=${debugPort}`,
+      url,
+    ],
+    {
+      cwd: rootDir,
+      stdio: ['ignore', 'pipe', 'pipe'],
+    }
+  );
+  let output = '';
+  child.stdout.on('data', (chunk) => {
+    output += chunk.toString();
+  });
+  child.stderr.on('data', (chunk) => {
+    output += chunk.toString();
+  });
+
+  let cdp;
+  try {
+    const webSocketUrl = await waitForDebugPage(debugPort, url);
+    cdp = await createCdpClient(webSocketUrl);
+    await waitForRuntimeCondition(
+      cdp,
+      "document.body.textContent.includes('Workbench') && document.body.textContent.includes('The Ember Court')"
+    );
+    const result = await evaluateRuntime(
+      cdp,
+      `(() => {
+        const issues = [];
+        const activeView = Array.from(
+          document.querySelectorAll('[aria-label="Workbench views"] button')
+        ).find((button) => button.getAttribute('aria-pressed') === 'true');
+        if (!activeView?.textContent?.includes('Unlinked')) {
+          issues.push('Unlinked Workbench view is not active');
+        }
+        const recordCards = Array.from(document.querySelectorAll('.vwb-entry-card'));
+        const emberCourtCard = recordCards.find((card) =>
+          card.textContent?.includes('The Ember Court')
+        );
+        if (!emberCourtCard) {
+          issues.push('seed unlinked record is missing from the queue');
+        }
+        if (document.body.textContent.includes('No records in this view.')) {
+          issues.push('review queue rendered the empty state');
+        }
+        return {
+          activeViewText: activeView?.textContent?.replace(/\\s+/g, ' ').trim() ?? '',
+          cardCount: recordCards.length,
+          issues,
+          location: window.location.pathname + window.location.search
+        };
+      })()`
+    );
+    if (result.issues.length > 0) {
+      throw new Error(
+        `workbench review queue route issues: ${result.issues.join(
+          ', '
+        )}. Details: ${JSON.stringify(result)}`
       );
     }
   } finally {
@@ -1806,7 +1997,9 @@ async function run() {
     );
   }
 
-  rmSync(artifactDir, { recursive: true, force: true });
+  mkdirSync(artifactDir, { recursive: true });
+  removePathIfPossible(profileRoot);
+  removePathIfPossible(screenshotDir);
   mkdirSync(profileRoot, { recursive: true });
   mkdirSync(screenshotDir, { recursive: true });
 
@@ -1834,6 +2027,8 @@ async function run() {
         writeLine('route ok: timeline-context-create-reseed');
         await assertWorkbenchDirtyRouteGuard(browserPath, profilePrefix);
         writeLine('route ok: workbench-dirty-route-guard');
+        await assertWorkbenchReviewQueueRoute(browserPath, profilePrefix);
+        writeLine('route ok: workbench-review-queue-route');
         await assertKnowledgeDestructiveDialog(browserPath, profilePrefix);
         writeLine('dialog ok: knowledge-destructive-action');
         for (const screenshotCheck of screenshotChecks) {

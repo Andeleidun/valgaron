@@ -562,6 +562,25 @@ export function WorkbenchPage({
                   </dd>
                 </div>
               </dl>
+              {selected.reviewSummary.hasIssues ? (
+                <div>
+                  <h3>Review summary</h3>
+                  <div className="vwb-diagnostics-grid">
+                    {selected.reviewSummary.items
+                      .filter((item) => item.hasIssues)
+                      .map((item) => (
+                        <article
+                          className={`vwb-diagnostic-card vwb-review-${item.severity}`}
+                          key={item.id}
+                        >
+                          <span className="vwb-entry-kind">{item.title}</span>
+                          <strong>{item.countLabel}</strong>
+                          <p>{item.detail}</p>
+                        </article>
+                      ))}
+                  </div>
+                </div>
+              ) : null}
               {selected.incompletePrompts.length > 0 ? (
                 <div>
                   <h3>Drafting prompts</h3>

@@ -17,8 +17,12 @@ Run this checklist before publishing a public GitHub Pages release.
    `npx jest packages/core/src/routeIntents.test.ts mobile/src/navigation/mobileRoutes.test.ts --runInBand`.
 8. Run `npm run generate:taxonomies` before the release gate when a taxonomy
    JSON artifact changed, then confirm the generated diff is intentional.
-9. Run `git diff --check`.
-10. Review `docs/qa/web-mobile-parity-checklist.md` and update the parity debt
+9. If schema, Knowledge vocabulary editing, or review aggregation changed,
+   confirm `UX_DESIGN_UPDATE.md`, `docs/versioning.md`, and
+   `docs/release/schema-migrations.md` still document the intended product
+   decision gate.
+10. Run `git diff --check`.
+11. Review `docs/qa/web-mobile-parity-checklist.md` and update the parity debt
     ledger for any intentional web/mobile mismatch in this release.
 
 ## Browser Matrix
@@ -61,13 +65,16 @@ codex area.
 ## Core Workflows
 
 1. Create, edit, pin, archive, restore, duplicate, and permanently delete an
-   entry; expand selected-record drafting prompts when the context summary is
-   compacted.
+   entry; confirm selected-record review summaries show drafting prompts and
+   legacy link text when present, then expand selected-record drafting prompts
+   when the context summary is compacted.
 2. Create, edit, filter, delete, expand Review cleanup lists, review legacy
    relationship text, and duplicate-cleanup a relationship from Relationship
    Studio.
-3. Create and reorder timeline events, create one event from an active era or
-   involved-record filter and confirm that context seeds the draft, expand dense
+3. Create and reorder timeline events, edit chronology, linked-record, and
+   outcome fields, create one event from an active era or involved-record filter
+   and confirm that context seeds the draft, confirm a saved event summarizes
+   existing relationships that connect other records to the event, expand dense
    mobile era groups when available, filter to Unassigned Era when an unassigned
    event exists, then rename or merge an era from the Era Manager and confirm
    affected events move to the target era.
@@ -79,7 +86,15 @@ codex area.
    Knowledge/More, confirm existing values appear in the hidden detail cleanup
    queue, review the affected entry, clear hidden details, confirm a recovery
    snapshot is available, then delete the type.
-6. Create, archive, restore, delete, and expand large in-fiction world/planet
+6. Open Utilities and mobile More, confirm Project Tools shows Review Hotspots,
+   and follow available hotspot actions to the existing Workbench, Timeline,
+   Relationship Studio, or Knowledge cleanup surfaces. When the Workbench
+   hotspot points to a review queue such as Unlinked or Needs Review, confirm
+   the action label includes the target queue count and the target queue is
+   active rather than the default Workbench index. Open focused Utilities Help,
+   confirm browser Help and mobile Help both show the Help topics picker with
+   Utilities selected, then follow Open Utilities back to Project Tools.
+7. Create, archive, restore, delete, and expand large in-fiction world/planet
    lists when enough worlds exist.
 
 ## Mobile Companion

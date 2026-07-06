@@ -85,6 +85,19 @@ describe('codex route intents', () => {
       kind: 'entries-browse',
       query: 'harbor',
       sectionId: 'places',
+      viewId: '',
+    });
+    expect(getCodexWorkflowIntent('/entries?view=unlinked')).toEqual({
+      kind: 'entries-browse',
+      query: '',
+      sectionId: '',
+      viewId: 'unlinked',
+    });
+    expect(getCodexWorkflowIntent('/entries?view=missing')).toEqual({
+      kind: 'entries-browse',
+      query: '',
+      sectionId: '',
+      viewId: '',
     });
     expect(
       getCodexWorkflowIntent('/entries?sectionId=places&intent=new')
@@ -156,8 +169,24 @@ describe('codex route intents', () => {
       focusId: '',
       kind: 'utilities',
     });
+    expect(getCodexWorkflowIntent('/utilities#project-tools')).toEqual({
+      focusId: 'project-tools',
+      kind: 'utilities',
+    });
+    expect(getCodexWorkflowIntent('/utilities#knowledge-setup')).toEqual({
+      focusId: 'knowledge-setup',
+      kind: 'utilities',
+    });
     expect(getCodexWorkflowIntent('/utilities#data-tools')).toEqual({
       focusId: 'data-tools',
+      kind: 'utilities',
+    });
+    expect(getCodexWorkflowIntent('/utilities#workspaces')).toEqual({
+      focusId: 'workspaces',
+      kind: 'utilities',
+    });
+    expect(getCodexWorkflowIntent('/utilities#help')).toEqual({
+      focusId: 'help',
       kind: 'utilities',
     });
     expect(getCodexWorkflowIntent('/utilities#missing')).toEqual({
@@ -177,6 +206,10 @@ describe('codex route intents', () => {
     expect(getCodexWorkflowIntent('/help?topic=timeline')).toEqual({
       kind: 'help',
       topic: 'timeline',
+    });
+    expect(getCodexWorkflowIntent('/help?topic=utilities')).toEqual({
+      kind: 'help',
+      topic: 'utilities',
     });
     expect(getCodexWorkflowIntent('/help?topic=missing')).toEqual({
       kind: 'help',
