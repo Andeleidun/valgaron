@@ -7,7 +7,11 @@ import {
   createStagedRelationshipDraft,
   deleteStagedRelationshipDraft,
   draftTransactionEntryId,
+  getStagedRelationshipDraftRowModel,
+  hasDuplicateStagedRelationshipDraft,
   getStagedRelationshipDraftsForEntry,
+  normalizeStagedRelationshipDrafts,
+  stagedRelationshipDraftCopy,
   upsertStagedRelationshipDraft,
   validateEntryDraftTransaction,
 } from './entryDraftTransactions';
@@ -137,5 +141,107 @@ describe('entry draft transactions', () => {
     expect(staged).toEqual([updatedFirst, second]);
     expect(getStagedRelationshipDraftsForEntry(staged)).toEqual([updatedFirst]);
     expect(deleteStagedRelationshipDraft(staged, 'staged-1')).toEqual([second]);
+  });
+
+  it('normalizes duplicate staged relationship drafts before commit', () => {
+    const world = createSeedWorld();
+    const section = world.entryTypes.find((item) => item.id === 'timeline')!;
+    const first = createStagedRelationshipDraft(
+      {
+        ...createEmptyRelationshipDraft(),
+        sourceEntryId: draftTransactionEntryId,
+        targetEntryId: 'faction-cartographers-guild',
+        type: 'involves',
+      },
+      'staged-1'
+    );
+    const duplicate = createStagedRelationshipDraft(
+      {
+        ...first,
+      },
+      'staged-2'
+    );
+
+    expect(normalizeStagedRelationshipDrafts([first, duplicate])).toEqual([
+      first,
+    ]);
+
+    const result = commitEntryDraftTransaction({
+      codex: world.codex,
+      entryDraft: {
+        ...createEmptyDraft(),
+        name: 'Duplicate link event',
+      },
+      relationships: world.relationships,
+      section,
+      stagedRelationships: [first, duplicate],
+    });
+
+    expect(result.savedRelationships).toHaveLength(1);
+    expect(result.savedRelationships[0]).toMatchObject({
+      sourceEntryId: result.entry.id,
+      targetEntryId: 'faction-cartographers-guild',
+      type: 'involves',
+    });
+  });
+
+  it('builds shared staged relationship panel copy and row summaries', () => {
+    const relationship = createStagedRelationshipDraft(
+      {
+        ...createEmptyRelationshipDraft(),
+        sourceEntryId: draftTransactionEntryId,
+        targetEntryId: 'faction-cartographers-guild',
+        type: 'member of',
+        note: 'Guild sponsor.',
+      },
+      'staged-1'
+    );
+
+    expect(stagedRelationshipDraftCopy).toMatchObject({
+      duplicateMessage: 'That staged link is already in the save list.',
+      missingTargetOrTypeMessage:
+        'Choose a target record and relationship type before staging.',
+      stageLabel: 'Stage Link',
+      title: 'Links to create on save',
+    });
+    expect(
+      getStagedRelationshipDraftRowModel({
+        relationship,
+        targetLabel: 'Cartographers Guild',
+      })
+    ).toEqual({
+      detail: 'This entry member of Cartographers Guild.',
+      kicker: 'Staged link',
+      note: 'Guild sponsor.',
+      removeAccessibilityLabel: 'Remove staged link to Cartographers Guild',
+      removeLabel: 'Remove',
+    });
+  });
+
+  it('detects duplicate staged relationship targets with normalized types', () => {
+    const stagedRelationship = createStagedRelationshipDraft(
+      {
+        ...createEmptyRelationshipDraft(),
+        sourceEntryId: draftTransactionEntryId,
+        targetEntryId: 'faction-cartographers-guild',
+        type: 'Member Of',
+      },
+      'staged-1'
+    );
+
+    expect(
+      hasDuplicateStagedRelationshipDraft({
+        stagedRelationships: [stagedRelationship],
+        targetEntryId: 'faction-cartographers-guild',
+        type: ' member of ',
+      })
+    ).toBe(true);
+    expect(
+      hasDuplicateStagedRelationshipDraft({
+        stagedRelationships: [stagedRelationship],
+        targetEntryId: 'place-northwatch-harbor',
+        type: 'member of',
+      })
+    ).toBe(false);
   });
 });

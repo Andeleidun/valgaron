@@ -1,8 +1,13 @@
-import { entryDisplayCopy, formatUpdatedAt } from './codexEntries';
+import {
+  entryDisplayCopy,
+  formatUpdatedAt,
+  getEntryEditorNewTitle,
+} from './codexEntries';
 import {
   getOrphanedEntries,
   getEntryRelationships,
   getRelationshipEntries,
+  relationshipFeatureCopy,
   type RelationshipWithEntries,
 } from './codexRelationships';
 import {
@@ -44,11 +49,43 @@ export const workbenchRecordViewIds = [
   'archived',
 ] as const satisfies readonly WorkbenchRecordViewId[];
 
+export const workbenchRecordIndexCopy = {
+  layoutAriaLabel: 'Workbench records',
+  recordIndexKicker: 'Record index',
+  recordIndexTitle: 'Find and choose a record',
+  searchRecordsLabel: 'Search records',
+  searchRecordsPlaceholder: 'Search names, tags, notes, and fields',
+  sectionFilterAccessibilityLabel: 'Filter Workbench by section',
+  createRecordsAccessibilityLabel: 'Create records',
+  viewsAccessibilityLabel: 'Workbench views',
+  emptyViewTitle: 'No records in this view.',
+  emptyViewDetail: 'Try another view or clear the current search.',
+  inlineEditorKicker: 'Inline editor',
+  noEditorTargetTitle: 'No editor target selected.',
+  noEditorTargetDetail:
+    'Select a record or choose a section before editing inline.',
+  workbenchEditorAccessibilityLabel: 'Workbench editor',
+} as const;
+
+export function formatWorkbenchEditorAccessibilityLabel(
+  section: Pick<WorldSectionConfig, 'singularTitle'> | null
+): string {
+  return section
+    ? `${section.singularTitle} ${workbenchRecordIndexCopy.workbenchEditorAccessibilityLabel}`
+    : workbenchRecordIndexCopy.workbenchEditorAccessibilityLabel;
+}
+
 export type WorkbenchRecordIndexItem = {
+  editAccessibilityLabel: string;
+  editLabel: string;
   id: string;
   name: string;
+  reviewContextAccessibilityLabel: string;
+  reviewContextLabel: string;
   sectionId: string;
   sectionTitle: string;
+  selectAccessibilityLabel: string;
+  selectLabel: string;
   route: string;
   editorRoute: string;
   contextText: string;
@@ -66,26 +103,48 @@ export type WorkbenchRecordIndexItem = {
 
 export type WorkbenchRecordView = {
   id: WorkbenchRecordViewId;
+  title: string;
   label: string;
   count: number;
+  countLabel: string;
+  emptyTitle: string;
+  emptyDetail: string;
   records: readonly WorkbenchRecordIndexItem[];
 };
 
 export type WorkbenchSelectedRecordContext = {
   record: WorkbenchRecordIndexItem | null;
   section: WorldSectionConfig | null;
+  backToIndexLabel: string;
+  completeLabel: string;
+  completenessLabel: string;
+  draftingPromptsTitle: string;
+  editRecordAccessibilityLabel: string;
+  editRecordLabel: string;
+  emptyDetail: string;
+  emptyTitle: string;
+  kicker: string;
+  linkedRecordsTitle: string;
+  noSummaryText: string;
+  relationshipsLabel: string;
   relationshipCount: number;
+  relationshipStudioAccessibilityLabel: string | null;
+  relationshipStudioLabel: string;
   relationshipStudioRoute: string | null;
   relationships: readonly RelationshipWithEntries[];
   relatedRecordChips: readonly WorkbenchEntityChip[];
   completionPercent: number | null;
   incompletePrompts: readonly string[];
+  reviewSummaryTitle: string;
   reviewSummary: ReviewTraySummaryModel;
+  sectionLabel: string;
+  statusLabel: string;
 };
 
 export type WorkbenchRecordIndexModel = {
   records: readonly WorkbenchRecordIndexItem[];
   activeSectionId: string;
+  copy: typeof workbenchRecordIndexCopy;
   sectionActions: readonly WorkbenchSectionAction[];
   views: readonly WorkbenchRecordView[];
   activeView: WorkbenchRecordView;
@@ -96,6 +155,7 @@ export type WorkbenchSectionAction = {
   sectionId: string;
   label: string;
   singularLabel: string;
+  createLabel: string;
   recordCount: number;
   isActive: boolean;
   openRoute: string;
@@ -201,10 +261,16 @@ function buildWorkbenchRecordIndexItem({
   relationshipCount: number;
 }): WorkbenchRecordIndexItem {
   return {
+    editAccessibilityLabel: `Edit ${entry.name}`,
+    editLabel: 'Edit',
     id: entry.id,
     name: entry.name,
+    reviewContextAccessibilityLabel: `Review context for ${entry.name}`,
+    reviewContextLabel: 'Context',
     sectionId: entry.sectionId,
     sectionTitle: entry.sectionTitle,
+    selectAccessibilityLabel: `Select ${entry.name}`,
+    selectLabel: 'Select',
     route: getCodexEntriesRoute({
       entryId: entry.id,
       intent: 'context',
@@ -243,7 +309,9 @@ export function getWorkbenchEntityChip(
   return {
     id: record.id,
     label: record.name,
-    detailText: record.sectionTitle,
+    detailText: relationship?.type
+      ? `${relationship.type} - ${record.sectionTitle}`
+      : record.sectionTitle,
     route: record.route,
     sectionId: record.sectionId,
     sectionTitle: record.sectionTitle,
@@ -298,6 +366,7 @@ export function getWorkbenchSectionActions(
     sectionId: section.id,
     label: section.title,
     singularLabel: section.singularTitle,
+    createLabel: getEntryEditorNewTitle(section),
     recordCount: records.filter((record) => record.sectionId === section.id)
       .length,
     isActive: section.id === activeSectionId,
@@ -356,12 +425,21 @@ export function getWorkbenchRecordViews({
 
   return (
     Object.keys(workbenchRecordViewLabels) as WorkbenchRecordViewId[]
-  ).map((id) => ({
-    id,
-    label: workbenchRecordViewLabels[id],
-    count: recordsByView[id].length,
-    records: limitRecords(recordsByView[id], viewLimit),
-  }));
+  ).map((id) => {
+    const count = recordsByView[id].length;
+    return {
+      id,
+      title: `Workbench ${workbenchRecordViewLabels[id]}`,
+      label: workbenchRecordViewLabels[id],
+      count,
+      countLabel: `${count} ${
+        count === 1 ? 'record' : 'records'
+      } in this review queue.`,
+      emptyTitle: workbenchRecordIndexCopy.emptyViewTitle,
+      emptyDetail: workbenchRecordIndexCopy.emptyViewDetail,
+      records: limitRecords(recordsByView[id], viewLimit),
+    };
+  });
 }
 
 export function getWorkbenchSelectedRecordContext({
@@ -471,7 +549,26 @@ export function getWorkbenchSelectedRecordContext({
   return {
     record,
     section,
+    backToIndexLabel: 'Back to Index',
+    completeLabel: 'Complete',
+    completenessLabel: 'Completeness',
+    draftingPromptsTitle: 'Drafting prompts',
+    editRecordAccessibilityLabel: record
+      ? `Edit ${record.name}`
+      : 'Edit selected record',
+    editRecordLabel: 'Edit Record',
+    emptyDetail:
+      'Select a record to review its section, relationship count, and drafting prompts before opening the editor.',
+    emptyTitle: 'No record selected',
+    kicker: 'Selected context',
+    linkedRecordsTitle: 'Linked records',
+    noSummaryText: 'No summary has been drafted yet.',
+    relationshipsLabel: 'Relationships',
     relationshipCount: entryRelationships.length,
+    relationshipStudioAccessibilityLabel: record
+      ? `${relationshipFeatureCopy.manageLinksLabel} for ${record.name}`
+      : null,
+    relationshipStudioLabel: relationshipFeatureCopy.manageLinksLabel,
     relationshipStudioRoute: record
       ? getCodexRelationshipsRoute({
           entryId: record.id,
@@ -483,7 +580,10 @@ export function getWorkbenchSelectedRecordContext({
     completionPercent:
       incompleteEntry?.percent ?? record?.completionPercent ?? null,
     incompletePrompts: incompleteEntry?.prompts ?? [],
+    reviewSummaryTitle: 'Review summary',
     reviewSummary,
+    sectionLabel: 'Section',
+    statusLabel: 'Status',
   };
 }
 
@@ -521,6 +621,7 @@ export function getWorkbenchRecordIndexModel(
   return {
     records,
     activeSectionId,
+    copy: workbenchRecordIndexCopy,
     sectionActions: getWorkbenchSectionActions(
       workspace,
       sourceRecords,

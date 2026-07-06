@@ -8,7 +8,11 @@ import type {
   WorldSectionConfig,
   WorldWorkspace,
 } from '@valgaron/core';
-import { CURRENT_WORLD_SCHEMA_VERSION, worldSections } from '@valgaron/core';
+import {
+  CURRENT_WORLD_SCHEMA_VERSION,
+  cloneWorkspaceSchema,
+  worldSections,
+} from '@valgaron/core';
 
 export type LargeWorldFixtureOptions = {
   entriesPerSection?: number;
@@ -140,6 +144,7 @@ export function createLargeWorldDocument(
       createPlanetaryWorld(index)
     ),
     entryTypes: [...worldSections],
+    schema: cloneWorkspaceSchema(),
     codex,
     relationships: createRelationships(entries, relationshipCount),
     createdAt: timestamp,

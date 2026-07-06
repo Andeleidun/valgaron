@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { NavLink } from 'react-router-dom';
 import {
+  formatExpansionControlLabel,
+  formatHiddenCountText,
+  destructiveActionDialogCopy,
   formatDraftValidationErrors,
   formatDestructiveActionTitle,
   formatWorkspaceFeatureAccessibilityLabel,
@@ -11,8 +14,8 @@ import {
   lastActiveWorkspaceArchiveMessage,
   normalizePlanetaryWorldDraft,
   normalizeWorkspaceDraft,
+  getPlanetaryWorldDraftFieldLayout,
   planetaryWorldDraftFrom,
-  planetaryWorldDraftFields,
   validatePlanetaryWorldDraft,
   validateWorkspaceDraft,
   workspaceDraftFields,
@@ -70,7 +73,9 @@ function ConfirmDeleteDialog({
         aria-modal="true"
         tabIndex={-1}
       >
-        <p className="vwb-kicker">Permanent delete</p>
+        <p className="vwb-kicker">
+          {destructiveActionDialogCopy.permanentDeleteKickerLabel}
+        </p>
         <h2 id="workspace-delete-title">
           {formatDestructiveActionTitle(actionId, pendingDelete.name)}
         </h2>
@@ -81,7 +86,7 @@ function ConfirmDeleteDialog({
             type="button"
             onClick={onCancel}
           >
-            Cancel
+            {destructiveActionDialogCopy.cancelLabel}
           </button>
           <button
             className="vwb-primary-button vwb-danger-confirm-button"
@@ -193,6 +198,7 @@ export function WorkspacesPage({
   const planetaryWorldBaselineDraft = planetaryWorldDraftFrom(
     selectedPlanetaryWorld ?? undefined
   );
+  const planetaryWorldFieldLayout = getPlanetaryWorldDraftFieldLayout();
   const isWorkspaceDraftDirty = hasUnsavedChanges(
     workspaceBaselineDraft,
     workspaceDraft
@@ -279,7 +285,7 @@ export function WorkspacesPage({
   };
 
   const updatePlanetaryWorldDraft = (
-    key: (typeof planetaryWorldDraftFields)[number]['key'],
+    key: (typeof planetaryWorldFieldLayout.fields)[number]['key'],
     value: string
   ) => {
     setPlanetaryWorldDraft((currentDraft) => ({
@@ -438,8 +444,11 @@ export function WorkspacesPage({
             )}
             {workspaceModel.workspaces.hiddenCount > 0 ? (
               <p className="vwb-inline-status">
-                {workspaceModel.workspaces.hiddenCount} more workspace
-                {workspaceModel.workspaces.hiddenCount === 1 ? '' : 's'}.
+                {formatHiddenCountText({
+                  hiddenCount: workspaceModel.workspaces.hiddenCount,
+                  singularItemLabel: 'workspace',
+                  pluralItemLabel: 'workspaces',
+                })}
               </p>
             ) : null}
             {workspaceModel.workspaces.totalCount >
@@ -453,9 +462,12 @@ export function WorkspacesPage({
                     setShowAllWorkspaces((currentValue) => !currentValue)
                   }
                 >
-                  {showAllWorkspaces
-                    ? 'Show Fewer Workspaces'
-                    : `Show ${workspaceModel.workspaces.hiddenCount} More Workspaces`}
+                  {formatExpansionControlLabel({
+                    isExpanded: showAllWorkspaces,
+                    hiddenCount: workspaceModel.workspaces.hiddenCount,
+                    pluralItemLabel: 'Workspaces',
+                    singularItemLabel: 'Workspace',
+                  })}
                 </button>
               </div>
             ) : null}
@@ -706,9 +718,11 @@ export function WorkspacesPage({
             )}
             {workspaceModel.planetaryWorlds.hiddenCount > 0 ? (
               <p className="vwb-inline-status">
-                {workspaceModel.planetaryWorlds.hiddenCount} more in-fiction
-                world
-                {workspaceModel.planetaryWorlds.hiddenCount === 1 ? '' : 's'}.
+                {formatHiddenCountText({
+                  hiddenCount: workspaceModel.planetaryWorlds.hiddenCount,
+                  singularItemLabel: 'in-fiction world',
+                  pluralItemLabel: 'in-fiction worlds',
+                })}
               </p>
             ) : null}
             {workspaceModel.planetaryWorlds.totalCount >
@@ -722,9 +736,12 @@ export function WorkspacesPage({
                     setShowAllPlanetaryWorlds((currentValue) => !currentValue)
                   }
                 >
-                  {showAllPlanetaryWorlds
-                    ? 'Show Fewer In-Fiction Worlds'
-                    : `Show ${workspaceModel.planetaryWorlds.hiddenCount} More In-Fiction Worlds`}
+                  {formatExpansionControlLabel({
+                    isExpanded: showAllPlanetaryWorlds,
+                    hiddenCount: workspaceModel.planetaryWorlds.hiddenCount,
+                    pluralItemLabel: 'In-Fiction Worlds',
+                    singularItemLabel: 'In-Fiction World',
+                  })}
                 </button>
               </div>
             ) : null}
@@ -746,7 +763,7 @@ export function WorkspacesPage({
               ) : null}
             </div>
             <div className="vwb-form-grid">
-              {planetaryWorldDraftFields.slice(0, 4).map((field) => (
+              {planetaryWorldFieldLayout.leadingFields.map((field) => (
                 <label key={field.key}>
                   {field.label}
                   <input
@@ -761,7 +778,7 @@ export function WorkspacesPage({
                 </label>
               ))}
             </div>
-            {planetaryWorldDraftFields.slice(4).map((field) => (
+            {planetaryWorldFieldLayout.trailingFields.map((field) => (
               <label key={field.key}>
                 {field.label}
                 {'multiline' in field && field.multiline ? (

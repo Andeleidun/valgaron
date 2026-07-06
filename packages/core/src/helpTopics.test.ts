@@ -36,13 +36,13 @@ describe('help topics', () => {
       'selected-record review summaries'
     );
     expect(codexWorkflowHelpTopics[0]?.items.join(' ')).toContain(
-      'observed flexible values'
+      'durable vocabulary rows'
     );
     expect(codexWorkflowHelpTopics[0]?.items.join(' ')).toContain(
       'character category'
     );
     expect(codexWorkflowHelpTopics[0]?.items.join(' ')).toContain(
-      'ancestry and profession stay flexible'
+      'ancestry and profession use workspace-owned vocabulary suggestions'
     );
     expect(codexWorkflowHelpTopics[1]?.items.join(' ')).toContain(
       'relationship-backed character fields'
@@ -146,7 +146,7 @@ describe('help topics', () => {
       'create custom entry types'
     );
     expect(getCodexHelpFocus('knowledge')?.detail).toContain(
-      'observed flexible values'
+      'manage durable vocabulary values'
     );
     expect(getCodexHelpFocus('utilities')?.detail).toContain(
       'Project Tools hub'

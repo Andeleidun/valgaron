@@ -109,15 +109,15 @@ describe('character taxonomy', () => {
     }
 
     const fields = getDraftDetailFields(section);
-    const suggestions = getEntryDetailFieldSuggestions(
+    const suggestions = getEntryDetailFieldSuggestions({
+      entries: codex.characters,
       fields,
-      codex.characters
-    );
+    });
 
     expect(suggestions.characterCategory).toContain('Humanoid person');
     expect(suggestions.characterCategory).toContain('Construct or automaton');
     expect(suggestions.ancestry).toEqual(['Human']);
-    expect(suggestions.profession).toEqual(['Quartermaster', 'Surveyor']);
+    expect(suggestions.profession).toEqual(['Surveyor', 'Quartermaster']);
   });
 
   it('keeps ancestry and profession as creator-defined fields without bundled options', () => {

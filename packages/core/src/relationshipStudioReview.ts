@@ -28,6 +28,8 @@ export type RelationshipStudioReviewModel = ReturnType<
   typeof getRelationshipDiagnosticsModel
 > & {
   duplicateRelationshipGroups: RelationshipDuplicateGroup[];
+  duplicateRelationshipGroupCountLabel: string;
+  duplicateRelationshipCleanupSummary: string;
   hasIssues: boolean;
   legacyTextExactItemCount: number;
   legacyTextItems: RelationshipTextReviewItem[];
@@ -39,6 +41,7 @@ export type RelationshipDuplicateGroup = {
   retainedRelationshipId: string;
   duplicateRelationshipIds: string[];
   duplicateCount: number;
+  removalSummaryLabel: string;
   sourceName: string;
   targetName: string;
   type: string;
@@ -96,6 +99,9 @@ export function getDuplicateRelationshipGroups({
         retainedRelationshipId: retained.id,
         duplicateRelationshipIds: sorted.slice(1).map((item) => item.id),
         duplicateCount: sorted.length - 1,
+        removalSummaryLabel: `Keeps ${retained.id}; removes ${
+          sorted.length - 1
+        } ${sorted.length === 2 ? 'duplicate' : 'duplicates'}.`,
         sourceName,
         targetName,
         type: retained.type,
@@ -116,6 +122,9 @@ export function getRelationshipStudioReviewModel(
     sections: workspace.entryTypes,
   });
   const duplicateRelationshipGroups = getDuplicateRelationshipGroups(workspace);
+  const duplicateRelationshipGroupCountLabel = `${
+    duplicateRelationshipGroups.length
+  } duplicate group${duplicateRelationshipGroups.length === 1 ? '' : 's'}`;
   const legacyTextExactItemCount = legacyTextItems.filter(
     (item) => item.exactMatchCount > 0
   ).length;
@@ -155,6 +164,8 @@ export function getRelationshipStudioReviewModel(
   return {
     ...diagnostics,
     duplicateRelationshipGroups,
+    duplicateRelationshipGroupCountLabel,
+    duplicateRelationshipCleanupSummary: `Remove ${duplicateRelationshipGroupCountLabel} while keeping the oldest relationship in each group.`,
     hasIssues: reviewSummary.hasIssues,
     legacyTextExactItemCount,
     legacyTextItems,

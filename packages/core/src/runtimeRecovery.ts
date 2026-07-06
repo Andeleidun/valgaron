@@ -6,6 +6,7 @@ export type RuntimeRecoveryCopy = {
   dataLabel: string;
   reloadLabel: string;
   backupHint: string;
+  diagnosticsKickerLabel: string;
   diagnosticsTitle: string;
   diagnosticsDescription: string;
   diagnosticsTextAreaLabel: string;
@@ -24,6 +25,7 @@ export const runtimeRecoveryCopy: RuntimeRecoveryCopy = {
   reloadLabel: 'Reload App',
   backupHint:
     'Use Data to export JSON, restore a recovery snapshot, import a backup, or reset to starter data.',
+  diagnosticsKickerLabel: 'Local-only report',
   diagnosticsTitle: 'Diagnostics',
   diagnosticsDescription:
     'This report excludes world names, entry names, notes, summaries, tags, and ids by default.',

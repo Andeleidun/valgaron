@@ -9,7 +9,11 @@ import {
   supportedPlaceCategoryOptions,
 } from './placeTaxonomy';
 import { getSectionById } from './codexEntries';
-import { createSeedCodex, worldSections } from './seedCodex';
+import {
+  createSeedCodex,
+  createSeedWorldDocument,
+  worldSections,
+} from './seedCodex';
 
 describe('place taxonomy', () => {
   it('covers all supported place categories with field profiles', () => {
@@ -66,6 +70,48 @@ describe('place taxonomy', () => {
     expect(riverFields).toContain('mouth');
     expect(riverFields).toContain('tributaries');
     expect(riverFields).not.toContain('districts');
+  });
+
+  it('applies schema field overrides to labels, order, and visibility', () => {
+    const section = getSectionById('characters');
+    const world = createSeedWorldDocument().worlds[0];
+
+    if (!section) {
+      throw new Error('Expected character section seed config.');
+    }
+
+    const schema = {
+      ...world.schema,
+      fieldOverrides: {
+        ...world.schema.fieldOverrides,
+        characters: {
+          ...world.schema.fieldOverrides.characters,
+          ancestry: {
+            label: 'People',
+            order: 1,
+            vocabularyId: 'character-ancestry',
+            vocabularyMode: 'suggestions' as const,
+          },
+          characterCategory: {
+            hidden: true,
+            vocabularyId: 'character-category',
+            vocabularyMode: 'suggestions' as const,
+          },
+        },
+      },
+    };
+
+    expect(
+      getDraftDetailFields(section, undefined, schema)
+        .slice(0, 2)
+        .map((field) => [field.key, field.label])
+    ).toEqual([
+      ['ancestry', 'People'],
+      ['narrativeRole', 'Narrative role'],
+    ]);
+    expect(
+      getDraftDetailFields(section, undefined, schema).map((field) => field.key)
+    ).not.toContain('characterCategory');
   });
 
   it('identifies populated place fields hidden by the current category', () => {

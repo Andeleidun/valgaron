@@ -4,6 +4,8 @@ import { createSectionEntryDraft } from './codexTemplates';
 import {
   createTimelineInvolvedRecordStagedRelationship,
   filterTimelineEvents,
+  formatTimelineReviewIssueCount,
+  formatTimelineVisibleEventCount,
   getTimelineEventItem,
   getTimelineEventDateLabel,
   getTimelineEventOrderLabel,
@@ -62,12 +64,33 @@ describe('codex timeline helpers', () => {
       anyEraLabel: 'Any Era',
       anyInvolvedLabel: 'Any Involved',
       clearTimelineFiltersLabel: 'Clear Timeline Filters',
+      eraFilterLabel: 'Era',
+      involvedFilterLabel: 'Involved entry',
       noTimelineEventsMatchFilters: 'No timeline events match these filters.',
+      timelineOverviewTitle: 'Timeline view',
+      timelineErasLabel: 'Timeline eras',
+      timelineHighlightsLabel: 'Timeline highlights',
+      timelineTableLabel: 'Timeline table',
+      timelineTableColumnLabels: {
+        order: 'Order',
+        event: 'Event',
+        date: 'Date',
+        era: 'Era',
+        links: 'Links',
+        actions: 'Actions',
+      },
+      searchInvolvedFiltersLabel: 'Search involved filters',
+      searchInvolvedFiltersPlaceholder:
+        'Record name, section, tag, status, or id',
       unorderedEventsLabel: 'Unordered events',
       duplicateOrdersLabel: 'Duplicate orders',
       unlinkedEventsLabel: 'Unlinked events',
     });
     expect(getTimelineEventDateLabel({ dateLabel: '' })).toBe('No date');
+    expect(formatTimelineVisibleEventCount(1)).toBe('1 visible event');
+    expect(formatTimelineVisibleEventCount(2)).toBe('2 visible events');
+    expect(formatTimelineReviewIssueCount(1)).toBe('1 review issue');
+    expect(formatTimelineReviewIssueCount(2)).toBe('2 review issues');
     expect(getTimelineEventDateLabel({ dateLabel: 'Year 4' })).toBe('Year 4');
     expect(getTimelineEventOrderLabel({ order: '' })).toBe('No order');
     expect(getTimelineEventOrderLabel({ order: '10' })).toBe('10');
@@ -119,7 +142,68 @@ describe('codex timeline helpers', () => {
     expect(
       model.involvedRecords.selectedRecords.map((record) => record.id)
     ).toEqual(['faction-cartographers-guild']);
+    expect(model.involvedRecords).toMatchObject({
+      title: 'Involved records',
+      searchLabel: 'Search involved records',
+      searchPlaceholder: 'Character, place, faction, or lore note',
+      optionListLabel: 'Choose involved records',
+      emptySearchLabel: 'No involved records match this search.',
+      selectedRecordsLabel: 'Selected involved records',
+      selectedRecordsSummaryLabel: 'Selected: The Cartographers Guild',
+      savedEntryMessage:
+        'Use the relationship-backed controls below to update involved records.',
+      saveBeforeEditMessage:
+        'Save this timeline event before editing involved records.',
+    });
     expect(model.involvedRecords.legacyText).toBeNull();
+  });
+
+  it('caps timeline editor field suggestions when a limit is provided', () => {
+    const world = createSeedWorld();
+    const section = world.entryTypes.find((item) => item.id === 'timeline');
+    if (!section) {
+      throw new Error('Expected timeline section.');
+    }
+    const model = getTimelineEventEditorModel({
+      draft: createSectionEntryDraft(section),
+      section,
+      suggestionLimit: 1,
+      world,
+    });
+
+    expect(
+      model.chronology.fields.find((field) => field.key === 'era')?.suggestions
+    ).toHaveLength(1);
+  });
+
+  it('groups custom timeline fields as additional details', () => {
+    const world = createSeedWorld();
+    const section = world.entryTypes.find((item) => item.id === 'timeline');
+    if (!section) {
+      throw new Error('Expected timeline section.');
+    }
+    const sectionWithCustomField = {
+      ...section,
+      detailFields: [
+        ...section.detailFields,
+        {
+          key: 'prophecy',
+          label: 'Prophecy',
+          suggestFromExistingValues: true,
+        },
+      ],
+    };
+    const model = getTimelineEventEditorModel({
+      draft: createSectionEntryDraft(sectionWithCustomField),
+      section: sectionWithCustomField,
+      world,
+    });
+
+    expect(model.extraDetails).toMatchObject({
+      id: 'timelineEditorDetails',
+      label: 'Additional details',
+      fields: [expect.objectContaining({ key: 'prophecy' })],
+    });
   });
 
   it('seeds new timeline editor models from route context and staged links', () => {
@@ -155,6 +239,40 @@ describe('codex timeline helpers', () => {
         selected: true,
       }),
     ]);
+  });
+
+  it('warns when duplicate staged timeline involved links will be pruned', () => {
+    const world = createSeedWorld();
+    const section = world.entryTypes.find((item) => item.id === 'timeline');
+    if (!section) {
+      throw new Error('Expected timeline section.');
+    }
+    const stagedRelationship = createTimelineInvolvedRecordStagedRelationship(
+      'faction-cartographers-guild',
+      'staged-context-link'
+    );
+    const duplicateStagedRelationship =
+      createTimelineInvolvedRecordStagedRelationship(
+        'faction-cartographers-guild',
+        'staged-duplicate-context-link'
+      );
+    if (!stagedRelationship || !duplicateStagedRelationship) {
+      throw new Error('Expected staged relationships.');
+    }
+    const model = getTimelineEventEditorModel({
+      draft: createSectionEntryDraft(section),
+      section,
+      stagedRelationships: [stagedRelationship, duplicateStagedRelationship],
+      world,
+    });
+
+    expect(model.submitLabel).toBe('Create Timeline Event And 1 Link');
+    expect(model.involvedRecords.duplicateStagedTargetIds).toEqual([
+      'faction-cartographers-guild',
+    ]);
+    expect(model.involvedRecords.duplicateStagedTargetLabel).toBe(
+      timelineFeatureCopy.duplicateStagedInvolvedRecordLabel
+    );
   });
 
   it('surfaces legacy involved-record text as cleanup support', () => {
@@ -264,6 +382,7 @@ describe('codex timeline helpers', () => {
         { era: 'First Era', eventCount: 1 },
         { era: 'Second Era', eventCount: 2 },
       ],
+      namedEraCountLabel: '2 named eras',
       totalEraCount: 2,
       unassignedCount: 1,
     });
@@ -495,7 +614,18 @@ describe('codex timeline helpers', () => {
     expect(item).toMatchObject({
       contextText: '10 - Year 10 of the Harbor Charter',
       dateText: 'Year 10 of the Harbor Charter',
+      involvedEntriesAccessibilityLabel:
+        'First Northern Survey involved entries',
+      moveEarlierAccessibilityLabel: 'Move First Northern Survey earlier',
+      moveEarlierLabel: 'Earlier',
+      moveLaterAccessibilityLabel: 'Move First Northern Survey later',
+      moveLaterLabel: 'Later',
+      openAccessibilityLabel: 'Open First Northern Survey',
+      openLabel: 'Open Event',
       orderText: '10',
+      reviewContextAccessibilityLabel:
+        'Review context for First Northern Survey',
+      reviewContextLabel: 'Review Context',
       summaryText:
         'A small crew charted the first reliable route between the harbor and the inland highlands.',
     });
@@ -511,6 +641,7 @@ describe('codex timeline helpers', () => {
       totalIssueCount: 0,
     });
     expect(surface.eraManager).toMatchObject({
+      namedEraCountLabel: '2 named eras',
       totalEraCount: 2,
       unassignedCount: 0,
     });

@@ -21,8 +21,17 @@ export type ControlDescriptor<TValue extends string = string> = {
   label: string;
   accessibilityLabel: string;
   options?: readonly ControlOption<TValue>[];
+  placeholder?: string;
   required?: boolean;
 };
+
+export const selectFieldCopy = {
+  defaultSearchPlaceholder: 'Search choices',
+  noSearchMatchesText: 'No choices match.',
+  cancelLabel: 'Cancel',
+  defaultSelectedValueText: 'Select',
+  openChoicesHint: 'Opens a list of choices.',
+} as const;
 
 export type AccessibilityStateExpectation =
   | 'checked'
@@ -145,6 +154,7 @@ export const relationshipTypeControl = {
   kind: 'text-field',
   label: 'Type',
   accessibilityLabel: 'Relationship type',
+  placeholder: 'member of, rivals, owes debt to',
   required: true,
 } as const satisfies ControlDescriptor;
 
@@ -160,6 +170,7 @@ export const relationshipNoteControl = {
   kind: 'textarea',
   label: 'Note',
   accessibilityLabel: 'Relationship note',
+  placeholder: 'Why this relationship matters',
 } as const satisfies ControlDescriptor;
 
 export const relationshipListTypeFilterControl = {

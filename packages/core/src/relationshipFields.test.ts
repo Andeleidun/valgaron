@@ -12,6 +12,7 @@ import {
   getRelationshipFieldTargetId,
   getRelationshipTextReviewSummary,
   getRelationshipTextReviewExactMatchLabel,
+  getRelationshipTextReviewCountLabel,
   getRelationshipTextReviewItems,
   getRelationshipTextReviewSuggestionLabels,
   getRelationshipTextReviewUnresolvedLabel,
@@ -19,6 +20,7 @@ import {
   getRelationshipTargetOptions,
   limitRelationshipTargetOptions,
   makeFieldRelationship,
+  getRelationshipFieldSearchLabel,
   relationshipFieldCopy,
   relationshipTextReviewCopy,
 } from './relationshipFields';
@@ -156,6 +158,9 @@ describe('relationship-backed field helpers', () => {
         'No matching records. Clear the search to see all targets.',
       searchPlaceholder: 'Filter linked record targets',
     });
+    expect(getRelationshipFieldSearchLabel({ label: 'Settlements' })).toBe(
+      'Search Settlements'
+    );
   });
 
   it('returns soft target options with preferred categories sorted first', () => {
@@ -301,7 +306,8 @@ describe('relationship-backed field helpers', () => {
       canExpandPreferredTargets: true,
       canExpandUnusualTargets: false,
       hiddenPreferredCount: 1,
-      hiddenPreferredMessage: '1 more preferred record.',
+      hiddenPreferredMessage:
+        '1 more preferred record. Search or show more to reach them.',
       hiddenUnusualCount: 1,
       showPreferredTargetsLabel: 'Show 1 More Preferred Record',
       showUnusualTargetsLabel: '',
@@ -654,6 +660,11 @@ describe('relationship-backed field helpers', () => {
       {
         entryId: 'place-river-main',
         entryName: 'Silver Run',
+        reviewEntryAccessibilityLabel:
+          'Review Silver Run Tributaries or feeders link text',
+        reviewEntryLabel: 'Review Entry',
+        reviewEntryRoute:
+          '/entries?sectionId=places&entryId=place-river-main&intent=edit&query=Silver%20Run',
         sectionId: 'places',
         fieldKey: 'tributaries',
         fieldLabel: 'Tributaries or feeders',
@@ -692,6 +703,11 @@ describe('relationship-backed field helpers', () => {
       expect.objectContaining({
         entryId: 'place-river-main',
         fieldKey: 'tributaries',
+        reviewEntryAccessibilityLabel:
+          'Review Silver Run Tributaries or feeders link text',
+        reviewEntryLabel: 'Review Entry',
+        reviewEntryRoute:
+          '/entries?sectionId=places&entryId=place-river-main&intent=edit&query=Silver%20Run',
         exactMatchCount: 1,
         exactTargetIds: ['place-river-source'],
         remainingText: '',
@@ -828,7 +844,9 @@ describe('relationship-backed field helpers', () => {
           fragment: 'Reed',
           targets: [
             {
+              accessibilityLabel: 'Link Reed to Reed Village',
               id: 'place-village',
+              label: 'Link Reed Village',
               name: 'Reed Village',
               context: 'Village in Places',
             },
@@ -847,6 +865,8 @@ describe('relationship-backed field helpers', () => {
       linkedFieldsTitle: 'Linked relationship fields',
       reviewEntryLabel: 'Review Entry',
       savedTextLinkNotesTitle: 'Saved text link notes',
+      suggestionsLabel: 'Suggestions',
+      unresolvedLabel: 'Unresolved',
       draftBlockedMessage:
         'Save or discard the current entry draft before migrating exact matches.',
       linkedFieldsBlockedMessage:
@@ -858,10 +878,16 @@ describe('relationship-backed field helpers', () => {
     expect(getRelationshipTextReviewSummary(2)).toBe(
       '2 relationship-backed fields contain saved text that can be reviewed or migrated to relationships.'
     );
+    expect(getRelationshipTextReviewCountLabel(1)).toBe('1 field to review');
+    expect(getRelationshipTextReviewCountLabel(2)).toBe('2 fields to review');
 
     const item = {
       entryId: 'place-river-main',
       entryName: 'Silver Run',
+      reviewEntryAccessibilityLabel: 'Review Silver Run Settlements link text',
+      reviewEntryLabel: 'Review Entry',
+      reviewEntryRoute:
+        '/entries?sectionId=places&entryId=place-river-main&intent=edit&query=Silver%20Run',
       sectionId: 'places',
       fieldKey: 'settlements',
       fieldLabel: 'Settlements',
@@ -875,7 +901,9 @@ describe('relationship-backed field helpers', () => {
           fragment: 'Reed',
           targets: [
             {
+              accessibilityLabel: 'Link Reed to Reed Village',
               id: 'place-village',
+              label: 'Link Reed Village',
               name: 'Reed Village',
               context: 'Village in Places',
             },

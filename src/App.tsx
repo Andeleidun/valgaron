@@ -14,11 +14,13 @@ import { RuntimeErrorFallback } from './Components/Common/RuntimeErrorFallback';
 import {
   codexShellRoutes,
   dataShellExportActions,
+  dataShellMenuCopy,
   exportWorldToMarkdown,
+  formatDataShellDownloadResultMessage,
   getCodexExportFilename,
   getCodexMobileWebShellRouteLabel,
   getCodexShellRoutes,
-  localPersistenceCopy,
+  getLocalSaveButtonModel,
   mobileWebPrimaryRouteOrder,
   serializeActiveWorldBackup,
   serializeWorldDocumentBackup,
@@ -50,23 +52,6 @@ const webSecondaryRoutes = webPrimaryRoutes.filter(
   (route) => route.id !== 'overview'
 );
 
-function saveButtonText(
-  state: 'saved' | 'unsaved' | 'dirty' | 'failed' | 'paused'
-) {
-  switch (state) {
-    case 'unsaved':
-      return 'Save';
-    case 'dirty':
-      return 'Save';
-    case 'failed':
-      return 'Retry Save';
-    case 'paused':
-      return 'Save';
-    case 'saved':
-      return 'Saved';
-  }
-}
-
 function AppShell() {
   const [isResetPending, setIsResetPending] = useState(false);
   const [afterResetConfirm, setAfterResetConfirm] = useState<
@@ -81,6 +66,7 @@ function AppShell() {
     archiveWorkspace,
     archiveEntry,
     addEntryTypeFields,
+    clearHiddenEntryDetail,
     clearHiddenEntryDetails,
     codex,
     createEntryType,
@@ -103,6 +89,11 @@ function AppShell() {
     moveEntryTypeField,
     renameEntryTypeField,
     removeEntryTypeField,
+    addVocabularyValue,
+    updateVocabularyValue,
+    archiveVocabularyValue,
+    moveVocabularyValue,
+    updateFieldOverride,
     hasUnsavedDocumentChanges,
     saveCurrentDocument,
     saveEntry,
@@ -133,9 +124,7 @@ function AppShell() {
   ) => {
     const didDownload = downloadTextFile(filename, text);
     setDataMenuMessage(
-      didDownload
-        ? `${successLabel} downloaded.`
-        : 'Download is unavailable in this runtime; open Data for copyable exports.'
+      formatDataShellDownloadResultMessage({ didDownload, successLabel })
     );
     setIsDataMenuOpen(false);
   };
@@ -168,7 +157,9 @@ function AppShell() {
     menuItems[nextIndex]?.focus();
   };
   const filenameBase = slugFilename(activeWorld.name);
-  const isSaveButtonDisabled = saveStatus.state === 'saved';
+  const saveButtonModel = getLocalSaveButtonModel({
+    state: saveStatus.state,
+  });
   useBeforeUnloadWarning(hasUnsavedDocumentChanges);
 
   useEffect(() => {
@@ -288,15 +279,11 @@ function AppShell() {
             }`}
             type="button"
             onClick={saveCurrentDocument}
-            disabled={isSaveButtonDisabled}
-            aria-label={
-              isSaveButtonDisabled
-                ? `Current progress is saved to ${localPersistenceCopy.browserSaveTarget}`
-                : `Save current progress to ${localPersistenceCopy.browserSaveTarget}`
-            }
+            disabled={saveButtonModel.disabled}
+            aria-label={saveButtonModel.accessibilityLabel}
             aria-live="polite"
           >
-            {saveButtonText(saveStatus.state)}
+            {saveButtonModel.label}
           </button>
           <div
             className="vwb-header-menu"
@@ -324,14 +311,14 @@ function AppShell() {
                 }
               }}
             >
-              Data Menu
+              {dataShellMenuCopy.triggerLabel}
             </button>
             {isDataMenuOpen ? (
               <div
                 ref={dataMenuListRef}
                 className="vwb-header-menu-list"
                 id={headerDataMenuId}
-                aria-label="Data actions"
+                aria-label={dataShellMenuCopy.menuAccessibilityLabel}
                 onKeyDown={(event) => {
                   switch (event.key) {
                     case 'ArrowDown':
@@ -377,7 +364,7 @@ function AppShell() {
                   to="/data#import-json-backup"
                   onClick={() => setIsDataMenuOpen(false)}
                 >
-                  Import JSON Backup
+                  {dataShellMenuCopy.importJsonBackupLabel}
                 </Link>
               </div>
             ) : null}
@@ -473,6 +460,7 @@ function AppShell() {
                   onSaveRelationship={saveRelationship}
                   relationships={relationships}
                   sections={sections}
+                  workspaceSchema={activeWorld.schema}
                 />
               }
             />
@@ -482,12 +470,18 @@ function AppShell() {
                 <KnowledgePage
                   activeWorld={activeWorld}
                   onAddEntryTypeFields={addEntryTypeFields}
+                  onClearHiddenEntryDetail={clearHiddenEntryDetail}
                   onClearHiddenEntryDetails={clearHiddenEntryDetails}
                   onCreateEntryType={createEntryType}
                   onDeleteEntryType={permanentlyDeleteEntryType}
                   onMoveEntryTypeField={moveEntryTypeField}
                   onRenameEntryTypeField={renameEntryTypeField}
                   onRemoveEntryTypeField={removeEntryTypeField}
+                  onAddVocabularyValue={addVocabularyValue}
+                  onUpdateVocabularyValue={updateVocabularyValue}
+                  onArchiveVocabularyValue={archiveVocabularyValue}
+                  onMoveVocabularyValue={moveVocabularyValue}
+                  onUpdateFieldOverride={updateFieldOverride}
                 />
               }
             />

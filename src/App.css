@@ -1337,6 +1337,41 @@
   line-height: 1.45;
 }
 
+.vwb-field-suggestion-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.vwb-field-suggestion-button {
+  border: 1px solid var(--vwb-border);
+  border-radius: 999px;
+  background: var(--vwb-surface);
+  color: var(--vwb-text);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 700;
+  line-height: 1.2;
+  padding: 5px 9px;
+}
+
+.vwb-field-suggestion-button:focus-visible {
+  outline: 2px solid var(--vwb-accent);
+  outline-offset: 2px;
+}
+
+.vwb-field-suggestion-button:hover {
+  border-color: var(--vwb-accent);
+  color: var(--vwb-heading);
+}
+
+.vwb-field-suggestion-more {
+  align-self: center;
+  color: var(--vwb-muted);
+  font-weight: 600;
+}
+
 .vwb-form-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

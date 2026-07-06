@@ -5,6 +5,7 @@ import {
   getWorkbenchRecordIndexModel,
   getWorkbenchSectionActions,
   getWorkbenchRecordPickerModel,
+  formatWorkbenchEditorAccessibilityLabel,
   isWorkbenchRecordViewId,
   workbenchRecordViewLabels,
 } from './workbenchRecords';
@@ -17,10 +18,16 @@ describe('workbench record index', () => {
 
     expect(records).toHaveLength(10);
     expect(mira).toMatchObject({
+      editAccessibilityLabel: 'Edit Mira Rowan',
+      editLabel: 'Edit',
       id: 'character-mira-rowan',
       name: 'Mira Rowan',
+      reviewContextAccessibilityLabel: 'Review context for Mira Rowan',
+      reviewContextLabel: 'Context',
       sectionId: 'characters',
       sectionTitle: 'Characters',
+      selectAccessibilityLabel: 'Select Mira Rowan',
+      selectLabel: 'Select',
       route:
         '/entries?sectionId=characters&entryId=character-mira-rowan&intent=context&query=Mira%20Rowan',
       editorRoute:
@@ -69,6 +76,28 @@ describe('workbench record index', () => {
     expect(model.views.map((view) => view.label)).toEqual(
       Object.values(workbenchRecordViewLabels)
     );
+    expect(model.copy).toMatchObject({
+      layoutAriaLabel: 'Workbench records',
+      recordIndexKicker: 'Record index',
+      recordIndexTitle: 'Find and choose a record',
+      searchRecordsLabel: 'Search records',
+      searchRecordsPlaceholder: 'Search names, tags, notes, and fields',
+      emptyViewTitle: 'No records in this view.',
+      emptyViewDetail: 'Try another view or clear the current search.',
+      inlineEditorKicker: 'Inline editor',
+      noEditorTargetTitle: 'No editor target selected.',
+      noEditorTargetDetail:
+        'Select a record or choose a section before editing inline.',
+      workbenchEditorAccessibilityLabel: 'Workbench editor',
+    });
+    expect(formatWorkbenchEditorAccessibilityLabel(null)).toBe(
+      'Workbench editor'
+    );
+    expect(
+      formatWorkbenchEditorAccessibilityLabel({
+        singularTitle: 'Character',
+      })
+    ).toBe('Character Workbench editor');
     expect(counts).toMatchObject({
       all: 11,
       archived: 1,
@@ -78,12 +107,36 @@ describe('workbench record index', () => {
       'needs-review': 1,
     });
     expect(model.activeView.id).toBe('needs-review');
+    expect(model.activeView).toMatchObject({
+      title: 'Workbench Needs Review',
+      countLabel: '1 record in this review queue.',
+      emptyTitle: 'No records in this view.',
+      emptyDetail: 'Try another view or clear the current search.',
+    });
     expect(model.activeView.records).toHaveLength(1);
     expect(
       model.views.find((view) => view.id === 'recent')?.records
     ).toHaveLength(3);
     expect(model.selectedContext.record?.id).toBe('place-needs-review');
     expect(model.selectedContext.section?.id).toBe('places');
+    expect(model.selectedContext).toMatchObject({
+      backToIndexLabel: 'Back to Index',
+      completeLabel: 'Complete',
+      completenessLabel: 'Completeness',
+      draftingPromptsTitle: 'Drafting prompts',
+      editRecordAccessibilityLabel: 'Edit Review Outpost',
+      editRecordLabel: 'Edit Record',
+      emptyTitle: 'No record selected',
+      kicker: 'Selected context',
+      linkedRecordsTitle: 'Linked records',
+      noSummaryText: 'No summary has been drafted yet.',
+      relationshipsLabel: 'Relationships',
+      relationshipStudioAccessibilityLabel: 'Manage Links for Review Outpost',
+      relationshipStudioLabel: 'Manage Links',
+      reviewSummaryTitle: 'Review summary',
+      sectionLabel: 'Section',
+      statusLabel: 'Status',
+    });
     expect(model.selectedContext.incompletePrompts.length).toBeGreaterThan(0);
     expect(model.selectedContext.reviewSummary.items).toEqual([
       expect.objectContaining({
@@ -115,6 +168,7 @@ describe('workbench record index', () => {
       expect.objectContaining({
         id: 'faction-cartographers-guild',
         label: 'The Cartographers Guild',
+        detailText: 'member of - Factions',
         relationshipId: 'relationship-mira-cartographers-guild',
         relationshipType: 'member of',
         route:
@@ -186,6 +240,7 @@ describe('workbench record index', () => {
     expect(
       actions.find((action) => action.sectionId === 'characters')
     ).toMatchObject({
+      createLabel: 'New Character',
       createRoute: '/entries?sectionId=characters&intent=new',
       isActive: true,
       openRoute: '/entries?sectionId=characters',

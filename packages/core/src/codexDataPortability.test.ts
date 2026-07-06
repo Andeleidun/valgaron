@@ -72,6 +72,16 @@ describe('codexDataPortability', () => {
         entryCount: 10,
       },
     });
+    expect(serializedBackup.worlds[0].schema.vocabularies).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: 'character-ancestry',
+          values: expect.arrayContaining([
+            expect.objectContaining({ label: 'Human' }),
+          ]),
+        }),
+      ])
+    );
   });
 
   it('summarizes valid import counts', () => {
@@ -189,6 +199,11 @@ describe('codexDataPortability', () => {
       },
     ]);
     expect(activeWorld.codex.artifacts).toEqual([]);
+    expect(activeWorld.schema.vocabularies).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: 'character-profession' }),
+      ])
+    );
   });
 
   it('parses valid imports and rejects invalid imports', () => {
@@ -269,7 +284,28 @@ describe('codexDataPortability', () => {
         },
       ],
     };
+    const duplicateVocabularyDocument = {
+      ...document,
+      worlds: [
+        {
+          ...activeWorld,
+          schema: {
+            ...activeWorld.schema,
+            vocabularies: [
+              activeWorld.schema.vocabularies[0],
+              activeWorld.schema.vocabularies[0],
+            ],
+          },
+        },
+      ],
+    };
 
+    expect(
+      parseWorldImport(JSON.stringify(duplicateVocabularyDocument))
+    ).toEqual({
+      ok: false,
+      error: 'Import contains duplicate vocabulary id "character-category".',
+    });
     expect(
       parseWorldImport(JSON.stringify(duplicatePlanetaryWorldDocument))
     ).toEqual({
@@ -290,6 +326,151 @@ describe('codexDataPortability', () => {
     });
   });
 
+  it('rejects imports with broken vocabulary schema references', () => {
+    const document = createSeedWorldDocument();
+    const activeWorld = getActiveWorld(document);
+    const missingSectionDocument = {
+      ...document,
+      worlds: [
+        {
+          ...activeWorld,
+          schema: {
+            ...activeWorld.schema,
+            fieldOverrides: {
+              ...activeWorld.schema.fieldOverrides,
+              artifacts: {
+                origin: {
+                  vocabularyId: 'character-ancestry',
+                  vocabularyMode: 'suggestions',
+                },
+              },
+            },
+          },
+        },
+      ],
+    };
+    const missingFieldDocument = {
+      ...document,
+      worlds: [
+        {
+          ...activeWorld,
+          schema: {
+            ...activeWorld.schema,
+            fieldOverrides: {
+              ...activeWorld.schema.fieldOverrides,
+              characters: {
+                ...activeWorld.schema.fieldOverrides.characters,
+                unknownField: {
+                  vocabularyId: 'character-ancestry',
+                  vocabularyMode: 'suggestions',
+                },
+              },
+            },
+          },
+        },
+      ],
+    };
+    const missingVocabularyDocument = {
+      ...document,
+      worlds: [
+        {
+          ...activeWorld,
+          schema: {
+            ...activeWorld.schema,
+            fieldOverrides: {
+              ...activeWorld.schema.fieldOverrides,
+              characters: {
+                ...activeWorld.schema.fieldOverrides.characters,
+                ancestry: {
+                  vocabularyId: 'missing-vocabulary',
+                  vocabularyMode: 'suggestions',
+                },
+              },
+            },
+          },
+        },
+      ],
+    };
+    const missingIgnoredCandidateVocabularyDocument = {
+      ...document,
+      worlds: [
+        {
+          ...activeWorld,
+          schema: {
+            ...activeWorld.schema,
+            ignoredVocabularyCandidates: [
+              {
+                vocabularyId: 'missing-vocabulary',
+                value: 'Unmatched',
+              },
+            ],
+          },
+        },
+      ],
+    };
+    const blankVocabularyLabelDocument = {
+      ...document,
+      worlds: [
+        {
+          ...activeWorld,
+          schema: {
+            ...activeWorld.schema,
+            vocabularies: activeWorld.schema.vocabularies.map((vocabulary) =>
+              vocabulary.id === 'character-ancestry'
+                ? {
+                    ...vocabulary,
+                    values: [
+                      ...vocabulary.values,
+                      {
+                        id: 'blank-value',
+                        label: '  ',
+                        description: '',
+                        aliases: [],
+                        status: 'active' as const,
+                      },
+                    ],
+                  }
+                : vocabulary
+            ),
+          },
+        },
+      ],
+    };
+
+    expect(parseWorldImport(JSON.stringify(missingSectionDocument))).toEqual({
+      ok: false,
+      error: 'Import contains field settings for missing section "artifacts".',
+    });
+    expect(parseWorldImport(JSON.stringify(missingFieldDocument))).toEqual({
+      ok: false,
+      error:
+        'Import contains field settings for missing field "unknownField" in "Characters".',
+    });
+    expect(parseWorldImport(JSON.stringify(missingVocabularyDocument))).toEqual(
+      {
+        ok: false,
+        error:
+          'Import contains field "ancestry" settings that reference missing vocabulary "missing-vocabulary".',
+      }
+    );
+    expect(
+      parseWorldImport(
+        JSON.stringify(missingIgnoredCandidateVocabularyDocument)
+      )
+    ).toEqual({
+      ok: false,
+      error:
+        'Import contains ignored vocabulary candidate for missing vocabulary "missing-vocabulary".',
+    });
+    expect(
+      parseWorldImport(JSON.stringify(blankVocabularyLabelDocument))
+    ).toEqual({
+      ok: false,
+      error:
+        'Import contains blank vocabulary value label in "Character ancestry".',
+    });
+  });
+
   it('exports readable Markdown with sections and relationships', () => {
     const world = getActiveWorld(createSeedWorldDocument());
     const markdown = exportWorldToMarkdown(world);
@@ -301,6 +482,9 @@ describe('codexDataPortability', () => {
     expect(markdown).toContain('### Mira Rowan');
     expect(markdown).toContain('## Relationships');
     expect(markdown).toContain('Mira Rowan member of The Cartographers Guild');
+    expect(markdown).toContain('## Vocabularies');
+    expect(markdown).toContain('### Character ancestry');
+    expect(markdown).toContain('- Human');
   });
 
   it('falls back to relationship endpoint ids in Markdown when records are missing', () => {

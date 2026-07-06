@@ -206,7 +206,7 @@ const codexHelpFocusTopicContent: readonly Omit<CodexHelpFocus, 'path'>[] = [
     id: 'knowledge',
     title: 'Knowledge',
     detail:
-      'Use Knowledge to review schema, create custom entry types, inspect suggested choices and observed flexible values, and understand relationship-backed field rules.',
+      'Use Knowledge to review schema, create custom entry types, configure entry fields, search field settings, manage durable vocabulary values, and understand relationship-backed field rules.',
   },
   {
     id: 'utilities',
@@ -252,9 +252,9 @@ export const codexWorkflowHelpTopics: readonly CodexHelpTopic[] = [
     items: [
       'Use Workbench to scan recent, pinned, incomplete, and review-needed records, then check selected-record review summaries before editing or managing links.',
       'Use Workbench and section routes to create and edit characters, places, factions, lore, and timeline events.',
-      'Use Knowledge or mobile More to create custom entry types, inspect suggested choices, and review observed flexible values before adding more structure.',
+      'Use Knowledge or mobile More to create custom entry types, configure field labels/help/visibility/order/vocabularies, search field settings, inspect durable vocabulary rows, and review field usage before adding more structure.',
       'Use Project Tools shortcuts and Review Hotspots in Utilities or mobile More when you need backups, Workspaces, focused Help, or a jump to existing cleanup surfaces from the secondary tools hub.',
-      'Use character category to shape which character fields appear; ancestry and profession stay flexible creator-authored values rather than built-in lists.',
+      'Use character category to shape which character fields appear; ancestry and profession use workspace-owned vocabulary suggestions that can be maintained, searched, restricted, and alias-matched from Knowledge or mobile More.',
       'Use Places for worlds, planets, moons, settlements, terrain, realms, and other map-scale places inside a project.',
     ],
   },

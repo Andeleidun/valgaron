@@ -4,17 +4,20 @@ import type {
   WorldDocument,
   WorldEntry,
   WorldEntryStatus,
+  WorldFieldOverride,
   WorldRelationship,
   WorldSectionConfig,
+  WorldVocabulary,
+  WorldVocabularyIgnoredCandidate,
+  WorldVocabularyValue,
+  WorldVocabularyValueStatus,
+  WorldWorkspaceSchema,
   WorldWorkspace,
   WorldWorkspaceStatus,
 } from './types';
 import { createSeedWorldDocument, worldSections } from './seedCodex';
 
-export const CURRENT_WORLD_SCHEMA_VERSION = 2;
-
-const DEFAULT_CREATED_AT = '2026-06-01T00:00:00.000Z';
-const DEFAULT_WORLD_ID = 'world-valgaron';
+export const CURRENT_WORLD_SCHEMA_VERSION = 3;
 
 const VALID_ENTRY_STATUSES: readonly WorldEntryStatus[] = [
   'draft',
@@ -24,6 +27,10 @@ const VALID_ENTRY_STATUSES: readonly WorldEntryStatus[] = [
   'archived',
 ];
 const VALID_WORKSPACE_STATUSES: readonly WorldWorkspaceStatus[] = [
+  'active',
+  'archived',
+];
+const VALID_VOCABULARY_VALUE_STATUSES: readonly WorldVocabularyValueStatus[] = [
   'active',
   'archived',
 ];
@@ -87,6 +94,20 @@ function readStringMap(
   return Object.fromEntries(entries);
 }
 
+function readStringArray(
+  record: Record<string, unknown>,
+  key: string
+): string[] | null {
+  const value = record[key];
+  if (
+    !Array.isArray(value) ||
+    !value.every((item) => typeof item === 'string')
+  ) {
+    return null;
+  }
+  return [...value];
+}
+
 function readEntryStatus(
   record: Record<string, unknown>,
   key: string
@@ -105,6 +126,22 @@ function readWorkspaceStatus(
   return VALID_WORKSPACE_STATUSES.includes(value as WorldWorkspaceStatus)
     ? (value as WorldWorkspaceStatus)
     : null;
+}
+
+function readVocabularyValueStatus(
+  record: Record<string, unknown>,
+  key: string
+): WorldVocabularyValueStatus | null {
+  const value = readString(record, key);
+  return VALID_VOCABULARY_VALUE_STATUSES.includes(
+    value as WorldVocabularyValueStatus
+  )
+    ? (value as WorldVocabularyValueStatus)
+    : null;
+}
+
+function isValidOrder(value: unknown): value is number {
+  return typeof value === 'number' && Number.isInteger(value) && value > 0;
 }
 
 function readDetailFields(
@@ -301,13 +338,6 @@ export function parseWorldCodex(
   return normalizeCodexSections(codex, sections);
 }
 
-function looksLikeLegacyCodex(value: unknown): boolean {
-  return (
-    isRecord(value) &&
-    worldSections.every((section) => Array.isArray(value[section.id]))
-  );
-}
-
 function parseRelationship(value: unknown): WorldRelationship | null {
   if (!isRecord(value)) {
     return null;
@@ -420,6 +450,193 @@ function parsePlanetaryWorlds(value: unknown): InFictionWorld[] | null {
   );
 }
 
+function parseVocabularyValue(value: unknown): WorldVocabularyValue | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+  const id = readString(value, 'id');
+  const label = readString(value, 'label');
+  const description = readString(value, 'description');
+  const aliases = readStringArray(value, 'aliases');
+  const status = readVocabularyValueStatus(value, 'status');
+  const order = value.order;
+  if (
+    !id ||
+    !label ||
+    description === null ||
+    !aliases ||
+    !status ||
+    (order !== undefined && !isValidOrder(order))
+  ) {
+    return null;
+  }
+  return {
+    id,
+    label,
+    description,
+    aliases,
+    status,
+    ...(isValidOrder(order) ? { order } : {}),
+  };
+}
+
+function parseVocabulary(value: unknown): WorldVocabulary | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+  const id = readString(value, 'id');
+  const name = readString(value, 'name');
+  const description = readString(value, 'description');
+  const values = Array.isArray(value.values)
+    ? value.values.map(parseVocabularyValue)
+    : null;
+  if (
+    !id ||
+    !name ||
+    description === null ||
+    !values ||
+    values.some((item) => item === null)
+  ) {
+    return null;
+  }
+  return {
+    id,
+    name,
+    description,
+    values: values.filter(
+      (item): item is WorldVocabularyValue => item !== null
+    ),
+  };
+}
+
+function parseFieldOverride(value: unknown): WorldFieldOverride | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+  const label = value.label;
+  const helpText = value.helpText;
+  const hidden = value.hidden;
+  const order = value.order;
+  const vocabularyId = value.vocabularyId;
+  const vocabularyMode = value.vocabularyMode;
+  if (
+    (label !== undefined && typeof label !== 'string') ||
+    (helpText !== undefined && typeof helpText !== 'string') ||
+    (hidden !== undefined && typeof hidden !== 'boolean') ||
+    (order !== undefined && !isValidOrder(order)) ||
+    (vocabularyId !== undefined && typeof vocabularyId !== 'string') ||
+    (vocabularyMode !== undefined &&
+      vocabularyMode !== 'suggestions' &&
+      vocabularyMode !== 'restricted')
+  ) {
+    return null;
+  }
+  return {
+    ...(typeof label === 'string' ? { label } : {}),
+    ...(typeof helpText === 'string' ? { helpText } : {}),
+    ...(typeof hidden === 'boolean' ? { hidden } : {}),
+    ...(isValidOrder(order) ? { order } : {}),
+    ...(typeof vocabularyId === 'string' ? { vocabularyId } : {}),
+    ...(vocabularyMode === 'suggestions' || vocabularyMode === 'restricted'
+      ? { vocabularyMode }
+      : {}),
+  };
+}
+
+function parseFieldOverrides(
+  value: unknown
+): WorldWorkspaceSchema['fieldOverrides'] | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+  const sectionEntries = Object.entries(value).map(([sectionId, fields]) => {
+    if (!isRecord(fields)) {
+      return null;
+    }
+    const fieldEntries = Object.entries(fields).map(([fieldKey, override]) => {
+      const parsedOverride = parseFieldOverride(override);
+      return parsedOverride ? [fieldKey, parsedOverride] : null;
+    });
+    if (fieldEntries.some((entry) => entry === null)) {
+      return null;
+    }
+    return [
+      sectionId,
+      Object.fromEntries(
+        fieldEntries.filter(
+          (entry): entry is [string, WorldFieldOverride] => entry !== null
+        )
+      ),
+    ] as const;
+  });
+  if (sectionEntries.some((entry) => entry === null)) {
+    return null;
+  }
+  return Object.fromEntries(
+    sectionEntries.filter(
+      (entry): entry is NonNullable<typeof entry> => entry !== null
+    )
+  );
+}
+
+function parseIgnoredVocabularyCandidate(
+  value: unknown
+): WorldVocabularyIgnoredCandidate | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+  const vocabularyId = readString(value, 'vocabularyId');
+  const candidateValue = readString(value, 'value');
+  if (!vocabularyId || candidateValue === null) {
+    return null;
+  }
+  return { vocabularyId, value: candidateValue };
+}
+
+function parseIgnoredVocabularyCandidates(
+  value: unknown
+): WorldVocabularyIgnoredCandidate[] | null {
+  if (!Array.isArray(value)) {
+    return null;
+  }
+  const candidates = value.map(parseIgnoredVocabularyCandidate);
+  if (candidates.some((candidate) => candidate === null)) {
+    return null;
+  }
+  return candidates.filter(
+    (candidate): candidate is WorldVocabularyIgnoredCandidate =>
+      candidate !== null
+  );
+}
+
+function parseWorkspaceSchema(value: unknown): WorldWorkspaceSchema | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+  const vocabularies = Array.isArray(value.vocabularies)
+    ? value.vocabularies.map(parseVocabulary)
+    : null;
+  const fieldOverrides = parseFieldOverrides(value.fieldOverrides);
+  const ignoredVocabularyCandidates = parseIgnoredVocabularyCandidates(
+    value.ignoredVocabularyCandidates
+  );
+  if (
+    !vocabularies ||
+    vocabularies.some((vocabulary) => vocabulary === null) ||
+    !fieldOverrides ||
+    !ignoredVocabularyCandidates
+  ) {
+    return null;
+  }
+  return {
+    vocabularies: vocabularies.filter(
+      (vocabulary): vocabulary is WorldVocabulary => vocabulary !== null
+    ),
+    fieldOverrides,
+    ignoredVocabularyCandidates,
+  };
+}
+
 function parseWorld(value: unknown): WorldWorkspace | null {
   if (!isRecord(value)) {
     return null;
@@ -442,6 +659,7 @@ function parseWorld(value: unknown): WorldWorkspace | null {
           (entryType): entryType is WorldSectionConfig => entryType !== null
         )
       : null;
+  const schema = parseWorkspaceSchema(value.schema);
   const codex = parsedEntryTypes
     ? parseWorldCodex(value.codex, parsedEntryTypes)
     : null;
@@ -457,6 +675,7 @@ function parseWorld(value: unknown): WorldWorkspace | null {
     !updatedAt ||
     !parsedEntryTypes ||
     parsedEntryTypes.length === 0 ||
+    !schema ||
     relationships === null
   ) {
     return null;
@@ -469,6 +688,7 @@ function parseWorld(value: unknown): WorldWorkspace | null {
     status,
     planetaryWorlds,
     entryTypes: parsedEntryTypes,
+    schema,
     codex,
     relationships,
     createdAt,
@@ -476,36 +696,7 @@ function parseWorld(value: unknown): WorldWorkspace | null {
   };
 }
 
-function migrateLegacyCodex(codex: WorldCodex): WorldDocument {
-  return {
-    schemaVersion: CURRENT_WORLD_SCHEMA_VERSION,
-    activeWorldId: DEFAULT_WORLD_ID,
-    worlds: [
-      {
-        id: DEFAULT_WORLD_ID,
-        name: 'Migrated Workspace',
-        summary: 'Workspace migrated from the earlier local codex format.',
-        defaultEra: 'Imported Era',
-        status: 'active',
-        planetaryWorlds: [],
-        entryTypes: worldSections.map((section) => ({ ...section })),
-        codex,
-        relationships: [],
-        createdAt: DEFAULT_CREATED_AT,
-        updatedAt: new Date().toISOString(),
-      },
-    ],
-    savedAt: new Date().toISOString(),
-  };
-}
-
 export function parseWorldDocument(value: unknown): WorldDocument | null {
-  const legacyCodex = looksLikeLegacyCodex(value)
-    ? parseWorldCodex(value)
-    : null;
-  if (legacyCodex) {
-    return migrateLegacyCodex(legacyCodex);
-  }
   if (
     !isRecord(value) ||
     value.schemaVersion !== CURRENT_WORLD_SCHEMA_VERSION

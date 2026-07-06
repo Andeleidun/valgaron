@@ -4,43 +4,41 @@ Valgaron World Codex stores local documents with an explicit schema version.
 
 ## Current Schema
 
-- Current world document schema: `2`
-- Current storage key: `valgaron.worldDocument.v2`
-- Legacy codex storage key: `valgaron.worldCodex.v1`
+- Current world document schema: `3`
+- Current storage key: `valgaron.worldDocument.v3`
 
-Schema version `2` supports:
+Schema version `3` supports:
 
 - multiple project/universe workspaces;
 - in-fiction worlds and planets inside each workspace;
 - custom entry type definitions;
+- workspace-owned vocabulary registries;
+- sparse built-in field overrides;
 - codex entries grouped by entry type;
 - relationships;
 - recovery snapshots stored separately.
 
-## Supported Legacy Shape
+## Unsupported Previous Shapes
 
-The earlier `valgaron.worldCodex.v1` shape is migrated into a schema `2`
-document with one active workspace named `Migrated Workspace`.
-
-The core schema migration path is covered by
-`packages/core/src/worldDocument.test.ts`; browser storage fallback and legacy
-load behavior are covered by `src/Utlilities/codexStorage.test.ts`.
+The earlier `valgaron.worldDocument.v2` and `valgaron.worldCodex.v1` shapes are
+not read by the browser storage layer. This prototype uses a clean break because
+there are no live users or live data to migrate. If the current
+`valgaron.worldDocument.v3` value is unreadable or invalid, the app opens
+starter data with recovery guidance.
 
 ## Adding A Future Schema
 
-Do not introduce schema `3` for review-only Knowledge behavior. The current
-schema `2` already supports custom entry types, custom fields stored in entry
-type definitions, relationship-backed records, observed vocabulary review, and
-hidden detail cleanup. Add schema `3` only when a product decision requires new
-durable document data, such as workspace-owned editable vocabularies or built-in
-field definitions that cannot be represented by the current `WorldDetailField`
-metadata.
+Do not introduce a future schema for review-only Knowledge behavior. Schema `3`
+already supports custom entry types, custom fields stored in entry type
+definitions, relationship-backed records, workspace-owned vocabularies, scoped
+field overrides, and hidden detail cleanup. Add a future schema only when a
+product decision requires new durable document data that cannot be represented
+by the current schema.
 
-The next approved schema track is schema `3` for durable schema and vocabulary
-editing. It should use a clean break because there are no live users or live
-data, store workspace-owned vocabularies, and support scoped built-in field
-overrides for labels, help text, visibility, order, and vocabulary attachment.
-Schema `2` remains the current runtime schema until that implementation lands.
+Schema `3` is the durable schema and vocabulary editing baseline. It uses a
+clean break because there are no live users or live data, stores
+workspace-owned vocabularies, and supports scoped built-in field overrides for
+labels, help text, visibility, order, and vocabulary attachment.
 
 The approved schema `3` design direction is:
 
@@ -74,8 +72,8 @@ The approved schema `3` implementation direction is:
 - add restricted vocabulary validation in the same slice as editor suggestions;
 - require the full release evidence bar before schema `3` is considered
   complete;
-- preserve humane recovery behavior for unreadable or unsupported local data by
-  showing starter data plus recovery/Data guidance.
+- preserve humane recovery behavior for unreadable or invalid current local data
+  by showing starter data plus recovery/Data guidance.
 
 Additional approved schema `3` model decisions:
 

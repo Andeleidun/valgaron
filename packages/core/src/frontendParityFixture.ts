@@ -10,7 +10,7 @@ import type {
   WorldWorkspace,
 } from './types';
 import { CURRENT_WORLD_SCHEMA_VERSION, getActiveWorld } from './worldDocument';
-import { worldSections } from './seedCodex';
+import { cloneWorkspaceSchema, worldSections } from './seedCodex';
 
 const createdAt = '2026-06-15T10:00:00.000Z';
 const savedAt = '2026-06-20T18:30:00.000Z';
@@ -315,6 +315,7 @@ function createActiveWorkspace(): WorldWorkspace {
       }),
     ],
     entryTypes: paritySections.map((section) => ({ ...section })),
+    schema: cloneWorkspaceSchema(),
     codex: createActiveCodex(),
     relationships: [
       relationship({
@@ -373,6 +374,7 @@ function createSecondaryWorkspace(): WorldWorkspace {
       }),
     ],
     entryTypes: worldSections.map((section) => ({ ...section })),
+    schema: cloneWorkspaceSchema(),
     codex: createSecondaryCodex(),
     relationships: [
       relationship({

@@ -14,6 +14,7 @@ describe('world document helpers', () => {
     const activeWorld = getActiveWorld(document);
 
     expect(document.schemaVersion).toBe(CURRENT_WORLD_SCHEMA_VERSION);
+    expect(document.schemaVersion).toBe(3);
     expect(document.worlds).toHaveLength(1);
     expect(activeWorld.entryTypes.map((entryType) => entryType.id)).toEqual([
       'characters',
@@ -51,91 +52,40 @@ describe('world document helpers', () => {
       ]),
     });
     expect(activeWorld.codex).toEqual(createSeedCodex());
-  });
-
-  it('migrates the legacy single-world codex shape', () => {
-    const migratedDocument = parseWorldDocument(createSeedCodex());
-
-    expect(migratedDocument?.schemaVersion).toBe(CURRENT_WORLD_SCHEMA_VERSION);
-    expect(migratedDocument?.activeWorldId).toBe('world-valgaron');
+    expect(activeWorld.schema.vocabularies.map((item) => item.id)).toEqual([
+      'character-category',
+      'character-ancestry',
+      'character-profession',
+      'place-category',
+      'faction-influence',
+      'lore-category',
+      'timeline-era',
+    ]);
     expect(
-      migratedDocument ? getActiveWorld(migratedDocument).codex : null
-    ).toEqual(createSeedCodex());
+      activeWorld.schema.fieldOverrides.characters.profession
+    ).toMatchObject({
+      vocabularyId: 'character-profession',
+      vocabularyMode: 'suggestions',
+    });
+    expect(
+      activeWorld.schema.vocabularies.find((item) => item.id === 'timeline-era')
+        ?.values[0]
+    ).toMatchObject({
+      id: 'founding-era',
+      label: 'Founding Era',
+      status: 'active',
+      order: 1,
+    });
   });
 
-  it('maps legacy character detail fields without copying workflow status into current status', () => {
-    const legacyCodex = {
-      ...createSeedCodex(),
-      characters: [
-        {
-          id: 'character-legacy',
-          kind: 'character',
-          name: 'Legacy Scout',
-          summary: '',
-          notes: '',
-          tags: [],
-          status: 'canon',
-          role: 'Guide',
-          home: 'Northwatch Harbor',
-          affiliation: 'The Cartographers Guild',
-          pinned: false,
-          createdAt: '2026-06-01T00:00:00.000Z',
-          updatedAt: '2026-06-01T00:00:00.000Z',
-        },
-      ],
+  it('rejects legacy single-world codex and schema 2 document shapes', () => {
+    const schema2Document = {
+      ...createSeedWorldDocument(),
+      schemaVersion: 2,
     };
 
-    const migratedDocument = parseWorldDocument(legacyCodex);
-    const migratedCharacter = migratedDocument
-      ? getActiveWorld(migratedDocument).codex.characters[0]
-      : null;
-
-    expect(migratedCharacter).toMatchObject({
-      status: 'canon',
-      fields: {
-        role: 'Guide',
-        narrativeRole: 'Guide',
-        home: 'Northwatch Harbor',
-        homePlace: 'Northwatch Harbor',
-        affiliation: 'The Cartographers Guild',
-        affiliations: 'The Cartographers Guild',
-      },
-    });
-    expect(migratedCharacter?.fields.currentStatus).toBeUndefined();
-    expect(migratedCharacter?.fields.statusNote).toBeUndefined();
-  });
-
-  it('preserves legacy character prose status values when they are not workflow statuses', () => {
-    const legacyCodex = {
-      ...createSeedCodex(),
-      characters: [
-        {
-          id: 'character-legacy',
-          kind: 'character',
-          name: 'Legacy Scout',
-          summary: '',
-          notes: '',
-          tags: [],
-          status: 'Missing beyond the reef',
-          pinned: false,
-          createdAt: '2026-06-01T00:00:00.000Z',
-          updatedAt: '2026-06-01T00:00:00.000Z',
-        },
-      ],
-    };
-
-    const migratedDocument = parseWorldDocument(legacyCodex);
-    const migratedCharacter = migratedDocument
-      ? getActiveWorld(migratedDocument).codex.characters[0]
-      : null;
-
-    expect(migratedCharacter).toMatchObject({
-      status: 'draft',
-      fields: {
-        statusNote: 'Missing beyond the reef',
-        currentStatus: 'Missing beyond the reef',
-      },
-    });
+    expect(parseWorldDocument(createSeedCodex())).toBeNull();
+    expect(parseWorldDocument(schema2Document)).toBeNull();
   });
 
   it('accepts multiple worlds and preserves valid relationships', () => {
@@ -260,6 +210,75 @@ describe('world document helpers', () => {
   it('rejects malformed world documents', () => {
     const document = createSeedWorldDocument();
 
+    expect(
+      parseWorldDocument({
+        ...document,
+        worlds: [
+          {
+            ...getActiveWorld(document),
+            schema: {
+              ...getActiveWorld(document).schema,
+              vocabularies: [
+                {
+                  id: 'bad-vocabulary',
+                  name: 'Bad Vocabulary',
+                  description: '',
+                  values: [{ id: 'bad-value' }],
+                },
+              ],
+            },
+          },
+        ],
+      })
+    ).toBeNull();
+    expect(
+      parseWorldDocument({
+        ...document,
+        worlds: [
+          {
+            ...getActiveWorld(document),
+            schema: {
+              ...getActiveWorld(document).schema,
+              vocabularies: getActiveWorld(document).schema.vocabularies.map(
+                (vocabulary) =>
+                  vocabulary.id === 'timeline-era'
+                    ? {
+                        ...vocabulary,
+                        values: vocabulary.values.map((value) =>
+                          value.id === 'founding-era'
+                            ? { ...value, order: 0 }
+                            : value
+                        ),
+                      }
+                    : vocabulary
+              ),
+            },
+          },
+        ],
+      })
+    ).toBeNull();
+    expect(
+      parseWorldDocument({
+        ...document,
+        worlds: [
+          {
+            ...getActiveWorld(document),
+            schema: {
+              ...getActiveWorld(document).schema,
+              fieldOverrides: {
+                ...getActiveWorld(document).schema.fieldOverrides,
+                characters: {
+                  ...getActiveWorld(document).schema.fieldOverrides.characters,
+                  ancestry: {
+                    order: 1.5,
+                  },
+                },
+              },
+            },
+          },
+        ],
+      })
+    ).toBeNull();
     expect(
       parseWorldDocument({
         ...document,

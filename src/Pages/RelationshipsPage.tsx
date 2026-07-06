@@ -3,19 +3,21 @@ import { NavLink, useSearchParams } from 'react-router-dom';
 import {
   buildRelationshipTextReviewBatchMigration,
   createEmptyRelationshipDraft,
+  destructiveActionDialogCopy,
   draftFromRelationship,
   formatDestructiveActionTitle,
   formatDraftValidationErrors,
+  formatExpansionControlLabel,
+  formatHiddenCountText,
   getCodexHelpRoute,
   getCodexScreenIntro,
   getDestructiveActionCopy,
   getEntries,
+  getLimitedResultModel,
   getRelationshipEditorOptionsModel,
-  getRelationshipEntryContextRoute,
-  getRelationshipEntryRoute,
+  getRelationshipFormHeaderModel,
   getRelationshipGraphViewModel,
   getRelationshipListModel,
-  getRelationshipManagementRoute,
   getRelationshipStudioModeModel,
   getRelationshipStudioReviewModel,
   getRelationshipTextReviewExactMatchLabel,
@@ -24,6 +26,7 @@ import {
   relationshipDirectionalControl,
   relationshipDraftStatusControl,
   relationshipFeatureCopy,
+  relationshipReviewDisplayLimits,
   relationshipGraphStatusFilterControl,
   relationshipGraphTypeFilterControl,
   relationshipListTypeFilterControl,
@@ -77,7 +80,9 @@ function RelationshipDeleteDialog({
         aria-modal="true"
         tabIndex={-1}
       >
-        <p className="vwb-kicker">Permanent delete</p>
+        <p className="vwb-kicker">
+          {destructiveActionDialogCopy.permanentDeleteKickerLabel}
+        </p>
         <h2 id="relationship-delete-title">
           {formatDestructiveActionTitle(
             'delete-relationship',
@@ -91,7 +96,7 @@ function RelationshipDeleteDialog({
             type="button"
             onClick={onCancel}
           >
-            Cancel
+            {destructiveActionDialogCopy.cancelLabel}
           </button>
           <button
             className="vwb-primary-button vwb-danger-confirm-button"
@@ -192,6 +197,8 @@ export function RelationshipsPage({
     [editingRelationship]
   );
   const isDraftDirty = hasUnsavedChanges(baselineDraft, draft);
+  const relationshipFormHeaderModel =
+    getRelationshipFormHeaderModel(editingRelationship);
   const relationshipOptions = useMemo(
     () =>
       getRelationshipEditorOptionsModel(
@@ -272,22 +279,32 @@ export function RelationshipsPage({
   const exactLegacyTextItems = legacyTextItems.filter(
     (item) => item.exactMatchCount > 0
   );
-  const visibleOrphanedEntries = showAllOrphanedEntries
-    ? orphanedEntries
-    : orphanedEntries.slice(0, 10);
-  const hiddenOrphanedEntryCount =
-    orphanedEntries.length - visibleOrphanedEntries.length;
-  const visibleDuplicateRelationshipGroups = showAllDuplicateGroups
-    ? duplicateRelationshipGroups
-    : duplicateRelationshipGroups.slice(0, 6);
+  const orphanedEntryModel = getLimitedResultModel(
+    orphanedEntries,
+    showAllOrphanedEntries
+      ? orphanedEntries.length
+      : relationshipReviewDisplayLimits.orphanedEntries
+  );
+  const visibleOrphanedEntries = orphanedEntryModel.visibleItems;
+  const hiddenOrphanedEntryCount = orphanedEntryModel.hiddenCount;
+  const duplicateRelationshipGroupModel = getLimitedResultModel(
+    duplicateRelationshipGroups,
+    showAllDuplicateGroups
+      ? duplicateRelationshipGroups.length
+      : relationshipReviewDisplayLimits.duplicateRelationshipGroups
+  );
+  const visibleDuplicateRelationshipGroups =
+    duplicateRelationshipGroupModel.visibleItems;
   const hiddenDuplicateRelationshipGroupCount =
-    duplicateRelationshipGroups.length -
-    visibleDuplicateRelationshipGroups.length;
-  const visibleLegacyTextItems = showAllLegacyTextItems
-    ? legacyTextItems
-    : legacyTextItems.slice(0, 8);
-  const hiddenLegacyTextItemCount =
-    legacyTextItems.length - visibleLegacyTextItems.length;
+    duplicateRelationshipGroupModel.hiddenCount;
+  const legacyTextReviewModel = getLimitedResultModel(
+    legacyTextItems,
+    showAllLegacyTextItems
+      ? legacyTextItems.length
+      : relationshipReviewDisplayLimits.legacyTextItems
+  );
+  const visibleLegacyTextItems = legacyTextReviewModel.visibleItems;
+  const hiddenLegacyTextItemCount = legacyTextReviewModel.hiddenCount;
   const selectedGraphNode = useMemo(
     () => graph.nodes.find((node) => node.id === selectedGraphNodeId) ?? null,
     [graph.nodes, selectedGraphNodeId]
@@ -539,7 +556,7 @@ export function RelationshipsPage({
         <p>{studioModeModel.activeMode.detail}</p>
         <div
           className="vwb-tag-filter-group"
-          aria-label="Relationship Studio modes"
+          aria-label={studioModeModel.modePickerAccessibilityLabel}
         >
           {studioModeModel.modes.map((mode) => (
             <button
@@ -586,7 +603,7 @@ export function RelationshipsPage({
                 {relationshipFeatureCopy.graphViewTitle}
               </span>
               <strong>{graph.nodes.length}</strong>
-              <p>{graph.edges.length} visible relationship links.</p>
+              <p>{graph.visibleRelationshipLinkCountLabel}.</p>
             </article>
           </div>
           {brokenRelationships.length > 0 ? (
@@ -595,11 +612,7 @@ export function RelationshipsPage({
                 <article className="vwb-relationship-row" key={relationship.id}>
                   <div>
                     <span className="vwb-entry-kind">
-                      {relationship.missingSource ? 'Missing source' : ''}
-                      {relationship.missingSource && relationship.missingTarget
-                        ? ' and '
-                        : ''}
-                      {relationship.missingTarget ? 'Missing target' : ''}
+                      {relationship.endpointStatusLabel}
                     </span>
                     <strong>
                       {relationship.sourceName} <span>{relationship.type}</span>{' '}
@@ -607,6 +620,7 @@ export function RelationshipsPage({
                     </strong>
                   </div>
                   <button
+                    aria-label={relationship.repairAccessibilityLabel}
                     className="vwb-secondary-button"
                     type="button"
                     onClick={() => startEditingById(relationship.id)}
@@ -614,7 +628,9 @@ export function RelationshipsPage({
                     {relationshipFeatureCopy.repairLabel}
                   </button>
                   <button
+                    aria-label={relationship.deleteAccessibilityLabel}
                     className="vwb-secondary-button vwb-danger-button"
+                    title={relationship.deleteAccessibilityHint}
                     type="button"
                     onClick={() =>
                       requestDeleteRelationshipById(relationship.id)
@@ -640,12 +656,10 @@ export function RelationshipsPage({
             >
               {visibleOrphanedEntries.map((entry) => (
                 <NavLink
+                  aria-label={entry.manageLinksAccessibilityLabel}
                   className="vwb-tag vwb-linked-tag"
                   key={entry.id}
-                  to={getRelationshipManagementRoute({
-                    entryId: entry.id,
-                    name: entry.name,
-                  })}
+                  to={entry.managementRoute}
                   onClick={(event) => {
                     if (!confirmDiscardUnsavedChanges(isDraftDirty)) {
                       event.preventDefault();
@@ -657,13 +671,17 @@ export function RelationshipsPage({
               ))}
               {hiddenOrphanedEntryCount > 0 ? (
                 <span className="vwb-tag">
-                  {hiddenOrphanedEntryCount} more orphaned record
-                  {hiddenOrphanedEntryCount === 1 ? '' : 's'}.
+                  {formatHiddenCountText({
+                    hiddenCount: hiddenOrphanedEntryCount,
+                    singularItemLabel: 'orphaned record',
+                    pluralItemLabel: 'orphaned records',
+                  })}
                 </span>
               ) : null}
             </div>
           ) : null}
-          {orphanedEntries.length > 10 ? (
+          {orphanedEntries.length >
+          relationshipReviewDisplayLimits.orphanedEntries ? (
             <div className="vwb-action-row">
               <button
                 className="vwb-secondary-button"
@@ -673,9 +691,12 @@ export function RelationshipsPage({
                   setShowAllOrphanedEntries((currentValue) => !currentValue)
                 }
               >
-                {showAllOrphanedEntries
-                  ? 'Show Fewer Orphaned Records'
-                  : `Show ${hiddenOrphanedEntryCount} More Orphaned Records`}
+                {formatExpansionControlLabel({
+                  isExpanded: showAllOrphanedEntries,
+                  hiddenCount: hiddenOrphanedEntryCount,
+                  pluralItemLabel: 'Orphaned Records',
+                  singularItemLabel: 'Orphaned Record',
+                })}
               </button>
             </div>
           ) : null}
@@ -689,8 +710,7 @@ export function RelationshipsPage({
               <div className="vwb-section-heading">
                 <div>
                   <p className="vwb-kicker">
-                    {duplicateRelationshipGroups.length} duplicate group
-                    {duplicateRelationshipGroups.length === 1 ? '' : 's'}
+                    {relationshipReview.duplicateRelationshipGroupCountLabel}
                   </p>
                   <h3>{relationshipFeatureCopy.duplicateRelationshipsLabel}</h3>
                   <p>{relationshipFeatureCopy.duplicateRelationshipsDetail}</p>
@@ -704,25 +724,22 @@ export function RelationshipsPage({
                       <strong>
                         {group.sourceName} - {group.targetName}
                       </strong>
-                      <p>
-                        Keeps {group.retainedRelationshipId}; removes{' '}
-                        {group.duplicateCount}{' '}
-                        {group.duplicateCount === 1
-                          ? 'duplicate'
-                          : 'duplicates'}
-                        .
-                      </p>
+                      <p>{group.removalSummaryLabel}</p>
                     </div>
                   </article>
                 ))}
               </div>
               {hiddenDuplicateRelationshipGroupCount > 0 ? (
                 <span className="vwb-tag">
-                  {hiddenDuplicateRelationshipGroupCount} more duplicate group
-                  {hiddenDuplicateRelationshipGroupCount === 1 ? '' : 's'}.
+                  {formatHiddenCountText({
+                    hiddenCount: hiddenDuplicateRelationshipGroupCount,
+                    singularItemLabel: 'duplicate group',
+                    pluralItemLabel: 'duplicate groups',
+                  })}
                 </span>
               ) : null}
-              {duplicateRelationshipGroups.length > 6 ? (
+              {duplicateRelationshipGroups.length >
+              relationshipReviewDisplayLimits.duplicateRelationshipGroups ? (
                 <div className="vwb-action-row">
                   <button
                     className="vwb-secondary-button"
@@ -732,9 +749,12 @@ export function RelationshipsPage({
                       setShowAllDuplicateGroups((currentValue) => !currentValue)
                     }
                   >
-                    {showAllDuplicateGroups
-                      ? 'Show Fewer Duplicate Groups'
-                      : `Show ${hiddenDuplicateRelationshipGroupCount} More Duplicate Groups`}
+                    {formatExpansionControlLabel({
+                      isExpanded: showAllDuplicateGroups,
+                      hiddenCount: hiddenDuplicateRelationshipGroupCount,
+                      pluralItemLabel: 'Duplicate Groups',
+                      singularItemLabel: 'Duplicate Group',
+                    })}
                   </button>
                 </div>
               ) : null}
@@ -764,36 +784,37 @@ export function RelationshipsPage({
                       <span className="vwb-entry-kind">{item.fieldLabel}</span>
                       <strong>{item.entryName}</strong>
                       <p>
-                        Unresolved:{' '}
+                        {relationshipTextReviewCopy.unresolvedLabel}:{' '}
                         {getRelationshipTextReviewUnresolvedLabel(item)}.{' '}
                         {getRelationshipTextReviewExactMatchLabel(item)}
                       </p>
                     </div>
                     <NavLink
                       className="vwb-secondary-button"
-                      to={getRelationshipEntryRoute({
-                        entryId: item.entryId,
-                        name: item.entryName,
-                        sectionId: item.sectionId,
-                      })}
+                      aria-label={item.reviewEntryAccessibilityLabel}
+                      to={item.reviewEntryRoute}
                       onClick={(event) => {
                         if (!confirmDiscardUnsavedChanges(isDraftDirty)) {
                           event.preventDefault();
                         }
                       }}
                     >
-                      {relationshipTextReviewCopy.reviewEntryLabel}
+                      {item.reviewEntryLabel}
                     </NavLink>
                   </article>
                 ))}
               </div>
               {hiddenLegacyTextItemCount > 0 ? (
                 <span className="vwb-tag">
-                  {hiddenLegacyTextItemCount} more legacy text item
-                  {hiddenLegacyTextItemCount === 1 ? '' : 's'}.
+                  {formatHiddenCountText({
+                    hiddenCount: hiddenLegacyTextItemCount,
+                    singularItemLabel: 'legacy text item',
+                    pluralItemLabel: 'legacy text items',
+                  })}
                 </span>
               ) : null}
-              {legacyTextItems.length > 8 ? (
+              {legacyTextItems.length >
+              relationshipReviewDisplayLimits.legacyTextItems ? (
                 <div className="vwb-action-row">
                   <button
                     className="vwb-secondary-button"
@@ -803,9 +824,12 @@ export function RelationshipsPage({
                       setShowAllLegacyTextItems((currentValue) => !currentValue)
                     }
                   >
-                    {showAllLegacyTextItems
-                      ? 'Show Fewer Legacy Text Items'
-                      : `Show ${hiddenLegacyTextItemCount} More Legacy Text Items`}
+                    {formatExpansionControlLabel({
+                      isExpanded: showAllLegacyTextItems,
+                      hiddenCount: hiddenLegacyTextItemCount,
+                      pluralItemLabel: 'Legacy Text Items',
+                      singularItemLabel: 'Legacy Text Item',
+                    })}
                   </button>
                 </div>
               ) : null}
@@ -822,14 +846,16 @@ export function RelationshipsPage({
           <div className="vwb-section-heading">
             <div>
               <p className="vwb-kicker">
-                {editingRelationship ? 'Edit link' : 'New link'}
+                {relationshipFormHeaderModel.kickerLabel}
               </p>
               <h2 id="relationship-form-title">
-                {relationshipFeatureCopy.relationshipFormTitle}
+                {relationshipFormHeaderModel.title}
               </h2>
             </div>
             {isDraftDirty ? (
-              <span className="vwb-status-pill">Unsaved</span>
+              <span className="vwb-status-pill">
+                {relationshipFormHeaderModel.unsavedDraftPillLabel}
+              </span>
             ) : null}
           </div>
           {entries.length < 2 ? (
@@ -881,7 +907,7 @@ export function RelationshipsPage({
                     onChange={(event) =>
                       updateDraft('type', event.target.value)
                     }
-                    placeholder="member of, rivals, owes debt to"
+                    placeholder={relationshipTypeControl.placeholder}
                   />
                   <datalist id="relationship-type-suggestions">
                     {relationshipTypeSuggestions.map((type) => (
@@ -919,7 +945,7 @@ export function RelationshipsPage({
                     onChange={(event) =>
                       updateDraft('note', event.target.value)
                     }
-                    placeholder="Why this relationship matters"
+                    placeholder={relationshipNoteControl.placeholder}
                   />
                 </label>
               </div>
@@ -977,7 +1003,7 @@ export function RelationshipsPage({
             <>
               <div
                 className="vwb-filter-panel"
-                aria-label="Relationship filters"
+                aria-label={relationshipFeatureCopy.relationshipFiltersLabel}
               >
                 <div className="vwb-filter-row">
                   <label>
@@ -987,7 +1013,9 @@ export function RelationshipsPage({
                       onChange={(event) =>
                         setRelationshipQuery(event.target.value)
                       }
-                      placeholder="Entry, type, note, or id"
+                      placeholder={
+                        relationshipFeatureCopy.searchRelationshipsPlaceholder
+                      }
                       type="search"
                     />
                   </label>
@@ -1008,12 +1036,14 @@ export function RelationshipsPage({
                     </select>
                   </label>
                   <label>
-                    Entry
+                    {relationshipFeatureCopy.entryFilterLabel}
                     <select
                       value={entryFilter}
                       onChange={(event) => setEntryFilter(event.target.value)}
                     >
-                      <option value="">Any entry</option>
+                      <option value="">
+                        {relationshipFeatureCopy.anyEntryLabel}
+                      </option>
                       {entries.map((entry) => (
                         <option value={entry.id} key={entry.id}>
                           {entry.name} ({entry.sectionTitle})
@@ -1045,10 +1075,7 @@ export function RelationshipsPage({
                     >
                       <div>
                         <span className="vwb-entry-kind">
-                          {relationship.directionLabel === '->'
-                            ? 'Directional'
-                            : 'Mutual'}{' '}
-                          - {relationship.statusLabel}
+                          {relationship.directionStatusLabel}
                         </span>
                         <strong>
                           {relationship.sourceName}{' '}
@@ -1058,21 +1085,46 @@ export function RelationshipsPage({
                       </div>
                       {relationship.note ? <p>{relationship.note}</p> : null}
                       <div className="vwb-form-actions">
+                        {relationship.sourceContextRoute ? (
+                          <NavLink
+                            aria-label={
+                              relationship.openSourceAccessibilityLabel
+                            }
+                            className="vwb-secondary-button"
+                            to={relationship.sourceContextRoute}
+                          >
+                            {relationship.openSourceLabel}
+                          </NavLink>
+                        ) : null}
+                        {relationship.targetContextRoute ? (
+                          <NavLink
+                            aria-label={
+                              relationship.openTargetAccessibilityLabel
+                            }
+                            className="vwb-secondary-button"
+                            to={relationship.targetContextRoute}
+                          >
+                            {relationship.openTargetLabel}
+                          </NavLink>
+                        ) : null}
                         <button
+                          aria-label={relationship.editAccessibilityLabel}
                           className="vwb-secondary-button"
                           type="button"
                           onClick={() => startEditingById(relationship.id)}
                         >
-                          {relationshipFeatureCopy.editLabel}
+                          {relationship.editLabel}
                         </button>
                         <button
+                          aria-label={relationship.deleteAccessibilityLabel}
                           className="vwb-secondary-button vwb-danger-button"
+                          title={relationship.deleteAccessibilityHint}
                           type="button"
                           onClick={() =>
                             requestDeleteRelationshipById(relationship.id)
                           }
                         >
-                          {relationshipFeatureCopy.deleteLabel}
+                          {relationship.deleteLabel}
                         </button>
                       </div>
                     </article>
@@ -1101,18 +1153,19 @@ export function RelationshipsPage({
         >
           <div className="vwb-section-heading">
             <div>
-              <p className="vwb-kicker">
-                {graph.nodes.length} connected records
-              </p>
+              <p className="vwb-kicker">{graph.connectedRecordCountLabel}</p>
               <h2 id="relationship-graph-title">
                 {relationshipFeatureCopy.graphViewTitle}
               </h2>
             </div>
           </div>
-          <div className="vwb-filter-panel" aria-label="Graph filters">
+          <div
+            className="vwb-filter-panel"
+            aria-label={relationshipFeatureCopy.graphFiltersLabel}
+          >
             <div className="vwb-filter-row">
               <label>
-                Section
+                {relationshipFeatureCopy.graphSectionFilterLabel}
                 <select
                   value={graphFilters.sectionId}
                   onChange={(event) =>
@@ -1153,7 +1206,7 @@ export function RelationshipsPage({
                 </select>
               </label>
               <label>
-                Tag
+                {relationshipFeatureCopy.graphTagFilterLabel}
                 <select
                   value={graphFilters.tag}
                   onChange={(event) =>
@@ -1204,7 +1257,10 @@ export function RelationshipsPage({
           </div>
           {graph.edges.length > 0 ? (
             <div className="vwb-graph-view">
-              <div className="vwb-graph-nodes" aria-label="Graph nodes">
+              <div
+                className="vwb-graph-nodes"
+                aria-label={relationshipFeatureCopy.graphNodesLabel}
+              >
                 {graph.nodes.map((node) => (
                   <button
                     className={`vwb-graph-node ${
@@ -1221,7 +1277,10 @@ export function RelationshipsPage({
                   </button>
                 ))}
               </div>
-              <div className="vwb-graph-edges" aria-label="Graph edges">
+              <div
+                className="vwb-graph-edges"
+                aria-label={relationshipFeatureCopy.graphEdgesLabel}
+              >
                 {graph.edges.map((edge) => (
                   <div className="vwb-graph-edge" key={edge.id}>
                     <span>{edge.sourceName}</span>
@@ -1230,11 +1289,12 @@ export function RelationshipsPage({
                     </strong>
                     <span>{edge.targetName}</span>
                     <button
+                      aria-label={edge.editAccessibilityLabel}
                       className="vwb-secondary-button"
                       type="button"
                       onClick={() => startEditingById(edge.id)}
                     >
-                      {relationshipFeatureCopy.editLabel}
+                      {edge.editLabel}
                     </button>
                   </div>
                 ))}
@@ -1247,7 +1307,10 @@ export function RelationshipsPage({
                   <h3>{selectedGraphNode.name}</h3>
                   <p>{selectedGraphNode.summaryText}</p>
                   {selectedGraphNode.tags.length > 0 ? (
-                    <div className="vwb-tag-row" aria-label="Graph node tags">
+                    <div
+                      className="vwb-tag-row"
+                      aria-label={relationshipFeatureCopy.graphNodeTagsLabel}
+                    >
                       {selectedGraphNode.tags.map((tag) => (
                         <span className="vwb-tag" key={tag}>
                           {tag}
@@ -1258,7 +1321,9 @@ export function RelationshipsPage({
                   {selectedGraphEdges.length > 0 ? (
                     <div
                       className="vwb-relationship-list"
-                      aria-label="Selected graph node relationships"
+                      aria-label={
+                        relationshipFeatureCopy.selectedGraphNodeRelationshipsLabel
+                      }
                     >
                       {selectedGraphEdges.map((edge) => (
                         <div className="vwb-graph-edge" key={edge.id}>
@@ -1268,11 +1333,12 @@ export function RelationshipsPage({
                           </strong>
                           <span>{edge.targetName}</span>
                           <button
+                            aria-label={edge.editAccessibilityLabel}
                             className="vwb-secondary-button"
                             type="button"
                             onClick={() => startEditingById(edge.id)}
                           >
-                            {relationshipFeatureCopy.editLabel}
+                            {edge.editLabel}
                           </button>
                         </div>
                       ))}
@@ -1280,21 +1346,21 @@ export function RelationshipsPage({
                   ) : null}
                   <div className="vwb-form-actions">
                     <NavLink
+                      aria-label={selectedGraphNode.openEntryAccessibilityLabel}
                       className="vwb-secondary-button"
-                      to={getRelationshipEntryContextRoute({
-                        entryId: selectedGraphNode.id,
-                        name: selectedGraphNode.name,
-                        sectionId: selectedGraphNode.sectionId,
-                      })}
+                      to={selectedGraphNode.contextRoute}
                       onClick={(event) => {
                         if (!confirmDiscardUnsavedChanges(isDraftDirty)) {
                           event.preventDefault();
                         }
                       }}
                     >
-                      {relationshipFeatureCopy.openEntryLabel}
+                      {selectedGraphNode.openEntryLabel}
                     </NavLink>
                     <button
+                      aria-label={
+                        selectedGraphNode.filterListAccessibilityLabel
+                      }
                       className="vwb-secondary-button"
                       type="button"
                       onClick={() => {
@@ -1303,7 +1369,7 @@ export function RelationshipsPage({
                         setStudioMode('links');
                       }}
                     >
-                      {relationshipFeatureCopy.filterListLabel}
+                      {selectedGraphNode.filterListLabel}
                     </button>
                   </div>
                 </article>
@@ -1359,11 +1425,7 @@ export function RelationshipsPage({
           {duplicateRelationshipGroups.length > 0 ? (
             <div className="vwb-hidden-detail-panel">
               <h3>{relationshipFeatureCopy.duplicateRelationshipsLabel}</h3>
-              <p>
-                Remove {duplicateRelationshipGroups.length} duplicate group
-                {duplicateRelationshipGroups.length === 1 ? '' : 's'} while
-                keeping the oldest relationship in each group.
-              </p>
+              <p>{relationshipReview.duplicateRelationshipCleanupSummary}</p>
               {isDraftDirty ? (
                 <p className="vwb-inline-status" role="status">
                   {

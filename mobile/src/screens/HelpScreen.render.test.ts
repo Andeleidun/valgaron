@@ -111,12 +111,12 @@ describe('HelpScreen render smoke', () => {
     expect(markup).toContain(
       'Use Knowledge or mobile More to create custom entry types'
     );
-    expect(markup).toContain('observed flexible values');
+    expect(markup).toContain('durable vocabulary rows');
     expect(markup).toContain(
       'Use character category to shape which character fields appear'
     );
     expect(markup).toContain(
-      'ancestry and profession stay flexible creator-authored values'
+      'ancestry and profession use workspace-owned vocabulary suggestions'
     );
     expect(markup).toContain('Connect records');
     expect(markup).toContain('Use relationship-backed character fields');

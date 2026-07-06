@@ -30,20 +30,10 @@ describe('world document state helpers', () => {
         loadStatus({
           state: 'recovered',
           source: 'seed',
-          issues: ['valgaron.worldDocument.v2 is not valid JSON.'],
+          issues: ['valgaron.worldDocument.v3 is not valid JSON.'],
         })
       )
     ).toBe(true);
-
-    expect(
-      shouldPauseInitialSaveAfterLoad(
-        loadStatus({
-          state: 'recovered',
-          source: 'legacy',
-          issues: ['valgaron.worldDocument.v2 is not valid JSON.'],
-        })
-      )
-    ).toBe(false);
 
     expect(
       shouldPauseInitialSaveAfterLoad(
@@ -79,18 +69,8 @@ describe('world document state helpers', () => {
       getInitialSaveStateAfterLoad(
         loadStatus({
           state: 'recovered',
-          source: 'legacy',
-          issues: [],
-        })
-      )
-    ).toBe('unsaved');
-
-    expect(
-      getInitialSaveStateAfterLoad(
-        loadStatus({
-          state: 'recovered',
           source: 'seed',
-          issues: ['valgaron.worldDocument.v2 is not valid JSON.'],
+          issues: ['valgaron.worldDocument.v3 is not valid JSON.'],
         })
       )
     ).toBe('paused');

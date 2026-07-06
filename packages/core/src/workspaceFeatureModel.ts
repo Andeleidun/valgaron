@@ -89,6 +89,7 @@ export type WorkspaceRowModel = {
   updatedText: string;
   isActive: boolean;
   actionState: WorkspaceActionState;
+  deleteAccessibilityHint: string;
 };
 
 export type CustomEntryTypeRowModel = {
@@ -114,6 +115,7 @@ export type PlanetaryWorldRowModel = {
   terrainText: string;
   summaryText: string;
   tagsText: string;
+  deleteAccessibilityHint: string;
 };
 
 export type WorkspaceFeatureListModel<TRow> = {
@@ -301,6 +303,7 @@ export function getWorkspaceFeatureModel({
         workspace,
         workspaceCount: document.worlds.length,
       }),
+      deleteAccessibilityHint: 'Deletes this workspace after confirmation.',
     }));
 
   const customEntryTypeRows = activeWorld.entryTypes
@@ -376,6 +379,8 @@ export function getWorkspaceFeatureModel({
           ? planetaryWorld.tags.join(', ')
           : 'No tags'
       }`,
+      deleteAccessibilityHint:
+        'Deletes this in-fiction world after confirmation.',
     }));
 
   return {

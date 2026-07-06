@@ -34,7 +34,7 @@ import {
   type EntryTypeDraft,
   type PlanetaryWorldDraft,
 } from './workspaceManagement';
-import { updateActiveWorld } from './worldDocument';
+import { getActiveWorld, updateActiveWorld } from './worldDocument';
 
 function mutationTimestamp(updatedAt = new Date().toISOString()): string {
   return updatedAt;
@@ -315,7 +315,11 @@ export function clearHiddenEntryDetailsInActiveWorkspace({
       const entries = getEntries(world.codex, section.id);
       let didClearSection = false;
       const nextEntries = entries.map((entry) => {
-        const hiddenDetails = getHiddenEntryDetailValues(section, entry.fields);
+        const hiddenDetails = getHiddenEntryDetailValues(
+          section,
+          entry.fields,
+          world.schema
+        );
         if (hiddenDetails.length === 0) {
           return entry;
         }
@@ -349,6 +353,83 @@ export function clearHiddenEntryDetailsInActiveWorkspace({
     return {
       ...world,
       codex: nextCodex,
+      updatedAt: timestamp,
+    };
+  });
+}
+
+export function clearHiddenEntryDetailInActiveWorkspace({
+  document,
+  entryId,
+  fieldKey,
+  sectionId,
+  updatedAt,
+}: {
+  document: WorldDocument;
+  entryId: string;
+  fieldKey: string;
+  sectionId: string;
+  updatedAt?: string;
+}): WorldDocument {
+  const timestamp = mutationTimestamp(updatedAt);
+  const initialWorld = getActiveWorld(document);
+  const initialSection = initialWorld.entryTypes.find(
+    (entryType) => entryType.id === sectionId
+  );
+  if (!initialSection) {
+    return document;
+  }
+  const initialEntry = getEntries(initialWorld.codex, initialSection.id).find(
+    (candidate) => candidate.id === entryId
+  );
+  if (!initialEntry) {
+    return document;
+  }
+  const hiddenDetail = getHiddenEntryDetailValues(
+    initialSection,
+    initialEntry.fields,
+    initialWorld.schema
+  ).find((detail) => detail.key === fieldKey);
+  if (!hiddenDetail) {
+    return document;
+  }
+
+  return updateActiveWorld(document, (world) => {
+    const section = world.entryTypes.find(
+      (entryType) => entryType.id === sectionId
+    );
+    if (!section) {
+      return world;
+    }
+    const entries = getEntries(world.codex, section.id);
+    const entry = entries.find((candidate) => candidate.id === entryId);
+    if (!entry) {
+      return world;
+    }
+    const currentHiddenDetail = getHiddenEntryDetailValues(
+      section,
+      entry.fields,
+      world.schema
+    ).find((detail) => detail.key === fieldKey);
+    if (!currentHiddenDetail) {
+      return world;
+    }
+    const nextFields = { ...entry.fields };
+    delete nextFields[fieldKey];
+    return {
+      ...world,
+      codex: {
+        ...world.codex,
+        [section.id]: entries.map((candidate) =>
+          candidate.id === entryId
+            ? {
+                ...candidate,
+                fields: nextFields,
+                updatedAt: timestamp,
+              }
+            : candidate
+        ),
+      },
       updatedAt: timestamp,
     };
   });

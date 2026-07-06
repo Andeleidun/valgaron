@@ -20,10 +20,21 @@ import {
   relationshipSourceControl,
   relationshipTargetControl,
   relationshipTypeControl,
+  selectFieldCopy,
 } from './controlDescriptors';
 import { worldEntryStatusOptions } from './codexEntries';
 
 describe('shared control descriptors', () => {
+  it('defines shared mobile select field fallback copy', () => {
+    expect(selectFieldCopy).toEqual({
+      defaultSearchPlaceholder: 'Search choices',
+      noSearchMatchesText: 'No choices match.',
+      cancelLabel: 'Cancel',
+      defaultSelectedValueText: 'Select',
+      openChoicesHint: 'Opens a list of choices.',
+    });
+  });
+
   it('keeps entry controls aligned with the web-source control kinds', () => {
     expect(
       entryScreenControlDescriptors.map((control) => [
@@ -152,8 +163,14 @@ describe('shared control descriptors', () => {
     expect(relationshipSourceControl.required).toBe(true);
     expect(relationshipTargetControl.required).toBe(true);
     expect(relationshipTypeControl.required).toBe(true);
+    expect(relationshipTypeControl.placeholder).toBe(
+      'member of, rivals, owes debt to'
+    );
     expect(relationshipNoteControl.accessibilityLabel).toBe(
       'Relationship note'
+    );
+    expect(relationshipNoteControl.placeholder).toBe(
+      'Why this relationship matters'
     );
     expect(relationshipListTypeFilterControl.kind).toBe('select');
     expect(relationshipGraphStatusFilterControl.options).toEqual([

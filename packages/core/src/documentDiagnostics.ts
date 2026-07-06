@@ -10,6 +10,9 @@ export type WorldDocumentDiagnostics = {
   activeWorkspaceStatus: WorldWorkspace['status'];
   entryTypeCount: number;
   customEntryTypeCount: number;
+  vocabularyCount: number;
+  activeVocabularyValueCount: number;
+  archivedVocabularyValueCount: number;
   activeWorkspaceEntryCount: number;
   totalEntryCount: number;
   relationshipCount: number;
@@ -64,6 +67,9 @@ export const contentSafeDiagnosticOmittedFields = [
   'relationship notes',
   'entry ids',
   'relationship ids',
+  'vocabulary labels',
+  'vocabulary descriptions',
+  'vocabulary aliases',
 ] as const;
 
 export function sanitizeDiagnosticsRoute(route: string): string {
@@ -91,6 +97,15 @@ export function getWorldDocumentDiagnostics(
     customEntryTypeCount: activeWorkspace.entryTypes.filter(
       (entryType) => entryType.custom
     ).length,
+    vocabularyCount: activeWorkspace.schema.vocabularies.length,
+    activeVocabularyValueCount: countVocabularyValues(
+      activeWorkspace,
+      'active'
+    ),
+    archivedVocabularyValueCount: countVocabularyValues(
+      activeWorkspace,
+      'archived'
+    ),
     activeWorkspaceEntryCount: countWorkspaceEntries(activeWorkspace),
     totalEntryCount: document.worlds.reduce(
       (total, world) => total + countWorkspaceEntries(world),
@@ -171,6 +186,18 @@ function countArchivedEntries(world: WorldWorkspace): number {
       getEntries(world.codex, section.id).filter(
         (entry) => entry.status === 'archived'
       ).length,
+    0
+  );
+}
+
+function countVocabularyValues(
+  world: WorldWorkspace,
+  status: 'active' | 'archived'
+): number {
+  return world.schema.vocabularies.reduce(
+    (total, vocabulary) =>
+      total +
+      vocabulary.values.filter((value) => value.status === status).length,
     0
   );
 }

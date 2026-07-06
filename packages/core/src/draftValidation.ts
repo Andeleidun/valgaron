@@ -1,6 +1,10 @@
 import type { EntryDraft } from './codexEntries';
 import type { RelationshipDraft } from './codexRelationships';
-import type { WorldSectionConfig } from './types';
+import type {
+  WorldSectionConfig,
+  WorldVocabulary,
+  WorldWorkspaceSchema,
+} from './types';
 import type {
   EntryTypeDraft,
   PlanetaryWorldDraft,
@@ -22,13 +26,92 @@ function validationResult(errors: readonly string[]): DraftValidationResult {
 
 export function validateEntryDraft(
   section: WorldSectionConfig,
-  draft: EntryDraft
+  draft: EntryDraft,
+  options: { workspaceSchema?: WorldWorkspaceSchema } = {}
 ): DraftValidationResult {
+  const schemaErrors = getRestrictedVocabularyErrors({
+    draft,
+    section,
+    workspaceSchema: options.workspaceSchema,
+  });
   return validationResult(
     [
       draft.name.trim() ? '' : `${section.singularTitle} name is required.`,
+      ...schemaErrors,
     ].filter(Boolean)
   );
+}
+
+function getRestrictedVocabularyErrors({
+  draft,
+  section,
+  workspaceSchema,
+}: {
+  draft: EntryDraft;
+  section: WorldSectionConfig;
+  workspaceSchema?: WorldWorkspaceSchema;
+}): string[] {
+  if (!workspaceSchema) {
+    return [];
+  }
+  const fieldOverrides = workspaceSchema.fieldOverrides[section.id] ?? {};
+  const vocabularyById = new Map(
+    workspaceSchema.vocabularies.map((vocabulary) => [
+      vocabulary.id,
+      vocabulary,
+    ])
+  );
+  return section.detailFields.flatMap((field) => {
+    const override = fieldOverrides[field.key];
+    if (override?.vocabularyMode !== 'restricted' || !override.vocabularyId) {
+      return [];
+    }
+    const value = draft.details[field.key]?.trim() ?? '';
+    if (!value) {
+      return [];
+    }
+    const vocabulary = vocabularyById.get(override.vocabularyId);
+    if (!vocabulary) {
+      return [];
+    }
+    const activeTerms = getActiveVocabularyTerms(vocabulary);
+    return activeTerms.has(value.toLocaleLowerCase())
+      ? []
+      : [
+          `${override.label ?? field.label} must use an active ${
+            vocabulary.name
+          } value.${formatVocabularyExamples(vocabulary)}`,
+        ];
+  });
+}
+
+function getActiveVocabularyTerms(vocabulary: WorldVocabulary): Set<string> {
+  const terms = new Set<string>();
+  for (const value of vocabulary.values) {
+    if (value.status !== 'active') {
+      continue;
+    }
+    const label = value.label.trim();
+    if (label) {
+      terms.add(label.toLocaleLowerCase());
+    }
+    for (const alias of value.aliases) {
+      const normalizedAlias = alias.trim();
+      if (normalizedAlias) {
+        terms.add(normalizedAlias.toLocaleLowerCase());
+      }
+    }
+  }
+  return terms;
+}
+
+function formatVocabularyExamples(vocabulary: WorldVocabulary): string {
+  const examples = vocabulary.values
+    .filter((value) => value.status === 'active')
+    .map((value) => value.label.trim())
+    .filter(Boolean)
+    .slice(0, 5);
+  return examples.length > 0 ? ` Try ${examples.join(', ')}.` : '';
 }
 
 export function validateRelationshipDraft(

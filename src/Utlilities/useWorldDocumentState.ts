@@ -1,8 +1,10 @@
 import { useMemo, useState } from 'react';
 import {
   addEntryTypeFieldsInActiveWorkspace,
+  addVocabularyValue,
   archiveEntryInActiveWorkspace,
   archivePlanetaryWorldInActiveWorkspace,
+  clearHiddenEntryDetailInActiveWorkspace,
   clearHiddenEntryDetailsInActiveWorkspace,
   createEntryTypeInActiveWorkspace,
   createWorkspace,
@@ -15,16 +17,22 @@ import {
   getActiveWorld,
   localPersistenceCopy,
   moveEntryTypeFieldInActiveWorkspace,
+  moveVocabularyValue,
   renameEntryTypeFieldInActiveWorkspace,
   removeEntryTypeFieldInActiveWorkspace,
   saveEntryInActiveWorkspace,
   savePlanetaryWorldInActiveWorkspace,
   saveRelationshipInActiveWorkspace,
   setActiveWorkspace,
+  setVocabularyValueArchived,
   setWorkspaceArchived,
+  updateActiveWorkspace,
+  updateFieldOverride,
+  updateVocabularyValue,
   updateWorkspaceMetadata,
   type EntryTypeDraft,
   type CustomEntryTypeFieldMoveDirection,
+  type FieldOverrideDraft,
   type InFictionWorld,
   type PlanetaryWorldDraft,
   type RecoverySnapshot,
@@ -37,6 +45,8 @@ import {
   type WorldSectionConfig,
   type WorldWorkspace,
   type WorkspaceDraft,
+  type VocabularyValueDraft,
+  type VocabularyValueMoveDirection,
 } from '@valgaron/core';
 import {
   addRecoverySnapshot,
@@ -109,6 +119,35 @@ export type WorldDocumentState = {
     label: string
   ) => void;
   removeEntryTypeField: (sectionId: string, fieldKey: string) => void;
+  addVocabularyValue: (
+    vocabularyId: string,
+    draft: VocabularyValueDraft
+  ) => void;
+  updateVocabularyValue: (
+    vocabularyId: string,
+    valueId: string,
+    draft: VocabularyValueDraft
+  ) => void;
+  archiveVocabularyValue: (
+    vocabularyId: string,
+    valueId: string,
+    archived: boolean
+  ) => void;
+  moveVocabularyValue: (
+    vocabularyId: string,
+    valueId: string,
+    direction: VocabularyValueMoveDirection
+  ) => void;
+  updateFieldOverride: (
+    sectionId: string,
+    fieldKey: string,
+    draft: FieldOverrideDraft
+  ) => void;
+  clearHiddenEntryDetail: (
+    sectionId: string,
+    entryId: string,
+    fieldKey: string
+  ) => void;
   clearHiddenEntryDetails: () => void;
   permanentlyDeleteEntryType: (sectionId: string) => void;
 };
@@ -429,11 +468,86 @@ export function useWorldDocumentState(): WorldDocumentState {
     );
   };
 
+  const addWorkspaceVocabularyValue = (
+    vocabularyId: string,
+    draft: VocabularyValueDraft
+  ) => {
+    setUnsavedDocument((currentDocument) =>
+      updateActiveWorkspace(currentDocument, (workspace) =>
+        addVocabularyValue(workspace, vocabularyId, draft)
+      )
+    );
+  };
+
+  const updateWorkspaceVocabularyValue = (
+    vocabularyId: string,
+    valueId: string,
+    draft: VocabularyValueDraft
+  ) => {
+    setUnsavedDocument((currentDocument) =>
+      updateActiveWorkspace(currentDocument, (workspace) =>
+        updateVocabularyValue(workspace, vocabularyId, valueId, draft)
+      )
+    );
+  };
+
+  const archiveWorkspaceVocabularyValue = (
+    vocabularyId: string,
+    valueId: string,
+    archived: boolean
+  ) => {
+    setUnsavedDocument((currentDocument) =>
+      updateActiveWorkspace(currentDocument, (workspace) =>
+        setVocabularyValueArchived(workspace, vocabularyId, valueId, archived)
+      )
+    );
+  };
+
+  const moveWorkspaceVocabularyValue = (
+    vocabularyId: string,
+    valueId: string,
+    direction: VocabularyValueMoveDirection
+  ) => {
+    setUnsavedDocument((currentDocument) =>
+      updateActiveWorkspace(currentDocument, (workspace) =>
+        moveVocabularyValue(workspace, vocabularyId, valueId, direction)
+      )
+    );
+  };
+
+  const updateWorkspaceFieldOverride = (
+    sectionId: string,
+    fieldKey: string,
+    draft: FieldOverrideDraft
+  ) => {
+    setUnsavedDocument((currentDocument) =>
+      updateActiveWorkspace(currentDocument, (workspace) =>
+        updateFieldOverride(workspace, sectionId, fieldKey, draft)
+      )
+    );
+  };
+
   const clearHiddenEntryDetails = () => {
     captureSnapshot(document, 'schema-cleanup');
     setUnsavedDocument((currentDocument) =>
       clearHiddenEntryDetailsInActiveWorkspace({
         document: currentDocument,
+      })
+    );
+  };
+
+  const clearHiddenEntryDetail = (
+    sectionId: string,
+    entryId: string,
+    fieldKey: string
+  ) => {
+    captureSnapshot(document, 'schema-cleanup');
+    setUnsavedDocument((currentDocument) =>
+      clearHiddenEntryDetailInActiveWorkspace({
+        document: currentDocument,
+        entryId,
+        fieldKey,
+        sectionId,
       })
     );
   };
@@ -484,6 +598,12 @@ export function useWorldDocumentState(): WorldDocumentState {
     moveEntryTypeField,
     renameEntryTypeField,
     removeEntryTypeField,
+    addVocabularyValue: addWorkspaceVocabularyValue,
+    updateVocabularyValue: updateWorkspaceVocabularyValue,
+    archiveVocabularyValue: archiveWorkspaceVocabularyValue,
+    moveVocabularyValue: moveWorkspaceVocabularyValue,
+    updateFieldOverride: updateWorkspaceFieldOverride,
+    clearHiddenEntryDetail,
     clearHiddenEntryDetails,
     permanentlyDeleteEntryType,
   };

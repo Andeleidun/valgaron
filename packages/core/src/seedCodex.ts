@@ -5,8 +5,10 @@ import type {
   WorldEntry,
   WorldEntryKind,
   WorldEntryStatus,
+  WorldVocabulary,
   WorldRelationship,
   WorldSectionConfig,
+  WorldWorkspaceSchema,
   WorldWorkspace,
 } from './types';
 import { supportedPlaceCategoryOptions } from './placeTaxonomy';
@@ -101,6 +103,148 @@ export const worldSections: readonly WorldSectionConfig[] = [
     ],
   },
 ];
+
+function vocabularyValue(
+  label: string,
+  order: number,
+  description = ''
+): WorldVocabulary['values'][number] {
+  return {
+    id: label
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, ''),
+    label,
+    description,
+    aliases: [],
+    status: 'active',
+    order,
+  };
+}
+
+function vocabulary(
+  id: string,
+  name: string,
+  description: string,
+  values: readonly string[]
+): WorldVocabulary {
+  return {
+    id,
+    name,
+    description,
+    values: values.map((value, index) => vocabularyValue(value, index + 1)),
+  };
+}
+
+export const seedWorkspaceSchema: WorldWorkspaceSchema = {
+  vocabularies: [
+    vocabulary(
+      'character-category',
+      'Character category',
+      'Editable starter categories for character records.',
+      characterCategoryOptions
+    ),
+    vocabulary(
+      'character-ancestry',
+      'Character ancestry',
+      'Editable starter ancestry values for characters.',
+      ['Human', 'Nonhuman sapient', 'Spirit', 'Construct', 'Deity', 'Monster']
+    ),
+    vocabulary(
+      'character-profession',
+      'Character profession',
+      'Editable starter profession and role values for characters.',
+      [
+        'Artisan',
+        'Guide',
+        'Healer',
+        'Mage',
+        'Merchant',
+        'Quartermaster',
+        'Ruler',
+        'Scholar',
+        'Scout',
+        'Soldier',
+        'Surveyor',
+      ]
+    ),
+    vocabulary(
+      'place-category',
+      'Place category',
+      'Editable starter categories for place records.',
+      placeCategoryOptions
+    ),
+    vocabulary(
+      'faction-influence',
+      'Faction influence',
+      'Editable starter influence scales for faction records.',
+      ['Local', 'Regional', 'National', 'Planar', 'Hidden', 'Declining']
+    ),
+    vocabulary(
+      'lore-category',
+      'Lore category',
+      'Editable starter categories for lore notes.',
+      [
+        'Artifact',
+        'Cosmology',
+        'Creature',
+        'Custom',
+        'History',
+        'Magic rule',
+        'Myth',
+        'Navigation practice',
+        'Travel custom',
+      ]
+    ),
+    vocabulary(
+      'timeline-era',
+      'Timeline era',
+      'Editable starter eras for timeline events.',
+      ['Founding Era', 'Age of Conflict', 'Current Era', 'Future Era']
+    ),
+  ],
+  fieldOverrides: {
+    characters: {
+      characterCategory: {
+        vocabularyId: 'character-category',
+        vocabularyMode: 'suggestions',
+      },
+      ancestry: {
+        vocabularyId: 'character-ancestry',
+        vocabularyMode: 'suggestions',
+      },
+      profession: {
+        vocabularyId: 'character-profession',
+        vocabularyMode: 'suggestions',
+      },
+    },
+    places: {
+      category: {
+        vocabularyId: 'place-category',
+        vocabularyMode: 'suggestions',
+      },
+    },
+    factions: {
+      influence: {
+        vocabularyId: 'faction-influence',
+        vocabularyMode: 'suggestions',
+      },
+    },
+    lore: {
+      category: {
+        vocabularyId: 'lore-category',
+        vocabularyMode: 'suggestions',
+      },
+    },
+    timeline: {
+      era: {
+        vocabularyId: 'timeline-era',
+        vocabularyMode: 'suggestions',
+      },
+    },
+  },
+  ignoredVocabularyCandidates: [],
+};
 
 type SeedEntryInput = {
   id: string;
@@ -379,6 +523,34 @@ function cloneRelationships(
   return relationships.map((relationship) => ({ ...relationship }));
 }
 
+export function cloneWorkspaceSchema(
+  schema: WorldWorkspaceSchema = seedWorkspaceSchema
+): WorldWorkspaceSchema {
+  return {
+    vocabularies: schema.vocabularies.map((vocabularyItem) => ({
+      ...vocabularyItem,
+      values: vocabularyItem.values.map((value) => ({
+        ...value,
+        aliases: [...value.aliases],
+      })),
+    })),
+    fieldOverrides: Object.fromEntries(
+      Object.entries(schema.fieldOverrides).map(([sectionId, fields]) => [
+        sectionId,
+        Object.fromEntries(
+          Object.entries(fields).map(([fieldKey, override]) => [
+            fieldKey,
+            { ...override },
+          ])
+        ),
+      ])
+    ),
+    ignoredVocabularyCandidates: schema.ignoredVocabularyCandidates.map(
+      (candidate) => ({ ...candidate })
+    ),
+  };
+}
+
 export function createSeedCodex(): WorldCodex {
   return {
     characters: cloneEntries(seedCodex.characters),
@@ -398,6 +570,7 @@ export function createSeedWorld(): WorldWorkspace {
     status: 'active',
     planetaryWorlds: clonePlanetaryWorlds(seedPlanetaryWorlds),
     entryTypes: worldSections.map((section) => ({ ...section })),
+    schema: cloneWorkspaceSchema(),
     codex: createSeedCodex(),
     relationships: cloneRelationships(seedRelationships),
     createdAt: SEED_CREATED_AT,
@@ -407,7 +580,7 @@ export function createSeedWorld(): WorldWorkspace {
 
 export function createSeedWorldDocument(): WorldDocument {
   return {
-    schemaVersion: 2,
+    schemaVersion: 3,
     activeWorldId: SEED_WORLD_ID,
     worlds: [createSeedWorld()],
     savedAt: SEED_SAVED_AT,

@@ -19,6 +19,34 @@ export const mobileFeatureDisplayLimits = {
   relationshipTextReviewItems: 6,
 } as const;
 
+export const relationshipReviewDisplayLimits = {
+  orphanedEntries: 12,
+  duplicateRelationshipGroups: 6,
+  legacyTextItems: 8,
+} as const;
+
+export const relationshipTextReviewDisplayLimits = {
+  sectionItems: mobileFeatureDisplayLimits.relationshipTextReviewItems,
+} as const;
+
+export const workbenchDisplayLimits = {
+  recordViewRows: 24,
+  selectedDraftingPrompts: 4,
+} as const;
+
+export const knowledgeDisplayLimits = {
+  fieldConfigurationSections: 3,
+  hiddenDetailRows: 5,
+  relationshipFieldSummaries: 4,
+  schemaSections: 4,
+  vocabularyRows: 5,
+  vocabularyValues: 8,
+} as const;
+
+export const entryEditorDisplayLimits = {
+  detailSuggestions: mobileFeatureDisplayLimits.detailSuggestions,
+} as const;
+
 export const featureDisplayScalePolicy = {
   paginationOrVirtualizationThreshold: 200,
   renderedPerformanceReviewThreshold: 500,
@@ -60,6 +88,43 @@ export function formatLimitedTextList({
   return `${visibleValues.join(separator)}${
     hiddenCount > 0 ? `${separator}and ${hiddenCount} more` : ''
   }`;
+}
+
+export function formatExpansionControlLabel({
+  isExpanded,
+  hiddenCount,
+  pluralItemLabel,
+  singularItemLabel,
+}: {
+  isExpanded: boolean;
+  hiddenCount: number;
+  pluralItemLabel: string;
+  singularItemLabel?: string;
+}): string {
+  if (isExpanded) {
+    return `Show Fewer ${pluralItemLabel}`;
+  }
+  const safeHiddenCount = Math.max(0, hiddenCount);
+  const itemLabel =
+    safeHiddenCount === 1 && singularItemLabel
+      ? singularItemLabel
+      : pluralItemLabel;
+  return `Show ${safeHiddenCount} More ${itemLabel}`;
+}
+
+export function formatHiddenCountText({
+  hiddenCount,
+  pluralItemLabel,
+  singularItemLabel,
+}: {
+  hiddenCount: number;
+  pluralItemLabel: string;
+  singularItemLabel: string;
+}): string {
+  const safeHiddenCount = Math.max(0, hiddenCount);
+  return `${safeHiddenCount} more ${
+    safeHiddenCount === 1 ? singularItemLabel : pluralItemLabel
+  }.`;
 }
 
 export function pluralizeCountLabel(

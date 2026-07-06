@@ -6,7 +6,7 @@ routing, or recovery UI.
 ## Corrupt Saved Document
 
 1. Open the app in a local dev or production build.
-2. In browser devtools, set `localStorage["valgaron.worldDocument.v2"]` to
+2. In browser devtools, set `localStorage["valgaron.worldDocument.v3"]` to
    invalid JSON such as `{not valid json`.
 3. Refresh the app.
 4. Confirm the app loads starter data instead of a blank screen.

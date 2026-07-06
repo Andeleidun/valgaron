@@ -5,6 +5,7 @@ import {
   getDeviceCommitResolvedMessage,
   getDeviceCommitResultMessage,
   getDeviceSaveStatusModel,
+  getLocalSaveButtonModel,
   getLocalSaveStatusModel,
 } from './saveStatus';
 import { localPersistenceCopy } from './shell';
@@ -91,6 +92,23 @@ describe('save status models', () => {
         state: 'failed',
       }).label
     ).toBe('Save Failed');
+  });
+
+  it('builds shared browser manual save button labels', () => {
+    expect(getLocalSaveButtonModel({ state: 'saved' })).toEqual({
+      accessibilityLabel: 'Current progress is saved to localStorage',
+      disabled: true,
+      label: 'Saved',
+    });
+    expect(getLocalSaveButtonModel({ state: 'dirty' })).toEqual({
+      accessibilityLabel: 'Save current progress to localStorage',
+      disabled: false,
+      label: 'Save',
+    });
+    expect(getLocalSaveButtonModel({ state: 'failed' })).toMatchObject({
+      disabled: false,
+      label: 'Retry Save',
+    });
   });
 
   it('builds pending commit feedback only when a success message is expected', () => {

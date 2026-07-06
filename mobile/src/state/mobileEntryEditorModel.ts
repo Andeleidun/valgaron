@@ -1,5 +1,6 @@
 import {
   filterRelationshipTargetOptions,
+  entryEditorDisplayLimits,
   getDraftDetailFields,
   getEntryEditorDetailFieldGroups,
   getEntryHiddenDetailCleanupModel,
@@ -15,6 +16,7 @@ import {
   type WorldEntry,
   type WorldRelationship,
   type WorldSectionConfig,
+  type WorldWorkspaceSchema,
 } from '@valgaron/core';
 
 export type MobileLinkedFieldDisplayModel = {
@@ -57,6 +59,7 @@ export function getMobileEntryEditorModel({
   sectionEntries,
   sections = [],
   selectedEntry,
+  workspaceSchema,
 }: {
   codex?: WorldCodex;
   draft: EntryDraft;
@@ -68,8 +71,13 @@ export function getMobileEntryEditorModel({
   sectionEntries: readonly WorldEntry[];
   sections?: readonly WorldSectionConfig[];
   selectedEntry: WorldEntry | null;
+  workspaceSchema?: WorldWorkspaceSchema;
 }): MobileEntryEditorModel {
-  const visibleDetailFields = getDraftDetailFields(section, draft);
+  const visibleDetailFields = getDraftDetailFields(
+    section,
+    draft,
+    workspaceSchema
+  );
   const visibleFieldKeys = new Set(
     visibleDetailFields.map((field) => field.key)
   );
@@ -93,9 +101,14 @@ export function getMobileEntryEditorModel({
     fields: editableDetailFields,
     section,
     sectionEntries,
-    suggestionLimit: mobileFeatureDisplayLimits.detailSuggestions,
+    suggestionLimit: entryEditorDisplayLimits.detailSuggestions,
+    workspaceSchema,
   });
-  const hiddenDetailCleanup = getEntryHiddenDetailCleanupModel(section, draft);
+  const hiddenDetailCleanup = getEntryHiddenDetailCleanupModel(
+    section,
+    draft,
+    workspaceSchema
+  );
   const legacyRelationshipTextValues = activeRelationshipFieldConfigs
     .map((config) => ({
       config,

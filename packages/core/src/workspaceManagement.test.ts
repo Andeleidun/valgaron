@@ -12,7 +12,9 @@ import {
   duplicateWorkspace,
   emptyEntryTypeDraft,
   entryTypeDraftFields,
+  getEntryTypeDraftFieldLayout,
   getEntryTypeDraftFieldPreview,
+  getPlanetaryWorldDraftFieldLayout,
   getWorkspaceActionState,
   lastActiveWorkspaceArchiveMessage,
   moveCustomEntryTypeField,
@@ -23,12 +25,18 @@ import {
   planetaryWorldDraftFields,
   renameCustomEntryTypeField,
   removeCustomEntryTypeField,
+  addVocabularyValue,
+  moveVocabularyValue,
+  setVocabularyValueArchived,
+  updateVocabularyValue,
+  updateFieldOverride,
   setActiveWorkspace,
   setPlanetaryWorldArchived,
   setWorkspaceArchived,
   updateActiveWorkspace,
   updateWorkspaceMetadata,
   upsertPlanetaryWorld,
+  vocabularyValueDraftFrom,
   workspaceDraftFrom,
   workspaceDraftFields,
 } from './workspaceManagement';
@@ -217,6 +225,11 @@ describe('workspace management', () => {
       helperText:
         'Separate fields with semicolons or new lines. Add (long) for notes, (suggest) for values learned from entries, or [Value | Value] for fixed choices.',
     });
+    expect(getEntryTypeDraftFieldLayout()).toMatchObject({
+      fields: entryTypeDraftFields,
+      leadingFields: entryTypeDraftFields.slice(0, 2),
+      trailingFields: entryTypeDraftFields.slice(2),
+    });
   });
 
   it('normalizes workspace drafts with the same trimming used by persistence', () => {
@@ -324,6 +337,16 @@ describe('workspace management', () => {
         .filter((field) => field.multiline)
         .map((field) => field.key)
     ).toEqual(['summary', 'notes']);
+    expect(
+      getPlanetaryWorldDraftFieldLayout().leadingFields.map(
+        (field) => field.key
+      )
+    ).toEqual(['name', 'classification', 'climate', 'dominantTerrain']);
+    expect(
+      getPlanetaryWorldDraftFieldLayout().trailingFields.map(
+        (field) => field.key
+      )
+    ).toEqual(['summary', 'notes', 'tags']);
   });
 
   it('normalizes in-fiction world drafts with persisted tag formatting', () => {
@@ -880,22 +903,23 @@ describe('workspace management', () => {
 });
 
 describe('workspace document parsing', () => {
-  it('defaults legacy workspaces to active status and no planetary worlds', () => {
+  it('defaults current-schema workspaces with omitted optional status fields', () => {
     const document = createSeedWorldDocument();
-    const legacyWorkspace = getActiveWorld(document);
+    const workspace = getActiveWorld(document);
     const parsed = parseWorldDocument({
       ...document,
       worlds: [
         {
-          id: legacyWorkspace.id,
-          name: legacyWorkspace.name,
-          summary: legacyWorkspace.summary,
-          defaultEra: legacyWorkspace.defaultEra,
-          entryTypes: legacyWorkspace.entryTypes,
-          codex: legacyWorkspace.codex,
-          relationships: legacyWorkspace.relationships,
-          createdAt: legacyWorkspace.createdAt,
-          updatedAt: legacyWorkspace.updatedAt,
+          id: workspace.id,
+          name: workspace.name,
+          summary: workspace.summary,
+          defaultEra: workspace.defaultEra,
+          entryTypes: workspace.entryTypes,
+          schema: workspace.schema,
+          codex: workspace.codex,
+          relationships: workspace.relationships,
+          createdAt: workspace.createdAt,
+          updatedAt: workspace.updatedAt,
         },
       ],
     });
@@ -904,6 +928,276 @@ describe('workspace document parsing', () => {
     expect(getActiveWorld(parsed ?? document)).toMatchObject({
       status: 'active',
       planetaryWorlds: [],
+    });
+  });
+});
+
+describe('workspace vocabulary management', () => {
+  it('updates and clears durable field overrides', () => {
+    const world = getActiveWorld(createSeedWorldDocument());
+    const unchangedDefault = updateFieldOverride(world, 'characters', 'name', {
+      label: 'Name',
+      helpText: '',
+      hidden: false,
+      order: '',
+      vocabularyId: '',
+      vocabularyMode: 'suggestions',
+    });
+
+    expect(unchangedDefault).toBe(world);
+
+    const updated = updateFieldOverride(world, 'characters', 'ancestry', {
+      label: 'Lineage',
+      helpText: 'Use the vocabulary unless a new ancestry is needed.',
+      hidden: true,
+      order: '1',
+      vocabularyId: 'character-ancestry',
+      vocabularyMode: 'restricted',
+    });
+
+    expect(
+      updateFieldOverride(updated, 'characters', 'ancestry', {
+        label: 'Lineage',
+        helpText: 'Use the vocabulary unless a new ancestry is needed.',
+        hidden: true,
+        order: '1',
+        vocabularyId: 'character-ancestry',
+        vocabularyMode: 'restricted',
+      })
+    ).toBe(updated);
+
+    expect(updated.schema.fieldOverrides.characters.ancestry).toEqual({
+      label: 'Lineage',
+      helpText: 'Use the vocabulary unless a new ancestry is needed.',
+      hidden: true,
+      order: 1,
+      vocabularyId: 'character-ancestry',
+      vocabularyMode: 'restricted',
+    });
+
+    const cleared = updateFieldOverride(updated, 'characters', 'ancestry', {
+      label: 'Ancestry',
+      helpText: '',
+      hidden: false,
+      order: '',
+      vocabularyId: '',
+      vocabularyMode: 'suggestions',
+    });
+
+    expect(cleared.schema.fieldOverrides.characters.ancestry).toBeUndefined();
+  });
+
+  it('ignores invalid field override order text instead of coercing it', () => {
+    const world = getActiveWorld(createSeedWorldDocument());
+    const updated = updateFieldOverride(world, 'characters', 'ancestry', {
+      label: 'Lineage',
+      helpText: '',
+      hidden: false,
+      order: '2abc',
+      vocabularyId: '',
+      vocabularyMode: 'suggestions',
+    });
+
+    expect(updated.schema.fieldOverrides.characters.ancestry).toEqual({
+      label: 'Lineage',
+    });
+  });
+
+  it('adds, updates, archives, restores, and reorders vocabulary values', () => {
+    const document = createSeedWorldDocument();
+    const world = getActiveWorld(document);
+    const withAdded = addVocabularyValue(world, 'character-profession', {
+      label: 'Navigator',
+      description: 'Finds paths through difficult routes.',
+      aliases: 'Pathfinder, Route reader, pathfinder',
+    });
+    const addedVocabulary = withAdded.schema.vocabularies.find(
+      (vocabulary) => vocabulary.id === 'character-profession'
+    );
+    const addedValue = addedVocabulary?.values.find(
+      (value) => value.label === 'Navigator'
+    );
+
+    expect(addedValue).toMatchObject({
+      id: 'navigator',
+      description: 'Finds paths through difficult routes.',
+      aliases: ['Pathfinder', 'Route reader'],
+      status: 'active',
+    });
+
+    const duplicateBlocked = addVocabularyValue(
+      withAdded,
+      'character-profession',
+      {
+        label: 'navigator',
+        description: '',
+        aliases: '',
+      }
+    );
+    expect(
+      duplicateBlocked.schema.vocabularies.find(
+        (vocabulary) => vocabulary.id === 'character-profession'
+      )?.values.length
+    ).toBe(addedVocabulary?.values.length);
+
+    const withUpdated = updateVocabularyValue(
+      withAdded,
+      'character-profession',
+      addedValue!.id,
+      {
+        label: 'Navigator',
+        description: 'Charts routes for caravans and expeditions.',
+        aliases: 'Guide',
+      }
+    );
+    expect(
+      withUpdated.schema.vocabularies
+        .find((vocabulary) => vocabulary.id === 'character-profession')
+        ?.values.find((value) => value.id === addedValue!.id)
+    ).toMatchObject({
+      description: 'Charts routes for caravans and expeditions.',
+      aliases: ['Guide'],
+    });
+
+    const withArchived = setVocabularyValueArchived(
+      withUpdated,
+      'character-profession',
+      addedValue!.id,
+      true
+    );
+    expect(
+      withArchived.schema.vocabularies
+        .find((vocabulary) => vocabulary.id === 'character-profession')
+        ?.values.find((value) => value.id === addedValue!.id)?.status
+    ).toBe('archived');
+
+    const withRestored = addVocabularyValue(
+      withArchived,
+      'character-profession',
+      {
+        label: 'Navigator',
+        description: '',
+        aliases: '',
+      }
+    );
+    expect(
+      withRestored.schema.vocabularies
+        .find((vocabulary) => vocabulary.id === 'character-profession')
+        ?.values.find((value) => value.id === addedValue!.id)?.status
+    ).toBe('active');
+
+    const professionValuesBeforeMove =
+      withRestored.schema.vocabularies.find(
+        (vocabulary) => vocabulary.id === 'character-profession'
+      )?.values ?? [];
+    const firstProfession = [...professionValuesBeforeMove]
+      .filter((value) => value.status === 'active')
+      .sort(
+        (first, second) =>
+          (first.order ?? Number.MAX_SAFE_INTEGER) -
+            (second.order ?? Number.MAX_SAFE_INTEGER) ||
+          first.label.localeCompare(second.label)
+      )[0];
+    const movedDown = moveVocabularyValue(
+      withRestored,
+      'character-profession',
+      firstProfession!.id,
+      'down'
+    );
+    const professionValuesAfterMove =
+      movedDown.schema.vocabularies.find(
+        (vocabulary) => vocabulary.id === 'character-profession'
+      )?.values ?? [];
+    const activeLabelsAfterMove = [...professionValuesAfterMove]
+      .filter((value) => value.status === 'active')
+      .sort(
+        (first, second) =>
+          (first.order ?? Number.MAX_SAFE_INTEGER) -
+            (second.order ?? Number.MAX_SAFE_INTEGER) ||
+          first.label.localeCompare(second.label)
+      )
+      .map((value) => value.label);
+
+    expect(activeLabelsAfterMove[1]).toBe(firstProfession?.label);
+  });
+
+  it('does not update unchanged vocabulary values', () => {
+    const world = getActiveWorld(createSeedWorldDocument());
+
+    expect(
+      updateVocabularyValue(world, 'character-profession', 'mage', {
+        label: 'Mage',
+        description: '',
+        aliases: '',
+      })
+    ).toBe(world);
+  });
+
+  it('blocks active vocabulary labels that only differ by whitespace', () => {
+    const world = getActiveWorld(createSeedWorldDocument());
+    const paddedProfessionWorld = updateVocabularyValue(
+      world,
+      'character-profession',
+      'mage',
+      {
+        label: 'Mage ',
+        description: '',
+        aliases: '',
+      }
+    );
+    const duplicateBlocked = addVocabularyValue(
+      paddedProfessionWorld,
+      'character-profession',
+      {
+        label: ' Mage ',
+        description: '',
+        aliases: '',
+      }
+    );
+
+    expect(
+      duplicateBlocked.schema.vocabularies
+        .find((vocabulary) => vocabulary.id === 'character-profession')
+        ?.values.filter((value) => value.label.trim() === 'Mage')
+    ).toHaveLength(1);
+
+    const archivedPaddedProfessionWorld = setVocabularyValueArchived(
+      paddedProfessionWorld,
+      'character-profession',
+      'mage',
+      true
+    );
+    const restoredProfessionWorld = addVocabularyValue(
+      archivedPaddedProfessionWorld,
+      'character-profession',
+      {
+        label: ' Mage ',
+        description: '',
+        aliases: '',
+      }
+    );
+
+    expect(
+      restoredProfessionWorld.schema.vocabularies
+        .find((vocabulary) => vocabulary.id === 'character-profession')
+        ?.values.find((value) => value.id === 'mage')
+    ).toMatchObject({ label: 'Mage', status: 'active' });
+  });
+
+  it('builds vocabulary value drafts from saved values', () => {
+    expect(
+      vocabularyValueDraftFrom({
+        id: 'guide',
+        label: 'Guide',
+        description: 'Leads travelers.',
+        aliases: ['Pathfinder'],
+        status: 'active',
+        order: 1,
+      })
+    ).toEqual({
+      label: 'Guide',
+      description: 'Leads travelers.',
+      aliases: 'Pathfinder',
     });
   });
 });

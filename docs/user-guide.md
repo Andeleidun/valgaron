@@ -27,9 +27,9 @@ companion.
 4. Use Timeline to review chronology, eras, involved records, event order, and
    dense era groups.
 5. Use Knowledge, or the Project Tools area inside mobile More, to create
-   custom entry types and review expandable schema overviews, field behavior,
-   controlled values, observed flexible values, lore definition types, and
-   relationship-backed field rules.
+   custom entry types, configure field labels/help/visibility/order and
+   vocabulary behavior, search schema settings, review durable vocabulary rows,
+   lore definition types, and relationship-backed field rules.
 6. Use Project Tools shortcuts and Review Hotspots in Utilities or More to
    reach Data, Workspaces, focused Help, and existing cleanup surfaces without
    leaving the secondary tools hub. Workbench review hotspots open the relevant
@@ -68,17 +68,36 @@ Detail fields box accepts simple names such as `Origin` and richer field hints:
 use `Notes (long)` for multiline notes, `Profession (suggest)` for text values
 suggested from entries you have already created, and `Status [Dormant | Active]`
 for fixed suggested choices. The field preview shows how each field will be
-created before you save the custom entry type. Existing custom entry types can
-add more fields later, rename field labels, reorder fields, and remove fields
-from the visible schema. Knowledge and More also distinguish suggested choice
-sets from observed flexible values so fields such as ancestry and profession can
-stay lightweight until they need reusable structure. Removed-field values stay
-saved on existing entries as hidden details until you clear them from those
-entries. Knowledge on the web and More on mobile list hidden detail cleanup
-targets so you can review affected entries first or clear all hidden values
-after a recovery snapshot is created. Mobile More keeps the first schema scan
-compact, but expandable controls reveal additional entry types,
-relationship-backed fields, vocabulary rows, value lists, and cleanup rows.
+created before you save the custom entry type.
+
+Existing custom entry types can add more fields later, and Field Configuration
+can adjust built-in or custom field labels, help text, hidden state, display
+order, vocabulary attachment, and suggested or restricted vocabulary behavior
+without changing the saved field key. Field rows show whether they use default
+or custom settings and can be reset to defaults after experimentation. Search
+field settings by section, field name, key, vocabulary, mode, relationship type,
+or target section when a schema gets large.
+
+Knowledge on the web also manages durable workspace vocabulary values for
+fields such as character category, ancestry, profession, place category, faction
+influence, lore category, and timeline era. Vocabulary values can be added,
+edited, archived, restored, reordered, and searched from Knowledge on the web or
+from mobile More. Search checks labels, descriptions, and aliases. Restricted
+fields accept active vocabulary labels and active aliases, while editors can
+offer a canonical replacement action when an entered value matches an alias or
+different casing. Browser and mobile editors also show a compact set of visible
+suggestion actions for configured fields so common values can be applied
+without relying only on typed autocomplete, with a count when more suggestions
+are available and a reminder that you can type another value.
+
+Removed-field values stay saved on existing entries as hidden details until you
+clear them from those entries. Knowledge on the web and More on mobile list
+hidden detail cleanup targets with search so you can review affected entries
+first, clear one hidden value directly, or clear all hidden values after a
+recovery snapshot is created. Mobile More keeps the
+first schema scan compact, but expandable controls reveal additional entry
+types, relationship-backed fields, vocabulary rows, value lists, and cleanup
+rows.
 
 ## Character Drafting
 
@@ -88,9 +107,9 @@ deity, shapeshifter, collective, or succession persona.
 
 Use `ancestry` for humanoid race, species, people, lineage, or heritage
 concepts. Use `profession` for class, job, calling, trade, office, or
-adventuring-role concepts. Both fields are creator-defined text values with
-workspace-local suggestions from values already used in your current codex; the
-builder does not ship fixed ancestry or profession lists.
+adventuring-role concepts. Both fields use workspace-owned vocabulary
+suggestions that can be maintained, searched, restricted, and alias-matched from
+Knowledge or mobile More without turning the values into full codex records.
 
 Use relationship-backed character fields when a fact should be visible from
 both sides of the codex. Homes can link to places, affiliations can link to

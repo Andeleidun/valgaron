@@ -3,7 +3,7 @@ import * as core from './index';
 
 describe('core package exports', () => {
   it('exposes Valgaron codex contracts without source-app surfaces', () => {
-    expect(core.CURRENT_WORLD_SCHEMA_VERSION).toBe(2);
+    expect(core.CURRENT_WORLD_SCHEMA_VERSION).toBe(3);
     expect(core.worldSections.map((section) => section.id)).toEqual([
       'characters',
       'places',

@@ -23,6 +23,12 @@ export type LocalSaveStatusModel = {
   tone: SaveStatusTone;
 };
 
+export type LocalSaveButtonModel = {
+  accessibilityLabel: string;
+  disabled: boolean;
+  label: string;
+};
+
 export type DeviceCommitResultId =
   | 'entry-saved'
   | 'entry-updated'
@@ -155,4 +161,23 @@ export function getLocalSaveStatusModel({
         tone: 'danger',
       };
   }
+}
+
+export function getLocalSaveButtonModel({
+  state,
+  targetLabel = localPersistenceCopy.browserSaveTarget,
+}: {
+  state: LocalSaveStatusState;
+  targetLabel?: string;
+}): LocalSaveButtonModel {
+  const disabled = state === 'saved';
+  const label =
+    state === 'saved' ? 'Saved' : state === 'failed' ? 'Retry Save' : 'Save';
+  return {
+    accessibilityLabel: disabled
+      ? `Current progress is saved to ${targetLabel}`
+      : `Save current progress to ${targetLabel}`,
+    disabled,
+    label,
+  };
 }

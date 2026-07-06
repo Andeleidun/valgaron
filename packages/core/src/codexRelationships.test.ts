@@ -17,8 +17,12 @@ import {
   getRelationshipEntryContextRoute,
   getRelationshipEntryRoute,
   getRelationshipEntryRouteById,
+  getRelationshipFormHeaderModel,
+  getRelationshipGraphNodeResultSummary,
   getRelationshipListModel,
+  getRelationshipManagementAccessibilityLabel,
   getRelationshipManagementRoute,
+  getRelationshipPickerItemActionModel,
   getRelationshipStudioModeModel,
   getOrphanedEntries,
   getPlaceRelationshipGroups,
@@ -78,6 +82,8 @@ describe('codexRelationships', () => {
       clearEntryFilterLabel: 'Clear Entry Filter',
       clearSearchLabel: 'Clear Search',
       clearDraftLabel: 'Clear',
+      entryFilterLabel: 'Entry',
+      anyEntryLabel: 'Any entry',
       anySectionLabel: 'Any Section',
       allTagsLabel: 'All Tags',
       deleteLabel: 'Delete',
@@ -86,10 +92,15 @@ describe('codexRelationships', () => {
       noEntryPickerMatchesMessage: 'No entries match this picker search.',
       repairLabel: 'Repair',
       searchEntriesLabel: 'Search entries',
+      searchEntriesPlaceholder: 'Name, section, tag, or id',
       searchGraphRecordsLabel: 'Search graph records',
+      searchGraphRecordsPlaceholder: 'Name, section, tag, status, or id',
       searchRelationshipsLabel: 'Search relationships',
+      searchRelationshipsPlaceholder: 'Entry, type, note, or id',
       sourcePickerLabel: 'Source',
       targetPickerLabel: 'Target',
+      relationshipFiltersLabel: 'Relationship filters',
+      selectedGraphNodeRelationshipsLabel: 'Selected graph node relationships',
       healthSectionTitle: 'Relationship Health',
       diagnosticsTitle: 'Diagnostics',
       brokenReferencesLabel: 'Broken references',
@@ -105,12 +116,19 @@ describe('codexRelationships', () => {
       noConnectedGraphMatchesMessage:
         'No connected graph records match these filters.',
       savedSectionTitle: 'Saved Relationships',
+      selectedEntryKickerLabel: 'Relationships',
       selectedEntrySectionTitle: 'Linked Records',
       selectedEntryEmptyTitle: 'No relationships yet.',
       selectedEntryEmptyDetail:
         'Use the Relationships page to connect this record to the world.',
       graphViewTitle: 'Graph view',
       graphBrowserTitle: 'Graph Browser',
+      graphFiltersLabel: 'Graph filters',
+      graphSectionFilterLabel: 'Section',
+      graphTagFilterLabel: 'Tag',
+      graphNodesLabel: 'Graph nodes',
+      graphEdgesLabel: 'Graph edges',
+      graphNodeTagsLabel: 'Graph node tags',
       noGraphTitle: 'No graph yet.',
       noGraphDetail:
         'Graph rows appear once saved relationships have valid endpoints.',
@@ -126,7 +144,11 @@ describe('codexRelationships', () => {
       studioGraphLabel: 'Graph',
       studioLinksLabel: 'Links',
       studioBulkEditLabel: 'Bulk Edit',
+      studioModePickerAccessibilityLabel: 'Relationship Studio modes',
     });
+    expect(
+      getRelationshipManagementAccessibilityLabel({ name: 'Mira Rowan' })
+    ).toBe('Manage links for Mira Rowan');
   });
 
   it('builds relationship studio mode options with active and fallback states', () => {
@@ -134,6 +156,7 @@ describe('codexRelationships', () => {
       title: 'Relationship Studio',
       detail:
         'Audit graph health, browse connected records, compose ad hoc links, and prepare bulk cleanup.',
+      modePickerAccessibilityLabel: 'Relationship Studio modes',
       activeMode: {
         id: 'graph',
         label: 'Graph',
@@ -182,6 +205,43 @@ describe('codexRelationships', () => {
       note: '',
       status: 'draft',
     });
+  });
+
+  it('builds shared relationship picker row action labels', () => {
+    expect(
+      getRelationshipPickerItemActionModel({
+        label: 'Mira Rowan',
+      })
+    ).toEqual({
+      sourceAccessibilityLabel: 'Use Mira Rowan as relationship source',
+      sourceLabel: 'Source',
+      targetAccessibilityLabel: 'Use Mira Rowan as relationship target',
+      targetLabel: 'Target',
+    });
+  });
+
+  it('builds shared relationship form header labels', () => {
+    expect(getRelationshipFormHeaderModel(null)).toEqual({
+      kickerLabel: 'New link',
+      title: 'Relationship Form',
+      unsavedDraftLabel: 'Unsaved relationship draft.',
+      unsavedDraftPillLabel: 'Unsaved',
+    });
+    expect(
+      getRelationshipFormHeaderModel({
+        type: 'member of',
+      })
+    ).toEqual({
+      kickerLabel: 'Edit link',
+      title: 'Edit member of',
+      unsavedDraftLabel: 'Unsaved relationship draft.',
+      unsavedDraftPillLabel: 'Unsaved',
+    });
+    expect(
+      getRelationshipFormHeaderModel({
+        type: '   ',
+      }).title
+    ).toBe('Relationship Form');
   });
 
   it('builds shared entry edit routes for relationship entry targets', () => {
@@ -304,7 +364,13 @@ describe('codexRelationships', () => {
       label: 'Choose entry',
     });
     expect(model.selectedSourceEntry?.name).toBe('Mira Rowan');
+    expect(model.selectedSourceSummaryLabel).toBe(
+      'Source: Mira Rowan (Characters)'
+    );
     expect(model.selectedTargetEntry?.name).toBe('The Cartographers Guild');
+    expect(model.selectedTargetSummaryLabel).toBe(
+      'Target: The Cartographers Guild (Factions)'
+    );
     expect(model.selectedEntryFilter?.name).toBe('The Tide Calendar');
     expect(model.savedRelationshipTypes).toEqual([
       'caused by',
@@ -322,6 +388,17 @@ describe('codexRelationships', () => {
     expect(model.graphTagOptions).toEqual(
       expect.arrayContaining(['guild', 'harbor', 'maps'])
     );
+
+    expect(
+      getRelationshipEditorOptionsModel(world, {
+        sourceEntryId: 'missing-source',
+        targetEntryId: '',
+        type: '',
+        directional: false,
+        note: '',
+        status: 'draft',
+      }).selectedSourceSummaryLabel
+    ).toBe('Source: Missing entry');
   });
 
   it('converts a draft into a saved relationship', () => {
@@ -572,8 +649,15 @@ describe('codexRelationships', () => {
     ).toEqual({
       nodes: [
         {
+          contextRoute:
+            '/entries?sectionId=characters&entryId=character-mira-rowan&intent=context&query=Mira%20Rowan',
+          filterListAccessibilityLabel:
+            'Filter relationship list to Mira Rowan',
+          filterListLabel: 'Filter List',
           id: 'character-mira-rowan',
           name: 'Mira Rowan',
+          openEntryAccessibilityLabel: 'Review context for Mira Rowan',
+          openEntryLabel: 'Review Context',
           sectionId: 'characters',
           sectionTitle: 'Characters',
           status: 'draft',
@@ -583,8 +667,16 @@ describe('codexRelationships', () => {
           tags: ['surveyor', 'routes', 'maps'],
         },
         {
+          contextRoute:
+            '/entries?sectionId=factions&entryId=faction-cartographers-guild&intent=context&query=The%20Cartographers%20Guild',
+          filterListAccessibilityLabel:
+            'Filter relationship list to The Cartographers Guild',
+          filterListLabel: 'Filter List',
           id: 'faction-cartographers-guild',
           name: 'The Cartographers Guild',
+          openEntryAccessibilityLabel:
+            'Review context for The Cartographers Guild',
+          openEntryLabel: 'Review Context',
           sectionId: 'factions',
           sectionTitle: 'Factions',
           status: 'draft',
@@ -680,16 +772,48 @@ describe('codexRelationships', () => {
       })
     ).toEqual([
       expect.objectContaining({
+        deleteAccessibilityHint:
+          'Deletes this relationship after confirmation.',
+        deleteAccessibilityLabel:
+          'Delete member of relationship between Mira Rowan and The Cartographers Guild',
+        deleteLabel: 'Delete',
+        editAccessibilityLabel:
+          'Edit member of relationship between Mira Rowan and The Cartographers Guild',
+        editLabel: 'Edit',
         id: 'relationship-mira-cartographers-guild',
+        openSourceAccessibilityLabel: 'Open source entry Mira Rowan',
+        openSourceLabel: 'Open Source',
+        openTargetAccessibilityLabel:
+          'Open target entry The Cartographers Guild',
+        openTargetLabel: 'Open Target',
+        sourceContextRoute:
+          '/entries?sectionId=characters&entryId=character-mira-rowan&intent=context&query=Mira%20Rowan',
         sourceName: 'Mira Rowan',
         sourceSectionTitle: 'Characters',
         statusLabel: 'Canon',
+        targetContextRoute:
+          '/entries?sectionId=factions&entryId=faction-cartographers-guild&intent=context&query=The%20Cartographers%20Guild',
         targetName: 'The Cartographers Guild',
         targetSectionTitle: 'Factions',
         type: 'member of',
         directionLabel: '->',
+        directionStatusLabel: 'Directional - Canon',
       }),
     ]);
+    const mutualWorld = {
+      ...world,
+      relationships: [
+        {
+          ...world.relationships[0],
+          id: 'relationship-mutual-member',
+          directional: false,
+        },
+      ],
+    };
+    expect(getRelationshipListModel(mutualWorld)[0]).toMatchObject({
+      directionLabel: '<->',
+      directionStatusLabel: 'Mutual - Canon',
+    });
     expect(
       getRelationshipListModel(world, {
         entryId: 'lore-tide-calendar',
@@ -726,6 +850,8 @@ describe('codexRelationships', () => {
       getEntryRelationshipSummaryModel(world, 'character-mira-rowan')[0]
     ).toMatchObject({
       directionLabel: 'To',
+      openEntryAccessibilityLabel: 'Review context for The Cartographers Guild',
+      openEntryLabel: 'Review Context',
       relatedEntryId: 'faction-cartographers-guild',
       relatedEntryName: 'The Cartographers Guild',
       relatedSectionId: 'factions',
@@ -968,15 +1094,34 @@ describe('codexRelationships', () => {
     });
     expect(diagnostics.brokenRelationships).toEqual([
       expect.objectContaining({
+        deleteAccessibilityHint:
+          'Deletes this broken relationship after confirmation.',
+        deleteAccessibilityLabel: 'Delete broken member of relationship',
+        endpointStatusLabel: 'Missing source',
         id: 'relationship-broken-source',
         missingSource: true,
         missingTarget: false,
+        repairAccessibilityLabel: 'Repair member of relationship',
+        sourceLineLabel: 'Missing source: missing-character',
         sourceName: 'missing-character',
+        targetLineLabel: 'Target: The Cartographers Guild',
       }),
     ]);
-    expect(diagnostics.orphanedEntries.map((entry) => entry.name)).toEqual([
-      'Northwatch Harbor',
-      'The Ember Court',
+    expect(diagnostics.orphanedEntries).toEqual([
+      expect.objectContaining({
+        manageLinksAccessibilityLabel: 'Link Northwatch Harbor',
+        manageLinksLabel: 'Manage Links',
+        managementRoute:
+          '/relationships?entryId=place-northwatch-harbor&entryQuery=Northwatch%20Harbor&relationshipQuery=Northwatch%20Harbor',
+        name: 'Northwatch Harbor',
+      }),
+      expect.objectContaining({
+        manageLinksAccessibilityLabel: 'Link The Ember Court',
+        manageLinksLabel: 'Manage Links',
+        managementRoute:
+          '/relationships?entryId=faction-ember-court&entryQuery=The%20Ember%20Court&relationshipQuery=The%20Ember%20Court',
+        name: 'The Ember Court',
+      }),
     ]);
   });
 
@@ -1017,6 +1162,12 @@ describe('codexRelationships', () => {
         },
       ],
     });
+    expect(review.duplicateRelationshipGroupCountLabel).toBe(
+      '0 duplicate groups'
+    );
+    expect(review.duplicateRelationshipCleanupSummary).toBe(
+      'Remove 0 duplicate groups while keeping the oldest relationship in each group.'
+    );
     expect(review.legacyTextExactItemCount).toBeGreaterThan(0);
     expect(review.legacyTextItems).toEqual(
       expect.arrayContaining([
@@ -1057,6 +1208,7 @@ describe('codexRelationships', () => {
         retainedRelationshipId: olderOriginal.id,
         duplicateRelationshipIds: ['relationship-duplicate-member'],
         duplicateCount: 1,
+        removalSummaryLabel: `Keeps ${olderOriginal.id}; removes 1 duplicate.`,
         sourceName: 'Mira Rowan',
         targetName: 'The Cartographers Guild',
         type: 'member of',
@@ -1088,7 +1240,14 @@ describe('codexRelationships', () => {
     ).toMatchObject({
       nodes: [
         {
+          contextRoute:
+            '/entries?sectionId=characters&entryId=character-mira-rowan&intent=context&query=Mira%20Rowan',
+          filterListAccessibilityLabel:
+            'Filter relationship list to Mira Rowan',
+          filterListLabel: 'Filter List',
           id: 'character-mira-rowan',
+          openEntryAccessibilityLabel: 'Review context for Mira Rowan',
+          openEntryLabel: 'Review Context',
           sectionId: 'characters',
         },
         {
@@ -1127,6 +1286,19 @@ describe('codexRelationships', () => {
     });
 
     expect(graph.nodes.map((node) => node.name)).toContain('Mira Rowan');
+    expect(graph.connectedRecordCountLabel).toBe('2 connected records');
+    expect(graph.visibleRelationshipLinkCountLabel).toBe(
+      '1 visible relationship link'
+    );
+    expect(graph.summaryLabel).toBe(
+      '2 connected records and 1 visible relationship link.'
+    );
+    expect(
+      getRelationshipGraphNodeResultSummary({
+        matchedCount: 1,
+        totalCount: graph.nodes.length,
+      })
+    ).toBe('Showing 1 of 2 connected records.');
     expect(graph.nodes).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
@@ -1139,6 +1311,9 @@ describe('codexRelationships', () => {
     );
     expect(graph.edges).toEqual([
       expect.objectContaining({
+        editAccessibilityLabel:
+          'Edit member of relationship between Mira Rowan and The Cartographers Guild',
+        editLabel: 'Edit',
         id: 'relationship-mira-cartographers-guild',
         label: 'member of',
         sourceName: 'Mira Rowan',

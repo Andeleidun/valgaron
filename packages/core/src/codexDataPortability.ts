@@ -162,6 +162,64 @@ function validateWorldDocumentForImport(
     if (duplicateSectionId) {
       return `Import contains duplicate section id "${duplicateSectionId}".`;
     }
+    const sectionById = new Map(
+      world.entryTypes.map((section) => [section.id, section])
+    );
+    const duplicateVocabularyId = findDuplicate(
+      world.schema.vocabularies.map((vocabulary) => vocabulary.id)
+    );
+    if (duplicateVocabularyId) {
+      return `Import contains duplicate vocabulary id "${duplicateVocabularyId}".`;
+    }
+    const vocabularyIds = new Set(
+      world.schema.vocabularies.map((vocabulary) => vocabulary.id)
+    );
+    for (const vocabulary of world.schema.vocabularies) {
+      const duplicateVocabularyValueId = findDuplicate(
+        vocabulary.values.map((value) => value.id)
+      );
+      if (duplicateVocabularyValueId) {
+        return `Import contains duplicate vocabulary value id "${duplicateVocabularyValueId}".`;
+      }
+      const blankVocabularyLabel = vocabulary.values.find(
+        (value) => !value.label.trim()
+      );
+      if (blankVocabularyLabel) {
+        return `Import contains blank vocabulary value label in "${vocabulary.name}".`;
+      }
+      const activeLabels = vocabulary.values
+        .filter((value) => value.status === 'active')
+        .map((value) => value.label.trim().toLowerCase());
+      const duplicateActiveLabel = findDuplicate(activeLabels);
+      if (duplicateActiveLabel) {
+        return `Import contains duplicate active vocabulary value "${duplicateActiveLabel}".`;
+      }
+    }
+    for (const [sectionId, fieldOverrides] of Object.entries(
+      world.schema.fieldOverrides
+    )) {
+      const section = sectionById.get(sectionId);
+      if (!section) {
+        return `Import contains field settings for missing section "${sectionId}".`;
+      }
+      const fieldKeys = new Set(section.detailFields.map((field) => field.key));
+      for (const [fieldKey, override] of Object.entries(fieldOverrides)) {
+        if (!fieldKeys.has(fieldKey)) {
+          return `Import contains field settings for missing field "${fieldKey}" in "${section.title}".`;
+        }
+        if (
+          override.vocabularyId &&
+          !vocabularyIds.has(override.vocabularyId)
+        ) {
+          return `Import contains field "${fieldKey}" settings that reference missing vocabulary "${override.vocabularyId}".`;
+        }
+      }
+    }
+    for (const candidate of world.schema.ignoredVocabularyCandidates) {
+      if (!vocabularyIds.has(candidate.vocabularyId)) {
+        return `Import contains ignored vocabulary candidate for missing vocabulary "${candidate.vocabularyId}".`;
+      }
+    }
     const entryIds = world.entryTypes.flatMap((section) =>
       getEntries(world.codex, section.id).map((entry) => entry.id)
     );
@@ -310,6 +368,29 @@ function markdownList(items: readonly string[]): string {
   return items.length > 0 ? items.map((item) => `- ${item}`).join('\n') : '-';
 }
 
+function vocabularyToMarkdown(
+  vocabulary: WorldWorkspace['schema']['vocabularies'][number]
+): string {
+  const activeValues = vocabulary.values
+    .filter((value) => value.status === 'active')
+    .sort(
+      (first, second) =>
+        (first.order ?? Number.MAX_SAFE_INTEGER) -
+          (second.order ?? Number.MAX_SAFE_INTEGER) ||
+        first.label.localeCompare(second.label)
+    )
+    .map((value) => {
+      const detail = [
+        value.description,
+        value.aliases.length > 0 ? `Aliases: ${value.aliases.join(', ')}` : '',
+      ]
+        .filter(Boolean)
+        .join(' ');
+      return detail ? `${value.label} - ${detail}` : value.label;
+    });
+  return [`### ${vocabulary.name}`, '', markdownList(activeValues)].join('\n');
+}
+
 function entryToMarkdown(entry: WorldEntry): string {
   const details = Object.entries(entry.fields)
     .filter(([, value]) => value.trim())
@@ -364,6 +445,7 @@ export function exportWorldToMarkdown(world: WorldWorkspace): string {
         relationship.targetEntryId
       }${relationship.note ? `: ${relationship.note}` : ''}`
   );
+  const vocabularies = world.schema.vocabularies.map(vocabularyToMarkdown);
   return [
     `# ${world.name}`,
     '',
@@ -377,6 +459,10 @@ export function exportWorldToMarkdown(world: WorldWorkspace): string {
     '## Relationships',
     '',
     markdownList(relationships),
+    '',
+    '## Vocabularies',
+    '',
+    vocabularies.length > 0 ? vocabularies.join('\n\n') : 'No vocabularies.',
     '',
   ].join('\n');
 }

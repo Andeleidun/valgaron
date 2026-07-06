@@ -10,17 +10,21 @@ import {
   entryNameCopyFeedback,
   entryFromDraft,
   entryMatchesFilters,
+  getEntryCardDetailPreviewModel,
   getEntryDetailFieldSuggestions,
   getEntryDetailDisplayModel,
+  getEntryEditorBaseFieldLayout,
   getEntryEditorBaseFields,
   getEntryEditorDetailFieldGroups,
   getEntryEditorCreateTitle,
   getEntryEditorDetailFieldModels,
+  getEntryEditorHiddenSuggestionLabel,
   getEntryEditorNewTitle,
   getEntryEditorNotesPreviewModel,
   getEntryEditorSelectedActionModel,
   getEntryHiddenDetailCleanupModel,
   getEntryEditorSubmitLabel,
+  getEntryEditorTitle,
   getEntryNameCopiedMessage,
   getEntryNameCopyText,
   getEntryStatusLabel,
@@ -30,7 +34,9 @@ import {
   setEntryArchived,
   type EntryDraft,
 } from './codexEntries';
-import { createSeedCodex } from './seedCodex';
+import { createSeedCodex, createSeedWorldDocument } from './seedCodex';
+import { addVocabularyValue } from './workspaceManagement';
+import { getActiveWorld, updateActiveWorld } from './worldDocument';
 
 describe('codex entry helpers', () => {
   it('normalizes comma-separated tags without empty values', () => {
@@ -94,6 +100,12 @@ describe('codex entry helpers', () => {
 
     expect(getEntryEditorCreateTitle(section)).toBe('Create Character');
     expect(getEntryEditorNewTitle(section)).toBe('New Character');
+    expect(getEntryEditorTitle({ section, selectedEntry: null })).toBe(
+      'New Character'
+    );
+    expect(
+      getEntryEditorTitle({ section, selectedEntry: codex.characters[0] })
+    ).toBe('Edit Mira Rowan');
     expect(
       getEntryEditorSubmitLabel({
         section,
@@ -190,6 +202,45 @@ describe('codex entry helpers', () => {
     });
   });
 
+  it('builds shared entry editor base field layout for normal and timeline entries', () => {
+    const placeSection = getSectionById('places');
+    const timelineSection = getSectionById('timeline');
+    const draft: EntryDraft = {
+      name: 'Greywater',
+      summary: 'A marsh city.',
+      notes: 'Draft notes.',
+      tags: 'marsh, city',
+      status: 'draft',
+      pinned: false,
+      details: {},
+    };
+
+    if (!placeSection || !timelineSection) {
+      throw new Error('Expected seed section configs.');
+    }
+
+    expect(
+      getEntryEditorBaseFieldLayout(placeSection, draft).leadingFields.map(
+        (field) => field.key
+      )
+    ).toEqual(['name', 'summary', 'notes']);
+    expect(
+      getEntryEditorBaseFieldLayout(placeSection, draft).trailingFields.map(
+        (field) => field.key
+      )
+    ).toEqual(['tags']);
+    expect(
+      getEntryEditorBaseFieldLayout(timelineSection, draft).leadingFields.map(
+        (field) => field.key
+      )
+    ).toEqual(['name', 'summary']);
+    expect(
+      getEntryEditorBaseFieldLayout(timelineSection, draft).trailingFields.map(
+        (field) => field.key
+      )
+    ).toEqual(['tags']);
+  });
+
   it('builds shared entry editor detail fields and cleanup actions', () => {
     const section = getSectionById('places');
     const codex = createSeedCodex();
@@ -214,8 +265,18 @@ describe('codex entry helpers', () => {
     const fieldModels = getEntryEditorDetailFieldModels({
       draft,
       fields: section.detailFields,
+      sectionId: section.id,
       sectionEntries: codex.places,
       suggestionLimit: 2,
+      workspaceSchema: {
+        vocabularies: [],
+        fieldOverrides: {
+          places: {
+            region: { helpText: 'Use the map region name.' },
+          },
+        },
+        ignoredVocabularyCandidates: [],
+      },
     });
 
     expect(fieldModels).toEqual(
@@ -228,7 +289,12 @@ describe('codex entry helpers', () => {
           value: 'City',
         }),
         expect.objectContaining({
+          helpText: 'Use the map region name.',
+          key: 'region',
+        }),
+        expect.objectContaining({
           key: 'significance',
+          helpText: '',
           label: 'Significance',
           multiline: true,
           rows: 3,
@@ -238,6 +304,25 @@ describe('codex entry helpers', () => {
     expect(
       fieldModels.find((field) => field.key === 'category')?.suggestions.length
     ).toBeLessThanOrEqual(2);
+    expect(
+      fieldModels.find((field) => field.key === 'category')?.suggestionActions
+    ).toEqual(
+      fieldModels
+        .find((field) => field.key === 'category')
+        ?.suggestions.map((suggestion) => ({
+          accessibilityLabel: `Use ${suggestion} for Place category`,
+          label: suggestion,
+          value: suggestion,
+        }))
+    );
+    expect(
+      fieldModels.find((field) => field.key === 'category')
+        ?.hiddenSuggestionCount
+    ).toBeGreaterThan(0);
+    expect(
+      fieldModels.find((field) => field.key === 'category')
+        ?.hiddenSuggestionLabel
+    ).toContain('Type to use another value.');
     expect(getEntryHiddenDetailCleanupModel(section, draft)).toEqual({
       title: 'Hidden details',
       fields: [
@@ -249,6 +334,16 @@ describe('codex entry helpers', () => {
         },
       ],
     });
+  });
+
+  it('formats hidden suggestion labels with an action cue', () => {
+    expect(getEntryEditorHiddenSuggestionLabel(0)).toBe('');
+    expect(getEntryEditorHiddenSuggestionLabel(1)).toBe(
+      '1 more suggestion available. Type to use another value.'
+    );
+    expect(getEntryEditorHiddenSuggestionLabel(2)).toBe(
+      '2 more suggestions available. Type to use another value.'
+    );
   });
 
   it('groups character detail fields by logical profile for editor rendering', () => {
@@ -390,7 +485,16 @@ describe('codex entry helpers', () => {
       },
     };
 
-    const model = getEntryDetailDisplayModel(section, entry);
+    const model = getEntryDetailDisplayModel(section, entry, {
+      vocabularies: [],
+      fieldOverrides: {
+        places: {
+          category: { label: 'Place type', order: 1 },
+          population: { hidden: true, order: 2 },
+        },
+      },
+      ignoredVocabularyCandidates: [],
+    });
 
     expect(model).toMatchObject({
       kicker: 'Place detail',
@@ -404,10 +508,7 @@ describe('codex entry helpers', () => {
       created: { label: 'Created' },
     });
     expect(model.visibleDetails).toEqual(
-      expect.arrayContaining([
-        { label: 'Place category', value: 'City' },
-        { label: 'Population', value: '12,000' },
-      ])
+      expect.arrayContaining([{ label: 'Place type', value: 'City' }])
     );
     expect(model.hiddenDetails).toEqual([
       {
@@ -415,7 +516,26 @@ describe('codex entry helpers', () => {
         label: 'Hidden Planning Note',
         value: 'Keep this after category changes.',
       },
+      {
+        key: 'population',
+        label: 'Population',
+        value: '12,000',
+      },
     ]);
+  });
+
+  it('builds compact entry card detail previews', () => {
+    const section = getSectionById('characters');
+    const entry = createSeedCodex().characters[0];
+
+    if (!section) {
+      throw new Error('Expected character section seed config.');
+    }
+
+    const preview = getEntryCardDetailPreviewModel(section, entry);
+
+    expect(preview.visibleValueCount).toBeLessThanOrEqual(2);
+    expect(preview.text).toContain('Humanoid person');
   });
 
   it('builds detail field suggestions from configured options and existing entries', () => {
@@ -425,18 +545,97 @@ describe('codex entry helpers', () => {
       throw new Error('Expected place section seed config.');
     }
 
-    const categorySuggestions = getEntryDetailFieldSuggestions(
-      section.detailFields,
-      codex.places
-    ).category;
+    const categorySuggestions = getEntryDetailFieldSuggestions({
+      entries: codex.places,
+      fields: section.detailFields,
+    }).category;
 
-    expect(categorySuggestions).toContain('Forest');
-    expect(categorySuggestions).toContain('Town');
-    expect(categorySuggestions).toContain('Planet');
-    expect(categorySuggestions).toEqual([...categorySuggestions].sort());
+    expect(categorySuggestions).toEqual(
+      expect.arrayContaining(['Forest', 'Town', 'Planet'])
+    );
+    expect(categorySuggestions.indexOf('Town')).toBeLessThan(
+      categorySuggestions.indexOf('Forest')
+    );
     expect(
-      getEntryDetailFieldSuggestions([{ key: 'region' }], codex.places).region
+      getEntryDetailFieldSuggestions({
+        entries: codex.places,
+        fields: [{ key: 'region' }],
+      }).region
     ).toEqual([]);
+  });
+
+  it('builds detail field suggestions from workspace vocabularies', () => {
+    const document = updateActiveWorld(createSeedWorldDocument(), (workspace) =>
+      addVocabularyValue(workspace, 'character-profession', {
+        label: 'Navigator',
+        description: '',
+        aliases: 'Pathfinder',
+      })
+    );
+    const world = getActiveWorld(document);
+    const section = getSectionById('characters', world.entryTypes);
+    if (!section) {
+      throw new Error('Expected character section seed config.');
+    }
+
+    const profession = getEntryEditorDetailFieldModels({
+      draft: draftFromEntry(world.codex.characters[0], section),
+      fields: section.detailFields,
+      sectionEntries: world.codex.characters,
+      sectionId: section.id,
+      workspaceSchema: world.schema,
+    }).find((field) => field.key === 'profession');
+    if (!profession) {
+      throw new Error('Expected profession field model.');
+    }
+
+    expect(profession.suggestions).toEqual(
+      expect.arrayContaining(['Navigator', 'Quartermaster'])
+    );
+    expect(profession.suggestions).not.toContain('Surveyor');
+    expect(profession.suggestions.indexOf('Quartermaster')).toBeLessThan(
+      profession.suggestions.indexOf('Navigator')
+    );
+
+    const aliasProfession = getEntryEditorDetailFieldModels({
+      draft: {
+        ...draftFromEntry(world.codex.characters[0], section),
+        details: {
+          ...world.codex.characters[0].fields,
+          profession: 'Pathfinder',
+        },
+      },
+      fields: section.detailFields,
+      sectionEntries: world.codex.characters,
+      sectionId: section.id,
+      workspaceSchema: world.schema,
+    }).find((field) => field.key === 'profession');
+    const casedProfession = getEntryEditorDetailFieldModels({
+      draft: {
+        ...draftFromEntry(world.codex.characters[0], section),
+        details: {
+          ...world.codex.characters[0].fields,
+          profession: 'navigator',
+        },
+      },
+      fields: section.detailFields,
+      sectionEntries: world.codex.characters,
+      sectionId: section.id,
+      workspaceSchema: world.schema,
+    }).find((field) => field.key === 'profession');
+
+    expect(aliasProfession?.canonicalReplacement).toEqual({
+      accessibilityLabel: 'Use Navigator for Profession',
+      label: 'Use Navigator',
+      value: 'Navigator',
+    });
+    expect(aliasProfession?.suggestions).not.toContain('Navigator');
+    expect(casedProfession?.canonicalReplacement).toEqual({
+      accessibilityLabel: 'Use Navigator for Profession',
+      label: 'Use Navigator',
+      value: 'Navigator',
+    });
+    expect(casedProfession?.suggestions).not.toContain('Navigator');
   });
 
   it('creates a trimmed character entry from a draft', () => {

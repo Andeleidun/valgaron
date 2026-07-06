@@ -52,13 +52,17 @@ export const relationshipFeatureCopy = {
   studioLinksDetail: 'Search, edit, delete, or compose saved relationships.',
   studioBulkEditLabel: 'Bulk Edit',
   studioBulkEditDetail: 'Prepare larger relationship cleanup passes.',
+  studioModePickerAccessibilityLabel: 'Relationship Studio modes',
   clearFiltersLabel: 'Clear Filters',
   clearGraphFiltersLabel: 'Clear Graph Filters',
   savedSectionTitle: 'Saved Relationships',
+  selectedEntryKickerLabel: 'Relationships',
   selectedEntrySectionTitle: 'Linked Records',
   selectedEntryEmptyTitle: 'No relationships yet.',
   selectedEntryEmptyDetail:
     'Use the Relationships page to connect this record to the world.',
+  relationshipFiltersLabel: 'Relationship filters',
+  selectedGraphNodeRelationshipsLabel: 'Selected graph node relationships',
   manageLinksLabel: 'Manage Links',
   helpLabel: 'Relationship Help',
   healthSectionTitle: 'Relationship Health',
@@ -81,6 +85,12 @@ export const relationshipFeatureCopy = {
   noOrphanedRecordsMessage: 'Every relationship-capable record is connected.',
   graphViewTitle: 'Graph view',
   graphBrowserTitle: 'Graph Browser',
+  graphFiltersLabel: 'Graph filters',
+  graphSectionFilterLabel: 'Section',
+  graphTagFilterLabel: 'Tag',
+  graphNodesLabel: 'Graph nodes',
+  graphEdgesLabel: 'Graph edges',
+  graphNodeTagsLabel: 'Graph node tags',
   noGraphTitle: 'No graph yet.',
   noGraphDetail:
     'Graph rows appear once saved relationships have valid endpoints.',
@@ -100,6 +110,8 @@ export const relationshipFeatureCopy = {
   clearEntryFilterLabel: 'Clear Entry Filter',
   clearSearchLabel: 'Clear Search',
   clearDraftLabel: 'Clear',
+  entryFilterLabel: 'Entry',
+  anyEntryLabel: 'Any entry',
   anySectionLabel: 'Any Section',
   allTagsLabel: 'All Tags',
   deleteLabel: 'Delete',
@@ -108,8 +120,11 @@ export const relationshipFeatureCopy = {
   noEntryPickerMatchesMessage: 'No entries match this picker search.',
   repairLabel: 'Repair',
   searchEntriesLabel: 'Search entries',
+  searchEntriesPlaceholder: 'Name, section, tag, or id',
   searchGraphRecordsLabel: 'Search graph records',
+  searchGraphRecordsPlaceholder: 'Name, section, tag, status, or id',
   searchRelationshipsLabel: 'Search relationships',
+  searchRelationshipsPlaceholder: 'Entry, type, note, or id',
   sourcePickerLabel: 'Source',
   targetPickerLabel: 'Target',
   unsavedDraftMessage: 'Unsaved relationship draft.',
@@ -118,6 +133,51 @@ export const relationshipFeatureCopy = {
   emptyTitle: 'No relationships yet.',
   emptyDetail: 'Add a link to start building the world graph.',
 } as const;
+
+export function getRelationshipManagementAccessibilityLabel(
+  entry: Pick<WorldEntry, 'name'>
+): string {
+  return `Manage links for ${entry.name}`;
+}
+
+export type RelationshipPickerItemActionModel = {
+  sourceAccessibilityLabel: string;
+  sourceLabel: string;
+  targetAccessibilityLabel: string;
+  targetLabel: string;
+};
+
+export function getRelationshipPickerItemActionModel(entry: {
+  label: string;
+}): RelationshipPickerItemActionModel {
+  return {
+    sourceAccessibilityLabel: `Use ${entry.label} as relationship source`,
+    sourceLabel: relationshipFeatureCopy.sourcePickerLabel,
+    targetAccessibilityLabel: `Use ${entry.label} as relationship target`,
+    targetLabel: relationshipFeatureCopy.targetPickerLabel,
+  };
+}
+
+export type RelationshipFormHeaderModel = {
+  kickerLabel: string;
+  title: string;
+  unsavedDraftLabel: string;
+  unsavedDraftPillLabel: string;
+};
+
+export function getRelationshipFormHeaderModel(
+  editingRelationship: Pick<WorldRelationship, 'type'> | null
+): RelationshipFormHeaderModel {
+  const relationshipType = editingRelationship?.type.trim();
+  return {
+    kickerLabel: editingRelationship ? 'Edit link' : 'New link',
+    title: relationshipType
+      ? `Edit ${relationshipType}`
+      : relationshipFeatureCopy.relationshipFormTitle,
+    unsavedDraftLabel: relationshipFeatureCopy.unsavedDraftMessage,
+    unsavedDraftPillLabel: 'Unsaved',
+  };
+}
 
 export type RelationshipStudioModeId =
   | 'review'
@@ -135,6 +195,7 @@ export type RelationshipStudioModeOption = {
 export type RelationshipStudioModeModel = {
   title: string;
   detail: string;
+  modePickerAccessibilityLabel: string;
   activeMode: RelationshipStudioModeOption;
   modes: readonly RelationshipStudioModeOption[];
 };
@@ -187,6 +248,8 @@ export function getRelationshipStudioModeModel(
   return {
     title: relationshipFeatureCopy.studioTitle,
     detail: relationshipFeatureCopy.studioDetail,
+    modePickerAccessibilityLabel:
+      relationshipFeatureCopy.studioModePickerAccessibilityLabel,
     activeMode: modes.find((mode) => mode.id === normalizedMode) ?? modes[0],
     modes,
   };
@@ -249,8 +312,13 @@ export type CharacterRelationshipGroup = {
 };
 
 export type RelationshipGraphNode = {
+  contextRoute: string;
+  filterListAccessibilityLabel: string;
+  filterListLabel: string;
   id: string;
   name: string;
+  openEntryAccessibilityLabel: string;
+  openEntryLabel: string;
   sectionId: string;
   sectionTitle: string;
   status: WorldEntryStatus;
@@ -273,6 +341,8 @@ export type RelationshipGraph = {
 };
 
 export type RelationshipGraphViewEdge = {
+  editAccessibilityLabel: string;
+  editLabel: string;
   id: string;
   label: string;
   sourceId: string;
@@ -285,22 +355,37 @@ export type RelationshipGraphViewEdge = {
 export type RelationshipGraphViewModel = {
   nodes: RelationshipGraphNode[];
   edges: RelationshipGraphViewEdge[];
+  connectedRecordCountLabel: string;
+  summaryLabel: string;
+  visibleRelationshipLinkCountLabel: string;
 };
 
 export type RelationshipListItem = {
+  deleteAccessibilityHint: string;
+  deleteAccessibilityLabel: string;
+  deleteLabel: string;
+  editAccessibilityLabel: string;
+  editLabel: string;
   id: string;
+  openSourceAccessibilityLabel: string;
+  openSourceLabel: string;
+  openTargetAccessibilityLabel: string;
+  openTargetLabel: string;
   type: string;
   status: WorldEntryStatus;
   statusLabel: string;
+  sourceContextRoute: string;
   sourceEntryId: string;
   sourceSectionId: string;
   sourceSectionTitle: string;
   sourceName: string;
+  targetContextRoute: string;
   targetEntryId: string;
   targetSectionId: string;
   targetSectionTitle: string;
   targetName: string;
   directionLabel: '->' | '<->';
+  directionStatusLabel: string;
   note: string;
 };
 
@@ -337,7 +422,9 @@ export type RelationshipEditorOptionsModel = {
   entryOptions: RelationshipSelectOption[];
   selectedEntryFilter: RelationshipGraphNode | null;
   selectedSourceEntry: RelationshipGraphNode | null;
+  selectedSourceSummaryLabel: string | null;
   selectedTargetEntry: RelationshipGraphNode | null;
+  selectedTargetSummaryLabel: string | null;
   savedRelationshipTypes: string[];
   relationshipTypeSuggestions: string[];
   relationshipTypeFilterOptions: RelationshipSelectOption[];
@@ -349,14 +436,24 @@ export type BrokenRelationship = RelationshipWithEntries & {
   missingTarget: boolean;
 };
 
-export type OrphanedEntry = RelationshipGraphNode;
+export type OrphanedEntry = RelationshipGraphNode & {
+  manageLinksAccessibilityLabel: string;
+  manageLinksLabel: string;
+  managementRoute: string;
+};
 
 export type RelationshipDiagnosticsBrokenItem = {
+  deleteAccessibilityHint: string;
+  deleteAccessibilityLabel: string;
+  endpointStatusLabel: string;
   id: string;
   type: string;
+  repairAccessibilityLabel: string;
   sourceEntryId: string;
+  sourceLineLabel: string;
   sourceName: string;
   targetEntryId: string;
+  targetLineLabel: string;
   targetName: string;
   missingSource: boolean;
   missingTarget: boolean;
@@ -372,6 +469,8 @@ export type EntryRelationshipItemModel = {
   id: string;
   type: string;
   directionLabel: 'To' | 'From' | 'Linked with';
+  openEntryAccessibilityLabel: string;
+  openEntryLabel: string;
   relatedEntryId: string;
   relatedEntryName: string;
   relatedSectionId: string;
@@ -635,8 +734,17 @@ export function getRelationshipEntries(
 ): RelationshipGraphNode[] {
   return sections.flatMap((section) =>
     getEntries(codex, section.id).map((entry) => ({
+      contextRoute: getRelationshipEntryContextRoute({
+        entryId: entry.id,
+        name: entry.name,
+        sectionId: section.id,
+      }),
+      filterListAccessibilityLabel: `Filter relationship list to ${entry.name}`,
+      filterListLabel: relationshipFeatureCopy.filterListLabel,
       id: entry.id,
       name: entry.name,
+      openEntryAccessibilityLabel: `Review context for ${entry.name}`,
+      openEntryLabel: relationshipFeatureCopy.openEntryLabel,
       sectionId: section.id,
       sectionTitle: section.title,
       status: entry.status,
@@ -859,20 +967,50 @@ export function getRelationshipListModel(
   return filteredRelationships.map((relationship) => {
     const sourceEntry = relationshipEntryById.get(relationship.sourceEntryId);
     const targetEntry = relationshipEntryById.get(relationship.targetEntryId);
+    const sourceName = sourceEntry?.name ?? relationship.sourceEntryId;
+    const sourceSectionId = sourceEntry?.sectionId ?? '';
+    const targetName = targetEntry?.name ?? relationship.targetEntryId;
+    const targetSectionId = targetEntry?.sectionId ?? '';
     return {
+      deleteAccessibilityHint: 'Deletes this relationship after confirmation.',
+      deleteAccessibilityLabel: `Delete ${relationship.type} relationship between ${sourceName} and ${targetName}`,
+      deleteLabel: relationshipFeatureCopy.deleteLabel,
+      editAccessibilityLabel: `Edit ${relationship.type} relationship between ${sourceName} and ${targetName}`,
+      editLabel: relationshipFeatureCopy.editLabel,
       id: relationship.id,
+      openSourceAccessibilityLabel: `Open source entry ${sourceName}`,
+      openSourceLabel: relationshipFeatureCopy.openSourceLabel,
+      openTargetAccessibilityLabel: `Open target entry ${targetName}`,
+      openTargetLabel: relationshipFeatureCopy.openTargetLabel,
       type: relationship.type,
       status: relationship.status,
       statusLabel: getEntryStatusLabel(relationship.status),
+      sourceContextRoute: sourceSectionId
+        ? getRelationshipEntryContextRoute({
+            entryId: relationship.sourceEntryId,
+            name: sourceName,
+            sectionId: sourceSectionId,
+          })
+        : '',
       sourceEntryId: relationship.sourceEntryId,
-      sourceSectionId: sourceEntry?.sectionId ?? '',
+      sourceSectionId,
       sourceSectionTitle: sourceEntry?.sectionTitle ?? '',
-      sourceName: sourceEntry?.name ?? relationship.sourceEntryId,
+      sourceName,
+      targetContextRoute: targetSectionId
+        ? getRelationshipEntryContextRoute({
+            entryId: relationship.targetEntryId,
+            name: targetName,
+            sectionId: targetSectionId,
+          })
+        : '',
       targetEntryId: relationship.targetEntryId,
-      targetSectionId: targetEntry?.sectionId ?? '',
+      targetSectionId,
       targetSectionTitle: targetEntry?.sectionTitle ?? '',
-      targetName: targetEntry?.name ?? relationship.targetEntryId,
+      targetName,
       directionLabel: relationship.directional ? '->' : '<->',
+      directionStatusLabel: `${
+        relationship.directional ? 'Directional' : 'Mutual'
+      } - ${getEntryStatusLabel(relationship.status)}`,
       note: relationship.note,
     };
   });
@@ -958,17 +1096,33 @@ export function getRelationshipEditorOptionsModel(
 ): RelationshipEditorOptionsModel {
   const entries = getRelationshipEntries(workspace.codex, workspace.entryTypes);
   const entryById = new Map(entries.map((entry) => [entry.id, entry]));
+  const selectedSourceEntry = draft.sourceEntryId
+    ? entryById.get(draft.sourceEntryId) ?? null
+    : null;
+  const selectedTargetEntry = draft.targetEntryId
+    ? entryById.get(draft.targetEntryId) ?? null
+    : null;
   return {
     entries,
     entryOptions: getRelationshipEntrySelectOptions(workspace),
     selectedEntryFilter: entryFilter
       ? entryById.get(entryFilter) ?? null
       : null,
-    selectedSourceEntry: draft.sourceEntryId
-      ? entryById.get(draft.sourceEntryId) ?? null
+    selectedSourceEntry,
+    selectedSourceSummaryLabel: draft.sourceEntryId
+      ? `Source: ${
+          selectedSourceEntry
+            ? `${selectedSourceEntry.name} (${selectedSourceEntry.sectionTitle})`
+            : 'Missing entry'
+        }`
       : null,
-    selectedTargetEntry: draft.targetEntryId
-      ? entryById.get(draft.targetEntryId) ?? null
+    selectedTargetEntry,
+    selectedTargetSummaryLabel: draft.targetEntryId
+      ? `Target: ${
+          selectedTargetEntry
+            ? `${selectedTargetEntry.name} (${selectedTargetEntry.sectionTitle})`
+            : 'Missing entry'
+        }`
       : null,
     savedRelationshipTypes: getSavedRelationshipTypes(workspace.relationships),
     relationshipTypeSuggestions: getRelationshipTypeSuggestions(
@@ -1016,7 +1170,17 @@ export function getOrphanedEntries(
       relationship.targetEntryId,
     ])
   );
-  return entries.filter((entry) => !connectedEntryIds.has(entry.id));
+  return entries
+    .filter((entry) => !connectedEntryIds.has(entry.id))
+    .map((entry) => ({
+      ...entry,
+      manageLinksAccessibilityLabel: `Link ${entry.name}`,
+      manageLinksLabel: relationshipFeatureCopy.manageLinksLabel,
+      managementRoute: getRelationshipManagementRoute({
+        entryId: entry.id,
+        name: entry.name,
+      }),
+    }));
 }
 
 /** Summarize relationship graph health without exposing world content. */
@@ -1043,16 +1207,37 @@ export function getRelationshipDiagnosticsModel(
     workspace.relationships,
     workspace.codex,
     workspace.entryTypes
-  ).map((relationship) => ({
-    id: relationship.id,
-    type: relationship.type,
-    sourceEntryId: relationship.sourceEntryId,
-    sourceName: relationship.sourceEntry?.name ?? relationship.sourceEntryId,
-    targetEntryId: relationship.targetEntryId,
-    targetName: relationship.targetEntry?.name ?? relationship.targetEntryId,
-    missingSource: relationship.missingSource,
-    missingTarget: relationship.missingTarget,
-  }));
+  ).map((relationship) => {
+    const endpointStatusLabels = [
+      relationship.missingSource ? 'Missing source' : '',
+      relationship.missingTarget ? 'Missing target' : '',
+    ].filter(Boolean);
+    const sourceName =
+      relationship.sourceEntry?.name ?? relationship.sourceEntryId;
+    const targetName =
+      relationship.targetEntry?.name ?? relationship.targetEntryId;
+    return {
+      id: relationship.id,
+      type: relationship.type,
+      sourceEntryId: relationship.sourceEntryId,
+      sourceLineLabel: `${
+        relationship.missingSource ? 'Missing source' : 'Source'
+      }: ${sourceName}`,
+      sourceName,
+      targetEntryId: relationship.targetEntryId,
+      targetLineLabel: `${
+        relationship.missingTarget ? 'Missing target' : 'Target'
+      }: ${targetName}`,
+      targetName,
+      missingSource: relationship.missingSource,
+      missingTarget: relationship.missingTarget,
+      endpointStatusLabel: endpointStatusLabels.join(' and '),
+      repairAccessibilityLabel: `Repair ${relationship.type} relationship`,
+      deleteAccessibilityHint:
+        'Deletes this broken relationship after confirmation.',
+      deleteAccessibilityLabel: `Delete broken ${relationship.type} relationship`,
+    };
+  });
   const orphanedEntries = getOrphanedEntries(
     workspace.relationships,
     workspace.codex,
@@ -1080,6 +1265,7 @@ function toEntryRelationshipItemModel(
   const relatedEntryNode = relatedEntry
     ? entryById.get(relatedEntry.id) ?? null
     : null;
+  const relatedEntryName = relatedEntry?.name ?? 'Missing entry';
   return {
     id: relationship.id,
     type: relationship.type,
@@ -1088,8 +1274,10 @@ function toEntryRelationshipItemModel(
         ? 'To'
         : 'From'
       : 'Linked with',
+    openEntryAccessibilityLabel: `Review context for ${relatedEntryName}`,
+    openEntryLabel: relationshipFeatureCopy.openEntryLabel,
     relatedEntryId: relatedEntry?.id ?? '',
-    relatedEntryName: relatedEntry?.name ?? 'Missing entry',
+    relatedEntryName,
     relatedSectionId: relatedEntryNode?.sectionId ?? '',
     note: relationship.note,
   };
@@ -1366,16 +1554,45 @@ export function getRelationshipGraphViewModel(
     filters
   );
   const nodeById = new Map(graph.nodes.map((node) => [node.id, node]));
-  return {
-    nodes: graph.nodes,
-    edges: graph.edges.map((edge) => ({
+  const nodes = graph.nodes;
+  const edges: RelationshipGraphViewEdge[] = graph.edges.map((edge) => {
+    const sourceName = nodeById.get(edge.sourceId)?.name ?? edge.sourceId;
+    const targetName = nodeById.get(edge.targetId)?.name ?? edge.targetId;
+    return {
+      editAccessibilityLabel: `Edit ${edge.label} relationship between ${sourceName} and ${targetName}`,
+      editLabel: relationshipFeatureCopy.editLabel,
       id: edge.id,
       label: edge.label,
       sourceId: edge.sourceId,
-      sourceName: nodeById.get(edge.sourceId)?.name ?? edge.sourceId,
+      sourceName,
       targetId: edge.targetId,
-      targetName: nodeById.get(edge.targetId)?.name ?? edge.targetId,
+      targetName,
       directionLabel: edge.directional ? '->' : '<->',
-    })),
+    };
+  });
+  const connectedRecordCountLabel = `${nodes.length} connected record${
+    nodes.length === 1 ? '' : 's'
+  }`;
+  const visibleRelationshipLinkCountLabel = `${
+    edges.length
+  } visible relationship link${edges.length === 1 ? '' : 's'}`;
+  return {
+    nodes,
+    edges,
+    connectedRecordCountLabel,
+    summaryLabel: `${connectedRecordCountLabel} and ${visibleRelationshipLinkCountLabel}.`,
+    visibleRelationshipLinkCountLabel,
   };
+}
+
+export function getRelationshipGraphNodeResultSummary({
+  matchedCount,
+  totalCount,
+}: {
+  matchedCount: number;
+  totalCount: number;
+}): string {
+  return `Showing ${matchedCount} of ${totalCount} connected record${
+    totalCount === 1 ? '' : 's'
+  }.`;
 }

@@ -4,6 +4,7 @@ import {
   type DestructiveActionId,
   codexDataHelpSummary,
   codexDataHelpTopics,
+  destructiveActionDialogCopy,
   exportWorldToMarkdown,
   formatDestructiveActionTitle,
   getCodexExportFilename,
@@ -24,6 +25,8 @@ import {
   dataExportSectionIds,
   dataStorageCopy,
   formatDataDownloadSuccessMessage,
+  formatDataImportFileLoadedMessage,
+  formatDataImportFileReadFailedMessage,
   getDataExportText,
   localPersistenceCopy,
   parseWorldImport,
@@ -53,6 +56,7 @@ type PendingSnapshotAction = {
     'restore-snapshot' | 'delete-snapshot'
   >;
   snapshotId: string;
+  subjectName: string;
 };
 
 function getWindowDataRouteFocusTargetId(): string {
@@ -92,7 +96,9 @@ function DataActionConfirmationDialog({
         aria-modal="true"
         tabIndex={-1}
       >
-        <p className="vwb-kicker">Destructive action</p>
+        <p className="vwb-kicker">
+          {destructiveActionDialogCopy.destructiveActionKickerLabel}
+        </p>
         <h2 id={titleId}>{title}</h2>
         <p id={descriptionId}>{copy.message}</p>
         <div className="vwb-form-actions">
@@ -101,7 +107,7 @@ function DataActionConfirmationDialog({
             type="button"
             onClick={onCancel}
           >
-            Cancel
+            {destructiveActionDialogCopy.cancelLabel}
           </button>
           <button
             className="vwb-primary-button vwb-danger-confirm-button"
@@ -249,7 +255,7 @@ export function DataPage({
       getDataStorageStatusModel({
         loadStatus,
         recoverySnapshots,
-        saveLineLabel: 'Manual save',
+        saveLineLabel: dataStorageCopy.manualSaveLineLabel,
         saveMessage: saveStatusModel.detail,
       }),
     [loadStatus, recoverySnapshots, saveStatusModel.detail]
@@ -310,9 +316,7 @@ export function DataPage({
       return;
     }
     if (typeof FileReader === 'undefined') {
-      setImportFileMessage(
-        'File import is unavailable in this runtime; paste the JSON backup instead.'
-      );
+      setImportFileMessage(dataImportCopy.fileUnavailableMessage);
       return;
     }
     const reader = new FileReader();
@@ -320,14 +324,10 @@ export function DataPage({
       const text = typeof reader.result === 'string' ? reader.result : '';
       setImportText(text);
       setImportResult(parseWorldImport(text));
-      setImportFileMessage(
-        `Loaded ${file.name}. Review the preview before importing.`
-      );
+      setImportFileMessage(formatDataImportFileLoadedMessage(file.name));
     });
     reader.addEventListener('error', () => {
-      setImportFileMessage(
-        `Could not read ${file.name}. Paste the JSON backup instead.`
-      );
+      setImportFileMessage(formatDataImportFileReadFailedMessage(file.name));
     });
     reader.readAsText(file);
   };
@@ -674,7 +674,7 @@ export function DataPage({
           onConfirm={confirmSnapshotAction}
           title={formatDestructiveActionTitle(
             pendingSnapshotAction.actionId,
-            'recovery snapshot'
+            pendingSnapshotAction.subjectName
           )}
         />
       ) : null}
@@ -709,6 +709,7 @@ export function DataPage({
                 </div>
                 <div className="vwb-form-actions">
                   <button
+                    aria-label={snapshot.restoreAccessibilityLabel}
                     className="vwb-primary-button"
                     type="button"
                     onClick={() =>
@@ -716,6 +717,7 @@ export function DataPage({
                         setPendingSnapshotAction({
                           actionId: 'restore-snapshot',
                           snapshotId: snapshot.id,
+                          subjectName: snapshot.confirmationSubject,
                         })
                       )
                     }
@@ -723,6 +725,7 @@ export function DataPage({
                     {snapshot.restoreLabel}
                   </button>
                   <button
+                    aria-label={snapshot.deleteAccessibilityLabel}
                     className="vwb-secondary-button vwb-danger-button"
                     type="button"
                     onClick={() =>
@@ -730,6 +733,7 @@ export function DataPage({
                         setPendingSnapshotAction({
                           actionId: 'delete-snapshot',
                           snapshotId: snapshot.id,
+                          subjectName: snapshot.confirmationSubject,
                         })
                       )
                     }

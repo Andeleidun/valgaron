@@ -120,7 +120,7 @@ export function RuntimeErrorFallback({
       >
         <div className="vwb-section-heading">
           <div>
-            <p className="vwb-kicker">Local-only report</p>
+            <p className="vwb-kicker">{copy.diagnosticsKickerLabel}</p>
             <h2 id="runtime-diagnostics-title">{copy.diagnosticsTitle}</h2>
           </div>
           <button

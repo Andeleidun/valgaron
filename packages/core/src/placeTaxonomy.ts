@@ -10,10 +10,13 @@ import {
 import {
   getCharacterCategoryFromFields,
   getCharacterDetailFields,
-  getHiddenCharacterDetailValues,
   type HiddenCharacterDetailValue,
 } from './characterTaxonomy';
-import type { WorldDetailField, WorldSectionConfig } from './types';
+import type {
+  WorldDetailField,
+  WorldSectionConfig,
+  WorldWorkspaceSchema,
+} from './types';
 
 export const supportedPlaceCategoryOptions: readonly string[] =
   generatedSupportedPlaceCategoryOptions;
@@ -123,6 +126,118 @@ export function getPlaceDetailFields(category: string): WorldDetailField[] {
 
 export function getEntryDetailFields(
   section: WorldSectionConfig,
+  entry?: EntryLike,
+  workspaceSchema?: WorldWorkspaceSchema
+): WorldDetailField[] {
+  const fields =
+    section.kind === 'character'
+      ? getCharacterDetailFields(
+          entry ? getCharacterCategoryFromFields(entry.fields) : ''
+        )
+      : section.kind !== 'place'
+      ? [...section.detailFields]
+      : getPlaceDetailFields(
+          entry ? getPlaceCategoryFromFields(entry.fields) : ''
+        );
+  return applyDetailFieldOverrides(section, fields, workspaceSchema);
+}
+
+export function getDraftDetailFields(
+  section: WorldSectionConfig,
+  draft?: DraftLike,
+  workspaceSchema?: WorldWorkspaceSchema
+): WorldDetailField[] {
+  const fields =
+    section.kind === 'character'
+      ? getCharacterDetailFields(
+          draft ? getCharacterCategoryFromFields(draft.details) : ''
+        )
+      : section.kind !== 'place'
+      ? [...section.detailFields]
+      : getPlaceDetailFields(
+          draft ? getPlaceCategoryFromFields(draft.details) : ''
+        );
+  return applyDetailFieldOverrides(section, fields, workspaceSchema);
+}
+
+export function applyDetailFieldOverrides(
+  section: WorldSectionConfig,
+  fields: readonly WorldDetailField[],
+  workspaceSchema?: WorldWorkspaceSchema
+): WorldDetailField[] {
+  const fieldOverrides = workspaceSchema?.fieldOverrides[section.id] ?? {};
+  return fields
+    .map((field, index) => {
+      const override = fieldOverrides[field.key];
+      return {
+        ...field,
+        label: override?.label?.trim() || field.label,
+        __order: override?.order ?? index + 1,
+        __hasOrder: override?.order !== undefined,
+        __originalIndex: index,
+        __hidden: Boolean(override?.hidden),
+      };
+    })
+    .filter((field) => !field.__hidden)
+    .sort(
+      (first, second) =>
+        first.__order - second.__order ||
+        Number(second.__hasOrder) - Number(first.__hasOrder) ||
+        first.__originalIndex - second.__originalIndex
+    )
+    .map((field) => ({
+      key: field.key,
+      label: field.label,
+      ...(field.multiline ? { multiline: field.multiline } : {}),
+      ...(field.autocompleteOptions
+        ? { autocompleteOptions: field.autocompleteOptions }
+        : {}),
+      ...(field.suggestFromExistingValues
+        ? { suggestFromExistingValues: field.suggestFromExistingValues }
+        : {}),
+    }));
+}
+
+function getVisibleDetailFieldKeys(
+  section: WorldSectionConfig,
+  fields: Readonly<Record<string, string>>,
+  workspaceSchema?: WorldWorkspaceSchema
+): Set<string> {
+  if (section.kind === 'character') {
+    return new Set(
+      getEntryDetailFields(section, { fields }, workspaceSchema).map(
+        (field) => field.key
+      )
+    );
+  }
+  if (section.kind === 'place') {
+    return new Set(
+      getEntryDetailFields(section, { fields }, workspaceSchema).map(
+        (field) => field.key
+      )
+    );
+  }
+  return new Set(
+    applyDetailFieldOverrides(
+      section,
+      section.detailFields,
+      workspaceSchema
+    ).map((field) => field.key)
+  );
+}
+
+function getDetailFieldLabel(
+  section: WorldSectionConfig,
+  key: string,
+  fallback: string,
+  workspaceSchema?: WorldWorkspaceSchema
+): string {
+  const override = workspaceSchema?.fieldOverrides[section.id]?.[key];
+  return override?.label?.trim() || fallback;
+}
+
+export function getRawEntryDetailFields(
+  section: WorldSectionConfig,
   entry?: EntryLike
 ): WorldDetailField[] {
   if (section.kind === 'character') {
@@ -138,7 +253,7 @@ export function getEntryDetailFields(
   );
 }
 
-export function getDraftDetailFields(
+export function getRawDraftDetailFields(
   section: WorldSectionConfig,
   draft?: DraftLike
 ): WorldDetailField[] {
@@ -157,21 +272,27 @@ export function getDraftDetailFields(
 
 export function getHiddenPlaceDetailValues(
   section: WorldSectionConfig,
-  fields: Readonly<Record<string, string>>
+  fields: Readonly<Record<string, string>>,
+  workspaceSchema?: WorldWorkspaceSchema
 ): HiddenPlaceDetailValue[] {
   if (section.kind !== 'place') {
     return [];
   }
-  const visibleFieldKeys = new Set(
-    getPlaceDetailFields(getPlaceCategoryFromFields(fields)).map(
-      (field) => field.key
-    )
+  const visibleFieldKeys = getVisibleDetailFieldKeys(
+    section,
+    fields,
+    workspaceSchema
   );
   return Object.entries(fields)
     .filter(([key, value]) => !visibleFieldKeys.has(key) && value.trim())
     .map(([key, value]) => ({
       key,
-      label: getPlaceFieldDefinition(key).label,
+      label: getDetailFieldLabel(
+        section,
+        key,
+        getPlaceFieldDefinition(key).label,
+        workspaceSchema
+      ),
       value,
     }))
     .sort((first, second) => first.label.localeCompare(second.label));
@@ -187,16 +308,24 @@ function formatGenericFieldLabel(key: string): string {
 
 function getHiddenGenericDetailValues(
   section: WorldSectionConfig,
-  fields: Readonly<Record<string, string>>
+  fields: Readonly<Record<string, string>>,
+  workspaceSchema?: WorldWorkspaceSchema
 ): HiddenPlaceDetailValue[] {
-  const visibleFieldKeys = new Set(
-    section.detailFields.map((field) => field.key)
+  const visibleFieldKeys = getVisibleDetailFieldKeys(
+    section,
+    fields,
+    workspaceSchema
   );
   return Object.entries(fields)
     .filter(([key, value]) => !visibleFieldKeys.has(key) && value.trim())
     .map(([key, value]) => ({
       key,
-      label: formatGenericFieldLabel(key),
+      label: getDetailFieldLabel(
+        section,
+        key,
+        formatGenericFieldLabel(key),
+        workspaceSchema
+      ),
       value,
     }))
     .sort((first, second) => first.label.localeCompare(second.label));
@@ -204,15 +333,39 @@ function getHiddenGenericDetailValues(
 
 export function getHiddenEntryDetailValues(
   section: WorldSectionConfig,
-  fields: Readonly<Record<string, string>>
+  fields: Readonly<Record<string, string>>,
+  workspaceSchema?: WorldWorkspaceSchema
 ): HiddenEntryDetailValue[] {
   if (section.kind === 'character') {
-    return getHiddenCharacterDetailValues(fields);
+    const visibleFieldKeys = getVisibleDetailFieldKeys(
+      section,
+      fields,
+      workspaceSchema
+    );
+    const labelByKey = new Map(
+      getRawEntryDetailFields(section, { fields }).map((field) => [
+        field.key,
+        field.label,
+      ])
+    );
+    return Object.entries(fields)
+      .filter(([key, value]) => !visibleFieldKeys.has(key) && value.trim())
+      .map(([key, value]) => ({
+        key,
+        label: getDetailFieldLabel(
+          section,
+          key,
+          labelByKey.get(key) ?? formatGenericFieldLabel(key),
+          workspaceSchema
+        ),
+        value,
+      }))
+      .sort((first, second) => first.label.localeCompare(second.label));
   }
   if (section.kind === 'place') {
-    return getHiddenPlaceDetailValues(section, fields);
+    return getHiddenPlaceDetailValues(section, fields, workspaceSchema);
   }
-  return getHiddenGenericDetailValues(section, fields);
+  return getHiddenGenericDetailValues(section, fields, workspaceSchema);
 }
 
 export function getPlaceCategoryProfileIds(

@@ -3,11 +3,17 @@ import { NavLink, useSearchParams } from 'react-router-dom';
 import {
   commitEntryDraftTransaction,
   draftFromEntry,
+  formatExpansionControlLabel,
+  formatHiddenCountText,
+  formatWorkbenchEditorAccessibilityLabel,
   duplicateEntry,
   getCodexScreenIntro,
   getEntries,
+  getEntryEditorTitle,
+  getLimitedResultModel,
   getWorkbenchRecordIndexModel,
   isWorkbenchRecordViewId,
+  workbenchDisplayLimits,
   type EntryDraft,
   type WorkbenchRecordIndexItem,
   type WorkbenchRecordViewId,
@@ -46,11 +52,16 @@ function RecordCard({
             className="vwb-secondary-button"
             type="button"
             onClick={onSelect}
+            aria-label={record.selectAccessibilityLabel}
           >
-            Select
+            {record.selectLabel}
           </button>
-          <NavLink className="vwb-secondary-button" to={record.editorRoute}>
-            Edit
+          <NavLink
+            aria-label={record.editAccessibilityLabel}
+            className="vwb-secondary-button"
+            to={record.editorRoute}
+          >
+            {record.editLabel}
           </NavLink>
         </div>
       </div>
@@ -117,7 +128,7 @@ export function WorkbenchPage({
         sectionId: activeSectionId,
         selectedEntryId,
         viewId: activeViewId,
-        viewLimit: 24,
+        viewLimit: workbenchDisplayLimits.recordViewRows,
       }),
     [activeSectionId, activeViewId, activeWorld, query, selectedEntryId]
   );
@@ -129,11 +140,14 @@ export function WorkbenchPage({
     (count, action) => count + action.recordCount,
     0
   );
-  const visibleDraftingPrompts = showAllDraftingPrompts
-    ? selected.incompletePrompts
-    : selected.incompletePrompts.slice(0, 4);
-  const hiddenDraftingPromptCount =
-    selected.incompletePrompts.length - visibleDraftingPrompts.length;
+  const draftingPromptModel = getLimitedResultModel(
+    selected.incompletePrompts,
+    showAllDraftingPrompts
+      ? selected.incompletePrompts.length
+      : workbenchDisplayLimits.selectedDraftingPrompts
+  );
+  const visibleDraftingPrompts = draftingPromptModel.visibleItems;
+  const hiddenDraftingPromptCount = draftingPromptModel.hiddenCount;
   const selectedEntry =
     selected.section && selected.record
       ? getEntries(activeWorld.codex, selected.section.id).find(
@@ -295,17 +309,20 @@ export function WorkbenchPage({
         <p>{intro.detail}</p>
       </section>
 
-      <section className="vwb-workbench-layout" aria-label="Workbench records">
+      <section
+        className="vwb-workbench-layout"
+        aria-label={model.copy.layoutAriaLabel}
+      >
         <div className="vwb-panel">
           <div className="vwb-section-heading">
             <div>
-              <p className="vwb-kicker">Record index</p>
-              <h2>Find and choose a record</h2>
+              <p className="vwb-kicker">{model.copy.recordIndexKicker}</p>
+              <h2>{model.copy.recordIndexTitle}</h2>
             </div>
           </div>
 
           <label className="vwb-search-field">
-            Search records
+            {model.copy.searchRecordsLabel}
             <input
               value={query}
               onChange={(event) => {
@@ -313,14 +330,14 @@ export function WorkbenchPage({
                 setQuery(nextQuery);
                 updateWorkbenchRoute({ query: nextQuery });
               }}
-              placeholder="Search names, tags, notes, and fields"
+              placeholder={model.copy.searchRecordsPlaceholder}
               type="search"
             />
           </label>
 
           <div
             className="vwb-tag-filter-group vwb-workbench-section-list"
-            aria-label="Filter Workbench by section"
+            aria-label={model.copy.sectionFilterAccessibilityLabel}
           >
             <button
               className={`vwb-tag-filter ${
@@ -347,7 +364,10 @@ export function WorkbenchPage({
             ))}
           </div>
 
-          <div className="vwb-workbench-create-row" aria-label="Create records">
+          <div
+            className="vwb-workbench-create-row"
+            aria-label={model.copy.createRecordsAccessibilityLabel}
+          >
             {(activeSection ? [activeSection] : model.sectionActions).map(
               (action) => (
                 <button
@@ -356,7 +376,7 @@ export function WorkbenchPage({
                   type="button"
                   onClick={() => startInlineCreate(action.sectionId)}
                 >
-                  New {action.singularLabel}
+                  {action.createLabel}
                 </button>
               )
             )}
@@ -364,7 +384,7 @@ export function WorkbenchPage({
 
           <div
             className="vwb-tag-filter-group vwb-workbench-view-list"
-            aria-label="Workbench views"
+            aria-label={model.copy.viewsAccessibilityLabel}
           >
             {model.views.map((view) => (
               <button
@@ -396,8 +416,8 @@ export function WorkbenchPage({
               ))
             ) : (
               <div className="vwb-empty-results" role="status">
-                <strong>No records in this view.</strong>
-                <p>Try another view or clear the current search.</p>
+                <strong>{model.activeView.emptyTitle}</strong>
+                <p>{model.activeView.emptyDetail}</p>
               </div>
             )}
           </div>
@@ -405,21 +425,18 @@ export function WorkbenchPage({
 
         <section
           className="vwb-panel"
-          aria-label={
-            editorSection
-              ? `${editorSection.singularTitle} Workbench editor`
-              : 'Workbench editor'
-          }
+          aria-label={formatWorkbenchEditorAccessibilityLabel(editorSection)}
         >
           {editorSection ? (
             <>
               <div className="vwb-section-heading">
                 <div>
-                  <p className="vwb-kicker">Inline editor</p>
+                  <p className="vwb-kicker">{model.copy.inlineEditorKicker}</p>
                   <h2>
-                    {editorEntry
-                      ? `Edit ${editorEntry.name}`
-                      : `New ${editorSection.singularTitle}`}
+                    {getEntryEditorTitle({
+                      section: editorSection,
+                      selectedEntry: editorEntry,
+                    })}
                   </h2>
                 </div>
               </div>
@@ -430,6 +447,7 @@ export function WorkbenchPage({
                   relationships={activeWorld.relationships}
                   section={editorSection}
                   sections={activeWorld.entryTypes}
+                  workspaceSchema={activeWorld.schema}
                 />
               ) : null}
               <EntryForm
@@ -530,12 +548,13 @@ export function WorkbenchPage({
                 sectionEntries={editorSectionEntries}
                 sections={activeWorld.entryTypes}
                 selectedEntry={editorEntry ?? undefined}
+                workspaceSchema={activeWorld.schema}
               />
             </>
           ) : (
             <div className="vwb-empty-results" role="status">
-              <strong>No editor target selected.</strong>
-              <p>Select a record or choose a section before editing inline.</p>
+              <strong>{model.copy.noEditorTargetTitle}</strong>
+              <p>{model.copy.noEditorTargetDetail}</p>
             </div>
           )}
         </section>
@@ -543,43 +562,43 @@ export function WorkbenchPage({
         <aside className="vwb-panel" aria-labelledby="workbench-context-title">
           <div className="vwb-section-heading">
             <div>
-              <p className="vwb-kicker">Selected context</p>
+              <p className="vwb-kicker">{selected.kicker}</p>
               <h2 id="workbench-context-title">
-                {selected.record?.name ?? 'No record selected'}
+                {selected.record?.name ?? selected.emptyTitle}
               </h2>
             </div>
           </div>
 
           {selected.record ? (
             <div className="vwb-workbench-context">
-              <p>{selected.record.summaryText}</p>
+              <p>{selected.record.summaryText || selected.noSummaryText}</p>
               <dl>
                 <div>
-                  <dt>Section</dt>
+                  <dt>{selected.sectionLabel}</dt>
                   <dd>
                     {selected.section?.title ?? selected.record.sectionTitle}
                   </dd>
                 </div>
                 <div>
-                  <dt>Status</dt>
+                  <dt>{selected.statusLabel}</dt>
                   <dd>{selected.record.status}</dd>
                 </div>
                 <div>
-                  <dt>Relationships</dt>
+                  <dt>{selected.relationshipsLabel}</dt>
                   <dd>{selected.relationshipCount}</dd>
                 </div>
                 <div>
-                  <dt>Completeness</dt>
+                  <dt>{selected.completenessLabel}</dt>
                   <dd>
                     {selected.completionPercent === null
-                      ? 'Complete'
+                      ? selected.completeLabel
                       : `${selected.completionPercent}%`}
                   </dd>
                 </div>
               </dl>
               {selected.reviewSummary.hasIssues ? (
                 <div>
-                  <h3>Review summary</h3>
+                  <h3>{selected.reviewSummaryTitle}</h3>
                   <div className="vwb-diagnostics-grid">
                     {selected.reviewSummary.items
                       .filter((item) => item.hasIssues)
@@ -598,7 +617,7 @@ export function WorkbenchPage({
               ) : null}
               {selected.incompletePrompts.length > 0 ? (
                 <div>
-                  <h3>Drafting prompts</h3>
+                  <h3>{selected.draftingPromptsTitle}</h3>
                   <ul className="vwb-compact-list">
                     {visibleDraftingPrompts.map((prompt) => (
                       <li key={prompt}>{prompt}</li>
@@ -606,11 +625,15 @@ export function WorkbenchPage({
                   </ul>
                   {hiddenDraftingPromptCount > 0 ? (
                     <span className="vwb-tag">
-                      {hiddenDraftingPromptCount} more drafting prompt
-                      {hiddenDraftingPromptCount === 1 ? '' : 's'}.
+                      {formatHiddenCountText({
+                        hiddenCount: hiddenDraftingPromptCount,
+                        singularItemLabel: 'drafting prompt',
+                        pluralItemLabel: 'drafting prompts',
+                      })}
                     </span>
                   ) : null}
-                  {selected.incompletePrompts.length > 4 ? (
+                  {selected.incompletePrompts.length >
+                  workbenchDisplayLimits.selectedDraftingPrompts ? (
                     <div className="vwb-action-row">
                       <button
                         className="vwb-secondary-button"
@@ -622,9 +645,12 @@ export function WorkbenchPage({
                           )
                         }
                       >
-                        {showAllDraftingPrompts
-                          ? 'Show Fewer Drafting Prompts'
-                          : `Show ${hiddenDraftingPromptCount} More Drafting Prompts`}
+                        {formatExpansionControlLabel({
+                          isExpanded: showAllDraftingPrompts,
+                          hiddenCount: hiddenDraftingPromptCount,
+                          pluralItemLabel: 'Drafting Prompts',
+                          singularItemLabel: 'Drafting Prompt',
+                        })}
                       </button>
                     </div>
                   ) : null}
@@ -632,7 +658,7 @@ export function WorkbenchPage({
               ) : null}
               {selected.relatedRecordChips.length > 0 ? (
                 <div>
-                  <h3>Linked records</h3>
+                  <h3>{selected.linkedRecordsTitle}</h3>
                   <div className="vwb-entity-chip-list">
                     {selected.relatedRecordChips.map((chip) => (
                       <NavLink
@@ -641,36 +667,33 @@ export function WorkbenchPage({
                         to={chip.route}
                       >
                         <span>{chip.label}</span>
-                        <small>
-                          {chip.relationshipType
-                            ? `${chip.relationshipType} - ${chip.sectionTitle}`
-                            : chip.sectionTitle}
-                        </small>
+                        <small>{chip.detailText}</small>
                       </NavLink>
                     ))}
                   </div>
                 </div>
               ) : null}
               <NavLink
+                aria-label={selected.editRecordAccessibilityLabel}
                 className="vwb-secondary-button"
                 to={selected.record.editorRoute}
               >
-                Open Editor
+                {selected.editRecordLabel}
               </NavLink>
               {selected.relationshipStudioRoute ? (
                 <NavLink
+                  aria-label={
+                    selected.relationshipStudioAccessibilityLabel ?? undefined
+                  }
                   className="vwb-secondary-button"
                   to={selected.relationshipStudioRoute}
                 >
-                  Manage Links
+                  {selected.relationshipStudioLabel}
                 </NavLink>
               ) : null}
             </div>
           ) : (
-            <p>
-              Select a record to review its section, relationship count, and
-              drafting prompts before opening the editor.
-            </p>
+            <p>{selected.emptyDetail}</p>
           )}
         </aside>
       </section>

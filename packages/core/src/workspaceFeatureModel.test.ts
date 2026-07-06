@@ -101,6 +101,7 @@ describe('workspace feature model', () => {
       statusLine: 'active - Third Age',
       summaryText: 'A workspace for archival tests.',
       isActive: true,
+      deleteAccessibilityHint: 'Deletes this workspace after confirmation.',
       actionState: {
         switchLabel: 'Current',
         canSwitch: false,
@@ -139,6 +140,8 @@ describe('workspace feature model', () => {
       climateText: 'Climate: Frozen storm belts',
       terrainText: 'Terrain: Ice shelves',
       tagsText: 'Tags: archived-world',
+      deleteAccessibilityHint:
+        'Deletes this in-fiction world after confirmation.',
     });
     expect(model.planetaryWorlds.countLabel).toBe('1 in-fiction world');
   });

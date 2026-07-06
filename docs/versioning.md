@@ -6,14 +6,14 @@ Valgaron World Codex uses semantic versioning once public releases begin.
 
 - Patch releases fix bugs, documentation, test reliability, styling defects, or
   small usability issues without changing the saved document shape.
-- Minor releases add user-visible features, routes, workflows, export metadata,
-  or backward-compatible schema handling.
+- Minor releases add user-visible features, routes, workflows, or export
+  metadata without changing the saved document shape.
 - Major releases may include incompatible saved-document changes, removed
   workflows, or storage architecture changes.
 
 ## Saved Document Schema
 
-The current world document schema version is `2`.
+The current world document schema version is `3`.
 
 Schema details and migration expectations are tracked in
 `docs/release/schema-migrations.md`.
@@ -23,15 +23,14 @@ Schema `3` or later should be reserved for product decisions that require new
 durable document data, such as workspace-owned editable vocabularies or built-in
 field definitions that no longer fit the current field metadata.
 
-Schema `3` is approved as the next durable schema/vocabulary editing track, but
-schema `2` remains current until the implementation updates the document model,
-storage key, import/export behavior, diagnostics, tests, and release notes.
+Schema `3` is the current durable schema/vocabulary editing baseline.
 
 Schema changes must include:
 
-1. parser or migration behavior for existing saved documents when required by
-   the product decision;
-2. focused tests for the new and previous supported schema shape;
+1. parser behavior for the active schema and any migration behavior explicitly
+   required by the product decision;
+2. focused tests for the active schema shape and any intentionally supported
+   previous shape;
 3. import/export verification;
 4. release notes that explain user impact;
 5. a PWA cache review when stale app code could mishandle saved data.

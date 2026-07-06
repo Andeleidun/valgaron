@@ -12,7 +12,7 @@ import {
   type ViewProps,
   type TextInputProps,
 } from 'react-native';
-import type { ControlOption } from '@valgaron/core';
+import { selectFieldCopy, type ControlOption } from '@valgaron/core';
 import {
   valgaronColors,
   valgaronRadius,
@@ -65,6 +65,7 @@ export function SectionBlock({
 }
 
 export function Field({
+  accessibilityLabel,
   autoCapitalize,
   autoCorrect,
   label,
@@ -74,6 +75,7 @@ export function Field({
   placeholder,
   testID,
 }: {
+  accessibilityLabel?: string;
   autoCapitalize?: TextInputProps['autoCapitalize'];
   autoCorrect?: boolean;
   label: string;
@@ -91,7 +93,7 @@ export function Field({
       <Text style={styles.label}>{label}</Text>
       <TextInput
         {...inputProps}
-        accessibilityLabel={label}
+        accessibilityLabel={accessibilityLabel ?? label}
         autoCapitalize={autoCapitalize}
         autoCorrect={autoCorrect}
         placeholder={placeholder}
@@ -110,7 +112,7 @@ export function SelectField<TValue extends string>({
   label,
   options,
   searchable = false,
-  searchPlaceholder = 'Search choices',
+  searchPlaceholder = selectFieldCopy.defaultSearchPlaceholder,
   testID,
   value,
   onValueChange,
@@ -150,11 +152,14 @@ export function SelectField<TValue extends string>({
     <View style={styles.fieldGroup}>
       <Text style={styles.label}>{label}</Text>
       <Pressable
-        accessibilityHint="Opens a list of choices."
+        accessibilityHint={selectFieldCopy.openChoicesHint}
         accessibilityLabel={accessibilityLabel ?? label}
         accessibilityRole="button"
         accessibilityState={{ expanded: isOpen }}
-        accessibilityValue={{ text: selectedOption?.label ?? 'Select' }}
+        accessibilityValue={{
+          text:
+            selectedOption?.label ?? selectFieldCopy.defaultSelectedValueText,
+        }}
         onPress={() => setIsOpen(true)}
         style={({ pressed }) => [
           styles.input,
@@ -164,7 +169,7 @@ export function SelectField<TValue extends string>({
         testID={testID}
       >
         <Text style={styles.selectValue}>
-          {selectedOption?.label ?? 'Select'}
+          {selectedOption?.label ?? selectFieldCopy.defaultSelectedValueText}
         </Text>
       </Pressable>
       <Modal
@@ -221,10 +226,12 @@ export function SelectField<TValue extends string>({
                 );
               })}
               {visibleOptions.length === 0 ? (
-                <Text style={styles.modalEmptyText}>No choices match.</Text>
+                <Text style={styles.modalEmptyText}>
+                  {selectFieldCopy.noSearchMatchesText}
+                </Text>
               ) : null}
             </ScrollView>
-            <ActionButton label="Cancel" onPress={close} />
+            <ActionButton label={selectFieldCopy.cancelLabel} onPress={close} />
           </View>
         </View>
       </Modal>

@@ -5,7 +5,6 @@ import {
   type AsyncStringStorageAdapter,
 } from '@valgaron/platform';
 import {
-  MOBILE_RECOVERY_SNAPSHOT_STORAGE_KEY,
   MOBILE_RECOVERY_SNAPSHOTS_STORAGE_KEY,
   MOBILE_WORLD_DOCUMENT_STORAGE_KEY,
   createMobileRecoverySnapshot,
@@ -26,7 +25,7 @@ describe('mobile storage', () => {
 
     await expect(loadMobileWorldDocument(storage)).resolves.toMatchObject({
       status: { source: 'seed' },
-      document: { schemaVersion: 2 },
+      document: { schemaVersion: 3 },
     });
   });
 
@@ -45,12 +44,6 @@ describe('mobile storage', () => {
 
   it('resets mobile E2E storage to seed data and clears recovery snapshots', async () => {
     const storage = createMemoryStringStorage({
-      [MOBILE_RECOVERY_SNAPSHOT_STORAGE_KEY]: JSON.stringify({
-        createdAt: '2026-06-01T09:00:00.000Z',
-        document: createSeedWorldDocument(),
-        id: 'legacy-snapshot',
-        reason: 'reset',
-      }),
       [MOBILE_RECOVERY_SNAPSHOTS_STORAGE_KEY]: JSON.stringify([
         createMobileRecoverySnapshot(createSeedWorldDocument(), 'reset'),
       ]),
@@ -64,11 +57,8 @@ describe('mobile storage', () => {
       status: { source: 'seed' },
     });
     expect(storage.snapshot()[MOBILE_WORLD_DOCUMENT_STORAGE_KEY]).toContain(
-      '"schemaVersion":2'
+      '"schemaVersion":3'
     );
-    expect(
-      storage.snapshot()[MOBILE_RECOVERY_SNAPSHOT_STORAGE_KEY]
-    ).toBeUndefined();
     expect(
       storage.snapshot()[MOBILE_RECOVERY_SNAPSHOTS_STORAGE_KEY]
     ).toBeUndefined();
@@ -190,9 +180,6 @@ describe('mobile storage', () => {
     expect(storage.snapshot()[MOBILE_RECOVERY_SNAPSHOTS_STORAGE_KEY]).toContain(
       'permanent-delete'
     );
-    expect(
-      storage.snapshot()[MOBILE_RECOVERY_SNAPSHOT_STORAGE_KEY]
-    ).toBeUndefined();
     await expect(loadMobileRecoverySnapshots(storage)).resolves.toEqual([
       secondSnapshot,
       expect.objectContaining({
@@ -225,30 +212,5 @@ describe('mobile storage', () => {
     const secondSnapshot = createMobileRecoverySnapshot(document, 'reset');
 
     expect(firstSnapshot.id).not.toBe(secondSnapshot.id);
-  });
-
-  it('loads legacy mobile entry-delete snapshots as permanent delete snapshots', async () => {
-    const document = createSeedWorldDocument();
-    const storage = createMemoryStringStorage({
-      [MOBILE_RECOVERY_SNAPSHOT_STORAGE_KEY]: JSON.stringify({
-        id: 'mobile-snapshot-entry-delete-legacy',
-        reason: 'entry-delete',
-        createdAt: '2026-06-01T09:00:00.000Z',
-        document,
-      }),
-    });
-
-    await expect(loadMobileRecoverySnapshot(storage)).resolves.toMatchObject({
-      id: 'mobile-snapshot-entry-delete-legacy',
-      reason: 'permanent-delete',
-      document,
-    });
-    await expect(loadMobileRecoverySnapshots(storage)).resolves.toEqual([
-      expect.objectContaining({
-        id: 'mobile-snapshot-entry-delete-legacy',
-        reason: 'permanent-delete',
-        document,
-      }),
-    ]);
   });
 });

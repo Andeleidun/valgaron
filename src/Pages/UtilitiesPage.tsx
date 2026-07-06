@@ -49,7 +49,7 @@ export function UtilitiesPage({
         tabIndex={-1}
         aria-labelledby="utilities-overview-title"
       >
-        <p className="vwb-kicker">Workflow Hub</p>
+        <p className="vwb-kicker">{overview.kickerLabel}</p>
         <h2 id="utilities-overview-title">{overview.title}</h2>
         <p>{overview.detail}</p>
         <div className="vwb-utility-summary">
@@ -119,7 +119,7 @@ export function UtilitiesPage({
               </div>
             ) : (
               <p className="vwb-muted-note">
-                No cross-surface review hotspots need action.
+                {overview.reviewSummary.emptyActionText}
               </p>
             )}
           </article>

@@ -81,11 +81,19 @@ codex area.
 4. Create, switch, duplicate, archive, restore, delete, and expand large
    workspace lists when enough workspaces exist.
 5. Create a custom entry type from Knowledge or mobile More, add multiline and
-   suggested-choice fields after creation, rename, reorder, and remove those
-   fields, confirm suggested and observed flexible values are labeled in
-   Knowledge/More, confirm existing values appear in the hidden detail cleanup
-   queue, review the affected entry, clear hidden details, confirm a recovery
-   snapshot is available, then delete the type.
+   suggested-choice fields after creation, configure field label, help text,
+   hidden state, order, vocabulary attachment, and suggested/restricted mode,
+   confirm custom/default indicators appear, reset a changed field to defaults,
+   search field settings, confirm the browser Vocabulary Manager and mobile
+   More can add, edit, archive, restore, reorder, and search vocabulary values
+   by label, description, and alias, confirm restricted fields accept active
+   aliases and offer canonical replacement when needed, confirm browser and
+   mobile editors show compact visible suggestion actions for configured fields
+   with a more-suggestions count and typed-value cue when capped, confirm
+   existing values appear in the hidden detail cleanup queue, search cleanup
+   rows, review the affected entry, clear one cleanup row, choose Clear All
+   Hidden Details for the remaining rows, confirm a recovery snapshot is
+   available, then delete the type.
 6. Open Utilities and mobile More, confirm Project Tools shows Review Hotspots,
    and follow available hotspot actions to the existing Workbench, Timeline,
    Relationship Studio, or Knowledge cleanup surfaces. When the Workbench

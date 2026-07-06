@@ -3,6 +3,10 @@ import { createSeedWorldDocument } from './seedCodex';
 import { getActiveWorld } from './worldDocument';
 import {
   entryListCopy,
+  formatEntryListShownCount,
+  formatEntrySectionEntriesLabel,
+  formatEntrySectionFiltersLabel,
+  formatEntrySectionSearchLabel,
   getEntryListEmptyStateModel,
   getEntryListModel,
   getEntrySectionNavigationOptions,
@@ -15,8 +19,23 @@ describe('entry list model', () => {
     expect(entryListCopy).toEqual({
       clearFiltersLabel: 'Clear Filters',
       entryHelpLabel: 'Entry Help',
+      entriesTitle: 'Entries',
+      filterByTagLabel: 'Filter by tag',
+      filtersTitle: 'Filters',
+      searchSectionLabel: 'Search this section',
+      sectionsTitle: 'Sections',
       timelineHelpLabel: 'Timeline Help',
     });
+  });
+
+  it('formats shared entry list surface labels', () => {
+    const world = getActiveWorld(createSeedWorldDocument());
+    const section = world.entryTypes[0];
+
+    expect(formatEntryListShownCount(2, 10)).toBe('2 of 10 shown');
+    expect(formatEntrySectionEntriesLabel(section)).toBe('Characters entries');
+    expect(formatEntrySectionFiltersLabel(section)).toBe('Characters filters');
+    expect(formatEntrySectionSearchLabel(section)).toBe('Search Characters');
   });
 
   it('builds shared section navigation options with active state and paths', () => {
@@ -101,6 +120,7 @@ describe('entry list model', () => {
       detail:
         'Create a character when you are ready to draft this part of the world.',
       showArchivedAction: false,
+      showArchivedActionLabel: null,
     });
     expect(
       getEntryListEmptyStateModel({
@@ -114,6 +134,7 @@ describe('entry list model', () => {
       title: 'Only archived entries are in this section.',
       detail: 'Show archived entries to review or restore them.',
       showArchivedAction: true,
+      showArchivedActionLabel: 'Show Archived',
     });
     expect(
       getEntryListEmptyStateModel({
@@ -127,6 +148,7 @@ describe('entry list model', () => {
       title: 'No entries match these filters.',
       detail: 'Try a different search term or clear the active filters.',
       showArchivedAction: false,
+      showArchivedActionLabel: null,
     });
   });
 
@@ -138,6 +160,14 @@ describe('entry list model', () => {
 
     expect(rows.map((entry) => entry.name)).toEqual(['Mira Rowan']);
     expect(rows[0]).toMatchObject({
+      editAccessibilityLabel: 'Edit Mira Rowan',
+      editLabel: 'Edit',
+      moveEarlierAccessibilityLabel: null,
+      moveEarlierLabel: null,
+      moveLaterAccessibilityLabel: null,
+      moveLaterLabel: null,
+      reviewContextAccessibilityLabel: 'Review context for Mira Rowan',
+      reviewContextLabel: 'Context',
       statusLabel: 'Draft',
       summaryText:
         'A careful surveyor keeping field notes, route sketches, and practical warnings for new expeditions.',
@@ -241,9 +271,18 @@ describe('entry list model', () => {
     const section = world.entryTypes.find((item) => item.id === 'timeline');
 
     expect(section).toBeDefined();
-    expect(
-      getEntryListModel(world, section!, '', {}).map((entry) => entry.name)
-    ).toEqual(['Harbor Accord Signed', 'First Northern Survey']);
+    const rows = getEntryListModel(world, section!, '', {});
+
+    expect(rows.map((entry) => entry.name)).toEqual([
+      'Harbor Accord Signed',
+      'First Northern Survey',
+    ]);
+    expect(rows[0]).toMatchObject({
+      moveEarlierAccessibilityLabel: 'Move Harbor Accord Signed earlier',
+      moveEarlierLabel: 'Earlier',
+      moveLaterAccessibilityLabel: 'Move Harbor Accord Signed later',
+      moveLaterLabel: 'Later',
+    });
   });
 
   it('filters timeline entries to unassigned eras', () => {

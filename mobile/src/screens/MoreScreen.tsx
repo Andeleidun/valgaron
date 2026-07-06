@@ -3,21 +3,37 @@ import { ScrollView } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import {
   emptyEntryTypeDraft,
+  emptyVocabularyValueDraft,
   entryTypeDraftFields,
+  fieldOverrideDraftFrom,
+  filterKnowledgeFieldConfigurationSections,
+  filterKnowledgeHiddenDetailRows,
+  filterKnowledgeVocabularyValueRows,
+  formatExpansionControlLabel,
+  formatHiddenCountText,
   formatUtilityOverviewActionAccessibilityLabel,
   formatWorkflowDestinationAccessibilityLabel,
+  formatKnowledgeVocabularyHiddenValueCount,
   getCodexScreenIntro,
+  getEntryTypeDraftFieldLayout,
   getEntryTypeDraftFieldPreview,
   getFeedbackTone,
   getKnowledgeRouteFocusTargetId,
   getKnowledgeSchemaModel,
+  getLimitedResultModel,
   getUtilitiesOverviewModel,
   getUtilitiesRouteFocusTargetId,
+  knowledgeDisplayLimits,
   knowledgeRouteFocusTargetIds,
   utilityRouteFocusTargetIds,
   workspaceFeatureActions,
   workspaceFeatureCopy,
+  vocabularyValueDraftFrom,
   type EntryTypeDraft,
+  type FieldOverrideDraft,
+  type KnowledgeFieldRow,
+  type KnowledgeVocabularyValueRow,
+  type VocabularyValueDraft,
 } from '@valgaron/core';
 import { useMobileCodex } from '../state/MobileCodexContext';
 import {
@@ -29,14 +45,18 @@ import {
   ActionButton,
   BodyText,
   ButtonRow,
+  CheckboxField,
   Field,
   MutedText,
   ScreenHeader,
   ScreenScroll,
   SectionBlock,
+  SelectField,
   StatusText,
 } from './screenPrimitives';
 import { confirmMobileDestructiveAction } from './mobileConfirm';
+
+const entryTypeDraftFieldLayout = getEntryTypeDraftFieldLayout();
 
 export function MoreScreen() {
   const controller = useMobileCodex();
@@ -72,8 +92,20 @@ export function MoreScreen() {
   const [fieldLabelErrors, setFieldLabelErrors] = useState<
     Record<string, string>
   >({});
+  const [fieldOverrideDrafts, setFieldOverrideDrafts] = useState<
+    Record<string, FieldOverrideDraft>
+  >({});
+  const [fieldOverrideErrors, setFieldOverrideErrors] = useState<
+    Record<string, string>
+  >({});
+  const [
+    showAllFieldConfigurationSections,
+    setShowAllFieldConfigurationSections,
+  ] = useState(false);
+  const [fieldConfigurationQuery, setFieldConfigurationQuery] = useState('');
   const [showAllVocabularyRows, setShowAllVocabularyRows] = useState(false);
   const [showAllHiddenDetailRows, setShowAllHiddenDetailRows] = useState(false);
+  const [hiddenDetailQuery, setHiddenDetailQuery] = useState('');
   const [showAllSchemaSections, setShowAllSchemaSections] = useState(false);
   const [
     showAllRelationshipFieldSummaries,
@@ -81,25 +113,50 @@ export function MoreScreen() {
   ] = useState(false);
   const [expandedVocabularyValueRows, setExpandedVocabularyValueRows] =
     useState<Record<string, boolean>>({});
+  const [vocabularyValueDrafts, setVocabularyValueDrafts] = useState<
+    Record<string, VocabularyValueDraft>
+  >({});
+  const [vocabularyValueEditDrafts, setVocabularyValueEditDrafts] = useState<
+    Record<string, VocabularyValueDraft>
+  >({});
+  const [vocabularyValueErrors, setVocabularyValueErrors] = useState<
+    Record<string, string>
+  >({});
+  const [vocabularyValueQueries, setVocabularyValueQueries] = useState<
+    Record<string, string>
+  >({});
   const entryTypeFieldPreview = getEntryTypeDraftFieldPreview(
     entryTypeDraft.fields
   );
   const customTypes = schemaModel.sections.filter((section) => section.custom);
-  const visibleVocabularyRows = showAllVocabularyRows
-    ? schemaModel.vocabulary.rows
-    : schemaModel.vocabulary.rows.slice(0, 5);
-  const hiddenVocabularyRowCount =
-    schemaModel.vocabulary.rows.length - visibleVocabularyRows.length;
-  const visibleHiddenDetailRows = showAllHiddenDetailRows
-    ? schemaModel.hiddenDetails.rows
-    : schemaModel.hiddenDetails.rows.slice(0, 5);
-  const hiddenDetailOverflowCount =
-    schemaModel.hiddenDetails.rows.length - visibleHiddenDetailRows.length;
-  const visibleSchemaSections = showAllSchemaSections
-    ? schemaModel.sections
-    : schemaModel.sections.slice(0, 4);
-  const hiddenSchemaSectionCount =
-    schemaModel.sections.length - visibleSchemaSections.length;
+  const vocabularyRowDisplayModel = getLimitedResultModel(
+    schemaModel.vocabulary.rows,
+    showAllVocabularyRows
+      ? schemaModel.vocabulary.rows.length
+      : knowledgeDisplayLimits.vocabularyRows
+  );
+  const visibleVocabularyRows = vocabularyRowDisplayModel.visibleItems;
+  const hiddenVocabularyRowCount = vocabularyRowDisplayModel.hiddenCount;
+  const hiddenDetailRows = filterKnowledgeHiddenDetailRows(
+    schemaModel.hiddenDetails.rows,
+    hiddenDetailQuery
+  );
+  const hiddenDetailDisplayModel = getLimitedResultModel(
+    hiddenDetailRows,
+    showAllHiddenDetailRows
+      ? hiddenDetailRows.length
+      : knowledgeDisplayLimits.hiddenDetailRows
+  );
+  const visibleHiddenDetailRows = hiddenDetailDisplayModel.visibleItems;
+  const hiddenDetailOverflowCount = hiddenDetailDisplayModel.hiddenCount;
+  const schemaSectionDisplayModel = getLimitedResultModel(
+    schemaModel.sections,
+    showAllSchemaSections
+      ? schemaModel.sections.length
+      : knowledgeDisplayLimits.schemaSections
+  );
+  const visibleSchemaSections = schemaSectionDisplayModel.visibleItems;
+  const hiddenSchemaSectionCount = schemaSectionDisplayModel.hiddenCount;
   const relationshipFieldSummaries = schemaModel.sections.flatMap((section) =>
     section.fields
       .filter((field) => field.targetSectionTitles.length > 0)
@@ -108,17 +165,51 @@ export function MoreScreen() {
         section,
       }))
   );
-  const visibleRelationshipFieldSummaries = showAllRelationshipFieldSummaries
-    ? relationshipFieldSummaries
-    : relationshipFieldSummaries.slice(0, 4);
+  const relationshipFieldSummaryDisplayModel = getLimitedResultModel(
+    relationshipFieldSummaries,
+    showAllRelationshipFieldSummaries
+      ? relationshipFieldSummaries.length
+      : knowledgeDisplayLimits.relationshipFieldSummaries
+  );
+  const visibleRelationshipFieldSummaries =
+    relationshipFieldSummaryDisplayModel.visibleItems;
   const hiddenRelationshipFieldSummaryCount =
-    relationshipFieldSummaries.length -
-    visibleRelationshipFieldSummaries.length;
+    relationshipFieldSummaryDisplayModel.hiddenCount;
   const customFieldDraftDescriptor = entryTypeDraftFields.find(
     (field) => field.key === 'fields'
   );
+  const getFieldOverrideDraftKey = (sectionId: string, fieldKey: string) =>
+    `${sectionId}:${fieldKey}`;
   const getFieldLabelDraftKey = (sectionId: string, fieldKey: string) =>
     `${sectionId}:${fieldKey}`;
+  const getVocabularyValueDraftKey = (vocabularyId: string, valueId: string) =>
+    `${vocabularyId}:${valueId}`;
+  const fieldConfigurationSections = filterKnowledgeFieldConfigurationSections(
+    schemaModel.sections,
+    fieldConfigurationQuery
+  );
+  const fieldConfigurationDisplayModel = getLimitedResultModel(
+    fieldConfigurationSections,
+    showAllFieldConfigurationSections
+      ? fieldConfigurationSections.length
+      : knowledgeDisplayLimits.fieldConfigurationSections
+  );
+  const visibleFieldConfigurationSections =
+    fieldConfigurationDisplayModel.visibleItems;
+  const hiddenFieldConfigurationSectionCount =
+    fieldConfigurationDisplayModel.hiddenCount;
+  const vocabularyOptions = [
+    {
+      label: schemaModel.fieldConfiguration.noVocabularyOptionLabel,
+      value: '',
+    },
+    ...controller.activeWorld.schema.vocabularies.map((vocabulary) => ({
+      label: vocabulary.name,
+      value: vocabulary.id,
+    })),
+  ];
+  const vocabularyModeOptions =
+    schemaModel.fieldConfiguration.vocabularyModeOptions;
 
   useEffect(() => {
     if (!routeFocusTargetId) {
@@ -171,7 +262,7 @@ export function MoreScreen() {
     if (getEntryTypeDraftFieldPreview(fieldsText).length === 0) {
       setEntryTypeFieldErrors((current) => ({
         ...current,
-        [sectionId]: 'Add at least one field.',
+        [sectionId]: schemaModel.typeSetup.addFieldsRequiredError,
       }));
       return;
     }
@@ -193,41 +284,276 @@ export function MoreScreen() {
     value: string
   ) => {
     const draftKey = getFieldLabelDraftKey(sectionId, fieldKey);
-    setFieldLabelDrafts((current) => ({
-      ...current,
+    setFieldLabelDrafts((currentDrafts) => ({
+      ...currentDrafts,
       [draftKey]: value,
     }));
-    setFieldLabelErrors((current) => ({
-      ...current,
+    setFieldLabelErrors((currentErrors) => ({
+      ...currentErrors,
       [draftKey]: '',
     }));
   };
 
-  const renameEntryTypeField = (
+  const saveEntryTypeFieldLabel = (
     sectionId: string,
     fieldKey: string,
     currentLabel: string
   ) => {
     const draftKey = getFieldLabelDraftKey(sectionId, fieldKey);
-    const nextLabel = (fieldLabelDrafts[draftKey] ?? currentLabel).trim();
+    const draftLabel = fieldLabelDrafts[draftKey] ?? currentLabel;
+    const nextLabel = draftLabel.trim();
     if (!nextLabel) {
-      setFieldLabelErrors((current) => ({
-        ...current,
-        [draftKey]: 'Field label is required.',
+      setFieldLabelErrors((currentErrors) => ({
+        ...currentErrors,
+        [draftKey]: schemaModel.fieldConfiguration.fieldLabelRequiredError,
       }));
       return;
     }
     if (nextLabel === currentLabel) {
+      setFieldLabelDrafts((currentDrafts) => ({
+        ...currentDrafts,
+        [draftKey]: currentLabel,
+      }));
       return;
     }
     if (controller.renameEntryTypeField(sectionId, fieldKey, nextLabel)) {
-      setFieldLabelDrafts((current) => ({
-        ...current,
+      setFieldLabelDrafts((currentDrafts) => ({
+        ...currentDrafts,
         [draftKey]: nextLabel,
       }));
-      setFieldLabelErrors((current) => ({
+      setFieldLabelErrors((currentErrors) => ({
+        ...currentErrors,
+        [draftKey]: '',
+      }));
+    }
+  };
+
+  const getSavedFieldOverrideDraft = (
+    sectionId: string,
+    field: KnowledgeFieldRow
+  ) =>
+    fieldOverrideDraftFrom({
+      field: { label: field.baseLabel },
+      override:
+        controller.activeWorld.schema.fieldOverrides[sectionId]?.[field.key],
+    });
+
+  const getDefaultFieldOverrideDraft = (field: KnowledgeFieldRow) =>
+    fieldOverrideDraftFrom({
+      field: { label: field.baseLabel },
+      override: undefined,
+    });
+
+  const getFieldOverrideDraft = (
+    sectionId: string,
+    field: KnowledgeFieldRow
+  ) => {
+    const draftKey = getFieldOverrideDraftKey(sectionId, field.key);
+    return (
+      fieldOverrideDrafts[draftKey] ??
+      getSavedFieldOverrideDraft(sectionId, field)
+    );
+  };
+
+  const updateFieldOverrideDraft = (
+    sectionId: string,
+    field: KnowledgeFieldRow,
+    patch: Partial<FieldOverrideDraft>
+  ) => {
+    const draftKey = getFieldOverrideDraftKey(sectionId, field.key);
+    setFieldOverrideDrafts((current) => ({
+      ...current,
+      [draftKey]: {
+        ...getFieldOverrideDraft(sectionId, field),
+        ...patch,
+      },
+    }));
+    setFieldOverrideErrors((current) => ({
+      ...current,
+      [draftKey]: '',
+    }));
+  };
+
+  const getFieldOverrideError = (draft: FieldOverrideDraft) => {
+    if (!draft.label.trim()) {
+      return schemaModel.fieldConfiguration.fieldLabelRequiredError;
+    }
+    const order = draft.order.trim();
+    if (order && !/^[1-9]\d*$/.test(order)) {
+      return schemaModel.fieldConfiguration.displayOrderInvalidError;
+    }
+    return '';
+  };
+
+  const isFieldOverrideDraftChanged = (
+    sectionId: string,
+    field: KnowledgeFieldRow,
+    draft: FieldOverrideDraft
+  ) => {
+    const savedDraft = getSavedFieldOverrideDraft(sectionId, field);
+    return (
+      savedDraft.label !== draft.label ||
+      savedDraft.helpText !== draft.helpText ||
+      savedDraft.hidden !== draft.hidden ||
+      savedDraft.order !== draft.order ||
+      savedDraft.vocabularyId !== draft.vocabularyId ||
+      savedDraft.vocabularyMode !== draft.vocabularyMode
+    );
+  };
+
+  const saveFieldOverride = (sectionId: string, field: KnowledgeFieldRow) => {
+    const draftKey = getFieldOverrideDraftKey(sectionId, field.key);
+    const draft = getFieldOverrideDraft(sectionId, field);
+    const error = getFieldOverrideError(draft);
+    if (error) {
+      setFieldOverrideErrors((current) => ({
+        ...current,
+        [draftKey]: error,
+      }));
+      return;
+    }
+    if (controller.updateFieldOverride(sectionId, field.key, draft)) {
+      setFieldOverrideDrafts((current) => ({
+        ...current,
+        [draftKey]: {
+          ...draft,
+          label: draft.label.trim(),
+          helpText: draft.helpText.trim(),
+          order: draft.order.trim(),
+          vocabularyId: draft.vocabularyId.trim(),
+        },
+      }));
+    }
+  };
+
+  const resetFieldOverride = (sectionId: string, field: KnowledgeFieldRow) => {
+    const draftKey = getFieldOverrideDraftKey(sectionId, field.key);
+    const defaultDraft = getDefaultFieldOverrideDraft(field);
+    const hasSavedOverride =
+      controller.activeWorld.schema.fieldOverrides[sectionId]?.[field.key] !==
+      undefined;
+    if (
+      !hasSavedOverride ||
+      controller.updateFieldOverride(sectionId, field.key, defaultDraft)
+    ) {
+      setFieldOverrideDrafts((current) => ({
+        ...current,
+        [draftKey]: defaultDraft,
+      }));
+      setFieldOverrideErrors((current) => ({
         ...current,
         [draftKey]: '',
+      }));
+    }
+  };
+
+  const updateVocabularyValueDraft = (
+    vocabularyId: string,
+    key: keyof VocabularyValueDraft,
+    value: string
+  ) => {
+    setVocabularyValueDrafts((current) => ({
+      ...current,
+      [vocabularyId]: {
+        ...(current[vocabularyId] ?? emptyVocabularyValueDraft()),
+        [key]: value,
+      },
+    }));
+    setVocabularyValueErrors((current) => ({ ...current, [vocabularyId]: '' }));
+  };
+
+  const updateVocabularyValueEditDraft = (
+    vocabularyId: string,
+    valueId: string,
+    key: keyof VocabularyValueDraft,
+    value: string
+  ) => {
+    const draftKey = getVocabularyValueDraftKey(vocabularyId, valueId);
+    const savedValue = schemaModel.vocabulary.rows
+      .find((row) => row.id === vocabularyId)
+      ?.values.find((candidate) => candidate.id === valueId);
+    setVocabularyValueEditDrafts((current) => ({
+      ...current,
+      [draftKey]: {
+        ...(current[draftKey] ??
+          vocabularyValueDraftFrom(savedValue as KnowledgeVocabularyValueRow)),
+        [key]: value,
+      },
+    }));
+    setVocabularyValueErrors((current) => ({ ...current, [draftKey]: '' }));
+  };
+
+  const updateVocabularyValueQuery = (vocabularyId: string, value: string) => {
+    setVocabularyValueQueries((current) => ({
+      ...current,
+      [vocabularyId]: value,
+    }));
+  };
+
+  const getVocabularyDraftError = (
+    vocabularyId: string,
+    draft: VocabularyValueDraft,
+    ignoredValueId?: string
+  ) => {
+    const label = draft.label.trim();
+    if (!label) {
+      return 'Value label is required.';
+    }
+    const vocabulary = schemaModel.vocabulary.rows.find(
+      (row) => row.id === vocabularyId
+    );
+    const duplicateValue = vocabulary?.values.find(
+      (value) =>
+        value.id !== ignoredValueId &&
+        value.label.trim().toLocaleLowerCase() === label.toLocaleLowerCase()
+    );
+    return duplicateValue
+      ? 'An active value with this label already exists.'
+      : '';
+  };
+
+  const addVocabularyValue = (vocabularyId: string) => {
+    const draft =
+      vocabularyValueDrafts[vocabularyId] ?? emptyVocabularyValueDraft();
+    const error = getVocabularyDraftError(vocabularyId, draft);
+    if (error) {
+      setVocabularyValueErrors((current) => ({
+        ...current,
+        [vocabularyId]: error,
+      }));
+      return;
+    }
+    if (controller.addVocabularyValue(vocabularyId, draft)) {
+      setVocabularyValueDrafts((current) => ({
+        ...current,
+        [vocabularyId]: emptyVocabularyValueDraft(),
+      }));
+    }
+  };
+
+  const updateVocabularyValue = (
+    vocabularyId: string,
+    value: KnowledgeVocabularyValueRow
+  ) => {
+    const draftKey = getVocabularyValueDraftKey(vocabularyId, value.id);
+    const draft =
+      vocabularyValueEditDrafts[draftKey] ?? vocabularyValueDraftFrom(value);
+    const error = getVocabularyDraftError(vocabularyId, draft, value.id);
+    if (error) {
+      setVocabularyValueErrors((current) => ({
+        ...current,
+        [draftKey]: error,
+      }));
+      return;
+    }
+    if (controller.updateVocabularyValue(vocabularyId, value.id, draft)) {
+      setVocabularyValueEditDrafts((current) => ({
+        ...current,
+        [draftKey]: {
+          label: draft.label.trim(),
+          description: draft.description.trim(),
+          aliases: draft.aliases.trim(),
+        },
       }));
     }
   };
@@ -237,7 +563,7 @@ export function MoreScreen() {
       <ScreenHeader title={intro.title} detail={intro.detail} />
 
       <SectionBlock
-        title="Project Tools"
+        title={overview.title}
         testID="more.project-tools"
         onLayout={(event) => {
           setFocusedSectionOffset(
@@ -248,10 +574,9 @@ export function MoreScreen() {
       >
         <BodyText>{overview.detail}</BodyText>
         <MutedText>{overview.knowledgeSummary.title}</MutedText>
-        <MutedText>
-          {overview.knowledgeSummary.metrics.slice(0, 3).join(', ')}.
-        </MutedText>
-        <MutedText>{overview.knowledgeSummary.metrics[3]}</MutedText>
+        {overview.knowledgeSummary.compactMetricLines.map((line) => (
+          <MutedText key={line}>{line}</MutedText>
+        ))}
         <ButtonRow>
           {overview.knowledgeSummary.actions.map((action) => (
             <ActionButton
@@ -297,54 +622,45 @@ export function MoreScreen() {
             ))}
           </ButtonRow>
         ) : (
-          <MutedText>No cross-surface review hotspots need action.</MutedText>
+          <MutedText>{overview.reviewSummary.emptyActionText}</MutedText>
         )}
       </SectionBlock>
 
       <SectionBlock title={schemaModel.title}>
-        <MutedText>
-          {schemaModel.totals.entryTypeCount} entry types,{' '}
-          {schemaModel.totals.fieldCount} fields, and{' '}
-          {schemaModel.totals.relationshipFieldCount} relationship-backed
-          fields.
-        </MutedText>
-        <MutedText>
-          {schemaModel.totals.hiddenDetailCount}{' '}
-          {schemaModel.totals.hiddenDetailCount === 1
-            ? 'hidden detail cleanup target'
-            : 'hidden detail cleanup targets'}
-          .
-        </MutedText>
+        <MutedText>{schemaModel.overview.mobileStructureSummary}</MutedText>
+        <MutedText>{schemaModel.overview.mobileHiddenDetailSummary}</MutedText>
         {visibleSchemaSections.map((section) => (
-          <MutedText key={section.id}>
-            {section.title}: {section.fieldCount} fields,{' '}
-            {section.relationshipFieldCount} linked.
-          </MutedText>
+          <MutedText key={section.id}>{section.schemaSummary}</MutedText>
         ))}
         {hiddenSchemaSectionCount > 0 ? (
           <MutedText>
-            {hiddenSchemaSectionCount} more entry type
-            {hiddenSchemaSectionCount === 1 ? '' : 's'}.
+            {formatHiddenCountText({
+              hiddenCount: hiddenSchemaSectionCount,
+              singularItemLabel: 'entry type',
+              pluralItemLabel: 'entry types',
+            })}
           </MutedText>
         ) : null}
         <ButtonRow>
           {visibleSchemaSections.map((section) => (
             <ActionButton
+              accessibilityLabel={section.openAccessibilityLabel}
               key={section.id}
-              label={`Open ${section.title}`}
+              label={section.openLabel}
               onPress={() => router.push(getMobileRouteHref(section.route))}
             />
           ))}
         </ButtonRow>
-        {schemaModel.sections.length > 4 ? (
+        {schemaModel.sections.length > knowledgeDisplayLimits.schemaSections ? (
           <ButtonRow>
             <ActionButton
               expanded={showAllSchemaSections}
-              label={
-                showAllSchemaSections
-                  ? 'Show Fewer Entry Types'
-                  : `Show ${hiddenSchemaSectionCount} More Entry Types`
-              }
+              label={formatExpansionControlLabel({
+                isExpanded: showAllSchemaSections,
+                hiddenCount: hiddenSchemaSectionCount,
+                pluralItemLabel: 'Entry Types',
+                singularItemLabel: 'Entry Type',
+              })}
               onPress={() =>
                 setShowAllSchemaSections((currentValue) => !currentValue)
               }
@@ -359,19 +675,24 @@ export function MoreScreen() {
         ))}
         {hiddenRelationshipFieldSummaryCount > 0 ? (
           <MutedText>
-            {hiddenRelationshipFieldSummaryCount} more relationship-backed field
-            {hiddenRelationshipFieldSummaryCount === 1 ? '' : 's'}.
+            {formatHiddenCountText({
+              hiddenCount: hiddenRelationshipFieldSummaryCount,
+              singularItemLabel: 'relationship-backed field',
+              pluralItemLabel: 'relationship-backed fields',
+            })}
           </MutedText>
         ) : null}
-        {relationshipFieldSummaries.length > 4 ? (
+        {relationshipFieldSummaries.length >
+        knowledgeDisplayLimits.relationshipFieldSummaries ? (
           <ButtonRow>
             <ActionButton
               expanded={showAllRelationshipFieldSummaries}
-              label={
-                showAllRelationshipFieldSummaries
-                  ? 'Show Fewer Linked Fields'
-                  : `Show ${hiddenRelationshipFieldSummaryCount} More Linked Fields`
-              }
+              label={formatExpansionControlLabel({
+                isExpanded: showAllRelationshipFieldSummaries,
+                hiddenCount: hiddenRelationshipFieldSummaryCount,
+                pluralItemLabel: 'Linked Fields',
+                singularItemLabel: 'Linked Field',
+              })}
               onPress={() =>
                 setShowAllRelationshipFieldSummaries(
                   (currentValue) => !currentValue
@@ -382,6 +703,7 @@ export function MoreScreen() {
         ) : null}
         <ButtonRow>
           <ActionButton
+            accessibilityLabel={schemaModel.typeSetup.actionAccessibilityLabel}
             label={schemaModel.typeSetup.actionLabel}
             onPress={() =>
               router.push(getMobileRouteHref(schemaModel.typeSetup.route))
@@ -389,17 +711,216 @@ export function MoreScreen() {
           />
           {schemaModel.totals.hiddenDetailCount > 0 ? (
             <ActionButton
-              label="Review Cleanup"
+              accessibilityLabel={
+                schemaModel.hiddenDetails.reviewActionAccessibilityLabel
+              }
+              label={schemaModel.hiddenDetails.reviewActionLabel}
               onPress={() =>
                 router.push(
                   getMobileRouteHref(
-                    `/knowledge#${knowledgeRouteFocusTargetIds.hiddenDetails}`
+                    schemaModel.hiddenDetails.reviewActionRoute
                   )
                 )
               }
             />
           ) : null}
         </ButtonRow>
+      </SectionBlock>
+
+      <SectionBlock
+        title={schemaModel.fieldConfiguration.title}
+        testID="more.field-config"
+      >
+        <MutedText>{schemaModel.fieldConfiguration.detail}</MutedText>
+        <Field
+          autoCorrect={false}
+          label={schemaModel.fieldConfiguration.searchLabel}
+          placeholder={schemaModel.fieldConfiguration.searchPlaceholder}
+          value={fieldConfigurationQuery}
+          onChangeText={setFieldConfigurationQuery}
+        />
+        {visibleFieldConfigurationSections.map((section) => (
+          <Fragment key={`${section.id}-field-config`}>
+            <MutedText>{section.fieldConfigurationSummary}</MutedText>
+            {section.fields.map((field) => {
+              const draft = getFieldOverrideDraft(section.id, field);
+              const draftKey = getFieldOverrideDraftKey(section.id, field.key);
+              const canUseVocabulary =
+                field.mode !== 'single-link' && field.mode !== 'multi-link';
+              const isDraftChanged = isFieldOverrideDraftChanged(
+                section.id,
+                field,
+                draft
+              );
+              const hasSavedOverride =
+                controller.activeWorld.schema.fieldOverrides[section.id]?.[
+                  field.key
+                ] !== undefined;
+              const canResetOverride = hasSavedOverride || isDraftChanged;
+              return (
+                <Fragment key={`${section.id}-${field.key}-field-config`}>
+                  <MutedText>
+                    {field.key}: {field.modeLabel} -{' '}
+                    {hasSavedOverride
+                      ? schemaModel.fieldConfiguration.customSettingsStatusLabel
+                      : schemaModel.fieldConfiguration
+                          .defaultSettingsStatusLabel}
+                    {field.hidden ? ' (hidden)' : ''}
+                  </MutedText>
+                  <Field
+                    accessibilityLabel={field.settingsLabelFieldLabel}
+                    autoCapitalize="words"
+                    label={schemaModel.fieldConfiguration.fieldLabelFieldLabel}
+                    value={draft.label}
+                    onChangeText={(value) =>
+                      updateFieldOverrideDraft(section.id, field, {
+                        label: value,
+                      })
+                    }
+                  />
+                  <Field
+                    accessibilityLabel={field.settingsHelpFieldLabel}
+                    label={
+                      schemaModel.fieldConfiguration.fieldHelpTextFieldLabel
+                    }
+                    value={draft.helpText}
+                    onChangeText={(value) =>
+                      updateFieldOverrideDraft(section.id, field, {
+                        helpText: value,
+                      })
+                    }
+                  />
+                  <Field
+                    accessibilityLabel={field.settingsOrderFieldLabel}
+                    autoCorrect={false}
+                    label={schemaModel.fieldConfiguration.fieldOrderFieldLabel}
+                    placeholder={
+                      schemaModel.fieldConfiguration.defaultOrderPlaceholder
+                    }
+                    value={draft.order}
+                    onChangeText={(value) =>
+                      updateFieldOverrideDraft(section.id, field, {
+                        order: value,
+                      })
+                    }
+                  />
+                  <CheckboxField
+                    accessibilityLabel={field.settingsHiddenFieldLabel}
+                    checked={draft.hidden}
+                    label={
+                      schemaModel.fieldConfiguration.fieldHiddenToggleLabel
+                    }
+                    onChange={(checked) =>
+                      updateFieldOverrideDraft(section.id, field, {
+                        hidden: checked,
+                      })
+                    }
+                  />
+                  {canUseVocabulary ? (
+                    <>
+                      <SelectField
+                        accessibilityLabel={field.settingsVocabularyFieldLabel}
+                        label={schemaModel.fieldConfiguration.vocabularyLabel}
+                        options={vocabularyOptions}
+                        searchable
+                        value={draft.vocabularyId}
+                        onValueChange={(value) =>
+                          updateFieldOverrideDraft(section.id, field, {
+                            vocabularyId: value,
+                          })
+                        }
+                      />
+                      {draft.vocabularyId ? (
+                        <SelectField
+                          accessibilityLabel={
+                            field.settingsVocabularyModeFieldLabel
+                          }
+                          label={
+                            schemaModel.fieldConfiguration.vocabularyModeLabel
+                          }
+                          options={vocabularyModeOptions}
+                          value={draft.vocabularyMode}
+                          onValueChange={(value) =>
+                            updateFieldOverrideDraft(section.id, field, {
+                              vocabularyMode: value,
+                            })
+                          }
+                        />
+                      ) : (
+                        <MutedText>
+                          {
+                            schemaModel.fieldConfiguration
+                              .chooseVocabularyBeforeModeText
+                          }
+                        </MutedText>
+                      )}
+                    </>
+                  ) : (
+                    <MutedText>
+                      {
+                        schemaModel.fieldConfiguration
+                          .relationshipBackedVocabularyHelpText
+                      }
+                    </MutedText>
+                  )}
+                  {field.vocabularyName ? (
+                    <MutedText>
+                      {schemaModel.fieldConfiguration.currentVocabularyLabel}:{' '}
+                      {field.vocabularyName} ({field.vocabularyModeLabel}).
+                    </MutedText>
+                  ) : null}
+                  {fieldOverrideErrors[draftKey] ? (
+                    <StatusText tone="danger">
+                      {fieldOverrideErrors[draftKey]}
+                    </StatusText>
+                  ) : null}
+                  <ButtonRow>
+                    <ActionButton
+                      accessibilityLabel={field.saveSettingsAccessibilityLabel}
+                      disabled={!isDraftChanged}
+                      label={field.saveSettingsLabel}
+                      onPress={() => saveFieldOverride(section.id, field)}
+                    />
+                    <ActionButton
+                      accessibilityLabel={field.resetSettingsAccessibilityLabel}
+                      disabled={!canResetOverride}
+                      label={field.resetSettingsLabel}
+                      onPress={() => resetFieldOverride(section.id, field)}
+                    />
+                  </ButtonRow>
+                </Fragment>
+              );
+            })}
+            <ButtonRow>
+              <ActionButton
+                accessibilityLabel={section.openAccessibilityLabel}
+                label={section.openLabel}
+                onPress={() => router.push(getMobileRouteHref(section.route))}
+              />
+            </ButtonRow>
+          </Fragment>
+        ))}
+        {fieldConfigurationSections.length === 0 ? (
+          <MutedText>
+            {schemaModel.fieldConfiguration.noSearchResultsText}
+          </MutedText>
+        ) : null}
+        {hiddenFieldConfigurationSectionCount > 0 ? (
+          <ButtonRow>
+            <ActionButton
+              expanded={showAllFieldConfigurationSections}
+              label={formatExpansionControlLabel({
+                isExpanded: showAllFieldConfigurationSections,
+                hiddenCount: hiddenFieldConfigurationSectionCount,
+                pluralItemLabel: 'Field Sections',
+                singularItemLabel: 'Field Section',
+              })}
+              onPress={() =>
+                setShowAllFieldConfigurationSections((current) => !current)
+              }
+            />
+          </ButtonRow>
+        ) : null}
       </SectionBlock>
 
       <SectionBlock
@@ -417,33 +938,21 @@ export function MoreScreen() {
             {controller.formMessage}
           </StatusText>
         ) : null}
-        <MutedText>
-          {schemaModel.typeSetup.customTypeCount} custom types in this
-          workspace.
-        </MutedText>
+        <MutedText>{schemaModel.typeSetup.customTypeCountLabel}</MutedText>
         {customTypes.length === 0 ? (
-          <MutedText>
-            No custom entry types yet. Create one when built-in sections are not
-            enough.
-          </MutedText>
+          <MutedText>{schemaModel.typeSetup.emptyCustomTypesText}</MutedText>
         ) : null}
         {customTypes.map((section) => {
           const fieldDraft = entryTypeFieldDrafts[section.id] ?? '';
           const fieldPreview = getEntryTypeDraftFieldPreview(fieldDraft);
           return (
             <Fragment key={`${section.id}-fields`}>
-              <MutedText>
-                {section.title}: {section.fieldCount} fields,{' '}
-                {section.entryCountLabel}.
-              </MutedText>
+              <MutedText>{section.fieldConfigurationSummary}</MutedText>
               {section.fields.map((field, fieldIndex) => (
                 <Fragment key={`${section.id}-${field.key}-order`}>
-                  <MutedText>
-                    {field.label}: {field.modeLabel}
-                  </MutedText>
+                  <MutedText>{field.retainedValueSummary}</MutedText>
                   <Field
-                    autoCapitalize="words"
-                    label={`Rename ${field.label}`}
+                    label={field.renameFieldLabel}
                     value={
                       fieldLabelDrafts[
                         getFieldLabelDraftKey(section.id, field.key)
@@ -453,7 +962,6 @@ export function MoreScreen() {
                       updateFieldLabelDraft(section.id, field.key, value)
                     }
                   />
-                  <MutedText>Values stay saved under {field.key}.</MutedText>
                   {fieldLabelErrors[
                     getFieldLabelDraftKey(section.id, field.key)
                   ] ? (
@@ -467,6 +975,9 @@ export function MoreScreen() {
                   ) : null}
                   <ButtonRow>
                     <ActionButton
+                      accessibilityLabel={
+                        field.saveFieldLabelAccessibilityLabel
+                      }
                       disabled={
                         !(
                           fieldLabelDrafts[
@@ -481,11 +992,15 @@ export function MoreScreen() {
                       }
                       label={workspaceFeatureActions.saveFieldLabel}
                       onPress={() =>
-                        renameEntryTypeField(section.id, field.key, field.label)
+                        saveEntryTypeFieldLabel(
+                          section.id,
+                          field.key,
+                          field.label
+                        )
                       }
                     />
                     <ActionButton
-                      accessibilityLabel={`Move ${field.label} up`}
+                      accessibilityLabel={field.moveFieldUpAccessibilityLabel}
                       disabled={fieldIndex === 0}
                       label={workspaceFeatureActions.moveFieldUp}
                       onPress={() =>
@@ -497,7 +1012,7 @@ export function MoreScreen() {
                       }
                     />
                     <ActionButton
-                      accessibilityLabel={`Move ${field.label} down`}
+                      accessibilityLabel={field.moveFieldDownAccessibilityLabel}
                       disabled={fieldIndex === section.fields.length - 1}
                       label={workspaceFeatureActions.moveFieldDown}
                       onPress={() =>
@@ -509,8 +1024,8 @@ export function MoreScreen() {
                       }
                     />
                     <ActionButton
-                      accessibilityHint="Removes this field from the custom type. Existing entry values stay saved as hidden details."
-                      accessibilityLabel={`Remove ${field.label}`}
+                      accessibilityHint={field.removeFieldAccessibilityHint}
+                      accessibilityLabel={field.removeFieldAccessibilityLabel}
                       label={workspaceFeatureActions.removeField}
                       tone="danger"
                       onPress={() =>
@@ -520,7 +1035,8 @@ export function MoreScreen() {
                             controller.removeEntryTypeField(
                               section.id,
                               field.key
-                            )
+                            ),
+                          field.removeFieldConfirmationSubject
                         )
                       }
                     />
@@ -530,7 +1046,8 @@ export function MoreScreen() {
               <Field
                 autoCapitalize="words"
                 autoCorrect={false}
-                label={`Add fields to ${section.title}`}
+                accessibilityLabel={section.addFieldsFieldLabel}
+                label={schemaModel.typeSetup.addFieldsLabel}
                 placeholder={customFieldDraftDescriptor?.placeholder}
                 value={fieldDraft}
                 onChangeText={(value) =>
@@ -542,7 +1059,7 @@ export function MoreScreen() {
               ) : null}
               {fieldPreview.length > 0 ? (
                 <MutedText>
-                  New field preview:{' '}
+                  {section.addFieldsPreviewLabel}:{' '}
                   {fieldPreview
                     .map((field) => `${field.label} (${field.modeLabel})`)
                     .join('; ')}
@@ -555,22 +1072,26 @@ export function MoreScreen() {
               ) : null}
               <ButtonRow>
                 <ActionButton
-                  label={`Open ${section.title}`}
+                  accessibilityLabel={section.openAccessibilityLabel}
+                  label={section.openLabel}
                   onPress={() => router.push(getMobileRouteHref(section.route))}
                 />
                 <ActionButton
+                  accessibilityLabel={section.addFieldsAccessibilityLabel}
                   disabled={fieldPreview.length === 0}
                   label={workspaceFeatureActions.addFields}
                   onPress={() => addEntryTypeFields(section.id)}
                 />
                 <ActionButton
-                  accessibilityHint="Deletes this custom entry type, its entries, and its relationships after confirmation."
-                  accessibilityLabel={`Delete custom entry type ${section.title}`}
+                  accessibilityHint={section.deleteTypeAccessibilityHint}
+                  accessibilityLabel={section.deleteTypeAccessibilityLabel}
                   label={workspaceFeatureActions.deleteType}
                   tone="danger"
                   onPress={() =>
-                    confirmMobileDestructiveAction('delete-entry-type', () =>
-                      controller.permanentlyDeleteEntryType(section.id)
+                    confirmMobileDestructiveAction(
+                      'delete-entry-type',
+                      () => controller.permanentlyDeleteEntryType(section.id),
+                      section.deleteTypeConfirmationSubject
                     )
                   }
                 />
@@ -578,7 +1099,7 @@ export function MoreScreen() {
             </Fragment>
           );
         })}
-        {entryTypeDraftFields.map((field) => (
+        {entryTypeDraftFieldLayout.fields.map((field) => (
           <Fragment key={field.key}>
             <Field
               autoCapitalize={field.key === 'fields' ? 'words' : undefined}
@@ -596,7 +1117,7 @@ export function MoreScreen() {
         ))}
         {entryTypeFieldPreview.length > 0 ? (
           <MutedText>
-            Field preview:{' '}
+            {schemaModel.typeSetup.customFieldPreviewTitle}:{' '}
             {entryTypeFieldPreview
               .map((field) => `${field.label} (${field.modeLabel})`)
               .join('; ')}
@@ -619,54 +1140,295 @@ export function MoreScreen() {
         <MutedText>{schemaModel.vocabulary.detail}</MutedText>
         {visibleVocabularyRows.map((row) => (
           <Fragment key={row.id}>
+            {(() => {
+              const valueQuery = vocabularyValueQueries[row.id] ?? '';
+              const matchingValues = filterKnowledgeVocabularyValueRows(
+                row.values,
+                valueQuery
+              );
+              const valueDisplayModel = getLimitedResultModel(
+                matchingValues,
+                expandedVocabularyValueRows[row.id]
+                  ? matchingValues.length
+                  : knowledgeDisplayLimits.vocabularyValues
+              );
+              const visibleValues = valueDisplayModel.visibleItems;
+              const hiddenValueCount = valueDisplayModel.hiddenCount;
+              return (
+                <>
+                  <MutedText>
+                    {row.name}: {row.summary}
+                  </MutedText>
+                  {row.fieldUsages.length > 0 ? (
+                    <MutedText>
+                      {row.fieldUsageSummaryIntro}{' '}
+                      {row.fieldUsages
+                        .map((usage) => usage.summaryText)
+                        .join('; ')}
+                    </MutedText>
+                  ) : null}
+                  <Field
+                    autoCorrect={false}
+                    label={row.searchValuesFieldLabel}
+                    placeholder={row.searchValuesPlaceholder}
+                    value={valueQuery}
+                    onChangeText={(nextValue) =>
+                      updateVocabularyValueQuery(row.id, nextValue)
+                    }
+                  />
+                  {visibleValues.map((value) => {
+                    const draftKey = getVocabularyValueDraftKey(
+                      row.id,
+                      value.id
+                    );
+                    const activeValueIndex = row.values.findIndex(
+                      (candidate) => candidate.id === value.id
+                    );
+                    const draft =
+                      vocabularyValueEditDrafts[draftKey] ??
+                      vocabularyValueDraftFrom(value);
+                    const isDraftChanged =
+                      draft.label !== value.label ||
+                      draft.description !== value.description ||
+                      draft.aliases !== value.aliases.join(', ');
+                    return (
+                      <Fragment key={value.id}>
+                        <MutedText>{value.label}</MutedText>
+                        <Field
+                          accessibilityLabel={value.labelFieldLabel}
+                          label={schemaModel.vocabulary.valueLabelFieldLabel}
+                          value={draft.label}
+                          onChangeText={(nextValue) =>
+                            updateVocabularyValueEditDraft(
+                              row.id,
+                              value.id,
+                              'label',
+                              nextValue
+                            )
+                          }
+                        />
+                        <Field
+                          accessibilityLabel={value.descriptionFieldLabel}
+                          label={
+                            schemaModel.vocabulary.valueDescriptionFieldLabel
+                          }
+                          value={draft.description}
+                          onChangeText={(nextValue) =>
+                            updateVocabularyValueEditDraft(
+                              row.id,
+                              value.id,
+                              'description',
+                              nextValue
+                            )
+                          }
+                        />
+                        <Field
+                          autoCapitalize="words"
+                          autoCorrect={false}
+                          accessibilityLabel={value.aliasesFieldLabel}
+                          label={schemaModel.vocabulary.valueAliasesFieldLabel}
+                          value={draft.aliases}
+                          onChangeText={(nextValue) =>
+                            updateVocabularyValueEditDraft(
+                              row.id,
+                              value.id,
+                              'aliases',
+                              nextValue
+                            )
+                          }
+                        />
+                        <MutedText>
+                          {schemaModel.vocabulary.aliasesHelpText}
+                        </MutedText>
+                        {vocabularyValueErrors[draftKey] ? (
+                          <StatusText tone="danger">
+                            {vocabularyValueErrors[draftKey]}
+                          </StatusText>
+                        ) : null}
+                        <ButtonRow>
+                          <ActionButton
+                            accessibilityLabel={value.saveAccessibilityLabel}
+                            disabled={!isDraftChanged}
+                            label={value.saveLabel}
+                            onPress={() => updateVocabularyValue(row.id, value)}
+                          />
+                          <ActionButton
+                            accessibilityLabel={value.moveUpAccessibilityLabel}
+                            disabled={activeValueIndex === 0}
+                            label={value.moveUpLabel}
+                            onPress={() =>
+                              controller.moveVocabularyValue(
+                                row.id,
+                                value.id,
+                                'up'
+                              )
+                            }
+                          />
+                          <ActionButton
+                            accessibilityLabel={
+                              value.moveDownAccessibilityLabel
+                            }
+                            disabled={
+                              activeValueIndex === row.values.length - 1
+                            }
+                            label={value.moveDownLabel}
+                            onPress={() =>
+                              controller.moveVocabularyValue(
+                                row.id,
+                                value.id,
+                                'down'
+                              )
+                            }
+                          />
+                          <ActionButton
+                            accessibilityLabel={value.archiveAccessibilityLabel}
+                            label={value.archiveLabel}
+                            tone="danger"
+                            onPress={() =>
+                              controller.archiveVocabularyValue(
+                                row.id,
+                                value.id,
+                                true
+                              )
+                            }
+                          />
+                        </ButtonRow>
+                      </Fragment>
+                    );
+                  })}
+                  {row.values.length === 0 ? (
+                    <MutedText>{row.noActiveValuesText}</MutedText>
+                  ) : null}
+                  {row.values.length > 0 && visibleValues.length === 0 ? (
+                    <MutedText>{row.noMatchingValuesText}</MutedText>
+                  ) : null}
+                  {hiddenValueCount > 0 ? (
+                    <MutedText>
+                      {formatKnowledgeVocabularyHiddenValueCount(
+                        row.name,
+                        hiddenValueCount
+                      )}
+                    </MutedText>
+                  ) : null}
+                  <ButtonRow>
+                    {row.fieldUsages[0] ? (
+                      <ActionButton
+                        accessibilityLabel={
+                          row.fieldUsages[0].openAccessibilityLabel
+                        }
+                        label={row.fieldUsages[0].openLabel}
+                        onPress={() =>
+                          router.push(
+                            getMobileRouteHref(row.fieldUsages[0].route)
+                          )
+                        }
+                      />
+                    ) : null}
+                    {matchingValues.length >
+                    knowledgeDisplayLimits.vocabularyValues ? (
+                      <ActionButton
+                        expanded={Boolean(expandedVocabularyValueRows[row.id])}
+                        label={
+                          expandedVocabularyValueRows[row.id]
+                            ? row.showFewerValuesLabel
+                            : row.showAllValuesLabel
+                        }
+                        onPress={() =>
+                          setExpandedVocabularyValueRows((currentRows) => ({
+                            ...currentRows,
+                            [row.id]: !currentRows[row.id],
+                          }))
+                        }
+                      />
+                    ) : null}
+                  </ButtonRow>
+                </>
+              );
+            })()}
+            {row.archivedValues.length > 0 ? (
+              <>
+                <MutedText>{row.archivedValuesLabel}</MutedText>
+                <ButtonRow>
+                  {row.archivedValues.map((value) => (
+                    <ActionButton
+                      accessibilityLabel={value.restoreAccessibilityLabel}
+                      key={value.id}
+                      label={value.restoreLabel}
+                      onPress={() =>
+                        controller.archiveVocabularyValue(
+                          row.id,
+                          value.id,
+                          false
+                        )
+                      }
+                    />
+                  ))}
+                </ButtonRow>
+              </>
+            ) : null}
+            <Field
+              accessibilityLabel={row.newValueLabelFieldLabel}
+              label={schemaModel.vocabulary.newValueLabelFieldLabel}
+              value={
+                (vocabularyValueDrafts[row.id] ?? emptyVocabularyValueDraft())
+                  .label
+              }
+              onChangeText={(nextValue) =>
+                updateVocabularyValueDraft(row.id, 'label', nextValue)
+              }
+            />
+            <Field
+              accessibilityLabel={row.newValueDescriptionFieldLabel}
+              label={schemaModel.vocabulary.newValueDescriptionFieldLabel}
+              value={
+                (vocabularyValueDrafts[row.id] ?? emptyVocabularyValueDraft())
+                  .description
+              }
+              onChangeText={(nextValue) =>
+                updateVocabularyValueDraft(row.id, 'description', nextValue)
+              }
+            />
+            <Field
+              autoCapitalize="words"
+              autoCorrect={false}
+              accessibilityLabel={row.newValueAliasesFieldLabel}
+              label={schemaModel.vocabulary.newValueAliasesFieldLabel}
+              value={
+                (vocabularyValueDrafts[row.id] ?? emptyVocabularyValueDraft())
+                  .aliases
+              }
+              onChangeText={(nextValue) =>
+                updateVocabularyValueDraft(row.id, 'aliases', nextValue)
+              }
+            />
             <MutedText>
-              {row.sectionTitle} {row.fieldLabel}: {row.sourceLabel}.{' '}
-              {row.summary}
+              {schemaModel.vocabulary.archivedRestoreHelpText}
             </MutedText>
-            <MutedText>
-              {(expandedVocabularyValueRows[row.id]
-                ? row.values
-                : row.values.slice(0, 4)
-              ).join(', ')}
-              {!expandedVocabularyValueRows[row.id] && row.values.length > 4
-                ? `, and ${row.values.length - 4} more value${
-                    row.values.length - 4 === 1 ? '' : 's'
-                  }`
-                : ''}
-            </MutedText>
+            {vocabularyValueErrors[row.id] ? (
+              <StatusText tone="danger">
+                {vocabularyValueErrors[row.id]}
+              </StatusText>
+            ) : null}
             <ButtonRow>
               <ActionButton
-                label={`Open ${row.sectionTitle}`}
-                onPress={() => router.push(getMobileRouteHref(row.route))}
+                accessibilityLabel={row.addValueAccessibilityLabel}
+                label={row.addValueLabel}
+                onPress={() => addVocabularyValue(row.id)}
               />
-              {row.values.length > 4 ? (
-                <ActionButton
-                  expanded={Boolean(expandedVocabularyValueRows[row.id])}
-                  label={
-                    expandedVocabularyValueRows[row.id]
-                      ? `Show Fewer ${row.fieldLabel} Values`
-                      : `Show All ${row.fieldLabel} Values`
-                  }
-                  onPress={() =>
-                    setExpandedVocabularyValueRows((currentRows) => ({
-                      ...currentRows,
-                      [row.id]: !currentRows[row.id],
-                    }))
-                  }
-                />
-              ) : null}
             </ButtonRow>
           </Fragment>
         ))}
-        {schemaModel.vocabulary.rows.length > 5 ? (
+        {schemaModel.vocabulary.rows.length >
+        knowledgeDisplayLimits.vocabularyRows ? (
           <ButtonRow>
             <ActionButton
               expanded={showAllVocabularyRows}
-              label={
-                showAllVocabularyRows
-                  ? 'Show Fewer Value Rows'
-                  : `Show ${hiddenVocabularyRowCount} More Value Rows`
-              }
+              label={formatExpansionControlLabel({
+                isExpanded: showAllVocabularyRows,
+                hiddenCount: hiddenVocabularyRowCount,
+                pluralItemLabel: 'Value Rows',
+                singularItemLabel: 'Value Row',
+              })}
               onPress={() =>
                 setShowAllVocabularyRows((currentValue) => !currentValue)
               }
@@ -688,9 +1450,17 @@ export function MoreScreen() {
         <MutedText>{schemaModel.hiddenDetails.detail}</MutedText>
         {schemaModel.hiddenDetails.rows.length > 0 ? (
           <>
+            <Field
+              autoCapitalize="none"
+              autoCorrect={false}
+              label={schemaModel.hiddenDetails.searchLabel}
+              placeholder={schemaModel.hiddenDetails.searchPlaceholder}
+              value={hiddenDetailQuery}
+              onChangeText={setHiddenDetailQuery}
+            />
             <ButtonRow>
               <ActionButton
-                label="Clear Hidden Details"
+                label={schemaModel.hiddenDetails.clearAllActionLabel}
                 tone="danger"
                 onPress={() =>
                   confirmMobileDestructiveAction(
@@ -708,23 +1478,46 @@ export function MoreScreen() {
                 </MutedText>
                 <ButtonRow>
                   <ActionButton
-                    label="Review Entry"
+                    accessibilityLabel={row.reviewAccessibilityLabel}
+                    label={row.reviewLabel}
                     onPress={() => router.push(getMobileRouteHref(row.route))}
+                  />
+                  <ActionButton
+                    accessibilityLabel={row.clearAccessibilityLabel}
+                    label={row.clearLabel}
+                    tone="danger"
+                    onPress={() =>
+                      confirmMobileDestructiveAction(
+                        'clear-hidden-entry-detail',
+                        () =>
+                          controller.clearHiddenEntryDetail(
+                            row.sectionId,
+                            row.entryId,
+                            row.fieldKey
+                          ),
+                        `${row.fieldLabel} from ${row.entryName}`
+                      )
+                    }
                   />
                 </ButtonRow>
               </Fragment>
             ))}
-            {schemaModel.hiddenDetails.rows.length > 5 ? (
+            {hiddenDetailRows.length === 0 ? (
+              <MutedText>
+                {schemaModel.hiddenDetails.noSearchResultsText}
+              </MutedText>
+            ) : null}
+            {hiddenDetailRows.length >
+            knowledgeDisplayLimits.hiddenDetailRows ? (
               <ButtonRow>
                 <ActionButton
                   expanded={showAllHiddenDetailRows}
-                  label={
-                    showAllHiddenDetailRows
-                      ? 'Show Fewer Cleanup Rows'
-                      : `Show ${hiddenDetailOverflowCount} More Cleanup ${
-                          hiddenDetailOverflowCount === 1 ? 'Row' : 'Rows'
-                        }`
-                  }
+                  label={formatExpansionControlLabel({
+                    isExpanded: showAllHiddenDetailRows,
+                    hiddenCount: hiddenDetailOverflowCount,
+                    pluralItemLabel: 'Cleanup Rows',
+                    singularItemLabel: 'Cleanup Row',
+                  })}
                   onPress={() =>
                     setShowAllHiddenDetailRows((currentValue) => !currentValue)
                   }
@@ -733,7 +1526,7 @@ export function MoreScreen() {
             ) : null}
           </>
         ) : (
-          <MutedText>No hidden detail cleanup targets.</MutedText>
+          <MutedText>{schemaModel.hiddenDetails.emptyText}</MutedText>
         )}
       </SectionBlock>
 
@@ -742,8 +1535,9 @@ export function MoreScreen() {
         <ButtonRow>
           {schemaModel.reusableKnowledge.destinations.map((destination) => (
             <ActionButton
+              accessibilityLabel={destination.openAccessibilityLabel}
               key={destination.id}
-              label={`Open ${destination.title}`}
+              label={destination.openLabel}
               onPress={() => router.push(getMobileRouteHref(destination.route))}
             />
           ))}
@@ -761,7 +1555,8 @@ export function MoreScreen() {
             </MutedText>
             <ButtonRow>
               <ActionButton
-                label="Open Lore"
+                accessibilityLabel={definition.openAccessibilityLabel}
+                label={definition.openLabel}
                 onPress={() =>
                   router.push(getMobileRouteHref(definition.route))
                 }

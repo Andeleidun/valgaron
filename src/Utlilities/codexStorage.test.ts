@@ -1,20 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it } from '@jest/globals';
 import {
   CODEX_STORAGE_KEY,
-  LEGACY_CODEX_STORAGE_KEY,
-  loadCodex,
   loadWorldDocument,
   loadWorldDocumentWithStatus,
-  resetCodexStorage,
   resetWorldDocumentStorage,
-  saveCodex,
   saveWorldDocument,
 } from './codexStorage';
-import {
-  createSeedCodex,
-  createSeedWorldDocument,
-  getActiveWorld,
-} from '@valgaron/core';
+import { createSeedWorldDocument, getActiveWorld } from '@valgaron/core';
 
 class MemoryStorage {
   private readonly entries = new Map<string, string>();
@@ -76,15 +68,13 @@ describe('codex storage', () => {
   });
 
   it('loads seed data when storage is empty', () => {
-    expect(loadCodex()).toEqual(createSeedCodex());
     expect(loadWorldDocument()).toEqual(createSeedWorldDocument());
   });
 
   it('uses safe fallbacks outside the browser runtime', () => {
     Reflect.deleteProperty(globalThis, 'window');
 
-    expect(loadCodex()).toEqual(createSeedCodex());
-    expect(saveCodex(createSeedCodex())).toBe(false);
+    expect(loadWorldDocument()).toEqual(createSeedWorldDocument());
     expect(saveWorldDocument(createSeedWorldDocument())).toBe(false);
   });
 
@@ -108,68 +98,16 @@ describe('codex storage', () => {
     expect(loadWorldDocument()).toEqual(editedDocument);
   });
 
-  it('saves and loads a valid codex through compatibility helpers', () => {
-    const codex = createSeedCodex();
-    const editedCodex = {
-      ...codex,
-      characters: [
-        {
-          ...codex.characters[0],
-          name: 'Edited Character',
-        },
-      ],
-    };
-
-    expect(saveCodex(editedCodex)).toBe(true);
-
-    expect(loadCodex()).toEqual(editedCodex);
-  });
-
-  it('migrates a legacy codex document from the v1 storage key', () => {
-    const legacyCodex = createSeedCodex();
-    storage.setItem(LEGACY_CODEX_STORAGE_KEY, JSON.stringify(legacyCodex));
-
-    const migratedDocument = loadWorldDocument();
-
-    expect(migratedDocument.schemaVersion).toBe(2);
-    expect(migratedDocument.worlds).toHaveLength(1);
-    expect(getActiveWorld(migratedDocument).codex).toEqual(legacyCodex);
-  });
-
-  it('uses legacy storage when the v2 document is invalid', () => {
-    const legacyCodex = createSeedCodex();
-    storage.setItem(CODEX_STORAGE_KEY, '{not valid json');
-    storage.setItem(LEGACY_CODEX_STORAGE_KEY, JSON.stringify(legacyCodex));
-
-    expect(getActiveWorld(loadWorldDocument()).codex).toEqual(legacyCodex);
-  });
-
-  it('reports recovery when current storage is invalid but legacy storage loads', () => {
-    const legacyCodex = createSeedCodex();
-    storage.setItem(CODEX_STORAGE_KEY, '{not valid json');
-    storage.setItem(LEGACY_CODEX_STORAGE_KEY, JSON.stringify(legacyCodex));
-
-    const result = loadWorldDocumentWithStatus();
-
-    expect(getActiveWorld(result.document).codex).toEqual(legacyCodex);
-    expect(result.status.state).toBe('recovered');
-    expect(result.status.source).toBe('legacy');
-    expect(result.status.issues).toContain(
-      `${CODEX_STORAGE_KEY} is not valid JSON.`
-    );
-  });
-
   it('does not throw when storage writes fail', () => {
     storage.shouldThrowOnSet = true;
 
-    expect(saveCodex(createSeedCodex())).toBe(false);
     expect(saveWorldDocument(createSeedWorldDocument())).toBe(false);
   });
 
   it('falls back to seed data for invalid stored JSON', () => {
     storage.setItem(CODEX_STORAGE_KEY, '{not valid json');
 
-    expect(loadCodex()).toEqual(createSeedCodex());
+    expect(loadWorldDocument()).toEqual(createSeedWorldDocument());
   });
 
   it('reports recovery when stored JSON falls back to seed data', () => {
@@ -188,7 +126,7 @@ describe('codex storage', () => {
   it('falls back to seed data when storage reads fail', () => {
     storage.shouldThrowOnGet = true;
 
-    expect(loadCodex()).toEqual(createSeedCodex());
+    expect(loadWorldDocument()).toEqual(createSeedWorldDocument());
   });
 
   it('reports recovery when local storage reads fail', () => {
@@ -198,31 +136,35 @@ describe('codex storage', () => {
 
     expect(result.document).toEqual(createSeedWorldDocument());
     expect(result.status.state).toBe('recovered');
-    expect(result.status.issues).toHaveLength(2);
+    expect(result.status.issues).toHaveLength(1);
     expect(result.status.issues[0]).toContain('could not be read');
   });
 
-  it('falls back to seed data when stored entries have invalid timestamps', () => {
-    const codex = createSeedCodex();
-    const invalidCodex = {
-      ...codex,
-      characters: [
-        {
-          ...codex.characters[0],
-          updatedAt: 'not-a-date',
-        },
-      ],
+  it('falls back to seed data when the stored document has invalid timestamps', () => {
+    const document = createSeedWorldDocument();
+    const activeWorld = getActiveWorld(document);
+    const invalidDocument = {
+      ...document,
+      worlds: document.worlds.map((world) =>
+        world.id === activeWorld.id
+          ? {
+              ...world,
+              codex: {
+                ...world.codex,
+                characters: [
+                  {
+                    ...world.codex.characters[0],
+                    updatedAt: 'not-a-date',
+                  },
+                ],
+              },
+            }
+          : world
+      ),
     };
-    storage.setItem(CODEX_STORAGE_KEY, JSON.stringify(invalidCodex));
+    storage.setItem(CODEX_STORAGE_KEY, JSON.stringify(invalidDocument));
 
-    expect(loadCodex()).toEqual(createSeedCodex());
-  });
-
-  it('resets storage to a fresh seed codex', () => {
-    const resetCodex = resetCodexStorage();
-
-    expect(resetCodex).toEqual(createSeedCodex());
-    expect(storage.getItem(CODEX_STORAGE_KEY)).toBeNull();
+    expect(loadWorldDocument()).toEqual(createSeedWorldDocument());
   });
 
   it('creates a fresh seed world document for reset flows', () => {

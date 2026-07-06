@@ -10,6 +10,7 @@ describe('runtime recovery model', () => {
     expect(copy.backupHint).toContain('export JSON');
     expect(copy.retryLabel).toBe('Retry');
     expect(copy.dataLabel).toBe('Open Data');
+    expect(copy.diagnosticsKickerLabel).toBe('Local-only report');
     expect(copy.downloadDiagnosticsLabel).toBe('Download Diagnostics');
   });
 

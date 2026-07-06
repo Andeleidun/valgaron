@@ -41,14 +41,18 @@ describe('document diagnostics', () => {
     const diagnostics = getWorldDocumentDiagnostics(document);
 
     expect(diagnostics).toMatchObject({
-      schemaVersion: 2,
+      schemaVersion: 3,
       workspaceCount: 1,
+      vocabularyCount: 7,
+      activeVocabularyValueCount: expect.any(Number),
+      archivedVocabularyValueCount: 0,
       activeWorkspaceEntryCount: 10,
       totalEntryCount: 10,
       relationshipCount: 5,
     });
     expect(JSON.stringify(diagnostics)).not.toContain('Secret');
     expect(JSON.stringify(diagnostics)).not.toContain('secret-entry-id');
+    expect(JSON.stringify(diagnostics)).not.toContain('Human');
   });
 
   it('serializes a portable local diagnostics report', () => {
@@ -62,6 +66,13 @@ describe('document diagnostics', () => {
     expect(report.app.name).toBe('Valgaron World Codex');
     expect(report.runtime.storageTarget).toBe('this device');
     expect(report.contentPolicy.includesWorldContent).toBe(false);
+    expect(report.contentPolicy.omittedFields).toEqual(
+      expect.arrayContaining([
+        'vocabulary labels',
+        'vocabulary descriptions',
+        'vocabulary aliases',
+      ])
+    );
     expect(serialized).toContain('"workspaceCount": 1');
     expect(serialized).not.toContain('Sample Atlas');
   });

@@ -1,6 +1,7 @@
 import { getEntries } from './codexEntries';
 import { relationshipFromDraft } from './codexRelationships';
 import { pluralizeCountLabel } from './featureDisplayLimits';
+import { getCodexEntriesRoute } from './shell';
 import {
   buildRelationshipTextMigration,
   splitRelationshipTextFragments,
@@ -97,6 +98,9 @@ export type RelationshipTargetOptionDisplay = {
 export type RelationshipTextReviewItem = {
   entryId: string;
   entryName: string;
+  reviewEntryAccessibilityLabel: string;
+  reviewEntryLabel: string;
+  reviewEntryRoute: string;
   sectionId: string;
   fieldKey: string;
   fieldLabel: string;
@@ -108,7 +112,9 @@ export type RelationshipTextReviewItem = {
   suggestedTargets: {
     fragment: string;
     targets: {
+      accessibilityLabel: string;
       id: string;
+      label: string;
       name: string;
       context: string;
     }[];
@@ -134,6 +140,8 @@ export const relationshipTextReviewCopy = {
   noExactMatchesFound: 'No exact matches found.',
   reviewEntryLabel: 'Review Entry',
   savedTextLinkNotesTitle: 'Saved text link notes',
+  suggestionsLabel: 'Suggestions',
+  unresolvedLabel: 'Unresolved',
   unmatchedTextWillRemain: 'Unmatched text will remain.',
 } as const;
 
@@ -147,10 +155,20 @@ export const relationshipFieldCopy = {
   searchPlaceholder: 'Filter linked record targets',
 } as const;
 
+export function getRelationshipFieldSearchLabel(
+  field: Pick<RelationshipFieldConfig, 'label'>
+): string {
+  return `Search ${field.label}`;
+}
+
 export function getRelationshipTextReviewSummary(count: number): string {
   return `${count} relationship-backed field${count === 1 ? '' : 's'} ${
     count === 1 ? 'contains' : 'contain'
   } saved text that can be reviewed or migrated to relationships.`;
+}
+
+export function getRelationshipTextReviewCountLabel(count: number): string {
+  return `${count} field${count === 1 ? '' : 's'} to review`;
 }
 
 export function getRelationshipTextMigrationStatus({
@@ -475,7 +493,7 @@ export function getRelationshipTargetOptionDisplay({
         ? `${hiddenPreferredCount} more ${pluralizeCountLabel(
             hiddenPreferredCount,
             'preferred record'
-          )}.`
+          )}. Search or show more to reach them.`
         : '',
     canExpandPreferredTargets,
     showPreferredTargetsLabel: canExpandPreferredTargets
@@ -538,7 +556,9 @@ function getSuggestedTargetsForUnresolvedFragments(
         })
         .slice(0, 3)
         .map((option) => ({
+          accessibilityLabel: `Link ${fragment} to ${option.entry.name}`,
           id: option.entry.id,
+          label: `Link ${option.entry.name}`,
           name: option.entry.name,
           context: getSuggestionTargetContext(option),
         }));
@@ -603,6 +623,14 @@ export function getRelationshipTextReviewItems({
                 {
                   entryId: entry.id,
                   entryName: entry.name,
+                  reviewEntryAccessibilityLabel: `Review ${entry.name} ${config.label} link text`,
+                  reviewEntryLabel: relationshipTextReviewCopy.reviewEntryLabel,
+                  reviewEntryRoute: getCodexEntriesRoute({
+                    entryId: entry.id,
+                    intent: 'edit',
+                    query: entry.name,
+                    sectionId: section.id,
+                  }),
                   sectionId: section.id,
                   fieldKey: config.fieldKey,
                   fieldLabel: config.label,

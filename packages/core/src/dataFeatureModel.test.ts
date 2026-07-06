@@ -15,13 +15,17 @@ import {
   dataRecoverySnapshotUnavailableMessage,
   dataRouteFocusTargetIds,
   dataResetCopy,
+  dataShellMenuCopy,
   dataStorageCopy,
+  formatDataShellDownloadResultMessage,
   getDataActionResultMessage,
   getDataDiagnosticsSummaryText,
   getDataExportDraftState,
   getDataExportSharePayload,
   getDataExportText,
   formatDataDownloadSuccessMessage,
+  formatDataImportFileLoadedMessage,
+  formatDataImportFileReadFailedMessage,
   getDataImportPreviewText,
   getDataImportReviewState,
   getDataRecoverySnapshotModel,
@@ -63,6 +67,23 @@ describe('data feature model', () => {
         mode: 'markdown',
       },
     ]);
+    expect(dataShellMenuCopy).toMatchObject({
+      triggerLabel: 'Data Menu',
+      menuAccessibilityLabel: 'Data actions',
+      importJsonBackupLabel: 'Import JSON Backup',
+    });
+    expect(
+      formatDataShellDownloadResultMessage({
+        didDownload: true,
+        successLabel: 'Markdown export',
+      })
+    ).toBe('Markdown export downloaded.');
+    expect(
+      formatDataShellDownloadResultMessage({
+        didDownload: false,
+        successLabel: 'Markdown export',
+      })
+    ).toBe(dataShellMenuCopy.downloadUnavailableMessage);
   });
 
   it.each<DataExportMode>([
@@ -295,7 +316,15 @@ describe('data feature model', () => {
         'The pasted import text will be cleared from this screen.',
       clearAfterReplacementMessage:
         'The pasted import text will be cleared after this document replacement.',
+      fileUnavailableMessage:
+        'File import is unavailable in this runtime; paste the JSON backup instead.',
     });
+    expect(formatDataImportFileLoadedMessage('atlas.json')).toBe(
+      'Loaded atlas.json. Review the preview before importing.'
+    );
+    expect(formatDataImportFileReadFailedMessage('atlas.json')).toBe(
+      'Could not read atlas.json. Paste the JSON backup instead.'
+    );
     expect(dataStorageCopy).toMatchObject({
       kicker: 'Storage status',
       title: 'Manual local save',
@@ -352,11 +381,16 @@ describe('data feature model', () => {
       reasonTitle: 'Before relationship delete',
       reasonPhrase: 'before relationship delete',
       activeWorldName: 'Sample Atlas',
+      confirmationSubject: 'Before relationship delete for Sample Atlas',
       countSummary: '2 worlds, 12 entries, 7 relationships',
       restoreLabel: 'Restore Snapshot',
+      restoreAccessibilityLabel:
+        'Restore Before relationship delete for Sample Atlas',
       restoreAccessibilityHint:
         'Restores this saved recovery snapshot after confirmation.',
       deleteLabel: 'Delete Snapshot',
+      deleteAccessibilityLabel:
+        'Delete Before relationship delete for Sample Atlas',
       deleteAccessibilityHint:
         'Deletes this recovery snapshot after confirmation.',
       latestPrefix: 'Latest: ',
@@ -397,6 +431,7 @@ describe('data feature model', () => {
       actionLabel: 'Reset Starter Data',
     });
     expect(dataResetCopy.description).toContain('Export JSON first');
+    expect(dataStorageCopy.manualSaveLineLabel).toBe('Manual save');
   });
 
   it('summarizes Data storage state without world content', () => {

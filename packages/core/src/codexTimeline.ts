@@ -7,6 +7,7 @@ import {
   type EntryDraft,
   type EntryEditorDetailFieldModel,
 } from './codexEntries';
+import { getDraftDetailFields } from './placeTaxonomy';
 import {
   createEmptyRelationshipDraft,
   findEntryById,
@@ -17,6 +18,7 @@ import { getSearchableEntries, searchEntries } from './codexSearch';
 import {
   createStagedRelationshipDraft,
   draftTransactionEntryId,
+  normalizeStagedRelationshipDrafts,
   type StagedRelationshipDraft,
 } from './entryDraftTransactions';
 import {
@@ -42,6 +44,7 @@ import type {
   WorldEntryStatus,
   WorldRelationship,
   WorldSectionConfig,
+  WorldWorkspaceSchema,
   WorldWorkspace,
 } from './types';
 
@@ -111,6 +114,7 @@ export type TimelineEraManagerModel = {
   eras: readonly TimelineEraManagerItem[];
   unassignedCount: number;
   totalEraCount: number;
+  namedEraCountLabel: string;
 };
 
 export type TimelineEraReassignmentDraft = {
@@ -133,6 +137,15 @@ export type TimelineEventItem = {
   orderText: string;
   contextText: string;
   involvedEntryNames: readonly string[];
+  involvedEntriesAccessibilityLabel: string;
+  moveEarlierAccessibilityLabel: string;
+  moveEarlierLabel: string;
+  moveLaterAccessibilityLabel: string;
+  moveLaterLabel: string;
+  openAccessibilityLabel: string;
+  openLabel: string;
+  reviewContextAccessibilityLabel: string;
+  reviewContextLabel: string;
 };
 
 export type TimelineEraBrowseGroup = {
@@ -189,11 +202,20 @@ export type TimelineEditorLegacyInvolvedText = {
 export type TimelineEditorInvolvedRecordsModel = {
   title: string;
   description: string;
+  savedEntryMessage: string;
+  saveBeforeEditMessage: string;
+  searchLabel: string;
+  searchPlaceholder: string;
+  optionListLabel: string;
+  emptySearchLabel: string;
+  selectedRecordsLabel: string;
+  selectedRecordsSummaryLabel: string | null;
   options: readonly TimelineEditorInvolvedRecord[];
   selectedRecords: readonly TimelineEditorInvolvedRecord[];
   display: RelationshipTargetOptionDisplay;
   legacyText: TimelineEditorLegacyInvolvedText | null;
   duplicateStagedTargetIds: readonly string[];
+  duplicateStagedTargetLabel: string | null;
 };
 
 export type TimelineEventEditorModel = {
@@ -212,11 +234,13 @@ export type TimelineEventEditorModelOptions = {
   involvedRecordQuery?: string;
   section: WorldSectionConfig;
   selectedEntry?: WorldEntry | null;
+  suggestionLimit?: number;
   stagedRelationships?: readonly StagedRelationshipDraft[];
   world: {
     codex: WorldCodex;
     entryTypes: readonly WorldSectionConfig[];
     relationships: readonly WorldRelationship[];
+    schema?: WorldWorkspaceSchema;
   };
 };
 
@@ -232,12 +256,27 @@ export const timelineFeatureCopy = {
   clearTimelineFiltersLabel: 'Clear Timeline Filters',
   duplicateOrdersLabel: 'Duplicate orders',
   duplicateOrderGroupsLabel: 'Duplicate order groups',
+  duplicateStagedInvolvedRecordLabel:
+    'Duplicate involved links were removed from the save list. Only one link per involved record will be saved.',
+  eraFilterLabel: 'Era',
   eraManagerTitle: 'Era Manager',
   eraReassignmentActionLabel: 'Apply Era Change',
   eraReassignmentSourceLabel: 'Era to change',
   eraReassignmentTargetLabel: 'New or existing era',
   eraReassignmentTargetPlaceholder: 'Era name',
   highlightsLabel: 'Highlights',
+  timelineErasLabel: 'Timeline eras',
+  timelineHighlightsLabel: 'Timeline highlights',
+  timelineOverviewTitle: 'Timeline view',
+  timelineTableLabel: 'Timeline table',
+  timelineTableColumnLabels: {
+    order: 'Order',
+    event: 'Event',
+    date: 'Date',
+    era: 'Era',
+    links: 'Links',
+    actions: 'Actions',
+  },
   needsOrderLabel: 'Needs order',
   noDateLabel: 'No date',
   noDateLabelSentence: 'No date label.',
@@ -249,7 +288,9 @@ export const timelineFeatureCopy = {
     'Clear filters or add a timeline event to build chronology.',
   noTimelineEventsMatchFilters: 'No timeline events match these filters.',
   noVisibleTimelineEvents: 'No visible timeline events.',
+  involvedFilterLabel: 'Involved entry',
   searchInvolvedFiltersLabel: 'Search involved filters',
+  searchInvolvedFiltersPlaceholder: 'Record name, section, tag, status, or id',
   timelineBrowserTitle: 'Timeline Browser',
   timelineReviewTitle: 'Timeline Review',
   unlinkedEventsLabel: 'Unlinked events',
@@ -258,6 +299,14 @@ export const timelineFeatureCopy = {
   unorderedLabel: 'Unordered',
   noOrderLabel: 'No order',
 } as const;
+
+export function formatTimelineVisibleEventCount(count: number): string {
+  return `${count} visible event${count === 1 ? '' : 's'}`;
+}
+
+export function formatTimelineReviewIssueCount(count: number): string {
+  return `${count} review issue${count === 1 ? '' : 's'}`;
+}
 
 export const timelineUnassignedEraFilterValue = '__timeline_unassigned_era__';
 
@@ -375,14 +424,18 @@ export function getTimelineEventEditorModel({
   involvedRecordQuery = '',
   section,
   selectedEntry,
+  suggestionLimit = Number.POSITIVE_INFINITY,
   stagedRelationships = [],
   world,
 }: TimelineEventEditorModelOptions): TimelineEventEditorModel {
   const sectionEntries = getEntries(world.codex, section.id);
   const fieldModels = getEntryEditorDetailFieldModels({
     draft,
-    fields: section.detailFields,
+    fields: getDraftDetailFields(section, draft, world.schema),
     sectionEntries,
+    sectionId: section.id,
+    suggestionLimit,
+    workspaceSchema: world.schema,
   });
   const chronology = getTimelineEditorFieldGroup({
     fieldKeys: timelineChronologyFieldKeys,
@@ -434,6 +487,10 @@ export function getTimelineEventEditorModel({
   const duplicateStagedTargetIds = stagedTargetIds.filter(
     (targetId, index) => stagedTargetIds.indexOf(targetId) !== index
   );
+  const duplicateStagedTargetLabel =
+    duplicateStagedTargetIds.length > 0
+      ? timelineFeatureCopy.duplicateStagedInvolvedRecordLabel
+      : null;
   const targetOptions = getRelationshipTargetOptions({
     codex: world.codex,
     config,
@@ -480,7 +537,8 @@ export function getTimelineEventEditorModel({
     submitLabel: getEntryEditorSubmitLabel({
       section,
       selectedEntry,
-      stagedRelationshipCount: stagedRelationships.length,
+      stagedRelationshipCount:
+        normalizeStagedRelationshipDrafts(stagedRelationships).length,
     }),
     chronology,
     outcomes,
@@ -496,6 +554,21 @@ export function getTimelineEventEditorModel({
       title: 'Involved records',
       description:
         'Link the characters, places, factions, and lore notes involved in this event.',
+      savedEntryMessage:
+        'Use the relationship-backed controls below to update involved records.',
+      saveBeforeEditMessage:
+        'Save this timeline event before editing involved records.',
+      searchLabel: 'Search involved records',
+      searchPlaceholder: 'Character, place, faction, or lore note',
+      optionListLabel: 'Choose involved records',
+      emptySearchLabel: 'No involved records match this search.',
+      selectedRecordsLabel: 'Selected involved records',
+      selectedRecordsSummaryLabel:
+        selectedRecords.length > 0
+          ? `Selected: ${selectedRecords
+              .map((record) => record.name)
+              .join(', ')}`
+          : null,
       options: visibleRecords,
       selectedRecords,
       display,
@@ -510,6 +583,7 @@ export function getTimelineEventEditorModel({
           }
         : null,
       duplicateStagedTargetIds,
+      duplicateStagedTargetLabel,
     },
   };
 }
@@ -671,7 +745,8 @@ export function groupTimelineEventsByEra(
   const sortedEvents = sortTimelineEvents(events);
   const groups = new Map<string, WorldEntry[]>();
   for (const event of sortedEvents) {
-    const era = event.fields.era?.trim() || 'Unassigned Era';
+    const era =
+      event.fields.era?.trim() || timelineFeatureCopy.unassignedEraLabel;
     const groupedEvents = groups.get(era);
     if (groupedEvents) {
       groupedEvents.push(event);
@@ -707,6 +782,9 @@ export function getTimelineEraManagerModel(
     eras,
     unassignedCount,
     totalEraCount: eras.length,
+    namedEraCountLabel: `${eras.length} named era${
+      eras.length === 1 ? '' : 's'
+    }`,
   };
 }
 
@@ -890,6 +968,15 @@ export function getTimelineEventItem(
     orderText,
     contextText: `${orderText} - ${dateText}`,
     involvedEntryNames,
+    involvedEntriesAccessibilityLabel: `${event.name} involved entries`,
+    moveEarlierAccessibilityLabel: `Move ${event.name} earlier`,
+    moveEarlierLabel: 'Earlier',
+    moveLaterAccessibilityLabel: `Move ${event.name} later`,
+    moveLaterLabel: 'Later',
+    openAccessibilityLabel: `Open ${event.name}`,
+    openLabel: 'Open Event',
+    reviewContextAccessibilityLabel: `Review context for ${event.name}`,
+    reviewContextLabel: 'Review Context',
   };
 }
 

@@ -17,6 +17,7 @@ import type {
   WorldEntryStatus,
   WorldSectionConfig,
   WorldSectionId,
+  WorldWorkspaceSchema,
 } from './types';
 import { makeLocalIdSuffix } from './ids';
 
@@ -108,6 +109,11 @@ export type EntryDetailDisplayModel = {
   visibleDetails: EntryDetailDisplayField[];
 };
 
+export type EntryCardDetailPreviewModel = {
+  text: string;
+  visibleValueCount: number;
+};
+
 export type EntryEditorBaseFieldKey = 'name' | 'summary' | 'notes' | 'tags';
 
 export type EntryEditorBaseFieldModel = {
@@ -120,12 +126,33 @@ export type EntryEditorBaseFieldModel = {
   value: string;
 };
 
+export type EntryEditorBaseFieldLayoutModel = {
+  fields: readonly EntryEditorBaseFieldModel[];
+  leadingFields: readonly EntryEditorBaseFieldModel[];
+  trailingFields: readonly EntryEditorBaseFieldModel[];
+};
+
 export type EntryEditorDetailFieldModel = {
+  canonicalReplacement: {
+    accessibilityLabel: string;
+    label: string;
+    value: string;
+  } | null;
+  helpText: string;
   key: WorldDetailFieldKey;
   label: string;
   multiline: boolean;
   rows: number;
+  hiddenSuggestionCount: number;
+  hiddenSuggestionLabel: string;
+  suggestionActions: readonly EntryEditorSuggestionActionModel[];
   suggestions: readonly string[];
+  value: string;
+};
+
+export type EntryEditorSuggestionActionModel = {
+  accessibilityLabel: string;
+  label: string;
   value: string;
 };
 
@@ -217,6 +244,29 @@ export function getEntryEditorBaseFields(
   ];
 }
 
+export function getEntryEditorBaseFieldLayout(
+  section: Pick<WorldSectionConfig, 'id' | 'singularTitle'>,
+  draft: EntryDraft
+): EntryEditorBaseFieldLayoutModel {
+  const fields = getEntryEditorBaseFields(section, draft);
+  const leadingFieldCount = section.id === 'timeline' ? 2 : 3;
+  return {
+    fields,
+    leadingFields: fields.slice(0, leadingFieldCount),
+    trailingFields: fields.slice(3),
+  };
+}
+
+export function getEntryEditorHiddenSuggestionLabel(count: number): string {
+  const safeCount = Math.max(0, count);
+  if (safeCount === 0) {
+    return '';
+  }
+  return `${safeCount} more suggestion${
+    safeCount === 1 ? '' : 's'
+  } available. Type to use another value.`;
+}
+
 export function getEntryEditorNotesPreviewModel(
   notes: string
 ): EntryEditorNotesPreviewModel {
@@ -240,6 +290,18 @@ export function getEntryEditorNewTitle(
   section: Pick<WorldSectionConfig, 'singularTitle'>
 ): string {
   return `New ${section.singularTitle}`;
+}
+
+export function getEntryEditorTitle({
+  section,
+  selectedEntry,
+}: {
+  section: Pick<WorldSectionConfig, 'singularTitle'>;
+  selectedEntry: Pick<WorldEntry, 'name'> | null | undefined;
+}): string {
+  return selectedEntry
+    ? `Edit ${selectedEntry.name}`
+    : getEntryEditorNewTitle(section);
 }
 
 export function getEntryEditorSubmitLabel({
@@ -273,14 +335,19 @@ export function getEntryStatusLabel(status: WorldEntryStatus): string {
 
 export function getEntryDetailDisplayModel(
   section: WorldSectionConfig,
-  entry: WorldEntry
+  entry: WorldEntry,
+  workspaceSchema?: WorldWorkspaceSchema
 ): EntryDetailDisplayModel {
   return {
     created: {
       label: entryDisplayCopy.createdLabel,
       value: formatUpdatedAt(entry.createdAt),
     },
-    hiddenDetails: getHiddenEntryDetailValues(section, entry.fields),
+    hiddenDetails: getHiddenEntryDetailValues(
+      section,
+      entry.fields,
+      workspaceSchema
+    ),
     kicker: `${section.singularTitle} ${entryDisplayCopy.sectionDetailSuffix}`,
     name: entry.name,
     notes: entry.notes,
@@ -298,7 +365,7 @@ export function getEntryDetailDisplayModel(
       label: entryDisplayCopy.updatedLabel,
       value: formatUpdatedAt(entry.updatedAt),
     },
-    visibleDetails: getEntryDetailFields(section, entry)
+    visibleDetails: getEntryDetailFields(section, entry, workspaceSchema)
       .map((field) => ({
         label: field.label,
         value: getDetailValue(entry, field.key),
@@ -307,11 +374,28 @@ export function getEntryDetailDisplayModel(
   };
 }
 
+export function getEntryCardDetailPreviewModel(
+  section: WorldSectionConfig,
+  entry: WorldEntry,
+  workspaceSchema?: WorldWorkspaceSchema
+): EntryCardDetailPreviewModel {
+  const visibleValues = getEntryDetailFields(section, entry, workspaceSchema)
+    .map((field) => getDetailValue(entry, field.key))
+    .filter(Boolean)
+    .slice(0, 2);
+  return {
+    text: visibleValues.join(' | '),
+    visibleValueCount: visibleValues.length,
+  };
+}
+
 export function getEntryEditorDetailFieldModels({
   draft,
   fields,
   sectionEntries,
+  sectionId,
   suggestionLimit = Number.POSITIVE_INFINITY,
+  workspaceSchema,
 }: {
   draft: EntryDraft;
   fields: readonly Pick<
@@ -323,26 +407,134 @@ export function getEntryEditorDetailFieldModels({
     | 'suggestFromExistingValues'
   >[];
   sectionEntries: readonly WorldEntry[];
+  sectionId?: string;
   suggestionLimit?: number;
+  workspaceSchema?: WorldWorkspaceSchema;
 }): EntryEditorDetailFieldModel[] {
-  const suggestionsByKey = getEntryDetailFieldSuggestions(
+  const suggestionsByKey = getEntryDetailFieldSuggestions({
+    entries: sectionEntries,
     fields,
-    sectionEntries
-  );
+    sectionId,
+    workspaceSchema,
+  });
   return fields.map((field) => {
     const value = draft.details[field.key] ?? '';
-    const suggestions = (suggestionsByKey[field.key] ?? [])
-      .filter((suggestion) => suggestion !== value)
-      .slice(0, Math.max(0, suggestionLimit));
+    const fieldOverride =
+      workspaceSchema?.fieldOverrides[sectionId ?? '']?.[field.key];
+    const canonicalReplacement = getCanonicalVocabularyReplacement({
+      fieldLabel: field.label,
+      fieldOverride,
+      value,
+      workspaceSchema,
+    });
+    const normalizedCurrentValue = value.trim().toLowerCase();
+    const normalizedCanonicalReplacement =
+      canonicalReplacement?.value.trim().toLowerCase() ?? '';
+    const allSuggestions = (suggestionsByKey[field.key] ?? []).filter(
+      (suggestion) => {
+        const normalizedSuggestion = suggestion.trim().toLowerCase();
+        return (
+          normalizedSuggestion !== normalizedCurrentValue &&
+          normalizedSuggestion !== normalizedCanonicalReplacement
+        );
+      }
+    );
+    const suggestions = allSuggestions.slice(0, Math.max(0, suggestionLimit));
+    const hiddenSuggestionCount = Math.max(
+      0,
+      allSuggestions.length - suggestions.length
+    );
+    const suggestionActions = suggestions.map((suggestion) => ({
+      accessibilityLabel: getEntryEditorSuggestionAccessibilityLabel(
+        suggestion,
+        field.label
+      ),
+      label: suggestion,
+      value: suggestion,
+    }));
     return {
+      canonicalReplacement,
+      helpText: fieldOverride?.helpText?.trim() ?? '',
+      hiddenSuggestionCount,
+      hiddenSuggestionLabel: getEntryEditorHiddenSuggestionLabel(
+        hiddenSuggestionCount
+      ),
       key: field.key,
       label: field.label,
       multiline: Boolean(field.multiline),
       rows: field.multiline ? 3 : 1,
+      suggestionActions,
       suggestions,
       value,
     };
   });
+}
+
+function getEntryEditorSuggestionAccessibilityLabel(
+  value: string,
+  fieldLabel: string
+): string {
+  return `Use ${value} for ${fieldLabel}`;
+}
+
+function getCanonicalVocabularyReplacement({
+  fieldLabel,
+  fieldOverride,
+  value,
+  workspaceSchema,
+}: {
+  fieldLabel: string;
+  fieldOverride?: WorldWorkspaceSchema['fieldOverrides'][string][string];
+  value: string;
+  workspaceSchema?: WorldWorkspaceSchema;
+}): EntryEditorDetailFieldModel['canonicalReplacement'] {
+  const normalizedValue = value.trim().toLocaleLowerCase();
+  if (!fieldOverride?.vocabularyId || !normalizedValue || !workspaceSchema) {
+    return null;
+  }
+  const vocabulary = workspaceSchema.vocabularies.find(
+    (candidate) => candidate.id === fieldOverride.vocabularyId
+  );
+  if (!vocabulary) {
+    return null;
+  }
+  for (const candidate of vocabulary.values) {
+    if (candidate.status !== 'active') {
+      continue;
+    }
+    const label = candidate.label.trim();
+    if (!label) {
+      continue;
+    }
+    if (
+      label.toLocaleLowerCase() === normalizedValue &&
+      label !== value.trim()
+    ) {
+      return {
+        accessibilityLabel: getEntryEditorSuggestionAccessibilityLabel(
+          label,
+          fieldLabel
+        ),
+        label: `Use ${label}`,
+        value: label,
+      };
+    }
+    if (
+      candidate.aliases.some(
+        (alias) => alias.trim().toLocaleLowerCase() === normalizedValue
+      )
+    ) {
+      return {
+        accessibilityLabel: getEntryEditorSuggestionAccessibilityLabel(
+          label,
+          fieldLabel
+        ),
+        label: `Use ${label}`,
+        value: label,
+      };
+    }
+  }
+  return null;
 }
 
 export function getEntryEditorDetailFieldGroups({
@@ -351,6 +543,7 @@ export function getEntryEditorDetailFieldGroups({
   section,
   sectionEntries,
   suggestionLimit = Number.POSITIVE_INFINITY,
+  workspaceSchema,
 }: {
   draft: EntryDraft;
   fields: readonly Pick<
@@ -364,12 +557,15 @@ export function getEntryEditorDetailFieldGroups({
   section: WorldSectionConfig;
   sectionEntries: readonly WorldEntry[];
   suggestionLimit?: number;
+  workspaceSchema?: WorldWorkspaceSchema;
 }): EntryEditorDetailFieldGroupModel[] {
   const fieldModels = getEntryEditorDetailFieldModels({
     draft,
     fields,
     sectionEntries,
+    sectionId: section.id,
     suggestionLimit,
+    workspaceSchema,
   });
   const fieldModelByKey = new Map(
     fieldModels.map((field) => [field.key, field])
@@ -449,10 +645,15 @@ export function getEntryEditorDetailFieldGroups({
 
 export function getEntryHiddenDetailCleanupModel(
   section: WorldSectionConfig,
-  draft: EntryDraft
+  draft: EntryDraft,
+  workspaceSchema?: WorldWorkspaceSchema
 ): EntryHiddenDetailCleanupModel {
   return {
-    fields: getHiddenEntryDetailValues(section, draft.details).map((field) => ({
+    fields: getHiddenEntryDetailValues(
+      section,
+      draft.details,
+      workspaceSchema
+    ).map((field) => ({
       ...field,
       clearLabel: entryEditorCopy.clearLabel,
     })),
@@ -481,16 +682,50 @@ export function getEntryEditorSelectedActionModel(
 }
 
 /** Build autocomplete suggestions for detail fields that opt into suggestions. */
-export function getEntryDetailFieldSuggestions(
+export function getEntryDetailFieldSuggestions({
+  entries,
+  fields,
+  sectionId,
+  workspaceSchema,
+}: {
   fields: readonly Pick<
     WorldDetailField,
     'autocompleteOptions' | 'key' | 'suggestFromExistingValues'
-  >[],
-  entries: readonly WorldEntry[]
-): Record<WorldDetailFieldKey, string[]> {
+  >[];
+  entries: readonly WorldEntry[];
+  sectionId?: string;
+  workspaceSchema?: WorldWorkspaceSchema;
+}): Record<WorldDetailFieldKey, string[]> {
+  const fieldOverrides = sectionId
+    ? workspaceSchema?.fieldOverrides[sectionId] ?? {}
+    : {};
+  const vocabularyById = new Map(
+    workspaceSchema?.vocabularies.map((vocabulary) => [
+      vocabulary.id,
+      vocabulary,
+    ]) ?? []
+  );
   return Object.fromEntries(
     fields.map((field) => {
       const suggestions = new Map<string, string>();
+      const vocabularyId = fieldOverrides[field.key]?.vocabularyId;
+      const vocabulary = vocabularyId
+        ? vocabularyById.get(vocabularyId)
+        : undefined;
+      const activeVocabularyValues = [...(vocabulary?.values ?? [])]
+        .filter((value) => value.status === 'active')
+        .sort(
+          (first, second) =>
+            (first.order ?? Number.MAX_SAFE_INTEGER) -
+              (second.order ?? Number.MAX_SAFE_INTEGER) ||
+            first.label.localeCompare(second.label)
+        );
+      for (const value of activeVocabularyValues) {
+        const normalizedLabel = value.label.trim();
+        if (normalizedLabel) {
+          suggestions.set(normalizedLabel.toLowerCase(), normalizedLabel);
+        }
+      }
       for (const option of field.autocompleteOptions ?? []) {
         const normalizedOption = option.trim();
         if (normalizedOption) {
@@ -505,7 +740,7 @@ export function getEntryDetailFieldSuggestions(
           }
         }
       }
-      return [field.key, Array.from(suggestions.values()).sort()];
+      return [field.key, Array.from(suggestions.values())];
     })
   );
 }

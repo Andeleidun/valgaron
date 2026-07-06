@@ -3,6 +3,7 @@ import type {
   WorldEntry,
   WorldRelationship,
   WorldSectionConfig,
+  WorldWorkspaceSchema,
 } from '@valgaron/core';
 import { SectionPage } from './SectionPage';
 
@@ -10,6 +11,7 @@ export function TimelinePage({
   codex,
   relationships,
   sections,
+  workspaceSchema,
   onArchiveEntry,
   onDeleteEntry,
   onDeleteRelationship,
@@ -19,6 +21,7 @@ export function TimelinePage({
   codex: WorldCodex;
   relationships: readonly WorldRelationship[];
   sections: readonly WorldSectionConfig[];
+  workspaceSchema?: WorldWorkspaceSchema;
   onArchiveEntry: (entry: WorldEntry, archived: boolean) => void;
   onDeleteEntry: (entry: WorldEntry) => void;
   onDeleteRelationship: (relationshipId: string) => void;
@@ -36,6 +39,7 @@ export function TimelinePage({
       onSaveRelationship={onSaveRelationship}
       relationships={relationships}
       sections={sections}
+      workspaceSchema={workspaceSchema}
     />
   );
 }

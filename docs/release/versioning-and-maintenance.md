@@ -41,9 +41,7 @@ decisions that require new durable document data, such as workspace-owned
 editable vocabularies or built-in field definitions that do not fit current
 field metadata.
 
-Schema `3` has been approved as the next durable schema/vocabulary editing
-track. Treat it as pending implementation until the document model, storage key,
-import/export behavior, diagnostics, tests, and release notes are updated.
+Schema `3` is the current durable schema/vocabulary editing baseline.
 
 World document schema changes must include:
 

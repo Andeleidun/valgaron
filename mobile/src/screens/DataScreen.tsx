@@ -286,15 +286,20 @@ export function DataScreen() {
 
   function replaceDocumentAfterConfirm(
     actionId: 'reset-document' | 'restore-snapshot',
-    replaceDocument: () => void
+    replaceDocument: () => void,
+    subjectName?: string
   ) {
     confirmDiscardUnsavedChangesOnMobile(
       hasImportText,
       () =>
-        confirmMobileDestructiveAction(actionId, () => {
-          replaceDocument();
-          clearTransientDataDrafts();
-        }),
+        confirmMobileDestructiveAction(
+          actionId,
+          () => {
+            replaceDocument();
+            clearTransientDataDrafts();
+          },
+          subjectName
+        ),
       undefined,
       {
         message: dataImportCopy.clearAfterReplacementMessage,
@@ -460,21 +465,27 @@ export function DataScreen() {
                 </MutedText>
                 <ButtonRow>
                   <ActionButton
+                    accessibilityLabel={snapshot.restoreAccessibilityLabel}
                     accessibilityHint={snapshot.restoreAccessibilityHint}
                     label={snapshot.restoreLabel}
                     onPress={() =>
-                      replaceDocumentAfterConfirm('restore-snapshot', () =>
-                        controller.restoreRecoverySnapshot(snapshot.id)
+                      replaceDocumentAfterConfirm(
+                        'restore-snapshot',
+                        () => controller.restoreRecoverySnapshot(snapshot.id),
+                        snapshot.confirmationSubject
                       )
                     }
                   />
                   <ActionButton
+                    accessibilityLabel={snapshot.deleteAccessibilityLabel}
                     accessibilityHint={snapshot.deleteAccessibilityHint}
                     label={snapshot.deleteLabel}
                     tone="danger"
                     onPress={() =>
-                      confirmMobileDestructiveAction('delete-snapshot', () =>
-                        controller.deleteRecoverySnapshot(snapshot.id)
+                      confirmMobileDestructiveAction(
+                        'delete-snapshot',
+                        () => controller.deleteRecoverySnapshot(snapshot.id),
+                        snapshot.confirmationSubject
                       )
                     }
                   />

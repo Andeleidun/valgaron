@@ -27,9 +27,11 @@ using compact native tabs for repeated editing on a phone.
 - Workbench review hotspot links preserve shared queue routes such as
   `/entries?view=unlinked`, so mobile opens the same review target as the
   browser instead of the default Workbench index.
-- Knowledge setup covers custom entry type management, custom field hints such
-  as multiline fields and suggested choices, controlled values, lore definition
-  types, observed flexible values, and relationship-backed field rules.
+- Knowledge setup covers custom entry type management, field configuration for
+  labels, help text, visibility, order, vocabulary attachment, and
+  suggested/restricted vocabulary behavior, searchable field settings, durable
+  vocabulary value editing/search with aliases, lore definition types, and
+  relationship-backed field rules.
 - Data supports JSON import/export, Markdown reference export, diagnostics,
   reset, and selected recovery snapshot restore or delete.
 - Help keeps focused entry, timeline, relationship, workspace, local-device,

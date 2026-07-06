@@ -22,8 +22,16 @@ import type {
 } from './types';
 
 export type EntryListItem = {
+  editAccessibilityLabel: string;
+  editLabel: string;
   id: string;
+  moveEarlierAccessibilityLabel: string | null;
+  moveEarlierLabel: string | null;
+  moveLaterAccessibilityLabel: string | null;
+  moveLaterLabel: string | null;
   name: string;
+  reviewContextAccessibilityLabel: string;
+  reviewContextLabel: string;
   sectionTitle: string;
   summary: string;
   summaryText: string;
@@ -65,6 +73,7 @@ export type EntryListEmptyStateModel = {
   title: string;
   detail: string;
   showArchivedAction: boolean;
+  showArchivedActionLabel: string | null;
 };
 
 type EntryListWorkspaceSource = {
@@ -76,8 +85,38 @@ type EntryListWorkspaceSource = {
 export const entryListCopy = {
   clearFiltersLabel: 'Clear Filters',
   entryHelpLabel: 'Entry Help',
+  entriesTitle: 'Entries',
+  filterByTagLabel: 'Filter by tag',
+  filtersTitle: 'Filters',
+  searchSectionLabel: 'Search this section',
+  sectionsTitle: 'Sections',
   timelineHelpLabel: 'Timeline Help',
 } as const;
+
+export function formatEntryListShownCount(
+  shownCount: number,
+  totalCount: number
+): string {
+  return `${shownCount} of ${totalCount} shown`;
+}
+
+export function formatEntrySectionEntriesLabel(
+  section: Pick<WorldSectionConfig, 'title'>
+): string {
+  return `${section.title} entries`;
+}
+
+export function formatEntrySectionFiltersLabel(
+  section: Pick<WorldSectionConfig, 'title'>
+): string {
+  return `${section.title} filters`;
+}
+
+export function formatEntrySectionSearchLabel(
+  section: Pick<WorldSectionConfig, 'title'>
+): string {
+  return `Search ${section.title}`;
+}
 
 export function getEntryListEmptyStateModel({
   archivedCount,
@@ -98,6 +137,7 @@ export function getEntryListEmptyStateModel({
       title: `No ${section.title.toLowerCase()} saved yet.`,
       detail: `Create a ${section.singularTitle.toLowerCase()} when you are ready to draft this part of the world.`,
       showArchivedAction: false,
+      showArchivedActionLabel: null,
     };
   }
   if (hasOnlyArchivedEntries && !showArchived) {
@@ -105,6 +145,7 @@ export function getEntryListEmptyStateModel({
       title: 'Only archived entries are in this section.',
       detail: 'Show archived entries to review or restore them.',
       showArchivedAction: true,
+      showArchivedActionLabel: 'Show Archived',
     };
   }
   return {
@@ -113,6 +154,7 @@ export function getEntryListEmptyStateModel({
       : 'No entries found.',
     detail: 'Try a different search term or clear the active filters.',
     showArchivedAction: false,
+    showArchivedActionLabel: null,
   };
 }
 
@@ -222,8 +264,18 @@ export function getEntryListModel(
         new Date(entry.updatedAt).getTime() >= updatedCutoff
     )
     .map((entry) => ({
+      editAccessibilityLabel: `Edit ${entry.name}`,
+      editLabel: 'Edit',
       id: entry.id,
+      moveEarlierAccessibilityLabel:
+        section.id === 'timeline' ? `Move ${entry.name} earlier` : null,
+      moveEarlierLabel: section.id === 'timeline' ? 'Earlier' : null,
+      moveLaterAccessibilityLabel:
+        section.id === 'timeline' ? `Move ${entry.name} later` : null,
+      moveLaterLabel: section.id === 'timeline' ? 'Later' : null,
       name: entry.name,
+      reviewContextAccessibilityLabel: `Review context for ${entry.name}`,
+      reviewContextLabel: 'Context',
       sectionTitle: section.title,
       summary: entry.summary,
       summaryText: entry.summary || entryDisplayCopy.emptySummary,

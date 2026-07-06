@@ -17,9 +17,11 @@ import type {
 } from '@valgaron/core';
 import {
   addEntryTypeFieldsInActiveWorkspace,
+  addVocabularyValue as addCoreVocabularyValue,
   applyEntry,
   archiveEntryInActiveWorkspace,
   archivePlanetaryWorldInActiveWorkspace,
+  clearHiddenEntryDetailInActiveWorkspace,
   clearHiddenEntryDetailsInActiveWorkspace,
   commitEntryDraftTransaction,
   createEntryTypeInActiveWorkspace,
@@ -45,6 +47,7 @@ import {
   getDeviceCommitResultMessage,
   localPersistenceCopy,
   moveEntryTypeFieldInActiveWorkspace,
+  moveVocabularyValue as moveCoreVocabularyValue,
   moveTimelineEventInActiveWorkspace,
   renameEntryTypeFieldInActiveWorkspace,
   removeEntryTypeFieldInActiveWorkspace,
@@ -53,8 +56,11 @@ import {
   savePlanetaryWorldInActiveWorkspace,
   saveRelationshipInActiveWorkspace,
   setActiveWorkspace,
+  setVocabularyValueArchived,
   setWorkspaceArchived,
+  updateFieldOverride as updateCoreFieldOverride,
   updateActiveWorld,
+  updateVocabularyValue as updateCoreVocabularyValue,
   updateWorkspaceMetadata,
   validateEntryDraftTransaction,
   validateEntryTypeDraft,
@@ -65,9 +71,12 @@ import {
   type CustomEntryTypeFieldMoveDirection,
   type EntryDraft,
   type EntryTypeDraft,
+  type FieldOverrideDraft,
   type PlanetaryWorldDraft,
   type RelationshipDraft,
   type StagedRelationshipDraft,
+  type VocabularyValueDraft,
+  type VocabularyValueMoveDirection,
   type WorkspaceDraft,
 } from '@valgaron/core';
 import { asyncStorageAdapter } from '../storage/asyncStorageAdapter';
@@ -149,6 +158,35 @@ export type MobileCodexController = MobileCodexState & {
     label: string
   ) => boolean;
   removeEntryTypeField: (sectionId: string, fieldKey: string) => boolean;
+  addVocabularyValue: (
+    vocabularyId: string,
+    draft: VocabularyValueDraft
+  ) => boolean;
+  updateVocabularyValue: (
+    vocabularyId: string,
+    valueId: string,
+    draft: VocabularyValueDraft
+  ) => boolean;
+  archiveVocabularyValue: (
+    vocabularyId: string,
+    valueId: string,
+    archived: boolean
+  ) => boolean;
+  moveVocabularyValue: (
+    vocabularyId: string,
+    valueId: string,
+    direction: VocabularyValueMoveDirection
+  ) => boolean;
+  updateFieldOverride: (
+    sectionId: string,
+    fieldKey: string,
+    draft: FieldOverrideDraft
+  ) => boolean;
+  clearHiddenEntryDetail: (
+    sectionId: string,
+    entryId: string,
+    fieldKey: string
+  ) => void;
   clearHiddenEntryDetails: () => void;
   permanentlyDeleteEntryType: (sectionId: string) => void;
   importDocumentText: (text: string) => void;
@@ -315,6 +353,7 @@ export function MobileCodexProvider({ children }: { children: ReactNode }) {
           existingEntry,
           section,
           stagedRelationships,
+          workspaceSchema: activeWorld.schema,
         });
         if (!validation.ok) {
           setFormValidationError(validation);
@@ -334,6 +373,7 @@ export function MobileCodexProvider({ children }: { children: ReactNode }) {
                 relationships: world.relationships,
                 section: currentSection,
                 stagedRelationships,
+                workspaceSchema: world.schema,
               });
               savedEntry = transaction.entry;
 
@@ -608,11 +648,89 @@ export function MobileCodexProvider({ children }: { children: ReactNode }) {
         );
         return true;
       },
+      addVocabularyValue(vocabularyId, draft) {
+        commitDocument(
+          (currentDocument) =>
+            updateActiveWorld(currentDocument, (workspace) =>
+              addCoreVocabularyValue(workspace, vocabularyId, draft)
+            ),
+          undefined,
+          getDeviceCommitResultMessage('entry-type-updated')
+        );
+        return true;
+      },
+      updateVocabularyValue(vocabularyId, valueId, draft) {
+        commitDocument(
+          (currentDocument) =>
+            updateActiveWorld(currentDocument, (workspace) =>
+              updateCoreVocabularyValue(workspace, vocabularyId, valueId, draft)
+            ),
+          undefined,
+          getDeviceCommitResultMessage('entry-type-updated')
+        );
+        return true;
+      },
+      archiveVocabularyValue(vocabularyId, valueId, archived) {
+        commitDocument(
+          (currentDocument) =>
+            updateActiveWorld(currentDocument, (workspace) =>
+              setVocabularyValueArchived(
+                workspace,
+                vocabularyId,
+                valueId,
+                archived
+              )
+            ),
+          undefined,
+          getDeviceCommitResultMessage('entry-type-updated')
+        );
+        return true;
+      },
+      moveVocabularyValue(vocabularyId, valueId, direction) {
+        commitDocument(
+          (currentDocument) =>
+            updateActiveWorld(currentDocument, (workspace) =>
+              moveCoreVocabularyValue(
+                workspace,
+                vocabularyId,
+                valueId,
+                direction
+              )
+            ),
+          undefined,
+          getDeviceCommitResultMessage('entry-type-updated')
+        );
+        return true;
+      },
+      updateFieldOverride(sectionId, fieldKey, draft) {
+        commitDocument(
+          (currentDocument) =>
+            updateActiveWorld(currentDocument, (workspace) =>
+              updateCoreFieldOverride(workspace, sectionId, fieldKey, draft)
+            ),
+          undefined,
+          getDeviceCommitResultMessage('entry-type-updated')
+        );
+        return true;
+      },
       clearHiddenEntryDetails() {
         commitDocument(
           (currentDocument) =>
             clearHiddenEntryDetailsInActiveWorkspace({
               document: currentDocument,
+            }),
+          'schema-cleanup',
+          getDeviceCommitResultMessage('entry-type-updated')
+        );
+      },
+      clearHiddenEntryDetail(sectionId, entryId, fieldKey) {
+        commitDocument(
+          (currentDocument) =>
+            clearHiddenEntryDetailInActiveWorkspace({
+              document: currentDocument,
+              entryId,
+              fieldKey,
+              sectionId,
             }),
           'schema-cleanup',
           getDeviceCommitResultMessage('entry-type-updated')

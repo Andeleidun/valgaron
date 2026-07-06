@@ -3,10 +3,15 @@ import type {
   WorldCodex,
   WorldDetailField,
   WorldDocument,
+  WorldFieldOverride,
   WorldSectionConfig,
+  WorldSectionId,
+  WorldVocabularyMode,
+  WorldVocabularyValue,
+  WorldWorkspaceSchema,
   WorldWorkspace,
 } from './types';
-import { worldSections } from './seedCodex';
+import { cloneWorkspaceSchema, worldSections } from './seedCodex';
 import { getActiveWorld, updateActiveWorld } from './worldDocument';
 
 export type WorkspaceDraft = {
@@ -57,6 +62,12 @@ export type PlanetaryWorldDraftFieldDescriptor = {
   multiline?: boolean;
 };
 
+export type PlanetaryWorldDraftFieldLayoutModel = {
+  fields: readonly PlanetaryWorldDraftFieldDescriptor[];
+  leadingFields: readonly PlanetaryWorldDraftFieldDescriptor[];
+  trailingFields: readonly PlanetaryWorldDraftFieldDescriptor[];
+};
+
 export const planetaryWorldDraftFields: readonly PlanetaryWorldDraftFieldDescriptor[] =
   [
     { key: 'name', label: 'Name', placeholder: 'Aurelia' },
@@ -76,6 +87,14 @@ export const planetaryWorldDraftFields: readonly PlanetaryWorldDraftFieldDescrip
     { key: 'tags', label: 'Tags', placeholder: 'cosmology, frontier, ocean' },
   ];
 
+export function getPlanetaryWorldDraftFieldLayout(): PlanetaryWorldDraftFieldLayoutModel {
+  return {
+    fields: planetaryWorldDraftFields,
+    leadingFields: planetaryWorldDraftFields.slice(0, 4),
+    trailingFields: planetaryWorldDraftFields.slice(4),
+  };
+}
+
 export type EntryTypeDraft = {
   title: string;
   singularTitle: string;
@@ -93,6 +112,12 @@ export type EntryTypeDraftFieldDescriptor = {
   helperText?: string;
 };
 
+export type EntryTypeDraftFieldLayoutModel = {
+  fields: readonly EntryTypeDraftFieldDescriptor[];
+  leadingFields: readonly EntryTypeDraftFieldDescriptor[];
+  trailingFields: readonly EntryTypeDraftFieldDescriptor[];
+};
+
 export type EntryTypeDraftFieldPreview = {
   key: string;
   label: string;
@@ -101,6 +126,23 @@ export type EntryTypeDraftFieldPreview = {
 };
 
 export type CustomEntryTypeFieldMoveDirection = 'up' | 'down';
+
+export type VocabularyValueMoveDirection = 'up' | 'down';
+
+export type FieldOverrideDraft = {
+  label: string;
+  helpText: string;
+  hidden: boolean;
+  order: string;
+  vocabularyId: string;
+  vocabularyMode: WorldVocabularyMode;
+};
+
+export type VocabularyValueDraft = {
+  label: string;
+  description: string;
+  aliases: string;
+};
 
 export const entryTypeDraftFields: readonly EntryTypeDraftFieldDescriptor[] = [
   { key: 'title', label: 'Section title', placeholder: 'Artifacts' },
@@ -116,12 +158,55 @@ export const entryTypeDraftFields: readonly EntryTypeDraftFieldDescriptor[] = [
   },
 ];
 
+export function getEntryTypeDraftFieldLayout(): EntryTypeDraftFieldLayoutModel {
+  return {
+    fields: entryTypeDraftFields,
+    leadingFields: entryTypeDraftFields.slice(0, 2),
+    trailingFields: entryTypeDraftFields.slice(2),
+  };
+}
+
 export function emptyEntryTypeDraft(): EntryTypeDraft {
   return {
     title: '',
     singularTitle: '',
     description: '',
     fields: '',
+  };
+}
+
+export function emptyVocabularyValueDraft(): VocabularyValueDraft {
+  return {
+    label: '',
+    description: '',
+    aliases: '',
+  };
+}
+
+export function fieldOverrideDraftFrom({
+  field,
+  override,
+}: {
+  field: Pick<WorldDetailField, 'label'>;
+  override?: WorldFieldOverride;
+}): FieldOverrideDraft {
+  return {
+    label: override?.label ?? field.label,
+    helpText: override?.helpText ?? '',
+    hidden: Boolean(override?.hidden),
+    order: override?.order === undefined ? '' : String(override.order),
+    vocabularyId: override?.vocabularyId ?? '',
+    vocabularyMode: override?.vocabularyMode ?? 'suggestions',
+  };
+}
+
+export function vocabularyValueDraftFrom(
+  value?: WorldVocabularyValue
+): VocabularyValueDraft {
+  return {
+    label: value?.label ?? '',
+    description: value?.description ?? '',
+    aliases: value?.aliases.join(', ') ?? '',
   };
 }
 
@@ -170,6 +255,10 @@ function cloneEntryTypes(
   }));
 }
 
+function cloneSchema(schema: WorldWorkspaceSchema): WorldWorkspaceSchema {
+  return cloneWorkspaceSchema(schema);
+}
+
 function clonePlanetaryWorlds(
   planetaryWorlds: readonly InFictionWorld[]
 ): InFictionWorld[] {
@@ -206,6 +295,102 @@ export function parseTags(value: string): string[] {
     .split(',')
     .map((tag) => tag.trim())
     .filter(Boolean);
+}
+
+function parseVocabularyAliases(value: string): string[] {
+  const aliases = parseTags(value);
+  const seen = new Set<string>();
+  return aliases.filter((alias) => {
+    const key = alias.toLocaleLowerCase();
+    if (seen.has(key)) {
+      return false;
+    }
+    seen.add(key);
+    return true;
+  });
+}
+
+function normalizeVocabularyValueDraft(draft: VocabularyValueDraft): {
+  label: string;
+  description: string;
+  aliases: string[];
+} {
+  return {
+    label: draft.label.trim(),
+    description: draft.description.trim(),
+    aliases: parseVocabularyAliases(draft.aliases),
+  };
+}
+
+function normalizeFieldOverrideDraft({
+  draft,
+  field,
+  workspace,
+}: {
+  draft: FieldOverrideDraft;
+  field: WorldDetailField;
+  workspace: WorldWorkspace;
+}): WorldFieldOverride {
+  const nextOverride: WorldFieldOverride = {};
+  const label = draft.label.trim();
+  const helpText = draft.helpText.trim();
+  const orderText = draft.order.trim();
+  const order = /^[1-9]\d*$/.test(orderText)
+    ? Number.parseInt(orderText, 10)
+    : null;
+  const vocabularyId = draft.vocabularyId.trim();
+  const vocabularyExists = workspace.schema.vocabularies.some(
+    (vocabulary) => vocabulary.id === vocabularyId
+  );
+
+  if (label && label !== field.label) {
+    nextOverride.label = label;
+  }
+  if (helpText) {
+    nextOverride.helpText = helpText;
+  }
+  if (draft.hidden) {
+    nextOverride.hidden = true;
+  }
+  if (order !== null) {
+    nextOverride.order = order;
+  }
+  if (vocabularyExists) {
+    nextOverride.vocabularyId = vocabularyId;
+    nextOverride.vocabularyMode = draft.vocabularyMode;
+  }
+  return nextOverride;
+}
+
+function isEmptyFieldOverride(override: WorldFieldOverride): boolean {
+  return Object.keys(override).length === 0;
+}
+
+function areFieldOverridesEqual(
+  first: WorldFieldOverride | undefined,
+  second: WorldFieldOverride | undefined
+): boolean {
+  return (
+    (first?.label ?? '') === (second?.label ?? '') &&
+    (first?.helpText ?? '') === (second?.helpText ?? '') &&
+    Boolean(first?.hidden) === Boolean(second?.hidden) &&
+    (first?.order ?? null) === (second?.order ?? null) &&
+    (first?.vocabularyId ?? '') === (second?.vocabularyId ?? '') &&
+    (first?.vocabularyMode ?? 'suggestions') ===
+      (second?.vocabularyMode ?? 'suggestions')
+  );
+}
+
+function areVocabularyValueDraftsEqual(
+  value: WorldVocabularyValue,
+  draft: ReturnType<typeof normalizeVocabularyValueDraft>
+): boolean {
+  return (
+    value.label === draft.label &&
+    value.description === draft.description &&
+    value.aliases.length === draft.aliases.length &&
+    value.aliases.every((alias, index) => alias === draft.aliases[index])
+  );
 }
 
 function splitCustomFieldDefinitionText(value: string): string[] {
@@ -424,6 +609,7 @@ export function createWorkspace(
     status: 'active',
     planetaryWorlds: [],
     entryTypes,
+    schema: cloneWorkspaceSchema(),
     codex: createEmptyCodex(entryTypes),
     relationships: [],
     createdAt,
@@ -534,6 +720,7 @@ export function duplicateWorkspace(
     status: 'active',
     planetaryWorlds: clonePlanetaryWorlds(source.planetaryWorlds),
     entryTypes: cloneEntryTypes(source.entryTypes),
+    schema: cloneSchema(source.schema),
     codex: cloneCodex(source.codex),
     relationships: source.relationships.map((relationship) => ({
       ...relationship,
@@ -876,6 +1063,334 @@ export function deleteCustomEntryType(
     }),
     updatedAt,
   };
+}
+
+function hasDuplicateActiveVocabularyLabel(
+  values: readonly WorldVocabularyValue[],
+  label: string,
+  ignoredValueId?: string
+): boolean {
+  const normalizedLabel = label.trim().toLocaleLowerCase();
+  return values.some(
+    (value) =>
+      value.id !== ignoredValueId &&
+      value.status === 'active' &&
+      value.label.trim().toLocaleLowerCase() === normalizedLabel
+  );
+}
+
+function nextVocabularyOrder(values: readonly WorldVocabularyValue[]): number {
+  return (
+    Math.max(0, ...values.map((value, index) => value.order ?? index + 1)) + 1
+  );
+}
+
+function reorderActiveVocabularyValues(
+  values: readonly WorldVocabularyValue[],
+  valueId: string,
+  direction: VocabularyValueMoveDirection
+): WorldVocabularyValue[] | null {
+  const activeValues = [...values]
+    .filter((value) => value.status === 'active')
+    .sort(
+      (first, second) =>
+        (first.order ?? Number.MAX_SAFE_INTEGER) -
+          (second.order ?? Number.MAX_SAFE_INTEGER) ||
+        first.label.localeCompare(second.label)
+    );
+  const currentIndex = activeValues.findIndex((value) => value.id === valueId);
+  if (currentIndex < 0) {
+    return null;
+  }
+  const nextIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+  if (nextIndex < 0 || nextIndex >= activeValues.length) {
+    return null;
+  }
+  const reorderedValues = [...activeValues];
+  const [movedValue] = reorderedValues.splice(currentIndex, 1);
+  reorderedValues.splice(nextIndex, 0, movedValue);
+  const orderById = new Map(
+    reorderedValues.map((value, index) => [value.id, index + 1])
+  );
+  return values.map((value) =>
+    value.status === 'active'
+      ? {
+          ...value,
+          order: orderById.get(value.id) ?? value.order,
+        }
+      : value
+  );
+}
+
+export function addVocabularyValue(
+  workspace: WorldWorkspace,
+  vocabularyId: string,
+  draft: VocabularyValueDraft
+): WorldWorkspace {
+  const normalizedDraft = normalizeVocabularyValueDraft(draft);
+  if (!normalizedDraft.label) {
+    return workspace;
+  }
+  let didChange = false;
+  const vocabularies = workspace.schema.vocabularies.map((vocabulary) => {
+    if (vocabulary.id !== vocabularyId) {
+      return vocabulary;
+    }
+    if (
+      hasDuplicateActiveVocabularyLabel(
+        vocabulary.values,
+        normalizedDraft.label
+      )
+    ) {
+      return vocabulary;
+    }
+    const archivedMatch = vocabulary.values.find(
+      (value) =>
+        value.status === 'archived' &&
+        value.label.trim().toLocaleLowerCase() ===
+          normalizedDraft.label.toLocaleLowerCase()
+    );
+    if (archivedMatch) {
+      didChange = true;
+      return {
+        ...vocabulary,
+        values: vocabulary.values.map((value) =>
+          value.id === archivedMatch.id
+            ? {
+                ...value,
+                label: normalizedDraft.label,
+                description: normalizedDraft.description || value.description,
+                aliases:
+                  normalizedDraft.aliases.length > 0
+                    ? normalizedDraft.aliases
+                    : value.aliases,
+                status: 'active' as const,
+                order: nextVocabularyOrder(vocabulary.values),
+              }
+            : value
+        ),
+      };
+    }
+    didChange = true;
+    return {
+      ...vocabulary,
+      values: [
+        ...vocabulary.values,
+        {
+          id: uniqueId(
+            normalizedDraft.label,
+            vocabulary.values.map((value) => value.id)
+          ),
+          label: normalizedDraft.label,
+          description: normalizedDraft.description,
+          aliases: normalizedDraft.aliases,
+          status: 'active' as const,
+          order: nextVocabularyOrder(vocabulary.values),
+        },
+      ],
+    };
+  });
+  return didChange
+    ? {
+        ...workspace,
+        schema: { ...workspace.schema, vocabularies },
+        updatedAt: nowIso(),
+      }
+    : workspace;
+}
+
+export function updateVocabularyValue(
+  workspace: WorldWorkspace,
+  vocabularyId: string,
+  valueId: string,
+  draft: VocabularyValueDraft
+): WorldWorkspace {
+  const normalizedDraft = normalizeVocabularyValueDraft(draft);
+  if (!normalizedDraft.label) {
+    return workspace;
+  }
+  let didChange = false;
+  const vocabularies = workspace.schema.vocabularies.map((vocabulary) => {
+    if (vocabulary.id !== vocabularyId) {
+      return vocabulary;
+    }
+    if (
+      hasDuplicateActiveVocabularyLabel(
+        vocabulary.values,
+        normalizedDraft.label,
+        valueId
+      )
+    ) {
+      return vocabulary;
+    }
+    const values = vocabulary.values.map((value) => {
+      if (value.id !== valueId) {
+        return value;
+      }
+      if (areVocabularyValueDraftsEqual(value, normalizedDraft)) {
+        return value;
+      }
+      didChange = true;
+      return {
+        ...value,
+        label: normalizedDraft.label,
+        description: normalizedDraft.description,
+        aliases: normalizedDraft.aliases,
+      };
+    });
+    return { ...vocabulary, values };
+  });
+  return didChange
+    ? {
+        ...workspace,
+        schema: { ...workspace.schema, vocabularies },
+        updatedAt: nowIso(),
+      }
+    : workspace;
+}
+
+export function updateFieldOverride(
+  workspace: WorldWorkspace,
+  sectionId: WorldSectionId,
+  fieldKey: string,
+  draft: FieldOverrideDraft
+): WorldWorkspace {
+  const section = workspace.entryTypes.find(
+    (entryType) => entryType.id === sectionId
+  );
+  const field = section?.detailFields.find(
+    (candidate) => candidate.key === fieldKey
+  );
+  if (!section || !field || !draft.label.trim()) {
+    return workspace;
+  }
+
+  const nextOverride = normalizeFieldOverrideDraft({
+    draft,
+    field,
+    workspace,
+  });
+  const currentSectionOverrides =
+    workspace.schema.fieldOverrides[sectionId] ?? {};
+  const currentOverride = currentSectionOverrides[fieldKey];
+  if (
+    areFieldOverridesEqual(
+      currentOverride,
+      isEmptyFieldOverride(nextOverride) ? undefined : nextOverride
+    )
+  ) {
+    return workspace;
+  }
+  const nextSectionOverrides = { ...currentSectionOverrides };
+
+  if (isEmptyFieldOverride(nextOverride)) {
+    delete nextSectionOverrides[fieldKey];
+  } else {
+    nextSectionOverrides[fieldKey] = nextOverride;
+  }
+
+  const nextFieldOverrides = { ...workspace.schema.fieldOverrides };
+  if (Object.keys(nextSectionOverrides).length === 0) {
+    delete nextFieldOverrides[sectionId];
+  } else {
+    nextFieldOverrides[sectionId] = nextSectionOverrides;
+  }
+
+  return {
+    ...workspace,
+    schema: {
+      ...workspace.schema,
+      fieldOverrides: nextFieldOverrides,
+    },
+    updatedAt: nowIso(),
+  };
+}
+
+export function setVocabularyValueArchived(
+  workspace: WorldWorkspace,
+  vocabularyId: string,
+  valueId: string,
+  archived: boolean
+): WorldWorkspace {
+  let didChange = false;
+  const vocabularies = workspace.schema.vocabularies.map((vocabulary) => {
+    if (vocabulary.id !== vocabularyId) {
+      return vocabulary;
+    }
+    const valueToUpdate = vocabulary.values.find(
+      (value) => value.id === valueId
+    );
+    if (!valueToUpdate) {
+      return vocabulary;
+    }
+    if (
+      !archived &&
+      hasDuplicateActiveVocabularyLabel(
+        vocabulary.values,
+        valueToUpdate.label,
+        valueId
+      )
+    ) {
+      return vocabulary;
+    }
+    const nextStatus = archived ? ('archived' as const) : ('active' as const);
+    if (valueToUpdate.status === nextStatus) {
+      return vocabulary;
+    }
+    didChange = true;
+    return {
+      ...vocabulary,
+      values: vocabulary.values.map((value) =>
+        value.id === valueId
+          ? {
+              ...value,
+              status: nextStatus,
+              ...(nextStatus === 'active'
+                ? { order: nextVocabularyOrder(vocabulary.values) }
+                : {}),
+            }
+          : value
+      ),
+    };
+  });
+  return didChange
+    ? {
+        ...workspace,
+        schema: { ...workspace.schema, vocabularies },
+        updatedAt: nowIso(),
+      }
+    : workspace;
+}
+
+export function moveVocabularyValue(
+  workspace: WorldWorkspace,
+  vocabularyId: string,
+  valueId: string,
+  direction: VocabularyValueMoveDirection
+): WorldWorkspace {
+  let didMove = false;
+  const vocabularies = workspace.schema.vocabularies.map((vocabulary) => {
+    if (vocabulary.id !== vocabularyId) {
+      return vocabulary;
+    }
+    const values = reorderActiveVocabularyValues(
+      vocabulary.values,
+      valueId,
+      direction
+    );
+    if (!values) {
+      return vocabulary;
+    }
+    didMove = true;
+    return { ...vocabulary, values };
+  });
+  return didMove
+    ? {
+        ...workspace,
+        schema: { ...workspace.schema, vocabularies },
+        updatedAt: nowIso(),
+      }
+    : workspace;
 }
 
 export function updateActiveWorkspace(

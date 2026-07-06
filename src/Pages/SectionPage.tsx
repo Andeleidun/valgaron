@@ -13,6 +13,12 @@ import {
   createSectionEntryDraft,
   draftFromEntry,
   duplicateEntry,
+  formatExpansionControlLabel,
+  formatEntryListShownCount,
+  formatEntrySectionEntriesLabel,
+  formatEntrySectionFiltersLabel,
+  formatEntrySectionSearchLabel,
+  formatHiddenCountText,
   entryListCopy,
   entryShowArchivedControl,
   entrySortControl,
@@ -25,7 +31,9 @@ import {
   getEntrySortControlOptions,
   getEntryTagFilterOptions,
   getEntries,
+  getLimitedResultModel,
   getRelationshipTextReviewExactMatchLabel,
+  getRelationshipTextReviewCountLabel,
   getRelationshipTextReviewItems,
   getRelationshipTextReviewSummary,
   getRelationshipTextReviewSuggestionLabels,
@@ -40,6 +48,7 @@ import {
   timelineFeatureCopy,
   timelineUnassignedEraFilterValue,
   relationshipTextReviewCopy,
+  relationshipTextReviewDisplayLimits,
   type RelationshipTextReviewItem,
   type EntryDraft,
   type EntrySortControlValue,
@@ -48,6 +57,7 @@ import {
   type WorldEntry,
   type WorldRelationship,
   type WorldSectionConfig,
+  type WorldWorkspaceSchema,
 } from '@valgaron/core';
 import { confirmDiscardUnsavedChanges } from '../Utlilities/unsavedChanges';
 import {
@@ -64,6 +74,7 @@ export function SectionPage({
   fixedSectionId,
   relationships,
   sections,
+  workspaceSchema,
   onArchiveEntry,
   onDeleteEntry,
   onDeleteRelationship,
@@ -74,6 +85,7 @@ export function SectionPage({
   fixedSectionId?: string;
   relationships: readonly WorldRelationship[];
   sections: readonly WorldSectionConfig[];
+  workspaceSchema?: WorldWorkspaceSchema;
   onArchiveEntry: (entry: WorldEntry, archived: boolean) => void;
   onDeleteEntry: (entry: WorldEntry) => void;
   onDeleteRelationship: (relationshipId: string) => void;
@@ -476,12 +488,16 @@ export function SectionPage({
   const initialStagedRelationships = selectedEntry
     ? []
     : templateStagedRelationships;
-  const visibleRelationshipTextReviewItems = showAllRelationshipTextReviewItems
-    ? relationshipTextReviewItems
-    : relationshipTextReviewItems.slice(0, 6);
+  const relationshipTextReviewDisplayModel = getLimitedResultModel(
+    relationshipTextReviewItems,
+    showAllRelationshipTextReviewItems
+      ? relationshipTextReviewItems.length
+      : relationshipTextReviewDisplayLimits.sectionItems
+  );
+  const visibleRelationshipTextReviewItems =
+    relationshipTextReviewDisplayModel.visibleItems;
   const hiddenRelationshipTextReviewItemCount =
-    relationshipTextReviewItems.length -
-    visibleRelationshipTextReviewItems.length;
+    relationshipTextReviewDisplayModel.hiddenCount;
 
   useEffect(() => {
     if (
@@ -759,13 +775,14 @@ export function SectionPage({
       {relationshipTextReviewItems.length > 0 ? (
         <section
           className="vwb-panel vwb-linked-field-panel"
-          aria-label="Legacy relationship link text review"
+          aria-label={relationshipTextReviewCopy.title}
         >
           <div className="vwb-section-heading">
             <div>
               <p className="vwb-kicker">
-                {relationshipTextReviewItems.length} field
-                {relationshipTextReviewItems.length === 1 ? '' : 's'} to review
+                {getRelationshipTextReviewCountLabel(
+                  relationshipTextReviewItems.length
+                )}
               </p>
               <h2>{relationshipTextReviewCopy.title}</h2>
             </div>
@@ -807,13 +824,14 @@ export function SectionPage({
                   </button>
                 </div>
                 <p>
-                  Unresolved: {getRelationshipTextReviewUnresolvedLabel(item)}.{' '}
+                  {relationshipTextReviewCopy.unresolvedLabel}:{' '}
+                  {getRelationshipTextReviewUnresolvedLabel(item)}.{' '}
                   {getRelationshipTextReviewExactMatchLabel(item)}
                 </p>
                 {item.suggestedTargets.length > 0 ? (
                   <div>
                     <p>
-                      Suggestions:{' '}
+                      {relationshipTextReviewCopy.suggestionsLabel}:{' '}
                       {getRelationshipTextReviewSuggestionLabels(item).join(
                         '; '
                       )}
@@ -821,6 +839,7 @@ export function SectionPage({
                     {item.suggestedTargets.map((suggestion) =>
                       suggestion.targets.map((target) => (
                         <button
+                          aria-label={target.accessibilityLabel}
                           className="vwb-secondary-button"
                           disabled={isEntryFormDirty}
                           key={`${suggestion.fragment}-${target.id}`}
@@ -833,7 +852,7 @@ export function SectionPage({
                             )
                           }
                         >
-                          Link {suggestion.fragment} to {target.name}
+                          {target.label}
                         </button>
                       ))
                     )}
@@ -846,7 +865,7 @@ export function SectionPage({
                     type="button"
                     onClick={() => migrateReviewItemExactMatches(item)}
                   >
-                    Migrate Exact Matches
+                    {relationshipTextReviewCopy.exactMatchMigrationLabel}
                   </button>
                 ) : null}
               </article>
@@ -854,11 +873,15 @@ export function SectionPage({
           </div>
           {hiddenRelationshipTextReviewItemCount > 0 ? (
             <span className="vwb-tag">
-              {hiddenRelationshipTextReviewItemCount} more legacy text item
-              {hiddenRelationshipTextReviewItemCount === 1 ? '' : 's'}.
+              {formatHiddenCountText({
+                hiddenCount: hiddenRelationshipTextReviewItemCount,
+                singularItemLabel: 'legacy text item',
+                pluralItemLabel: 'legacy text items',
+              })}
             </span>
           ) : null}
-          {relationshipTextReviewItems.length > 6 ? (
+          {relationshipTextReviewItems.length >
+          relationshipTextReviewDisplayLimits.sectionItems ? (
             <div className="vwb-action-row">
               <button
                 className="vwb-secondary-button"
@@ -870,9 +893,12 @@ export function SectionPage({
                   )
                 }
               >
-                {showAllRelationshipTextReviewItems
-                  ? 'Show Fewer Legacy Text Items'
-                  : `Show ${hiddenRelationshipTextReviewItemCount} More Legacy Text Items`}
+                {formatExpansionControlLabel({
+                  isExpanded: showAllRelationshipTextReviewItems,
+                  hiddenCount: hiddenRelationshipTextReviewItemCount,
+                  pluralItemLabel: 'Legacy Text Items',
+                  singularItemLabel: 'Legacy Text Item',
+                })}
               </button>
             </div>
           ) : null}
@@ -881,22 +907,25 @@ export function SectionPage({
 
       <section
         className="vwb-entry-column"
-        aria-label={`${section.title} entries`}
+        aria-label={formatEntrySectionEntriesLabel(section)}
       >
         <div className="vwb-section-heading">
           <div>
             <p className="vwb-kicker">
-              {filteredEntries.length} of {entries.length} shown
+              {formatEntryListShownCount(
+                filteredEntries.length,
+                entries.length
+              )}
             </p>
-            <h2>Entries</h2>
+            <h2>{entryListCopy.entriesTitle}</h2>
           </div>
         </div>
         <div
           className="vwb-filter-panel vwb-entry-filter-panel"
-          aria-label={`${section.title} filters`}
+          aria-label={formatEntrySectionFiltersLabel(section)}
         >
           <label className="vwb-search-field">
-            Search {section.title}
+            {formatEntrySectionSearchLabel(section)}
             <input
               value={query}
               onChange={(event) => {
@@ -904,12 +933,15 @@ export function SectionPage({
                 setQuery(nextQuery);
                 updateTimelineBrowseRoute({ query: nextQuery });
               }}
-              placeholder="Search this section"
+              placeholder={entryListCopy.searchSectionLabel}
               type="search"
             />
           </label>
           {tagFilterOptions.length > 0 ? (
-            <div className="vwb-tag-filter-group" aria-label="Filter by tag">
+            <div
+              className="vwb-tag-filter-group"
+              aria-label={entryListCopy.filterByTagLabel}
+            >
               {tagFilterOptions.map((option) => (
                 <button
                   className={`vwb-tag-filter ${
@@ -1008,7 +1040,7 @@ export function SectionPage({
           {section.id === 'timeline' ? (
             <div className="vwb-filter-row">
               <label>
-                Era
+                {timelineFeatureCopy.eraFilterLabel}
                 <select
                   value={eraFilter}
                   onChange={(event) => {
@@ -1017,7 +1049,7 @@ export function SectionPage({
                     updateTimelineBrowseRoute({ era: nextEra });
                   }}
                 >
-                  <option value="">Any era</option>
+                  <option value="">{timelineFeatureCopy.anyEraLabel}</option>
                   {timelineEras.map((era) => (
                     <option value={era} key={era}>
                       {era}
@@ -1032,7 +1064,7 @@ export function SectionPage({
                 </select>
               </label>
               <label>
-                Involved entry
+                {timelineFeatureCopy.involvedFilterLabel}
                 <select
                   value={involvedEntryFilter}
                   onChange={(event) => {
@@ -1043,7 +1075,9 @@ export function SectionPage({
                     });
                   }}
                 >
-                  <option value="">Any linked entry</option>
+                  <option value="">
+                    {timelineFeatureCopy.anyInvolvedLabel}
+                  </option>
                   {timelineInvolvedEntries.map((entry) => (
                     <option value={entry.id} key={entry.id}>
                       {entry.name} ({entry.sectionTitle})
@@ -1077,6 +1111,7 @@ export function SectionPage({
                 key={entry.id}
                 onSelect={() => selectEntry(entry.id)}
                 section={section}
+                workspaceSchema={workspaceSchema}
               />
             ))
           ) : (
@@ -1092,7 +1127,7 @@ export function SectionPage({
                     updateTimelineBrowseRoute({ showArchived: true });
                   }}
                 >
-                  Show Archived
+                  {emptyState.showArchivedActionLabel}
                 </button>
               ) : null}
               {hasActiveFilters ? (
@@ -1120,6 +1155,7 @@ export function SectionPage({
             relationships={relationships}
             section={section}
             sections={sections}
+            workspaceSchema={workspaceSchema}
           />
         ) : null}
         {section.id === 'timeline' ? (
@@ -1191,6 +1227,7 @@ export function SectionPage({
             codex={codex}
             relationships={relationships}
             sections={sections}
+            workspaceSchema={workspaceSchema}
           />
         ) : (
           <EntryForm
@@ -1268,6 +1305,7 @@ export function SectionPage({
             codex={codex}
             relationships={relationships}
             sections={sections}
+            workspaceSchema={workspaceSchema}
           />
         )}
       </section>

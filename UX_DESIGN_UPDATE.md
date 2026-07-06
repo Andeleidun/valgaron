@@ -943,8 +943,10 @@ Implemented:
 
 - Shared selected-record context now exposes a direct relationship studio route
   for the selected record.
-- Browser Workbench renders a "Manage Links" action next to "Open Editor" for
+- Browser Workbench renders a "Manage Links" action next to the edit action for
   selected records.
+- Later shared-copy slices renamed the edit action to `Edit Record` for
+  browser/mobile consistency.
 
 Evaluation after implementation:
 
@@ -1011,8 +1013,8 @@ Re-evaluation after implementation:
 
 - Selected-record browse, edit, relationship field maintenance, and context
   review now happen in one browser Workbench route.
-- The legacy section editor remains available through explicit Open Editor
-  links, preserving a lower-risk fallback.
+- Superseded by the later clean-break route slice: direct section editors and
+  fallback routes are not retained for Characters, Places, Factions, or Lore.
 - No schema, persistence, or mobile behavior changes were needed.
 
 ### Completed Slice: Browser Workbench Inline Quick Create
@@ -1040,8 +1042,8 @@ Re-evaluation after implementation:
 - Users can create characters, places, factions, lore notes, timeline events,
   and custom-section records from the Workbench index without leaving the
   browser Workbench.
-- The old create URLs remain reachable from route compatibility paths, but the
-  primary Workbench create workflow is now inline.
+- Superseded by the later clean-break route slice: Workbench quick-create is
+  the canonical create workflow, and old section create URLs are not retained.
 - This closes the remaining high-impact browser Workbench MVP workflow gap
   without starting a broader visual redesign.
 
@@ -2983,9 +2985,9 @@ Implemented:
 
 - Shared core mutation clears hidden entry detail values across the active
   workspace while preserving visible field values.
-- Browser Knowledge exposes a Clear Hidden Details action in the Hidden Detail
+- Browser Knowledge exposes a Clear All Hidden Details action in the Hidden Detail
   Cleanup panel.
-- Mobile More exposes the same Clear Hidden Details action in its hidden
+- Mobile More exposes the same Clear All Hidden Details action in its hidden
   cleanup section.
 - Clearing hidden details creates a `schema-cleanup` recovery snapshot on web
   and mobile before saved values are removed.
@@ -3339,7 +3341,7 @@ Implemented:
 
 - Mobile More now offers a Show More/Show Fewer control when hidden-detail
   cleanup rows exceed the compact default.
-- The cleanup panel keeps the destructive Clear Hidden Details action visible
+- The cleanup panel keeps the destructive Clear All Hidden Details action visible
   while allowing users to inspect all retained values before clearing them.
 - Mobile render coverage now creates multiple removed custom fields and verifies
   the cleanup expansion affordance.
@@ -7848,6 +7850,5246 @@ Re-evaluation after implementation:
   editor.
 - No schema migration, durable vocabulary change, or route redesign was needed.
 
+### Completed Slice: Schema 3 Vocabulary Foundation
+
+Status: completed on 2026-07-06.
+
+What changed:
+
+- World documents now use schema `3` with workspace-owned vocabulary registries,
+  sparse built-in field overrides, ignored vocabulary candidate storage, and
+  seed vocabularies for Characters, Places, Factions, Lore, and Timeline.
+- Browser and mobile storage moved to v3 keys. Unsupported previous v2/v1
+  local storage is reported and the app opens starter data instead of silently
+  migrating old shapes.
+- Full JSON export/import includes vocabulary schema data, Markdown export
+  includes active vocabulary reference sections, and diagnostics report
+  vocabulary counts without exposing labels, descriptions, or aliases.
+- Workspace creation, duplication, large fixtures, frontend parity fixtures,
+  and mobile storage all create current-schema workspaces.
+
+Evaluation before implementation:
+
+- Durable vocabulary editing needed a real document home before any UI could
+  safely add, archive, restore, reorder, or attach values.
+- The previous schema had no workspace-owned registry, so values were split
+  between hardcoded field options and observed entry text.
+- Clean break remained appropriate because there are no live users or live data
+  requiring compatibility migration.
+
+Root cause and best path:
+
+- Root cause: the UI could show emerging values, but the persisted document had
+  no durable vocabulary layer users could own.
+- The best path was a schema `3` baseline with seed registries and automatic
+  built-in field attachments before any editor suggestion wiring.
+
+Re-evaluation after implementation:
+
+- Current-schema parsing, storage recovery, import/export, Markdown export,
+  diagnostics, full test coverage, typecheck, mobile typecheck, lint, and Vite
+  build all pass.
+- The slice intentionally did not wire editor suggestions or mobile editing;
+  those remain separate approved slices after the Vocabulary Manager.
+
+### Completed Slice: Browser Vocabulary Manager
+
+Status: completed on 2026-07-06.
+
+What changed:
+
+- Shared Knowledge Schema vocabulary rows now read from durable workspace
+  vocabularies and include active values, archived values, and field usage
+  context.
+- Browser Knowledge now includes a Vocabulary Manager with add, edit,
+  archive, restore, and move controls for vocabulary values.
+- Core workspace vocabulary helpers enforce no duplicate active labels, restore
+  archived values when re-added, persist aliases, and maintain manual active
+  value order.
+- Mobile More now displays the same durable vocabulary rows read-only, keeping
+  mobile aligned with the shared model until the focused mobile editing slice.
+
+Evaluation before implementation:
+
+- Knowledge had passive controlled/observed value rows, but users could not
+  maintain the durable vocabulary lists introduced by schema `3`.
+- The mobile display path consumed the same shared vocabulary row model, so a
+  browser-only row-shape change would have created immediate parity drift.
+
+Root cause and best path:
+
+- Root cause: the schema foundation existed, but Knowledge still presented the
+  old review-only model.
+- The best path was to replace the shared Knowledge vocabulary rows with
+  durable vocabulary rows, then add browser editing controls through existing
+  active-workspace mutation and save flows.
+
+Re-evaluation after implementation:
+
+- Browser Knowledge now supports the first durable vocabulary maintenance
+  workflow without adding new pages or changing editor behavior prematurely.
+- Mobile More no longer displays obsolete observed-value copy, but remains
+  read-only until the approved mobile vocabulary editing slice.
+- Remaining gaps are now narrower: mobile vocabulary editing, editor
+  suggestions from durable vocabularies, restricted validation, and built-in
+  field override controls.
+
+### Completed Slice: Mobile Vocabulary Manager
+
+Status: completed on 2026-07-06.
+
+What changed:
+
+- Mobile More now supports compact vocabulary value add, edit, archive,
+  restore, and reorder controls using the same schema `3` vocabulary data and
+  core workspace helpers as browser Knowledge.
+- The mobile codex controller exposes vocabulary value mutations through the
+  existing document commit, local save, and device feedback path.
+- Mobile render coverage now verifies editable value fields, add controls,
+  archive actions, restore actions, and ordering controls in the More
+  Vocabulary Manager.
+
+Evaluation before implementation:
+
+- Mobile More showed durable vocabulary rows after the browser Vocabulary
+  Manager slice, but users still had to switch to the browser to maintain
+  values.
+- This violated the accepted equal-priority browser/mobile direction for
+  common schema maintenance workflows.
+
+Root cause and best path:
+
+- Root cause: the shared Knowledge model was durable, but the mobile controller
+  did not expose vocabulary mutations and the More UI remained read-only.
+- The best path was to reuse the browser/core vocabulary helpers from the
+  mobile controller and add compact inline controls inside the existing More
+  Knowledge area rather than adding a fifth mobile tab.
+
+Re-evaluation after implementation:
+
+- Browser Knowledge and mobile More now support the same first vocabulary
+  maintenance workflow.
+- The remaining durable vocabulary gaps are editor suggestions from schema `3`
+  vocabularies, restricted validation, and browser-first built-in field override
+  controls.
+
+### Completed Slice: Durable Vocabulary Editor Suggestions
+
+Status: completed on 2026-07-06.
+
+What changed:
+
+- Shared entry editor suggestion helpers now merge active schema `3`
+  vocabulary values into detail-field suggestions when a field override attaches
+  a vocabulary to that field.
+- Browser Workbench, browser Timeline event editing, section editors, mobile
+  Workbench/Edit mode, and mobile Timeline editing now pass active workspace
+  schema into the shared editor models.
+- Existing hardcoded field options and observed-value suggestions still work,
+  and the current field value remains filtered out of the visible suggestion
+  list.
+
+Evaluation before implementation:
+
+- Users could maintain durable vocabulary values, but entry editors did not yet
+  consume those maintained lists.
+- That made the Vocabulary Manager useful as reference data but not yet useful
+  during the primary drafting workflow.
+
+Root cause and best path:
+
+- Root cause: editor suggestions were built from `WorldDetailField`
+  autocomplete options plus observed entry values, while schema `3`
+  vocabularies lived separately in workspace schema.
+- The best path was to extend the shared suggestion helper with optional
+  workspace schema context and pass that context from current browser and
+  mobile editor surfaces.
+
+Re-evaluation after implementation:
+
+- Durable active vocabulary values now appear as suggestions in browser and
+  mobile editors through the same shared model.
+- Alias matching and restricted validation remain intentionally out of scope for
+  this slice.
+- The remaining durable schema gaps are restricted validation and browser-first
+  built-in field override controls.
+
+### Completed Slice: Restricted Vocabulary Validation
+
+Status: completed on 2026-07-06.
+
+What changed:
+
+- Shared entry draft validation now checks fields whose schema override is set
+  to `restricted` against active values in the attached workspace vocabulary.
+- Empty optional fields remain valid, while non-empty values must match an
+  active vocabulary label case-insensitively.
+- Browser generic entry editing, browser Timeline event editing, staged
+  create-and-link transactions, and mobile save flows all pass active workspace
+  schema into validation.
+
+Evaluation before implementation:
+
+- Durable vocabulary suggestions were live, and schema `3` already supported
+  the `restricted` vocabulary mode, but saving did not enforce it.
+- Even before a field-configuration UI exists, imported or programmatically
+  authored schema can set a field to restricted, so validation needed to honor
+  that setting consistently.
+
+Root cause and best path:
+
+- Root cause: entry validation only required record names and did not inspect
+  schema field overrides.
+- The best path was a shared validation rule in `validateEntryDraft`, threaded
+  through transaction validation and platform save flows, without adding
+  browser/mobile configuration UI in the same slice.
+
+Re-evaluation after implementation:
+
+- Restricted validation is now centralized and works for browser and mobile
+  save paths.
+- Alias matching remains out of scope because aliases are currently search and
+  match helpers, not saved labels.
+- The remaining durable schema gap is browser-first built-in field override
+  configuration for label, help, visibility, order, vocabulary attachment, and
+  vocabulary mode.
+
+### Completed Slice: Browser Field Configuration
+
+Status: completed on 2026-07-06.
+
+What changed:
+
+- Browser Knowledge now includes a Field Configuration area for built-in and
+  custom entry fields.
+- Users can save durable label overrides, editor help text, hidden/visible
+  state, display order, vocabulary attachment, and suggested/restricted
+  vocabulary mode without changing the saved field key.
+- Shared field utilities now apply schema overrides to browser entry cards,
+  browser detail panels, generic browser editors, browser Timeline editing,
+  mobile entry editing, mobile Timeline editing, hidden-detail cleanup, and the
+  Knowledge schema model.
+- Hidden fields remain configurable in Knowledge and become cleanup targets
+  when entries retain saved values for those fields.
+- Configured help text now appears under browser and mobile editor fields, so
+  help configuration is not merely stored metadata.
+
+Evaluation before implementation:
+
+- The durable schema already stored field overrides, and editor suggestions plus
+  restricted validation already consumed vocabulary attachments, but users had
+  no browser UI for changing those attachments or other field settings.
+- Label, order, and hidden controls would have been misleading if the editor and
+  display models continued to use raw section fields.
+- Help text would have been incomplete if saved but not rendered where users
+  edit records.
+
+Root cause and best path:
+
+- Root cause: field override persistence existed as schema data, but field
+  rendering and cleanup paths still treated section detail fields as the only
+  source of truth.
+- The best path was a browser-first Knowledge configuration UI backed by shared
+  core helpers, then threading optional workspace schema through the existing
+  browser and mobile editor/display models.
+
+Re-evaluation after implementation:
+
+- Browser users can now configure the common built-in field settings approved by
+  the decision gates.
+- Browser and mobile editors consume the same effective schema for labels,
+  order, visibility, help text, vocabulary suggestions, and restricted
+  validation.
+- Mobile can use configured fields but does not yet expose mobile-native field
+  configuration controls; that remains the next parity slice if schema editing
+  on mobile becomes a priority.
+
+### Completed Slice: Mobile Field Configuration
+
+Status: completed on 2026-07-06.
+
+What changed:
+
+- Mobile More now includes a Field Configuration section using the same shared
+  Knowledge schema model and durable field override helper as browser
+  Knowledge.
+- Mobile users can save field labels, editor help text, hidden state, display
+  order, vocabulary attachment, and suggested/restricted vocabulary mode.
+- The older custom-field rename controls were removed from the mobile custom
+  entry type section so label editing has one clear home; custom type management
+  remains focused on creating types, adding fields, ordering fields, removing
+  fields, and deleting custom types.
+- Mobile controller state now exposes `updateFieldOverride`, committing schema
+  edits through the same active-world update path as vocabulary management.
+- Mobile render coverage now verifies the Field Configuration section,
+  vocabulary attachment controls, mode controls, hidden controls, save action,
+  and collapsed overflow for additional entry type sections.
+
+Evaluation before implementation:
+
+- Browser had durable field configuration controls, and mobile editors already
+  consumed those settings, but mobile users could not maintain the settings
+  directly.
+- Keeping custom-field rename controls separate from the new configuration area
+  would have created duplicate label-editing workflows on mobile.
+
+Root cause and best path:
+
+- Root cause: mobile More had custom type and vocabulary maintenance but no
+  schema override maintenance, despite the shared model already exposing the
+  required field metadata.
+- The best path was a compact More section that uses existing mobile field,
+  checkbox, select, and action button primitives, plus the existing schema save
+  path, rather than adding another mobile tab or route.
+
+Re-evaluation after implementation:
+
+- Browser and mobile now both provide durable field configuration workflows for
+  the approved schema settings.
+- Custom type management is clearer because label editing moved to the shared
+  field configuration workflow.
+- Remaining durable schema opportunities are editor ergonomics around
+  configured fields, especially clearer restricted-choice recovery and optional
+  vocabulary alias matching.
+
+### Completed Slice: Restricted Vocabulary Recovery
+
+Status: completed on 2026-07-06.
+
+What changed:
+
+- Restricted vocabulary validation now accepts active vocabulary aliases in
+  addition to active canonical labels.
+- Validation errors now include a short set of active example values, making it
+  clearer how to recover when a restricted field rejects a draft value.
+- Suggestions continue to prefer canonical vocabulary labels so editors still
+  guide users toward consistent saved wording.
+
+Evaluation before implementation:
+
+- Browser and mobile could configure restricted vocabulary fields, but a user
+  who entered a near-valid term only saw a generic error with no examples.
+- Vocabulary aliases were editable metadata but did not help restricted field
+  validation, reducing the value of maintaining aliases.
+
+Root cause and best path:
+
+- Root cause: restricted validation compared only against active labels and did
+  not expose the available value set in the error copy.
+- The best path was to keep canonical labels as the primary suggestions while
+  allowing aliases as valid matching terms and adding concise recovery examples
+  to the validation message.
+
+Re-evaluation after implementation:
+
+- Restricted field recovery is easier on browser and mobile because both share
+  the same validation model.
+- Aliases now support input flexibility without changing the stored value or
+  expanding suggestion lists with non-canonical wording.
+- Remaining schema ergonomics can focus on optional editor-side affordances,
+  such as one-tap replacement with canonical labels after alias entry.
+
+### Completed Slice: Canonical Vocabulary Replacement
+
+Status: completed on 2026-07-06.
+
+What changed:
+
+- Shared entry editor field models now detect when an attached vocabulary field
+  contains an active alias or a non-canonical casing of an active label.
+- Browser generic entry editors, browser Timeline editors, mobile generic
+  editors, and mobile Timeline editors now show a one-tap action to replace the
+  current value with the canonical vocabulary label.
+- Core model coverage verifies alias and casing replacement behavior, and
+  mobile render coverage verifies the replacement action appears in the editor.
+
+Evaluation before implementation:
+
+- Restricted validation accepted aliases, but saved drafts could still retain
+  non-canonical alias text unless the user manually replaced it.
+- Suggestions intentionally stayed canonical, so the missing workflow was a
+  small recovery action at the point where a user had already entered an alias.
+
+Root cause and best path:
+
+- Root cause: vocabulary aliases were valid matching terms, but editor field
+  models did not expose canonical-match metadata to the UI.
+- The best path was to add a shared canonical replacement model and render it
+  under existing field controls on browser and mobile rather than introducing a
+  separate normalization pass that could silently change user text.
+
+Re-evaluation after implementation:
+
+- Alias entry is now forgiving without becoming invisible: users can keep the
+  alias until they explicitly choose the canonical replacement.
+- Browser and mobile use the same detection logic, including Timeline fields.
+- Remaining vocabulary ergonomics can focus on deeper search/filtering if
+  maintained vocabulary lists become large.
+
+### Completed Slice: Vocabulary Value Search
+
+Status: completed on 2026-07-06.
+
+What changed:
+
+- Added a shared vocabulary value filter helper that searches active value
+  labels, descriptions, and aliases.
+- Browser Knowledge Vocabulary Manager now includes a per-vocabulary search
+  field before editable active values.
+- Mobile More Vocabulary Manager now includes the same per-vocabulary search
+  field.
+- Filtered value lists preserve full-list move up/down behavior so search does
+  not make ordering controls operate on misleading filtered indexes.
+- Core coverage verifies label, description, and alias matching, while mobile
+  render coverage verifies search appears in the mobile Vocabulary Manager.
+
+Evaluation before implementation:
+
+- Vocabulary lists could grow through durable value editing, but both browser
+  and mobile relied on expansion controls instead of direct search.
+- Aliases became more useful after validation and canonical replacement, so
+  search also needed to include aliases.
+
+Root cause and best path:
+
+- Root cause: Vocabulary Manager rows exposed value metadata but had no shared
+  filtering model.
+- The best path was a shared filter helper plus small search fields in the
+  existing browser and mobile managers, preserving the current inline editing
+  workflow.
+
+Re-evaluation after implementation:
+
+- Large vocabulary lists are easier to scan and maintain on browser and mobile.
+- Search covers the metadata users maintain: labels, descriptions, and aliases.
+- Remaining opportunities are broader workflow refinements rather than missing
+  durable schema capabilities.
+
+### Completed Slice: Field Configuration Search
+
+Status: completed on 2026-07-06.
+
+What changed:
+
+- Added a shared field-configuration filter helper that searches section titles,
+  section descriptions, field keys, labels, backing details, help text,
+  vocabulary names, vocabulary modes, relationship types, and target sections.
+- Browser Knowledge Field Configuration now includes a search field and empty
+  search state.
+- Mobile More Field Configuration now includes the same search field and empty
+  search state.
+- Core coverage verifies section-level and field-level matches, while mobile
+  render coverage verifies the mobile search control appears.
+
+Evaluation before implementation:
+
+- Field configuration controls now cover browser and mobile, but all sections
+  and fields were shown in a long maintenance surface.
+- As custom sections and durable schema fields grow, finding one field by
+  label, key, vocabulary, or relationship target would become a repeated
+  interaction cost.
+
+Root cause and best path:
+
+- Root cause: Knowledge schema rows exposed rich field metadata but had no
+  shared filter model for configuration workflows.
+- The best path was a shared filter helper plus small search inputs inside the
+  existing browser and mobile field configuration areas.
+
+Re-evaluation after implementation:
+
+- Field configuration is easier to navigate on both platforms without adding a
+  new page or route.
+- Search matches the metadata users naturally remember: section, field name,
+  vocabulary, mode, and relationship target.
+- Remaining workflow opportunities should be evaluated from actual friction in
+  Workbench, Timeline, Relationship Studio, or Knowledge rather than extending
+  schema mechanics by default.
+
+### Completed Slice: Schema Workflow Documentation Alignment
+
+Status: completed on 2026-07-06.
+
+What changed:
+
+- Core Help copy now describes field configuration, searchable field settings,
+  durable vocabulary maintenance, restricted vocabulary behavior, and
+  alias-matched vocabulary suggestions as one Knowledge workflow.
+- The browser/mobile user guide now explains Field Configuration for built-in
+  and custom fields, searchable schema settings, searchable vocabulary values,
+  alias-aware restricted fields, and canonical replacement actions.
+- The root README and mobile README now describe the current Knowledge setup
+  behavior instead of the earlier custom-field and passive vocabulary language.
+- The manual release checklist now requires field configuration, field-setting
+  search, vocabulary-value search, alias acceptance, and canonical replacement
+  checks across browser and mobile.
+
+Evaluation before implementation:
+
+- Browser and mobile had gained several durable schema and vocabulary
+  capabilities, but the documentation still described an older maintenance
+  surface.
+- Manual QA could pass while missing the newer high-value workflow paths:
+  field-setting search, vocabulary-value search, restricted alias acceptance,
+  and canonical replacement.
+
+Root cause and best path:
+
+- Root cause: the UX implementation progressed slice by slice while
+  user-facing docs and checklist copy were not updated after each adjacent
+  schema slice.
+- The best path was to align the existing Help, README, user guide, and manual
+  checklist surfaces rather than introduce a new docs page.
+
+Re-evaluation after implementation:
+
+- Users now receive consistent browser and mobile guidance for the current
+  Knowledge workflow.
+- QA now exercises the same field and vocabulary controls that drive the
+  redesigned schema experience.
+- Remaining opportunities should be evaluated in live workflow surfaces rather
+  than documentation unless another implemented behavior lacks guidance.
+
+### Completed Slice: Field Configuration Reset Recovery
+
+Status: completed on 2026-07-06.
+
+What changed:
+
+- Browser Knowledge Field Configuration rows now show whether a field is using
+  custom settings or default settings.
+- Browser Knowledge now includes a Reset to Defaults action that clears a saved
+  field override or discards an unsaved field-setting draft in one step.
+- Mobile More Field Configuration now shows the same custom/default state and
+  exposes the same Reset to Defaults action.
+- Mobile render coverage now verifies the reset affordance and default-setting
+  indicator appear in the compact schema surface.
+- The user guide and manual release checklist now document and verify field
+  configuration recovery.
+
+Evaluation before implementation:
+
+- Field configuration could change many controls, but users had to manually
+  restore every value to recover from experimentation.
+- The sparse schema model already supported clearing an override, but the UI
+  did not expose that recovery path or reveal whether a row had custom
+  settings.
+
+Root cause and best path:
+
+- Root cause: the field-configuration UI focused on saving override values and
+  did not surface the default-state behavior already present in the model.
+- The best path was to reuse the existing default draft shape and
+  `updateFieldOverride` normalization on both platforms instead of adding new
+  schema fields or a separate reset model.
+
+Re-evaluation after implementation:
+
+- Users can now identify customized fields and recover to defaults with one
+  action on browser and mobile.
+- The action also works as a discard path for unsaved field-setting drafts,
+  reducing the cost of trying configuration changes.
+- Remaining schema workflow opportunities should focus on editing efficiency
+  inside entry creation/editing rather than additional configuration recovery.
+
+### Completed Slice: Browser Editor Suggestion Actions
+
+Status: completed on 2026-07-06.
+
+What changed:
+
+- Browser entry editors now show visible suggestion actions for configured
+  detail fields while preserving the existing native datalist autocomplete.
+- Browser Timeline event editor fields use the same visible suggestion action
+  component for chronology fields such as era.
+- The suggestion actions include field-specific accessible labels such as
+  `Use Human for Ancestry`.
+- Focused browser render coverage now verifies visible suggestion actions
+  appear for configured character fields.
+- The user guide and manual release checklist now call out visible suggestion
+  actions across browser and mobile editors.
+
+Evaluation before implementation:
+
+- Mobile editors already exposed field suggestions as visible actions, but
+  browser editors depended on native datalist behavior.
+- Native datalist discovery and interaction vary by browser, which increased
+  the cost of applying common vocabulary values after users configured fields.
+
+Root cause and best path:
+
+- Root cause: browser and mobile had drifted in suggestion affordance
+  visibility even though they shared the same editor field model.
+- The best path was a small browser UI parity component that renders the same
+  shared suggestions as compact buttons while keeping typed autocomplete.
+
+Re-evaluation after implementation:
+
+- Browser users can now apply common configured values with one click, matching
+  the visible mobile workflow.
+- The change does not alter schema, validation, saved data, or mobile behavior.
+- Remaining editor-efficiency opportunities should be evaluated from repeated
+  create/edit flows, especially where long suggestion lists or linked-field
+  controls create measurable friction.
+
+### Completed Slice: Entry Editor Suggestion Display Cap
+
+Status: completed on 2026-07-06.
+
+What changed:
+
+- Added a neutral shared `entryEditorDisplayLimits.detailSuggestions` constant
+  for browser and mobile editor suggestion rows.
+- Browser entry editors now cap visible/autocomplete detail suggestions through
+  the same shared limit used by mobile.
+- Browser and mobile Timeline event editors now pass the same suggestion limit
+  into the shared Timeline editor model.
+- Core Timeline coverage now verifies field suggestions respect an explicit
+  suggestion limit.
+- The user guide and manual release checklist now describe the suggestion
+  actions as compact.
+
+Evaluation before implementation:
+
+- Visible suggestion actions made browser entry editing faster, but long
+  vocabularies or observed value lists could make the editor noisy.
+- Mobile normal entry editing already used a suggestion cap, while browser
+  entry editing and Timeline editor models could request unbounded suggestions.
+
+Root cause and best path:
+
+- Root cause: suggestion limiting existed in the shared entry field model, but
+  not every browser/mobile editor caller passed a limit.
+- The best path was to introduce a neutral entry-editor display limit and
+  thread it through browser and mobile editor model calls without changing
+  schema or suggestion generation.
+
+Re-evaluation after implementation:
+
+- Browser and mobile editors now keep suggestion actions compact while typed
+  entry remains available for values outside the visible set.
+- Timeline and non-Timeline entry editors use the same limit policy.
+- Remaining editor-efficiency opportunities should be evaluated only if users
+  need explicit suggestion search or expansion inside the editor itself.
+
+### Completed Slice: Entry Editor Hidden Suggestion Count
+
+Status: completed on 2026-07-06.
+
+What changed:
+
+- Shared entry editor field models now include `hiddenSuggestionCount` after
+  applying the configured suggestion display cap.
+- Browser entry and Timeline editors now show a concise more-suggestions count
+  when capped suggestion actions hide additional values.
+- Mobile entry and Timeline editors now show the same more-suggestions count
+  below visible suggestion actions.
+- Core, browser render, and mobile editor-model coverage now verify hidden
+  suggestion counts.
+- The user guide and manual release checklist now describe the capped
+  suggestion indicator.
+
+Evaluation before implementation:
+
+- Suggestion actions were capped to keep editors compact, but users could not
+  tell whether more configured or observed values existed beyond the visible
+  actions.
+- Without a count, a compact list could be mistaken for a complete vocabulary
+  list, especially after users invested time in Knowledge vocabulary setup.
+
+Root cause and best path:
+
+- Root cause: the shared editor model sliced suggestions but discarded the
+  pre-cap total.
+- The best path was to add a hidden-count field to the shared model and render
+  a small passive cue on browser and mobile rather than adding expansion or
+  search controls inside every editor field.
+
+Re-evaluation after implementation:
+
+- Users can now see when a compact suggestion row has more available values
+  while keeping the editor dense.
+- Typed input and existing Knowledge vocabulary search remain the right path
+  for reaching values outside the visible suggestion set.
+- No further suggestion-row changes are needed unless users specifically need
+  in-editor search or expansion for large vocabularies.
+
+### Completed Slice: Hidden Suggestion Cue Actionability
+
+Status: completed on 2026-07-06.
+
+What changed:
+
+- Shared entry editor models now include `hiddenSuggestionLabel` so browser and
+  mobile use the same hidden-suggestion copy.
+- The hidden suggestion cue now says users can type another value, making the
+  compact suggestion cap actionable without adding an in-editor search control.
+- Browser and mobile renderers now consume the shared label instead of
+  duplicating pluralization logic.
+- Core, browser render, and mobile editor-model coverage now verify the
+  actionable cue.
+- The user guide and manual release checklist now describe the typed-value cue.
+
+Evaluation before implementation:
+
+- The hidden-count cue communicated that more suggestions existed, but not how
+  to reach them from the current editor.
+- Adding full in-editor search or expansion was not yet justified because typed
+  input already accepts values outside the visible suggestion actions.
+
+Root cause and best path:
+
+- Root cause: the copy focused on count visibility but omitted the recovery
+  action after suggestions were capped.
+- The best path was a shared label in the editor model that adds the action cue
+  without increasing UI complexity.
+
+Re-evaluation after implementation:
+
+- Users now see that additional values can be typed directly while the editor
+  remains compact.
+- Browser and mobile copy are centralized and consistent.
+- No further hidden suggestion cue gap was found in this pass.
+
+### Completed Slice: Mobile Timeline Extra Field Parity
+
+Status: completed on 2026-07-06.
+
+What changed:
+
+- Mobile Timeline editor fields now use one shared local renderer for
+  chronology, outcomes, and additional detail groups.
+- Mobile Timeline outcome fields now receive the same help text, canonical
+  replacement, suggestion action, and hidden suggestion count affordances as
+  chronology fields.
+- Mobile Timeline extra detail fields from the shared Timeline editor model now
+  render under the Additional details group instead of being omitted.
+- Core coverage now verifies custom Timeline fields are grouped as additional
+  details.
+- Mobile render coverage now verifies a custom Timeline detail field appears in
+  the mobile Timeline editor with its suggestion action.
+
+Evaluation before implementation:
+
+- Browser Timeline already rendered chronology, outcomes, and extra detail
+  groups through the same rich field renderer.
+- Mobile Timeline rendered chronology with rich field affordances, but outcomes
+  used plain fields and `extraDetails` was not rendered at all.
+
+Root cause and best path:
+
+- Root cause: the mobile Timeline editor had copied field rendering branches
+  before field help, canonical replacement, suggestion actions, and hidden
+  suggestion counts became shared editor affordances.
+- The best path was a local mobile field-group renderer reused for every
+  Timeline field group, matching the browser structure without adding new data
+  model concepts.
+
+Re-evaluation after implementation:
+
+- Timeline field behavior is now consistent across browser and mobile for
+  chronology, outcomes, and schema-provided additional details.
+- The change closes the parity gap without changing routes, schema, or current
+  user workflows.
+- No further Timeline field-rendering parity gap was found in this pass.
+
+### Completed Slice: Linked Field Hidden Target Cue Actionability
+
+Status: completed on 2026-07-06.
+
+What changed:
+
+- Shared relationship-backed field option displays now make the hidden
+  preferred-record count actionable.
+- Browser and mobile linked-field controls now inherit the same copy:
+  search or show more to reach hidden preferred records.
+- Core relationship-field coverage now verifies the updated shared message.
+
+Evaluation before implementation:
+
+- Linked-field controls already supported search, selected targets, hidden
+  preferred-count messages, and expand actions on browser and mobile.
+- The hidden preferred-count message was passive, so users could see that more
+  records existed without an immediate cue for how to reach them.
+
+Root cause and best path:
+
+- Root cause: the shared relationship display model named the hidden count but
+  did not include the next action.
+- The best path was to update the shared message once rather than editing
+  browser and mobile surfaces independently.
+
+Re-evaluation after implementation:
+
+- Users now get the count and the recovery path in the same linked-field cue.
+- Browser and mobile remain aligned through the shared display model.
+- No additional linked-field discovery gap was found in this pass.
+
+### Completed Slice: Staged Timeline Involved-Link Pruning Feedback
+
+Status: completed on 2026-07-06.
+
+What changed:
+
+- Shared staged relationship transactions now remove exact duplicate staged
+  links before saving, including links that resolve from a temporary draft id to
+  the newly saved entry id.
+- Timeline event editor submit labels now count the normalized save list, so
+  duplicate route/context links do not inflate the create action.
+- Browser and mobile Timeline involved-record panels now surface a shared
+  warning when duplicate staged involved links will be pruned.
+- Core and browser render coverage now verify the deduped save count, pruning
+  warning, and committed relationship output.
+
+Evaluation before implementation:
+
+- The Timeline editor model already detected duplicate staged involved targets,
+  but browser and mobile did not render that state.
+- Save labels could describe duplicate staged links that would create redundant
+  relationship records, increasing user uncertainty during contextual
+  create-and-link workflows.
+
+Root cause and best path:
+
+- Root cause: staged-link duplicate detection lived in the Timeline editor model
+  only; transaction commit and save-label counts still used the raw staged
+  draft array.
+- The best path was to normalize staged relationships in shared core, then have
+  both browser and mobile render the existing Timeline model signal.
+
+Re-evaluation after implementation:
+
+- Duplicate contextual Timeline links now produce one saved relationship and one
+  clear warning.
+- Browser and mobile share the same copy and save-count behavior through core
+  models.
+- No further duplicate staged-link workflow gap was found in this pass.
+
+### Completed Slice: Vocabulary-Ordered Editor Suggestions
+
+Status: completed on 2026-07-06.
+
+What changed:
+
+- Shared entry detail suggestion building now preserves active vocabulary value
+  order before falling back to field-authored options and observed saved values.
+- Browser and mobile entry editors inherit the same ordered suggestions through
+  the existing shared editor field model.
+- Core coverage now verifies configured place option order and durable
+  vocabulary order are reflected in editor suggestions.
+
+Evaluation before implementation:
+
+- Users could maintain and reorder durable vocabulary values, but entry editor
+  suggestions were globally alphabetized.
+- That made ordering controls useful for Vocabulary Manager review but less
+  useful during repeated create/edit drafting, where the most preferred values
+  should appear first.
+
+Root cause and best path:
+
+- Root cause: the suggestion builder de-duplicated values in insertion order
+  but sorted the final list alphabetically, discarding vocabulary order.
+- The best path was a shared core ordering rule rather than browser/mobile UI
+  changes, because both surfaces already render suggestions from the shared
+  model.
+
+Re-evaluation after implementation:
+
+- Vocabulary order now carries into browser and mobile editor suggestion rows.
+- Authored field option order is also preserved, and existing saved values
+  remain available after configured values.
+- No additional suggestion-order workflow gap was found in this pass.
+
+### Completed Slice: Canonical Replacement Suggestion De-duplication
+
+Status: completed on 2026-07-06.
+
+What changed:
+
+- Shared entry editor field models now remove the current value from
+  suggestions case-insensitively.
+- When a field exposes a canonical replacement action, the same canonical value
+  is no longer repeated as a separate suggestion action.
+- Browser and mobile editors inherit the cleaner action set through the shared
+  model, including Timeline fields.
+- Core coverage now verifies alias and casing replacement fields do not also
+  show the canonical value in the suggestion row.
+
+Evaluation before implementation:
+
+- Canonical replacement helped users recover from aliases and casing variants,
+  but the suggestion row could still show the same canonical value as an
+  additional action.
+- This added visual noise and made the editor feel less deliberate during
+  repeated drafting.
+
+Root cause and best path:
+
+- Root cause: suggestion filtering only removed exact current-value matches and
+  did not know about the canonical replacement action.
+- The best path was to compute replacement metadata before suggestion filtering
+  in the shared editor model rather than adding browser/mobile presentation
+  conditionals.
+
+Re-evaluation after implementation:
+
+- Alias and casing recovery now shows one clear canonical action.
+- Suggestion rows remain available for other useful vocabulary values.
+- No further canonical-replacement action duplication gap was found in this
+  pass.
+
+### Completed Slice: Hidden Detail Cleanup Search
+
+Status: completed on 2026-07-06.
+
+What changed:
+
+- Added a shared hidden-detail cleanup filter that searches section title,
+  entry name, field key, field label, and retained value text.
+- Browser Knowledge Hidden Detail Cleanup now includes a search field and an
+  empty filtered state.
+- Mobile More Hidden Detail Cleanup now includes the same search field, with
+  visible rows and overflow counts based on filtered results.
+- Core and mobile render coverage now verify the hidden-detail cleanup search
+  workflow.
+
+Evaluation before implementation:
+
+- Hidden-detail cleanup could collect many retained values after users remove
+  or hide fields, but the cleanup list had no focused search.
+- Browser showed all cleanup rows, while mobile capped rows with expansion;
+  both paths still required scanning to find one entry, field, or retained
+  value before review or bulk clearing.
+
+Root cause and best path:
+
+- Root cause: hidden-detail cleanup rows were modeled centrally but had no
+  shared filtering helper like field configuration and vocabulary values.
+- The best path was to add one shared filter and wire it into the existing
+  cleanup sections rather than adding a new cleanup page or durable queue.
+
+Re-evaluation after implementation:
+
+- Users can now find cleanup targets by entry, section, field, or saved value on
+  browser and mobile.
+- Mobile overflow behavior remains compact and now reflects the filtered result
+  set.
+- No additional hidden-detail cleanup discovery gap was found in this pass.
+
+### Completed Slice: Hidden Detail Bulk-Clear Scope Clarity
+
+Status: completed on 2026-07-06.
+
+What changed:
+
+- Hidden-detail cleanup bulk actions now say `Clear All Hidden Details` on
+  browser and mobile.
+- Shared destructive-action confirmation copy now uses the same all-clear
+  wording while retaining the recovery snapshot warning.
+- The user guide now describes hidden-detail cleanup search and the all-hidden
+  clear behavior.
+- Core destructive-copy and mobile render coverage now verify the updated bulk
+  action label.
+
+Evaluation before implementation:
+
+- After adding hidden-detail search, the existing `Clear Hidden Details` label
+  became ambiguous because it could be read as clearing the filtered visible
+  results.
+- The operation actually clears all hidden detail values in the current
+  workspace, so the action label needed to communicate scope before the
+  confirmation dialog.
+
+Root cause and best path:
+
+- Root cause: the bulk action label predated filtered cleanup rows and did not
+  include all-clear scope.
+- The best path was to clarify the shared destructive copy and matching browser
+  and mobile labels rather than changing the destructive operation.
+
+Re-evaluation after implementation:
+
+- The cleanup action now communicates all-hidden scope before and during
+  confirmation.
+- Search remains a review/discovery tool, not a filtered bulk delete mode.
+- No further hidden-detail bulk-action clarity gap was found in this pass.
+
+### Completed Slice: Hidden Detail Cleanup Documentation Alignment
+
+Status: completed on 2026-07-06.
+
+What changed:
+
+- Manual release checklist wording now verifies hidden-detail cleanup search and
+  the `Clear All Hidden Details` action.
+- Earlier UX-plan completed-slice references now use the current all-clear
+  action label.
+
+Evaluation before implementation:
+
+- The UI and shared destructive copy had been clarified, but checklist and
+  historical plan references still named the older `Clear Hidden Details`
+  action.
+- Leaving stale action names would increase QA friction and make the plan appear
+  inconsistent with the current workflow.
+
+Root cause and best path:
+
+- Root cause: the label clarification changed user-facing review language, but
+  supporting docs were not part of the initial code patch.
+- The best path was a narrow documentation update rather than any further
+  runtime change.
+
+Re-evaluation after implementation:
+
+- Current QA and plan text now names the same all-clear action as browser and
+  mobile.
+- No additional hidden-detail cleanup wording mismatch was found in this pass.
+
+### Completed Slice: Hidden Detail Row-Level Cleanup
+
+Status: completed on 2026-07-06.
+
+What changed:
+
+- Added a shared mutation for clearing one hidden entry detail from the active
+  workspace while leaving active visible fields untouched.
+- Browser Knowledge hidden-detail cleanup rows now include a direct `Clear
+Detail` action beside `Review Entry`.
+- Mobile More hidden-detail cleanup rows now include the same direct `Clear
+Detail` action with singular destructive confirmation.
+- Browser, mobile render, destructive-copy, and core mutation coverage now
+  verify the row-level cleanup path.
+
+Evaluation before implementation:
+
+- Hidden-detail cleanup search made targets discoverable, but resolving one
+  target still required opening the entry, clearing the hidden value in the
+  editor, saving, and returning to cleanup.
+- Bulk clear was too broad when the user had searched for one field or one
+  entry and wanted to resolve only that row.
+
+Root cause and best path:
+
+- Root cause: cleanup rows were review/navigation surfaces only; the only
+  persisted cleanup operation was all-hidden bulk cleanup.
+- The best path was to add one shared row-level mutation and surface it on both
+  browser and mobile cleanup rows with singular confirmation, rather than
+  creating a separate cleanup page or changing editor behavior.
+
+Re-evaluation after implementation:
+
+- Users can now clear a single hidden value directly from the cleanup list or
+  still open the entry when they need context before editing.
+- The mutation no-ops for stale rows or active fields, so the cleanup action is
+  scoped to actual hidden details.
+- No further hidden-detail cleanup workflow gap was found in this pass.
+
+### Completed Slice: Hidden Detail Row Action Accessibility
+
+Status: completed on 2026-07-06.
+
+What changed:
+
+- Shared hidden-detail cleanup row models now include a row-specific clear
+  action label and accessible name.
+- Browser Knowledge and mobile More keep the compact visible `Clear Detail`
+  label while exposing row-specific accessible labels such as `Clear hidden
+detail Power from Glass Key`.
+- Core, browser render, and mobile render coverage now verify the shared row
+  action labels.
+
+Evaluation before implementation:
+
+- Row-level cleanup removed the open-edit-save loop, but repeated `Clear
+Detail` buttons were ambiguous when several cleanup rows were visible.
+- The ambiguity mattered most for keyboard and screen-reader navigation, where
+  users encounter controls independently from surrounding row text.
+
+Root cause and best path:
+
+- Root cause: the row action copy was hardcoded in browser and mobile instead
+  of modeled as part of the shared cleanup row.
+- The best path was to add the accessible name to the shared model and consume
+  it in both renderers.
+
+Re-evaluation after implementation:
+
+- Visible cleanup rows remain compact for scan speed.
+- Assistive technology receives entry and field context for each row action.
+- No further cleanup-row accessibility gap was found in this pass.
+
+### Completed Slice: Hidden Detail Mobile Confirmation Specificity
+
+Status: completed on 2026-07-06.
+
+What changed:
+
+- Mobile destructive confirmation helpers now accept an optional subject name
+  and format the dialog title through the shared destructive-action title
+  helper.
+- Mobile More row-level hidden-detail cleanup now confirms the specific field
+  and entry, matching the browser Knowledge confirmation title.
+- Shared destructive-copy coverage verifies the singular hidden-detail title
+  format.
+
+Evaluation before implementation:
+
+- Browser row-level cleanup confirmation named the target row, but mobile used
+  only the generic `Clear Hidden Detail` title.
+- That mismatch made mobile cleanup slightly less confident for users resolving
+  several hidden values in sequence.
+
+Root cause and best path:
+
+- Root cause: the mobile confirmation helper accepted only an action id, while
+  browser confirmation already carried a row-specific title.
+- The best path was to extend the mobile helper with an optional subject name
+  and keep all action copy in the shared destructive-action model.
+
+Re-evaluation after implementation:
+
+- Browser and mobile now both confirm row-level cleanup with field and entry
+  context.
+- Existing mobile confirmations without subjects continue using their shared
+  default titles.
+- No further row-level confirmation clarity gap was found in this pass.
+
+### Completed Slice: Mobile Destructive Confirmation Context
+
+Status: completed on 2026-07-06.
+
+What changed:
+
+- Mobile destructive confirmations now pass subject names for entry deletion,
+  relationship deletion, custom field removal, custom entry type deletion,
+  workspace deletion, in-fiction world deletion, and recovery snapshot
+  deletion.
+- The mobile destructive confirmation presenter now has focused tests for both
+  default titles and subject-specific titles.
+- Existing broad document replacement confirmations keep their generic titles
+  because the subject is the current local document, import, reset, or restore
+  operation rather than one row.
+
+Evaluation before implementation:
+
+- The row-level hidden-detail cleanup confirmation had been made specific, but
+  other mobile destructive actions still used generic titles such as `Delete
+Entry` or `Delete Workspace`.
+- That created extra confirmation cost because users had to infer the target
+  from the screen behind the native alert.
+
+Root cause and best path:
+
+- Root cause: mobile callers originally supplied only the destructive action id
+  even when they already had the target name in local scope.
+- The best path was to pass existing target names into the shared confirmation
+  helper, avoiding new state or screen-specific confirmation copy.
+
+Re-evaluation after implementation:
+
+- Mobile destructive confirmations now name the affected record, relationship,
+  schema item, workspace, world, or recovery snapshot when the caller has that
+  context.
+- Generic confirmations remain appropriate for import and reset operations.
+- No further high-impact mobile destructive confirmation context gap was found
+  in this pass.
+
+### Completed Slice: Recovery Snapshot Confirmation Context
+
+Status: completed on 2026-07-06.
+
+What changed:
+
+- Browser Data recovery snapshot restore and delete confirmations now name the
+  snapshot reason and active world.
+- Mobile Data restore and delete snapshot confirmations now use the same
+  subject-specific title pattern.
+- Shared destructive-title coverage now verifies restore/delete snapshot
+  subject formatting.
+
+Evaluation before implementation:
+
+- Mobile destructive confirmations were improved for row-level actions, but
+  recovery snapshot restore still used a generic confirmation title despite
+  being initiated from a specific snapshot row.
+- Browser Data also stored only the snapshot id for confirmation, so restore
+  and delete dialogs named a generic `recovery snapshot` instead of the row the
+  user selected.
+
+Root cause and best path:
+
+- Root cause: the snapshot row subject was displayed in the list but was not
+  carried into pending confirmation state or the mobile confirmation helper.
+- The best path was to reuse the existing snapshot row model values and pass a
+  compact subject string into the shared destructive-title formatter.
+
+Re-evaluation after implementation:
+
+- Restore and delete snapshot confirmations now identify the snapshot reason
+  and active world on browser and mobile.
+- Import and reset confirmations remain intentionally generic because they
+  apply to the current document-level operation, not a selected row.
+- No further recovery-snapshot confirmation specificity gap was found in this
+  pass.
+
+### Completed Slice: Recovery Snapshot Row Action Accessibility
+
+Status: completed on 2026-07-06.
+
+What changed:
+
+- Shared Data recovery snapshot row models now include row-specific restore and
+  delete accessible labels.
+- Browser Data and mobile Data keep compact visible labels such as `Restore
+Snapshot` and `Delete Snapshot` while exposing the snapshot reason and active
+  world to assistive technology.
+- Core Data model coverage now verifies the generated row action labels.
+
+Evaluation before implementation:
+
+- Snapshot restore/delete confirmations had been made specific, but repeated
+  `Restore Snapshot` and `Delete Snapshot` buttons were still ambiguous before
+  activation.
+- This matched the earlier hidden-detail row action accessibility issue.
+
+Root cause and best path:
+
+- Root cause: the Data recovery row model exposed action labels and hints, but
+  not row-specific accessible names.
+- The best path was to add the labels to the shared model so browser and
+  mobile stay aligned.
+
+Re-evaluation after implementation:
+
+- Users scanning with assistive technology can distinguish snapshot actions by
+  reason and active world before choosing them.
+- Visible labels remain short for dense repeated Data rows.
+- No further recovery-snapshot row accessibility gap was found in this pass.
+
+### Completed Slice: Recovery Snapshot Confirmation Subject Model
+
+Status: completed on 2026-07-06.
+
+What changed:
+
+- Shared Data recovery snapshot rows now expose one `confirmationSubject` used
+  by browser Data and mobile Data restore/delete confirmations.
+- Restore/delete accessible labels derive from the same subject, keeping row
+  action and confirmation wording aligned.
+- Core Data model coverage now verifies the centralized subject text.
+
+Evaluation before implementation:
+
+- Browser and mobile both needed the same snapshot subject after confirmation
+  titles became row-specific.
+- Leaving the subject string duplicated in renderers would make future copy
+  changes drift.
+
+Root cause and best path:
+
+- Root cause: the Data row model exposed the source parts but not the combined
+  confirmation subject.
+- The best path was to model the subject once in core and reuse it in both
+  renderers.
+
+Re-evaluation after implementation:
+
+- Snapshot row accessibility labels and confirmation titles now share one
+  model-owned subject.
+- No further snapshot confirmation implementation drift was found in this pass.
+
+### Completed Slice: Vocabulary Value Row Action Accessibility
+
+Status: completed on 2026-07-06.
+
+What changed:
+
+- Shared Knowledge vocabulary value rows now include archive and restore
+  accessible labels that name the value and owning vocabulary.
+- Browser Knowledge and mobile More keep compact visible labels such as
+  `Archive` and `Restore Monster` while exposing row-specific action names.
+- Core, browser render, and mobile render coverage now verify the generated
+  vocabulary value action labels.
+
+Evaluation before implementation:
+
+- Vocabulary Manager rows could contain many repeated `Archive` buttons, which
+  made the control ambiguous when navigating by button name.
+- Archived value restore labels included the value but not the owning
+  vocabulary, which could become unclear as the number of vocabulary lists
+  grows.
+
+Root cause and best path:
+
+- Root cause: vocabulary value row models carried value metadata but no action
+  labels, leaving browser and mobile to use compact presentation text directly.
+- The best path was to add action labels to the shared Knowledge model, derived
+  from the vocabulary name and value label.
+
+Re-evaluation after implementation:
+
+- Repeated vocabulary row actions are now distinguishable by assistive
+  technology on browser and mobile.
+- Visible labels remain compact for dense vocabulary maintenance.
+- No further vocabulary value row action accessibility gap was found in this
+  pass.
+
+### Completed Slice: Field Configuration Row Action Accessibility
+
+Status: completed on 2026-07-06.
+
+What changed:
+
+- Shared Knowledge field rows now include row-specific accessible labels for
+  saving field settings and resetting them to defaults.
+- Browser Knowledge and mobile More keep compact visible labels such as `Save
+Field Settings` and `Reset to Defaults` while exposing field and section
+  context.
+- Core, browser render, and mobile render coverage now verify the generated
+  field configuration action labels.
+
+Evaluation before implementation:
+
+- Field Configuration can show many repeated `Save Field Settings` and `Reset
+to Defaults` buttons.
+- The visible row context helped sighted users, but button-only navigation did
+  not identify which field and section the action affected.
+
+Root cause and best path:
+
+- Root cause: `KnowledgeFieldRow` described field metadata but did not model
+  action labels for repeated field-setting commands.
+- The best path was to add labels to the shared row model so browser and mobile
+  stay consistent.
+
+Re-evaluation after implementation:
+
+- Repeated field-configuration actions are now distinguishable before
+  activation on browser and mobile.
+- Visible labels remain concise for dense schema editing.
+- No further field-configuration row action accessibility gap was found in this
+  pass.
+
+### Completed Slice: Custom Field Order Row Action Accessibility
+
+Status: completed on 2026-07-06.
+
+What changed:
+
+- Shared Knowledge field rows now include row-specific accessible labels for
+  saving custom field labels, moving custom fields up/down, and removing custom
+  fields.
+- Browser Knowledge and mobile More now expose the custom field and owning
+  entry type in repeated field-order actions.
+- Remove-field confirmations now use the same field-and-entry-type subject on
+  browser and mobile.
+- Core, browser render, and mobile render coverage now verify the generated
+  custom field order labels.
+
+Evaluation before implementation:
+
+- Custom entry type rows could show repeated `Move Up`, `Move Down`, and
+  `Remove Field` actions.
+- Browser also had repeated `Save Label` actions for custom field labels.
+- Existing accessible names named the field in some cases, but did not
+  consistently include the owning custom entry type or confirmation subject.
+
+Root cause and best path:
+
+- Root cause: custom field order actions reused local button copy instead of
+  shared `KnowledgeFieldRow` action labels.
+- The best path was to extend the shared row model with field-and-section
+  action labels and a remove confirmation subject.
+
+Re-evaluation after implementation:
+
+- Custom field order actions are now distinguishable across browser and mobile
+  before activation.
+- Remove-field confirmation titles match the more specific row action context.
+- No further custom field order row action accessibility gap was found in this
+  pass.
+
+### Completed Slice: Custom Type Add Fields Action Accessibility
+
+Status: completed on 2026-07-06.
+
+What changed:
+
+- Shared Knowledge section rows now include a custom-type-specific accessible
+  label for the repeated `Add Fields` action.
+- Browser Knowledge and mobile More now expose the owning custom entry type in
+  repeated add-fields buttons while keeping the visible button label compact.
+- Core, browser render, and mobile render coverage now verify the generated
+  `Add fields to Artifacts` action label.
+
+Evaluation before implementation:
+
+- Custom entry type setup can show the same `Add Fields` action for multiple
+  user-defined entry types.
+- The visible card context helped sighted users, but button-only navigation did
+  not identify which custom type would receive the new fields.
+
+Root cause and best path:
+
+- Root cause: `KnowledgeSectionRow` described the entry type and fields but did
+  not model action labels for repeated section-level commands.
+- The best path was to add the section-level label to the shared Knowledge
+  model and consume it in both browser and mobile surfaces.
+
+Re-evaluation after implementation:
+
+- Repeated add-fields actions are now distinguishable before activation on
+  browser and mobile.
+- Visible labels remain concise for dense custom type editing.
+- No further custom type add-fields action accessibility gap was found in this
+  pass.
+
+### Completed Slice: Vocabulary Add Value Action Accessibility
+
+Status: completed on 2026-07-06.
+
+What changed:
+
+- Shared Knowledge vocabulary rows now include a vocabulary-specific accessible
+  label for the repeated `Add Value` action.
+- Browser Knowledge and mobile More now expose the target vocabulary in
+  repeated add-value buttons while preserving compact visible button copy.
+- Core, browser render, and mobile render coverage now verify the generated
+  `Add value to Character ancestry` action label.
+
+Evaluation before implementation:
+
+- The Vocabulary Manager can show multiple repeated `Add Value` actions, one
+  for each reusable vocabulary row.
+- Field labels already name the target vocabulary, but button-only navigation
+  did not identify which vocabulary would receive the submitted value.
+
+Root cause and best path:
+
+- Root cause: `KnowledgeVocabularyRow` modeled vocabulary content and counts
+  but not repeated row action labels.
+- The best path was to add the label to the shared vocabulary row model so
+  browser and mobile use the same target-specific action semantics.
+
+Re-evaluation after implementation:
+
+- Repeated vocabulary add-value actions are now distinguishable before
+  activation on browser and mobile.
+- Visible controls remain concise for dense vocabulary management.
+- No further vocabulary add-value action accessibility gap was found in this
+  pass.
+
+### Completed Slice: Vocabulary Value Edit Action Accessibility
+
+Status: completed on 2026-07-06.
+
+What changed:
+
+- Shared Knowledge vocabulary value rows now include target-specific accessible
+  labels for `Save Value`, `Move Up`, and `Move Down`.
+- Browser Knowledge and mobile More now expose both the vocabulary value and
+  owning vocabulary in repeated saved-value actions.
+- Core, browser render, and mobile render coverage now verify the generated
+  `Save Human in Character ancestry`, `Move Human up in Character ancestry`,
+  and `Move Human down in Character ancestry` action labels.
+
+Evaluation before implementation:
+
+- The Vocabulary Manager can show multiple saved value rows, each with repeated
+  `Save Value`, `Move Up`, and `Move Down` controls.
+- Archive and restore actions were already target-specific, but save and
+  ordering actions were not consistently tied to the owning vocabulary.
+
+Root cause and best path:
+
+- Root cause: vocabulary value rows modeled archive/restore labels but left save
+  and ordering labels to local UI strings.
+- The best path was to extend `KnowledgeVocabularyValueRow` so all repeated
+  saved-value actions share the same vocabulary-aware labels across platforms.
+
+Re-evaluation after implementation:
+
+- Repeated saved-value edit and ordering actions are now distinguishable before
+  activation on browser and mobile.
+- The visible action copy stays short enough for dense row editing.
+- No further vocabulary saved-value action accessibility gap was found in this
+  pass.
+
+### Completed Slice: Vocabulary Value Edit Field Label Alignment
+
+Status: completed on 2026-07-06.
+
+What changed:
+
+- Shared Knowledge vocabulary value rows now include target-specific edit field
+  labels for value label, description, and aliases.
+- Browser Knowledge now gives repeated saved-value inputs value-specific
+  accessible names while keeping the dense visible labels compact.
+- Mobile More now consumes the same shared edit field labels it previously
+  constructed locally.
+- Core and browser render coverage now verify the generated `Edit Human label`,
+  `Edit Human description`, and `Edit Human aliases` labels; mobile render
+  coverage already verifies the same visible labels.
+
+Evaluation before implementation:
+
+- Browser saved-value rows repeated generic `Label`, `Description`, and
+  `Aliases` input labels for every vocabulary value.
+- Mobile already used value-specific labels, which created an avoidable
+  semantics gap between platforms.
+
+Root cause and best path:
+
+- Root cause: vocabulary value edit field labels were local UI copy instead of
+  shared row model semantics.
+- The best path was to add value-specific edit field labels to
+  `KnowledgeVocabularyValueRow`, then consume them on browser and mobile.
+
+Re-evaluation after implementation:
+
+- Browser and mobile now expose the same value-specific edit field labels for
+  saved vocabulary values.
+- Browser retains compact visible row layout while improving keyboard and
+  assistive-technology navigation.
+- No further vocabulary saved-value edit field label gap was found in this pass.
+
+### Completed Slice: Vocabulary New Value Field Label Alignment
+
+Status: completed on 2026-07-06.
+
+What changed:
+
+- Shared Knowledge vocabulary rows now include vocabulary-specific labels for
+  the new value, description, and aliases fields.
+- Browser Knowledge now gives repeated new-value inputs vocabulary-specific
+  accessible names while keeping the compact visible labels.
+- Mobile More now consumes the same shared new-value field labels it previously
+  constructed locally.
+- Core, browser render, and mobile render coverage now verify the generated
+  `New Character ancestry value`, `New Character ancestry description`, and
+  `New Character ancestry aliases` labels.
+
+Evaluation before implementation:
+
+- Browser vocabulary rows repeated generic `New value`, `Description`, and
+  `Aliases` labels for every vocabulary.
+- Mobile already named the target vocabulary in those fields, so the browser
+  experience lagged behind the mobile semantics.
+
+Root cause and best path:
+
+- Root cause: new-value field labels were local UI strings instead of shared
+  vocabulary row semantics.
+- The best path was to add vocabulary-specific labels to
+  `KnowledgeVocabularyRow`, then consume them on browser and mobile.
+
+Re-evaluation after implementation:
+
+- Browser and mobile now expose the same vocabulary-specific new-value field
+  labels.
+- Browser keeps the dense visible layout while reducing ambiguity for repeated
+  forms.
+- No further vocabulary new-value field label gap was found in this pass.
+
+### Completed Slice: Mobile Custom Field Rename Parity
+
+Status: completed on 2026-07-06.
+
+What changed:
+
+- Shared Knowledge field rows now include a target-specific custom field rename
+  label.
+- Browser Knowledge now applies that shared label to repeated custom field
+  rename inputs.
+- Mobile More now supports renaming custom field labels from custom entry type
+  rows, using the same shared rename label and existing shared `Save Label`
+  action label.
+- Core, browser render, and mobile render coverage now verify `Rename Origin in
+Artifacts` and `Save Origin label in Artifacts`.
+
+Evaluation before implementation:
+
+- Browser supported renaming custom field labels, but mobile custom field rows
+  only supported moving and removing fields.
+- Browser rename inputs named the field but did not include the owning custom
+  entry type, which could be ambiguous when different custom types shared field
+  names.
+
+Root cause and best path:
+
+- Root cause: custom field rename semantics were local to the browser surface,
+  while mobile had controller support but no inline workflow.
+- The best path was to add a shared rename label to `KnowledgeFieldRow`, apply
+  it to browser inputs, and add the mobile rename field plus save action using
+  the existing controller method.
+
+Re-evaluation after implementation:
+
+- Browser and mobile now both support custom field label editing in the custom
+  entry type workflow.
+- Repeated rename and save-label controls identify both the field and owning
+  custom type.
+- No further custom field rename parity gap was found in this pass.
+
+### Completed Slice: Custom Type Add Fields Input Label Alignment
+
+Status: completed on 2026-07-06.
+
+What changed:
+
+- Shared Knowledge section rows now include a target-specific field label for
+  adding fields to a custom entry type.
+- Browser Knowledge now gives repeated add-fields inputs a custom-type-specific
+  accessible name while keeping compact visible copy.
+- Mobile More now consumes the same shared add-fields field label it previously
+  constructed locally.
+- Core coverage now verifies the generated `Add fields to Artifacts` field
+  label alongside the existing browser and mobile render coverage for the same
+  target-specific add-fields action.
+
+Evaluation before implementation:
+
+- Custom entry type cards can repeat the same add-fields form for several
+  user-defined types.
+- Browser had a target-specific submit button but the text input itself was
+  still labelled generically as `Add fields`.
+- Mobile already named the custom type in the field label, creating an
+  unnecessary platform semantics gap.
+
+Root cause and best path:
+
+- Root cause: the add-fields input label was local UI copy rather than a shared
+  `KnowledgeSectionRow` semantic.
+- The best path was to model the label beside the existing section-level action
+  label and consume it on browser and mobile.
+
+Re-evaluation after implementation:
+
+- Browser and mobile now expose the same custom-type-specific add-fields input
+  label.
+- Browser retains dense visible copy while reducing ambiguity for repeated
+  forms.
+- No further custom type add-fields input label gap was found in this pass.
+
+### Completed Slice: Custom Type Delete Action Model Alignment
+
+Status: completed on 2026-07-06.
+
+What changed:
+
+- Shared Knowledge section rows now include a custom-type delete accessible
+  label and confirmation subject.
+- Browser Knowledge and mobile More now consume the same shared delete action
+  semantics instead of constructing parallel local strings.
+- Core, browser render, and mobile render coverage now verify `Delete custom
+entry type Artifacts`.
+
+Evaluation before implementation:
+
+- Custom entry type cards can repeat the same destructive `Delete Type` action.
+- Browser and mobile both exposed target-specific labels, but each surface
+  constructed them locally, making future copy drift likely.
+
+Root cause and best path:
+
+- Root cause: destructive custom type action semantics were not part of the
+  shared `KnowledgeSectionRow` model.
+- The best path was to model both the accessible label and confirmation subject
+  with the section row so browser and mobile share one source of truth.
+
+Re-evaluation after implementation:
+
+- Browser and mobile now use the same target-specific destructive action label
+  and confirmation subject for custom entry types.
+- Visible button copy remains compact in dense custom type rows.
+- No further custom type delete action semantics gap was found in this pass.
+
+### Completed Slice: Custom Type Add Fields Preview Label Alignment
+
+Status: completed on 2026-07-06.
+
+What changed:
+
+- Shared Knowledge section rows now include a target-specific label for
+  add-fields draft previews.
+- Browser Knowledge now consumes that shared preview label instead of
+  constructing a local string.
+- Mobile More now names the target custom type in the preview copy through the
+  same shared label.
+- Core coverage verifies `New Artifacts field preview`.
+
+Evaluation before implementation:
+
+- Browser add-fields previews were target-specific, but the label was built
+  locally.
+- Mobile preview copy was generic, which made repeated custom type cards less
+  clear when users were editing multiple type definitions.
+
+Root cause and best path:
+
+- Root cause: add-fields preview semantics were not part of
+  `KnowledgeSectionRow`, even though the field and submit action now were.
+- The best path was to complete the add-fields form model by adding the preview
+  label beside the existing field and action labels.
+
+Re-evaluation after implementation:
+
+- Browser and mobile now share the same target-specific add-fields preview
+  label.
+- The custom type add-fields workflow has shared semantics for input, preview,
+  and submit action.
+- No further custom type add-fields preview label gap was found in this pass.
+
+### Completed Slice: Field Configuration Input Label Alignment
+
+Status: completed on 2026-07-06.
+
+What changed:
+
+- Shared Knowledge field rows now include target-specific labels for field
+  setting inputs: label, help text, display order, hidden state, vocabulary, and
+  vocabulary mode.
+- Browser Knowledge now applies those labels as accessible names for repeated
+  field-setting controls while keeping compact visible labels.
+- Mobile More now consumes the same shared field-setting labels it previously
+  constructed locally.
+- Core, browser render, and mobile render coverage now verify section-specific
+  field-setting labels such as `Label for Character category in Characters`.
+
+Evaluation before implementation:
+
+- Browser Field Configuration rows repeated generic controls such as `Label`,
+  `Help text`, `Display order`, and `Vocabulary`.
+- Mobile labels named the field but were still locally constructed and did not
+  include the owning entry type.
+- Repeated field names across entry types could make field-setting navigation
+  ambiguous.
+
+Root cause and best path:
+
+- Root cause: field-setting input labels were not part of the shared
+  `KnowledgeFieldRow` contract.
+- The best path was to move all field-setting labels into the shared row model
+  and consume them on browser and mobile.
+
+Re-evaluation after implementation:
+
+- Browser and mobile now expose the same field-and-section-specific labels for
+  Field Configuration controls.
+- Browser retains the compact visible form layout while improving repeated-row
+  navigation.
+- No further field configuration input label gap was found in this pass.
+
+### Completed Slice: Mobile Field Configuration Section Action Reduction
+
+Status: completed on 2026-07-06.
+
+What changed:
+
+- Mobile More now shows the `Open {section}` navigation action once per Field
+  Configuration section instead of repeating it inside every field row.
+- Field-level save and reset controls remain attached to the specific field they
+  affect.
+
+Evaluation before implementation:
+
+- Mobile Field Configuration repeated the same section navigation action for
+  every field in a section.
+- This increased scan cost and placed a destination-level action beside
+  field-level save/reset actions, even though the destination did not change per
+  field.
+
+Root cause and best path:
+
+- Root cause: the section navigation action was rendered inside the per-field
+  loop.
+- The best path was to move the action outside the field loop while keeping it
+  within the same section block.
+
+Re-evaluation after implementation:
+
+- Mobile users still have a direct path from Field Configuration to the section
+  workbench, but only once per section.
+- Field rows are easier to scan because their action row now contains only
+  field-specific commands.
+- No further mobile Field Configuration repeated section-action gap was found
+  in this pass.
+
+### Completed Slice: Vocabulary Row Context Label Alignment
+
+Status: completed on 2026-07-06.
+
+What changed:
+
+- Shared Knowledge vocabulary rows now include target-specific labels for value
+  search, field usage, and archived value groups.
+- Shared vocabulary field-usage rows now include an open-action label that
+  names both the destination section and the vocabulary being configured.
+- Browser Knowledge and mobile More now consume the same row context labels
+  instead of constructing local strings.
+- Core, browser render, and mobile render coverage now verify labels such as
+  `Search Character ancestry values`, `Character ancestry field usage`, and
+  `Open Characters fields using Character ancestry`.
+
+Evaluation before implementation:
+
+- Vocabulary Manager rows repeat search controls, usage summaries, archived
+  value groups, and open-usage actions for each vocabulary.
+- Browser had some target context in aria labels, mobile had some target context
+  in visible labels, and both surfaces still constructed strings locally.
+- The open-usage action only named the destination section, which could be
+  ambiguous when several vocabularies are used by the same section.
+
+Root cause and best path:
+
+- Root cause: vocabulary row chrome semantics were split between browser and
+  mobile instead of living in `KnowledgeVocabularyRow` and usage rows.
+- The best path was to add shared labels for the repeated row chrome and
+  consume them on both platforms.
+
+Re-evaluation after implementation:
+
+- Browser and mobile now expose the same vocabulary-specific search, usage,
+  archived group, and open-usage context.
+- The Vocabulary Manager is less ambiguous when several vocabularies share the
+  same destination section.
+- No further vocabulary row context label gap was found in this pass.
+
+### Completed Slice: Vocabulary Row State Copy Specificity
+
+Status: completed on 2026-07-06.
+
+What changed:
+
+- Shared Knowledge vocabulary rows now include vocabulary-specific empty and
+  no-match text for active values.
+- Shared Knowledge helpers now format hidden value counts with the vocabulary
+  name, such as `1 more Character ancestry value.`
+- Browser Knowledge and mobile More now consume the shared row-state copy.
+- Mobile More now shows the no-active-values state for empty vocabularies rather
+  than omitting row feedback.
+- Core and mobile render coverage now verify the vocabulary-specific row-state
+  copy.
+
+Evaluation before implementation:
+
+- Vocabulary rows could show repeated generic messages such as `No active
+values`, `No active values match this search`, and `1 more value`.
+- These messages were especially weak on mobile, where multiple vocabulary rows
+  are stacked in one long scroll.
+
+Root cause and best path:
+
+- Root cause: empty, no-match, and hidden-count messages were local row UI copy
+  instead of shared vocabulary-aware model text.
+- The best path was to add shared row-state copy and a small hidden-count
+  formatter, then consume them on both platforms.
+
+Re-evaluation after implementation:
+
+- Browser and mobile now name the affected vocabulary in empty, no-match, and
+  hidden-count states.
+- Mobile empty vocabulary rows now provide explicit feedback.
+- No further vocabulary row-state copy gap was found in this pass.
+
+### Completed Slice: Hidden Detail Review Action Accessibility
+
+Status: completed on 2026-07-06.
+
+What changed:
+
+- Shared Knowledge hidden-detail cleanup rows now include a row-specific review
+  action label and visible review label.
+- Browser Knowledge and mobile More now expose the affected entry and hidden
+  field in the repeated `Review Entry` action.
+- Core, browser render, and mobile render coverage now verify `Review Glass Key
+for hidden detail Power`.
+
+Evaluation before implementation:
+
+- Hidden Detail Cleanup rows already had target-specific destructive `Clear
+Detail` actions.
+- The non-destructive `Review Entry` action remained generic even though it
+  repeats for every cleanup row.
+
+Root cause and best path:
+
+- Root cause: `KnowledgeHiddenDetailRow` modeled clear-action semantics but did
+  not model the paired review-action semantics.
+- The best path was to add the review action label to the same shared row model
+  and consume it on both platforms.
+
+Re-evaluation after implementation:
+
+- Browser and mobile now identify the entry and hidden field before activating
+  repeated cleanup review actions.
+- Visible action copy remains compact for dense cleanup queues.
+- No further hidden-detail review action accessibility gap was found in this
+  pass.
+
+### Completed Slice: Lore Definition Open Action Accessibility
+
+Status: completed on 2026-07-06.
+
+What changed:
+
+- Shared Knowledge lore definition rows now include target-specific open action
+  labels.
+- Browser Knowledge and mobile More now expose the lore definition filter in
+  repeated `Open Lore` actions.
+- Core, browser render, and mobile render coverage now verify labels such as
+  `Open Lore notes for Navigation practice`.
+
+Evaluation before implementation:
+
+- Lore Definition Types can list several observed lore categories, each with a
+  repeated `Open Lore` action.
+- The route already filtered Lore by the definition, but the action label did
+  not tell users which definition would open.
+
+Root cause and best path:
+
+- Root cause: `KnowledgeLoreDefinitionRow` modeled the destination route but not
+  the repeated action semantics.
+- The best path was to add open action labels to the shared row model and
+  consume them on both platforms.
+
+Re-evaluation after implementation:
+
+- Browser and mobile now identify the specific lore definition before
+  activating repeated `Open Lore` actions.
+- Visible button copy remains compact.
+- No further lore definition open action accessibility gap was found in this
+  pass.
+
+### Completed Slice: Knowledge Open Navigation Label Alignment
+
+Status: completed on 2026-07-06.
+
+What changed:
+
+- Shared Knowledge section rows now include target-specific open action labels
+  for entry type navigation.
+- Shared reusable knowledge destinations now include target-specific open action
+  labels.
+- Browser Knowledge and mobile More now consume the shared labels instead of
+  constructing local `Open {title}` strings.
+- Core, browser render, and mobile render coverage now verify labels such as
+  `Open Artifacts records` and `Open Factions reusable knowledge`.
+
+Evaluation before implementation:
+
+- Knowledge and More repeated entry-type and reusable destination navigation
+  actions across overview, custom type, field configuration, and reusable
+  knowledge areas.
+- Visible labels were acceptable, but accessible labels did not distinguish
+  record-section navigation from reusable-knowledge navigation.
+- Browser and mobile built the strings locally, leaving room for drift.
+
+Root cause and best path:
+
+- Root cause: open-navigation semantics were not part of
+  `KnowledgeSectionRow` or `KnowledgeReusableDestination`.
+- The best path was to move the labels into the shared model and consume them
+  everywhere the row-level open actions render.
+
+Re-evaluation after implementation:
+
+- Browser and mobile now expose consistent target-specific navigation labels
+  for Knowledge entry types and reusable destinations.
+- The visible labels remain compact for dense navigation rows.
+- No further Knowledge open-navigation label gap was found in this pass.
+
+### Completed Slice: Knowledge Overview Shortcut Label Alignment
+
+Status: completed on 2026-07-06.
+
+What changed:
+
+- Shared Knowledge type setup now includes an explicit open action accessible
+  label.
+- Shared Hidden Detail Cleanup summary now includes a review action label,
+  accessible label, and route.
+- Browser Knowledge and mobile More now consume the shared Type Setup and
+  cleanup shortcut semantics instead of constructing local shortcut labels or
+  routes.
+- Core, browser render, and mobile render coverage now verify labels such as
+  `Open Type Setup section` and `Review 6 hidden detail cleanup targets`.
+
+Evaluation before implementation:
+
+- Knowledge overview shortcuts routed users to specific setup and cleanup
+  subsections, but the actions used generic local labels.
+- Browser and mobile constructed the hidden cleanup route independently even
+  though it is part of the shared Knowledge workflow model.
+
+Root cause and best path:
+
+- Root cause: overview shortcut semantics for Type Setup and cleanup were not
+  modeled in the shared `KnowledgeSchemaModel`.
+- The best path was to add the action labels and cleanup route to the shared
+  model and consume them on both platforms.
+
+Re-evaluation after implementation:
+
+- Browser and mobile now expose the same target-specific shortcut labels for
+  Knowledge setup and cleanup.
+- Cleanup shortcuts include the current cleanup target count before activation.
+- No further Knowledge overview shortcut label gap was found in this pass.
+
+### Shared Timeline And Entry Row Actions Slice
+
+Implementation completed:
+
+- Added shared timeline event row labels to `TimelineEventItem` for opening an
+  event, reviewing its context, moving it earlier/later, and labeling involved
+  record groups.
+- Added shared entry list row action labels to `EntryListItem` so browser and
+  mobile list rows consume common edit/context copy instead of constructing it
+  locally.
+- Updated browser Timeline Overview table and era cards to consume shared
+  timeline action labels and accessible names.
+- Updated mobile Timeline Browser, Timeline Review, and section entry rows to
+  consume shared event/list action labels.
+- Added focused shared-model and mobile render coverage for the centralized
+  action labels.
+
+Evaluation before implementation:
+
+- Timeline Browser and Timeline Overview rendered the same conceptual actions
+  with platform-local labels such as `Edit`, `Open`, `Context`, and
+  `Open Event`.
+- Mobile Timeline Review target rows generated local event edit labels instead
+  of reusing the event row model.
+- Regular entry rows generated local edit/context labels even though the row
+  model already determines the display record and section context.
+
+Root cause and best path:
+
+- Root cause: timeline and entry list models carried display content but not
+  row-level command semantics, leaving each surface to invent its own labels.
+- The best path was to centralize command labels in the existing shared row
+  models instead of adding a new UI-only abstraction.
+
+Re-evaluation after implementation:
+
+- Timeline event row commands now use the same model-backed labels across the
+  browser overview table, browser era cards, mobile timeline browser groups,
+  and mobile timeline review targets.
+- Entry list rows now expose shared edit/context labels for browser and mobile.
+- Remaining local `Edit ...` and `Review context ...` strings are outside this
+  slice: selected editor titles, Workbench queue rows, and relationship context
+  actions. Those are separate workflow-specific models and should be evaluated
+  independently before further changes.
+
+### Shared Workbench Queue Row Actions Slice
+
+Implementation completed:
+
+- Added shared select, edit, and context-review command labels to
+  `WorkbenchRecordIndexItem`.
+- Updated browser Workbench record cards to use shared labels for the select and
+  edit actions, including accessible names.
+- Updated mobile routed Workbench queue rows to use shared edit/context labels
+  instead of local string construction.
+- Added focused core and mobile render coverage for the shared Workbench row
+  command labels.
+
+Evaluation before implementation:
+
+- Workbench record rows already carried display text, routes, status, tags, and
+  relationship counts, but not command semantics.
+- Browser cards and mobile review queues rendered the same underlying record
+  commands with local labels, increasing the cost of keeping web/mobile wording
+  aligned.
+
+Root cause and best path:
+
+- Root cause: `WorkbenchRecordIndexItem` modeled where a record should go but
+  not how row actions should be named.
+- The best path was to extend the existing row model with command labels rather
+  than create another per-platform wrapper.
+
+Re-evaluation after implementation:
+
+- Workbench queue actions are now consistent across browser cards and mobile
+  routed queues.
+- The selected-record editor title still intentionally says `Edit {name}`
+  because it is an editor-state title, not a row command.
+- Relationship context actions remain a separate relationship workflow slice.
+
+### Shared Relationship Context Row Actions Slice
+
+Implementation completed:
+
+- Added shared context-review command labels to `EntryRelationshipItemModel`.
+- Updated mobile selected-record relationship rows to consume shared
+  relationship action labels.
+- Updated browser relationship detail links with the same shared accessible
+  action label.
+- Added focused shared relationship model coverage; existing mobile context
+  render coverage verifies the label on selected-record relationship rows.
+
+Evaluation before implementation:
+
+- Relationship detail rows already carried related-record identity, section,
+  direction, type, and note, but mobile still constructed the context action
+  label locally.
+- Browser relationship links exposed the related record name visually but did
+  not provide an action-specific accessible label.
+
+Root cause and best path:
+
+- Root cause: `EntryRelationshipItemModel` described the related record but not
+  the row command used to review that record in context.
+- The best path was to add the action label directly to the relationship item
+  model and leave route construction in the existing platform navigation layer.
+
+Re-evaluation after implementation:
+
+- Browser and mobile relationship detail rows now share the same context-review
+  action wording.
+- The model change is limited to relationship rows and does not affect
+  relationship editor or graph workflows.
+
+### Shared Editor Suggestion Action Labels Slice
+
+Implementation completed:
+
+- Added shared suggestion action metadata to entry editor detail field models
+  while preserving the raw suggestion list used by browser datalist
+  autocomplete.
+- Added shared field-specific accessible names to canonical vocabulary
+  replacement actions.
+- Updated browser entry and Timeline editors to consume shared suggestion and
+  canonical replacement action labels.
+- Updated mobile entry and Timeline editors to consume the same shared action
+  labels instead of rendering bare suggestion values.
+- Added focused core and mobile render coverage for suggestion actions and
+  canonical replacement labels.
+
+Evaluation before implementation:
+
+- Browser visible suggestion buttons generated field-specific labels locally,
+  while mobile suggestion actions only exposed the value label.
+- Canonical replacement actions had useful visible text but no shared
+  field-specific accessible label.
+- The shared editor model already knew the field label and suggestion values,
+  so reconstructing action names in renderers was unnecessary duplication.
+
+Root cause and best path:
+
+- Root cause: `EntryEditorDetailFieldModel` exposed suggestion strings rather
+  than command models, leaving each platform to infer action semantics.
+- The best path was to add additive `suggestionActions` metadata and canonical
+  replacement accessibility labels without removing raw suggestions needed for
+  browser datalist behavior.
+
+Re-evaluation after implementation:
+
+- Browser and mobile now use the same field-specific action labels for visible
+  suggestions and canonical replacement.
+- Existing typed input, datalist autocomplete, suggestion caps, and hidden
+  suggestion cues are unchanged.
+- No additional editor suggestion action-label gap was found in this pass.
+
+### Shared Relationship Text Review Suggestion Actions Slice
+
+Implementation completed:
+
+- Added shared visible and accessible labels to relationship text review
+  suggestion targets.
+- Updated browser section relationship-text review buttons to consume the
+  shared suggestion action labels.
+- Updated mobile relationship-text review suggestion buttons to consume the
+  same shared labels.
+- Added focused core and mobile render coverage for suggested legacy-link
+  migration actions.
+
+Evaluation before implementation:
+
+- Relationship text review already modeled unresolved fragments and candidate
+  target records, but browser and mobile still constructed `Link ...` action
+  labels locally.
+- This repeated copy in a cleanup workflow where accurate fragment-to-target
+  wording is important before mutating saved links.
+
+Root cause and best path:
+
+- Root cause: `RelationshipTextReviewItem.suggestedTargets` represented target
+  identity but not the command users invoke for that target.
+- The best path was to add additive action labels to each suggested target and
+  leave migration inputs unchanged, since migration still needs the fragment and
+  target id.
+
+Re-evaluation after implementation:
+
+- Browser and mobile now share the same action labels for fuzzy legacy-link
+  migration suggestions.
+- Exact-match migration, batch migration, and relationship text parsing are
+  unchanged.
+- No additional relationship text review suggestion-label gap was found in this
+  pass.
+
+### Shared Entry Editor Heading Slice
+
+Implementation completed:
+
+- Added a shared entry editor title helper for normal entry edit/create
+  headings.
+- Updated browser Workbench inline editor headings to use the shared helper.
+- Updated mobile entry edit mode headings to use the same helper.
+- Added focused core coverage for edit and new-entry heading output.
+
+Evaluation before implementation:
+
+- Browser Workbench and mobile entry edit mode both generated `Edit {name}` or
+  `New {type}` headings locally.
+- Core already owned adjacent editor copy such as create titles, new titles, and
+  submit labels, so leaving this heading copy in renderers was unnecessary
+  duplication.
+
+Root cause and best path:
+
+- Root cause: normal entry editor heading copy had not been extracted with the
+  rest of the editor labels.
+- The best path was a small shared helper in `codexEntries` and targeted
+  renderer adoption, leaving Timeline's specialized editor title model
+  unchanged.
+
+Re-evaluation after implementation:
+
+- Browser Workbench and mobile entry edit mode now share the same normal entry
+  editor heading logic.
+- Timeline editor headings remain separate because Timeline has its own
+  event-specific editor model.
+- No additional normal entry editor heading gap was found in this pass.
+
+### Shared Browser Save Button Model Slice
+
+Implementation completed:
+
+- Added a shared browser local save button model that returns the visible label,
+  accessible label, and disabled state from the local save state.
+- Updated the browser app shell Save button to consume the shared model instead
+  of owning separate local helper/copy logic.
+- Added focused core coverage for saved, dirty, and failed save-button states.
+
+Evaluation before implementation:
+
+- Core already owned local save status labels, details, tones, and persistence
+  target copy, but the browser app shell still generated the Save button label
+  and accessible name locally.
+- That left the most visible browser persistence affordance split between core
+  and the shell component.
+
+Root cause and best path:
+
+- Root cause: `getLocalSaveStatusModel` described the status display but not the
+  adjacent manual save command.
+- The best path was a small additive `getLocalSaveButtonModel` helper in
+  `saveStatus`, preserving the current button behavior while centralizing
+  command copy.
+
+Re-evaluation after implementation:
+
+- Browser save button text, disabled state, and accessible label now come from
+  the same shared save-state model as the status messaging.
+- Mobile device save messaging is unchanged because it uses a different
+  automatic-save feedback model.
+- No additional browser save-button copy gap was found in this pass.
+
+### Shared Header Data Menu Copy Slice
+
+Implementation completed:
+
+- Added shared compact Data shell menu copy for the browser header trigger,
+  menu accessible name, import action, and unavailable-download fallback.
+- Added a shared header download-result formatter that keeps success and
+  fallback messages out of the App shell.
+- Updated the browser header Data menu to consume the shared copy while keeping
+  the existing export shortcut behavior.
+- Added focused core coverage for the menu copy and header download-result
+  formatter.
+
+Evaluation before implementation:
+
+- The browser header Data menu already used shared export shortcut metadata,
+  but still owned its menu labels and download-unavailable fallback locally.
+- The richer Data page has separate export/import copy, so the compact header
+  menu needed its own small shared shell copy rather than reusing page-specific
+  text.
+
+Root cause and best path:
+
+- Root cause: `dataShellExportActions` centralized only the export shortcut
+  rows, not the menu chrome or header-specific feedback.
+- The best path was to add a narrow `dataShellMenuCopy` plus a result formatter
+  in the shared data feature model and leave Data page behavior unchanged.
+
+Re-evaluation after implementation:
+
+- Header Data menu labels and unavailable-download feedback now come from the
+  shared data model.
+- Data page export, import, diagnostics, and reset copy remain unchanged.
+- No additional compact Data menu copy gap was found in this pass.
+
+### Shared Relationship Management Action Label Slice
+
+Implementation completed:
+
+- Added a shared relationship management accessible-label helper for selected
+  entry link-management actions.
+- Updated browser entry relationship detail links to use the shared
+  action-specific accessible label.
+- Updated mobile selected-record relationship rows to use the same shared label
+  for the Manage Links action.
+- Added focused core coverage for the shared label.
+
+Evaluation before implementation:
+
+- The visible `Manage Links` label was already shared, but mobile generated the
+  selected-record accessible label locally and browser relationship detail links
+  did not expose action-specific wording.
+- This left a small but visible drift point in the selected-record relationship
+  workflow.
+
+Root cause and best path:
+
+- Root cause: relationship feature copy named the action, but no shared helper
+  combined that action with the selected entry name.
+- The best path was a narrow helper in `codexRelationships` consumed by both
+  browser and mobile, without changing relationship routes or editor behavior.
+
+Re-evaluation after implementation:
+
+- Browser and mobile selected-record relationship management actions now share
+  the same per-entry accessible label.
+- Relationship detail row context actions remain covered by
+  `EntryRelationshipItemModel`.
+- No additional relationship management action-label gap was found in this
+  pass.
+
+### Shared Entry Create Action Label Slice
+
+Implementation completed:
+
+- Added a shared create-label field to Workbench section actions.
+- Updated browser Workbench create buttons to consume the shared section action
+  label.
+- Updated mobile Entries section create action to use the shared entry editor
+  new-title helper.
+- Added focused core coverage for the Workbench section create label.
+
+Evaluation before implementation:
+
+- Browser Workbench and mobile Entries both rendered `New {type}` actions from
+  local string templates.
+- Core already owned `New {type}` editor heading copy, and Workbench section
+  actions already represented section-level create routes.
+
+Root cause and best path:
+
+- Root cause: Workbench section actions exposed the create route and singular
+  label but not the actual command label.
+- The best path was to add `createLabel` to `WorkbenchSectionAction` and reuse
+  the existing entry new-title helper for the mobile section action.
+
+Re-evaluation after implementation:
+
+- Browser Workbench and mobile Entries now use shared create-action wording.
+- Existing routes, draft reset behavior, and contextual Timeline create flows
+  are unchanged.
+- No additional entry create-action label gap was found in this pass.
+
+### Shared Vocabulary Usage And Restore Action Label Slice
+
+Implementation completed:
+
+- Added shared visible labels for vocabulary field-usage open actions and
+  archived vocabulary value restore actions.
+- Updated browser Knowledge vocabulary controls to consume the shared action
+  labels.
+- Updated mobile More vocabulary controls to consume the shared action labels.
+- Added focused core coverage for the new vocabulary row label contract.
+
+Evaluation before implementation:
+
+- Browser Knowledge and mobile More both composed `Open {section}` and
+  `Restore {value}` labels locally while core already owned the matching
+  accessibility labels and routing context.
+- This duplicated vocabulary action copy across platforms and made future
+  wording or route-context changes more expensive.
+
+Root cause and best path:
+
+- Root cause: the vocabulary row models exposed accessibility labels but not
+  the visible command labels that the controls render.
+- The best path was to add narrow `openLabel` and `restoreLabel` fields to the
+  existing vocabulary row models, without changing vocabulary schema,
+  persistence, or route behavior.
+
+Re-evaluation after implementation:
+
+- Browser and mobile vocabulary usage and restore controls now use the same
+  shared labels.
+- The vocabulary manager still keeps compact value review, archive, restore,
+  and field-usage workflows unchanged.
+- No additional vocabulary usage or restore label gap was found in this pass.
+
+### Shared Vocabulary Value Expansion Label Slice
+
+Implementation completed:
+
+- Added shared Show All and Show Fewer value-expansion labels to Knowledge
+  vocabulary rows.
+- Updated browser Knowledge vocabulary expansion controls to consume the shared
+  row labels.
+- Updated mobile More vocabulary expansion controls to consume the same shared
+  row labels.
+- Added focused core coverage for the vocabulary expansion label contract.
+
+Evaluation before implementation:
+
+- Browser Knowledge and mobile More both composed `Show All {vocabulary}
+Values` and `Show Fewer {vocabulary} Values` locally.
+- The row model already owned the vocabulary name, count summary, field usage,
+  and other vocabulary control labels, so expansion copy was an isolated
+  remaining drift point.
+
+Root cause and best path:
+
+- Root cause: value expansion was added after the vocabulary row model and kept
+  its visible action labels inside the platform renderers.
+- The best path was to add two narrow labels to `KnowledgeVocabularyRow` rather
+  than introduce a broad expansion-control abstraction before the repeated
+  cases converge on one interaction model.
+
+Re-evaluation after implementation:
+
+- Browser and mobile vocabulary value expansion controls now share their
+  visible labels through the Knowledge model.
+- Existing compact limits, expanded state, search filtering, and archive/restore
+  controls remain unchanged.
+- No additional Knowledge vocabulary expansion-label gap was found in this
+  pass.
+
+### Shared Relationship Review Expansion Label Slice
+
+Implementation completed:
+
+- Added a shared expansion-control label formatter to the feature display limit
+  helpers.
+- Updated browser Relationship Studio Review orphaned-record, duplicate-group,
+  and legacy-text expansion controls to use the shared formatter.
+- Updated mobile Relationship Studio Review expansion controls to use the same
+  formatter.
+- Added focused core coverage for collapsed, expanded, and defensive count
+  formatting.
+
+Evaluation before implementation:
+
+- Browser and mobile Relationship Studio Review used identical local templates
+  for `Show {count} More ...` and `Show Fewer ...` controls.
+- The hidden count and expanded state remain platform-local because each
+  renderer owns its display limit and compact-list state.
+
+Root cause and best path:
+
+- Root cause: expansion behavior was added independently to browser and mobile
+  review sections after display-limit helpers existed.
+- The best path was a shared formatter in `featureDisplayLimits`, not a review
+  model field, because the label depends on local list expansion state rather
+  than persisted relationship data.
+
+Re-evaluation after implementation:
+
+- Browser and mobile Relationship Studio Review now share expansion-control
+  wording while keeping their current compact-list limits.
+- The formatter is reusable for future capped-list controls without forcing a
+  common component across web and React Native.
+- No additional Relationship Studio Review expansion-label gap was found in
+  this pass.
+
+### Shared Workspace Expansion Label Slice
+
+Implementation completed:
+
+- Updated browser Workspaces workspace and in-fiction-world expansion controls
+  to use the shared expansion-label formatter.
+- Updated mobile Workspaces expansion controls to use the same formatter.
+- Reused the existing display-limit formatter coverage instead of adding
+  platform-specific copy tests.
+
+Evaluation before implementation:
+
+- Browser and mobile Workspaces used identical local `Show {count} More ...`
+  and `Show Fewer ...` templates for workspace lists.
+- The workspace feature model already owns list counts and compact limits, but
+  the expanded state remains local to each renderer.
+
+Root cause and best path:
+
+- Root cause: Workspaces list expansion was implemented before a reusable
+  expansion-label formatter existed.
+- The best path was formatter adoption in both renderers because no schema,
+  route, persistence, or workspace model behavior needed to change.
+
+Re-evaluation after implementation:
+
+- Browser and mobile Workspaces now share expansion-control wording for both
+  workspace and in-fiction-world lists.
+- Existing list caps, selection behavior, archive rules, and forms remain
+  unchanged.
+- No additional Workspaces expansion-label gap was found in this pass.
+
+### Shared Capped-List Expansion Label Adoption Slice
+
+Implementation completed:
+
+- Extended the shared expansion-control formatter with an optional singular
+  collapsed label for one-item overflow cases.
+- Updated browser Workbench drafting-prompt and section legacy-text controls to
+  use the shared formatter.
+- Updated mobile Entries Timeline, relationship text review, record index, and
+  Workbench prompt controls to use the shared formatter.
+- Updated mobile More schema, relationship-field, field-configuration,
+  vocabulary-row, and hidden-detail cleanup controls to use the shared
+  formatter.
+- Updated mobile Relationships graph, entry picker, and relationship-link
+  controls to use the shared formatter.
+- Added singular collapsed labels across formatter consumers so one hidden item
+  reads as `Show 1 More {singular item}` instead of an awkward plural.
+- Added focused formatter coverage for singular collapsed overflow text.
+
+Evaluation before implementation:
+
+- After the first formatter slices, remaining browser and mobile capped-list
+  controls still repeated the same `Show {count} More ...` and `Show Fewer ...`
+  templates locally.
+- Most cases used plural labels, which produced awkward one-count copy such as
+  `Show 1 More Duplicate Groups`; hidden-detail cleanup also needed to preserve
+  its existing singular row copy.
+
+Root cause and best path:
+
+- Root cause: capped-list expansion was implemented incrementally across
+  Workbench, Timeline, Knowledge/More, Relationships, and section review before
+  a shared formatter existed.
+- The best path was broad formatter adoption for identical expansion controls,
+  plus a small singular-label option, while leaving model-owned `Show All`
+  vocabulary labels and relationship-field preferred-target labels untouched.
+
+Re-evaluation after implementation:
+
+- Browser and mobile capped-list controls now share expansion wording wherever
+  the interaction follows the count-based Show More/Show Fewer pattern.
+- Single hidden records, groups, rows, prompts, fields, worlds, links, and
+  cleanup rows now use grammatically correct collapsed copy.
+- Remaining expansion-label matches are deliberate model/test strings or
+  relationship-field labels already generated in core.
+
+### Shared Vocabulary Command Label Slice
+
+Implementation completed:
+
+- Added shared visible command labels for vocabulary value save, move up, move
+  down, archive, and add-value actions.
+- Updated browser Knowledge Vocabulary Manager controls to consume the shared
+  labels.
+- Updated mobile More Vocabulary Manager controls to consume the same shared
+  labels.
+- Added focused Knowledge schema coverage for the new command-label contract.
+
+Evaluation before implementation:
+
+- Browser Knowledge and mobile More both rendered the same vocabulary command
+  labels locally while the shared row model already owned the corresponding
+  accessibility labels and action context.
+- This left the durable Vocabulary Manager with duplicated command copy after
+  usage, restore, and expansion labels had already been centralized.
+
+Root cause and best path:
+
+- Root cause: the Vocabulary Manager initially added visible button text in the
+  platform renderers while only action-specific accessibility labels were added
+  to the core row model.
+- The best path was to add narrow visible labels to `KnowledgeVocabularyRow`
+  and `KnowledgeVocabularyValueRow`, without changing vocabulary persistence,
+  mutation helpers, or control behavior.
+
+Re-evaluation after implementation:
+
+- Browser and mobile vocabulary maintenance controls now share command labels
+  for add, save, move, archive, restore, open, and expansion workflows.
+- The remaining hardcoded Vocabulary Manager copy is field/help text or
+  layout-specific guidance rather than duplicated action labels.
+- No additional vocabulary command-label gap was found in this pass.
+
+### Shared Field Configuration Command Label Slice
+
+Implementation completed:
+
+- Added shared visible command labels for Field Configuration save and reset
+  actions.
+- Updated browser Knowledge Field Configuration controls to consume the shared
+  labels.
+- Updated mobile More Field Configuration controls to consume the same shared
+  labels.
+- Added focused Knowledge schema coverage for the new field command-label
+  contract.
+
+Evaluation before implementation:
+
+- Browser Knowledge and mobile More both hardcoded `Save Field Settings` and
+  `Reset to Defaults` while the shared `KnowledgeFieldRow` already owned the
+  action-specific accessibility labels.
+- This duplicated schema-maintenance action copy across the two platform
+  surfaces after vocabulary action labels had been centralized.
+
+Root cause and best path:
+
+- Root cause: the Field Configuration slice added accessibility labels to the
+  core field row model but left visible button labels in the platform renderers.
+- The best path was to add narrow `saveSettingsLabel` and `resetSettingsLabel`
+  fields to `KnowledgeFieldRow`, without changing schema override persistence or
+  save/reset behavior.
+
+Re-evaluation after implementation:
+
+- Browser and mobile Field Configuration save/reset controls now share visible
+  command labels and accessibility context through the same row model.
+- Existing field override drafts, validation, save, reset, and mobile
+  controller flows remain unchanged.
+- No additional Field Configuration command-label gap was found in this pass.
+
+### Shared Archived Empty-State Recovery Slice
+
+Implementation completed:
+
+- Added a shared archived-recovery action label to the entry list empty-state
+  model.
+- Updated browser Section empty states to render the shared archived-recovery
+  label instead of hardcoded copy.
+- Added the missing mobile Entries archived-only empty-state recovery action
+  using the same shared label.
+- Added focused mobile render coverage for the archived-only empty-state action.
+
+Evaluation before implementation:
+
+- The shared empty-state model already identified when a section only contained
+  archived entries, but it exposed only a boolean action flag.
+- Browser rendered a local `Show Archived` button, while mobile showed the
+  empty-state message without the recovery action.
+
+Root cause and best path:
+
+- Root cause: the empty-state model described the state but did not fully model
+  the recovery command, leaving one platform to hardcode it and the other to
+  omit it.
+- The best path was to add the action label to `EntryListEmptyStateModel` and
+  render the action in both platform surfaces without changing filters,
+  persistence, or archive behavior.
+
+Re-evaluation after implementation:
+
+- Browser and mobile now both give users a direct recovery path when a section
+  has only archived records.
+- The action still uses existing `showArchived` state, so archived record
+  rendering and restore workflows remain unchanged.
+- No additional archived empty-state recovery gap was found in this pass.
+
+### Shared Hidden Detail Clear-All Label Slice
+
+Implementation completed:
+
+- Added a shared hidden-detail clear-all action label to the Knowledge schema
+  model, sourced from the existing destructive-action copy.
+- Updated browser Knowledge Hidden Detail Cleanup to consume the shared label.
+- Updated mobile More Hidden Detail Cleanup to consume the same shared label.
+- Added focused Knowledge schema coverage for the new hidden-detail action
+  label.
+
+Evaluation before implementation:
+
+- Browser Knowledge and mobile More both hardcoded `Clear All Hidden Details`
+  while destructive-action copy already owned the confirmation label for the
+  same workflow.
+- The Knowledge schema model already owned hidden-detail cleanup titles, detail
+  copy, review action labels, and row actions, so clear-all was the remaining
+  action-label drift in that section.
+
+Root cause and best path:
+
+- Root cause: destructive confirmation copy had been centralized, but the
+  pre-confirm button label stayed in platform renderers.
+- The best path was to expose the destructive action's confirm label through the
+  hidden-detail model, preserving the existing confirmation flow and mutation
+  behavior.
+
+Re-evaluation after implementation:
+
+- Browser and mobile hidden-detail cleanup surfaces now share clear-all action
+  wording through the Knowledge model.
+- The destructive confirmation dialog still uses the same destructive-action
+  copy, so pre-confirm and confirm labels remain aligned.
+- No additional hidden-detail clear-all label gap was found in this pass.
+
+### Shared Relationship Hidden Count Text Slice
+
+Implementation completed:
+
+- Added a shared hidden-count helper for compact list overflow text.
+- Updated browser Relationship Studio Review orphaned-record, duplicate-group,
+  and legacy-text hidden-count text to use the shared helper.
+- Updated mobile Relationship Studio Review hidden-count text to use the same
+  helper.
+- Updated browser and mobile section-scoped legacy-text review hidden-count text
+  to use the helper.
+- Added focused helper coverage for singular, plural, and defensive count
+  formatting.
+
+Evaluation before implementation:
+
+- Expansion-control labels were centralized, but the adjacent hidden-count
+  helper text still repeated local pluralization logic across browser and
+  mobile review surfaces.
+- Relationship review had the densest duplication and the highest risk of copy
+  drift because orphaned records, duplicate groups, and legacy text items appear
+  in both platform implementations.
+
+Root cause and best path:
+
+- Root cause: capped-list controls gained a shared action-label formatter before
+  the passive hidden-count text had an equivalent helper.
+- The best path was a small `formatHiddenCountText` helper in
+  `featureDisplayLimits`, adopted first by relationship review surfaces without
+  changing display limits or expansion state.
+
+Re-evaluation after implementation:
+
+- Browser and mobile relationship review hidden-count text now shares singular
+  and plural formatting.
+- Section-scoped legacy-text review now matches Relationship Studio copy.
+- Additional non-relationship capped-list helper text can adopt the same helper
+  in later slices without broad behavior changes.
+
+### Shared Capped-List Hidden Count Text Adoption Slice
+
+Implementation completed:
+
+- Applied the shared hidden-count helper to the remaining compact overflow text
+  in mobile Entries Timeline, Workbench queues, record lists, and drafting
+  prompts.
+- Applied the helper to mobile More schema and relationship-backed field
+  overflow text.
+- Applied the helper to mobile Relationships graph, entry picker, and saved link
+  overflow text.
+- Applied the helper to browser Workbench drafting prompts and browser/mobile
+  Workspaces workspace and in-fiction-world overflow text.
+- Verified that the previous local `N more ...` constructions are no longer
+  present in the target platform surfaces.
+
+Evaluation before implementation:
+
+- Relationship review hidden-count text was centralized first, but the same
+  passive overflow pattern remained in other capped-list workflows.
+- These labels sit beside controls that already use the shared expansion
+  formatter, so leaving the passive text local would keep copy and pluralization
+  split across implementations.
+
+Root cause and best path:
+
+- Root cause: capped-list helper text grew organically in each screen before
+  display-limit copy helpers existed.
+- The best path was to adopt the existing `formatHiddenCountText` helper across
+  identical passive overflow labels while preserving list limits, expansion
+  state, and platform layout.
+
+Re-evaluation after implementation:
+
+- Capped-list passive overflow text now shares singular and plural formatting
+  across Workbench, Entries, More, Relationships, and Workspaces surfaces.
+- Expansion controls and passive count text now use companion helpers from the
+  same display-limit module.
+- No remaining local hidden-count construction was found in the target browser
+  and mobile screens after the adoption scan.
+
+### Shared Staged Link Panel Model Slice
+
+Implementation completed:
+
+- Added shared staged relationship panel copy, duplicate detection, and row
+  summary modeling to the entry draft transaction helpers.
+- Updated browser entry create-and-link staging to use the shared panel labels,
+  duplicate feedback, row summary, and target-specific remove accessibility
+  label; duplicate staged links now disable the browser staging action before a
+  redundant click.
+- Updated mobile Workbench create-and-link staging to use the same shared model
+  while preserving the mobile disabled-button duplicate cue.
+- Added focused core coverage for staged panel copy, normalized duplicate
+  detection, row summaries, and remove accessibility labels.
+
+Evaluation before implementation:
+
+- Browser and mobile both supported staged relationship links, but the panel
+  labels, placeholders, duplicate message, row summary, and remove action copy
+  were defined separately in each renderer.
+- The transaction layer already owned staged relationship identity,
+  normalization, validation, and commit behavior, so leaving the interaction
+  copy outside that layer created an avoidable parity drift point.
+
+Root cause and best path:
+
+- Root cause: staged link UX was added after the transaction model, with each
+  platform composing its own local labels around the same shared draft data.
+- The best path was a narrow shared model in `entryDraftTransactions` rather
+  than a cross-platform component, because web and React Native still render
+  the controls differently.
+
+Re-evaluation after implementation:
+
+- Browser and mobile staged-link panels now share visible copy, duplicate
+  detection semantics, row summary copy, and target-specific remove
+  accessibility labels.
+- Browser and mobile now both prevent duplicate staged-link submission before
+  commit while still relying on transaction-level duplicate normalization as a
+  final safeguard.
+- The existing staged draft transaction, save behavior, duplicate normalization,
+  and platform-specific interaction style remain unchanged.
+- No additional staged-link panel copy or row-action parity gap was found after
+  scanning the touched browser, mobile, core, and test files.
+
+### Shared Workbench Context Copy Slice
+
+Implementation completed:
+
+- Added shared selected-record context labels to the Workbench record model for
+  section/status/relationship/completeness metadata, summary fallback,
+  review-summary heading, drafting-prompts heading, linked-records heading,
+  edit-record action, back-to-index action, and empty-state copy.
+- Updated browser Workbench selected context to consume the shared labels and
+  align its primary edit action with the mobile `Edit Record` command.
+- Updated mobile Workbench Context mode to consume the same shared labels while
+  preserving the mobile-only Back to Index action.
+- Added focused core coverage for the selected context copy contract and
+  tightened mobile render coverage so the context action can have an edit
+  accessibility label without rendering the full editor form.
+
+Evaluation before implementation:
+
+- Browser and mobile both rendered the same selected-record context workflow,
+  but headings, metadata labels, summary fallback, and the primary edit action
+  were composed locally.
+- Browser used `Open Editor` while mobile used `Edit Record`, adding an
+  unnecessary cross-platform vocabulary difference for the same action.
+
+Root cause and best path:
+
+- Root cause: the shared Workbench selected context model owned the selected
+  record, relationships, review summary, and routes, but not the interaction
+  copy around those values.
+- The best path was to add narrow context labels to the existing model rather
+  than introduce a shared component, because browser and mobile layouts remain
+  intentionally different.
+
+Re-evaluation after implementation:
+
+- Browser and mobile selected-record context now share the same copy contract
+  for the context metadata and edit action.
+- Mobile still keeps its platform-specific Back to Index action, but the label
+  is now owned by the shared context model.
+- No further Workbench context action-label or metadata-label parity gap was
+  found after scanning the Workbench browser page, mobile Entries screen, core
+  Workbench model, and focused tests.
+
+### Shared Broken Relationship Action Accessibility Slice
+
+Implementation completed:
+
+- Added shared repair/delete accessibility labels and destructive-action hint
+  copy to Relationship Studio broken relationship diagnostics items.
+- Updated browser Relationship Studio Review broken-link actions to use the
+  shared labels and add the missing accessible action context.
+- Updated mobile Relationship Studio Review broken-link actions to consume the
+  same shared labels instead of composing local templates.
+- Extended focused relationship diagnostics coverage for the shared
+  repair/delete action-label contract.
+
+Evaluation before implementation:
+
+- Mobile Review mode locally composed `Repair {type} relationship` and
+  `Delete broken {type} relationship`, while browser Review rendered generic
+  Repair/Delete buttons with no relationship-specific accessible labels.
+- The broken diagnostics item already knew the relationship type and missing
+  endpoint state, making local platform label composition unnecessary.
+
+Root cause and best path:
+
+- Root cause: broken-link repair/delete actions were added to the UI before the
+  shared diagnostics item owned row-level action copy.
+- The best path was to attach the action labels to
+  `RelationshipDiagnosticsBrokenItem`, because both browser and mobile already
+  render the same review model with platform-specific controls.
+
+Re-evaluation after implementation:
+
+- Browser and mobile broken-link repair/delete actions now share the same
+  relationship-specific accessible labels and destructive hint text.
+- Browser users now receive the same contextual action information mobile users
+  already had, without changing repair/delete behavior or relationship data.
+- No additional broken-link action-label gap was found after scanning the core
+  relationship diagnostics model and both Relationship Studio renderers.
+
+### Shared Relationship Links Row Actions Slice
+
+Implementation completed:
+
+- Added shared source/target context routes plus source, target, edit, and
+  delete action labels to Relationship Studio saved relationship list rows.
+- Updated browser Relationship Studio Links rows to expose direct Open Source
+  and Open Target context actions alongside Edit and Delete.
+- Updated mobile Relationship Studio Links rows to consume the same shared
+  source/target routes and action labels instead of composing local templates.
+- Extended focused relationship list model coverage for endpoint context
+  routes and row-level action-label contracts.
+
+Evaluation before implementation:
+
+- Mobile saved relationship rows could open source and target records directly,
+  while browser rows only showed endpoint names and forced users through other
+  navigation to inspect either record.
+- Mobile composed source/target/edit/delete accessibility labels locally even
+  though the shared relationship row already owned the endpoint names, type,
+  direction, status, and ids.
+
+Root cause and best path:
+
+- Root cause: Links mode added mobile endpoint actions after the shared
+  relationship list model was created, leaving browser without the same
+  low-cost inspection path and leaving action copy outside the model.
+- The best path was to extend `RelationshipListItem` with context routes and
+  action labels, then let browser and mobile render platform-specific controls.
+
+Re-evaluation after implementation:
+
+- Browser and mobile Links rows now share the same endpoint navigation routes
+  and row action labels.
+- Browser users can inspect either endpoint from a saved relationship row
+  without first editing the relationship or searching the Workbench.
+- No further saved-relationship row action parity gap was found after scanning
+  the Relationship Studio browser page, mobile screen, and shared relationship
+  model.
+
+### Shared Orphaned Record Review Action Slice
+
+Implementation completed:
+
+- Added shared Manage Links action labels and relationship-management routes to
+  orphaned-record diagnostics rows.
+- Updated browser Relationship Studio Review orphaned-record links to use the
+  shared route and row-specific accessible label.
+- Updated mobile Relationship Studio Review orphaned-record actions to consume
+  the shared label while preserving the mobile flow that switches into Links
+  mode with the record preselected.
+- Extended focused relationship diagnostics coverage for orphaned-record
+  action labels and routes.
+
+Evaluation before implementation:
+
+- Browser and mobile both surfaced orphaned records in Review mode, but browser
+  built the destination route locally and mobile composed `Link {record}` copy
+  locally.
+- The diagnostics row already identifies the orphaned record and exists
+  specifically to start link maintenance, so the action label and destination
+  belonged in the shared model.
+
+Root cause and best path:
+
+- Root cause: orphaned records reused graph-node rows and did not model the
+  review action that makes the row useful.
+- The best path was to extend `OrphanedEntry` with a Manage Links route and
+  accessible label instead of introducing a separate review queue or changing
+  the mobile Links-mode prefill behavior.
+
+Re-evaluation after implementation:
+
+- Browser and mobile Review mode now share orphaned-record action copy and
+  relationship-management destinations.
+- Browser users keep direct-link navigation, while mobile users keep the faster
+  in-screen Links-mode transition; both are driven by the same shared row
+  model.
+- No additional orphaned-record review-action gap was found after scanning the
+  Relationship Studio Review renderers and shared diagnostics model.
+
+### Shared Relationship Graph Node Actions Slice
+
+Implementation completed:
+
+- Added shared context route, Review Context action label, and Filter List
+  action label to relationship graph nodes.
+- Updated browser Relationship Studio Graph selected-node actions to use the
+  shared graph-node route and accessible labels.
+- Updated mobile Relationship Studio Graph selected-node actions to use the
+  same shared route and labels instead of rebuilding the context route locally.
+- Extended focused graph model coverage for the graph-node action fields.
+
+Evaluation before implementation:
+
+- Browser and mobile both let users inspect a selected graph node or filter the
+  Links list to that node, but both renderers built labels and routes locally.
+- The graph node already owned the selected record id, name, section, status,
+  summary, and tags, so the selected-node actions belonged in the shared graph
+  node model.
+
+Root cause and best path:
+
+- Root cause: Graph mode was modeled around visual nodes and edges first, while
+  the selected-node action row was implemented separately in each renderer.
+- The best path was a narrow `RelationshipGraphNode` model extension, keeping
+  the browser and mobile layouts separate while unifying action copy and
+  context-route behavior.
+
+Re-evaluation after implementation:
+
+- Browser and mobile selected graph-node actions now share Review Context and
+  Filter List labels plus the same Workbench context route.
+- The mobile-only route helper for graph-node context navigation was removed
+  because the shared node route now covers that behavior.
+- No additional selected graph-node action parity gap was found after scanning
+  the graph renderers and shared relationship graph model.
+
+### Shared Relationship Graph Edge Action Slice
+
+Implementation completed:
+
+- Added shared edit action labels to relationship graph view edges.
+- Updated browser Relationship Studio Graph edge rows and selected-node edge
+  rows to use the shared edit labels.
+- Updated mobile Relationship Studio Graph selected-node edge rows to use the
+  same shared edit labels.
+- Extended focused graph model coverage for graph-edge edit action labels.
+
+Evaluation before implementation:
+
+- Browser and mobile graph edge rows both rendered generic `Edit` actions
+  around edges that already carried source, target, direction, and
+  relationship-type context.
+- Browser had two graph edge render locations and mobile had one; keeping
+  action context local would keep accessibility wording easy to drift.
+
+Root cause and best path:
+
+- Root cause: graph edge rows were originally modeled as visual edge labels,
+  while the action to edit the underlying relationship remained renderer-local.
+- The best path was to add only edit action labels to
+  `RelationshipGraphViewEdge`, because Graph mode does not expose delete
+  actions and adding unused destructive copy would be premature.
+
+Re-evaluation after implementation:
+
+- Browser and mobile graph edge edit actions now share relationship-specific
+  accessible labels through the graph edge model.
+- The visible button remains compact as `Edit`, while assistive technology gets
+  the source, target, and relationship type.
+- No additional graph-edge edit action-label gap was found after scanning the
+  graph renderers and focused relationship model tests.
+
+### Shared Relationship Text Review Row Action Slice
+
+Implementation completed:
+
+- Added shared edit routes, visible review labels, and row-specific accessible
+  review labels to legacy relationship text review items.
+- Updated browser Relationship Studio review rows to use the shared review
+  route and accessible label.
+- Updated mobile Relationship Studio review rows to use the same shared route
+  and label through the mobile route adapter.
+- Removed the mobile screen-local legacy review navigation helper because the
+  route now belongs to the shared review item model.
+- Extended focused relationship field coverage for review-row routes and
+  labels.
+
+Evaluation before implementation:
+
+- Browser and mobile both exposed a `Review Entry` action for legacy
+  relationship-backed text, but each renderer assembled the route locally.
+- Browser review rows did not include row-specific accessible names, so repeated
+  `Review Entry` links were less clear to assistive technology.
+- The review item already owned the entry id, entry name, section id, and field
+  label, so route and action-label ownership belonged in the shared model.
+
+Root cause and best path:
+
+- Root cause: legacy relationship text review started as a migration queue,
+  while the action to jump back into the editor was added at the renderer layer.
+- The best path was a narrow `RelationshipTextReviewItem` extension rather than
+  a broader review queue abstraction, because suggestion actions and exact-match
+  migration labels were already shared.
+
+Re-evaluation after implementation:
+
+- Browser and mobile review rows now share the same edit target and row-specific
+  accessible label for legacy text cleanup.
+- The visible label remains compact as `Review Entry`, preserving scan density
+  while improving accessibility and parity.
+- No additional legacy review-row route duplication remains in the
+  Relationships screen after scanning browser and mobile renderers.
+
+### Shared Relationship Picker Row Action Label Slice
+
+Implementation completed:
+
+- Added a shared relationship picker row action model for Source and Target
+  actions.
+- Updated mobile Relationship Studio entry picker rows to use the shared
+  Source/Target visible labels and role-specific accessible labels.
+- Added focused relationship model coverage for picker row action labels.
+
+Evaluation before implementation:
+
+- Mobile Relationship Studio shows a compact two-action picker row for selecting
+  source and target records, while browser uses native selects for the same
+  workflow.
+- The mobile renderer built `Use [record] as relationship source/target`
+  accessible labels inline even though the visible Source and Target labels
+  already came from shared relationship copy.
+- A shared component abstraction was not needed because the browser and mobile
+  interaction controls are intentionally different.
+
+Root cause and best path:
+
+- Root cause: mobile needed row-level picker buttons for touch ergonomics, but
+  those buttons were added after the shared relationship copy model.
+- The best path was a small shared action-label helper in the relationship model
+  layer, preserving platform-specific controls while centralizing product copy
+  and accessibility wording.
+
+Re-evaluation after implementation:
+
+- Mobile picker rows now share Source/Target visible labels and role-specific
+  accessible labels from core.
+- Browser behavior remains unchanged because native selects already expose the
+  source and target controls through shared control descriptors.
+- No broader picker abstraction is currently needed; the remaining divergence is
+  platform interaction design rather than duplicated product logic.
+
+### Shared Relationship Form Header Slice
+
+Implementation completed:
+
+- Added a shared relationship form header model for new/edit state, edit title,
+  and unsaved draft labels.
+- Updated browser Relationship Studio form headers to use the shared new/edit
+  kicker, relationship-specific edit title, and compact unsaved pill label.
+- Updated mobile Relationship Studio form headers to use the same shared title
+  and unsaved draft warning label.
+- Added focused relationship model coverage for new, edit, and blank-type
+  fallback header states.
+
+Evaluation before implementation:
+
+- Browser and mobile both supported the same new/edit relationship workflow, but
+  browser kept the main form heading generic while mobile used the relationship
+  type in edit mode.
+- Browser used a compact `Unsaved` pill while mobile used the fuller
+  `Unsaved relationship draft.` warning; this is appropriate presentation
+  divergence, but the labels still needed one shared source.
+- The form header copy belongs with the relationship workflow model because it
+  is not tied to a specific browser or mobile component.
+
+Root cause and best path:
+
+- Root cause: browser and mobile form headers evolved around each platform's
+  layout, leaving new/edit state and unsaved labels split across renderers.
+- The best path was a small `getRelationshipFormHeaderModel` helper that keeps
+  platform-specific layout intact while centralizing the label decisions and
+  relationship-type edit title.
+
+Re-evaluation after implementation:
+
+- Browser and mobile now use the same form title model for new and edit
+  relationship states.
+- Browser gained the more informative edit title already present on mobile,
+  while mobile retained its existing warning presentation.
+- No further relationship form header copy duplication was found after scanning
+  the browser and mobile form sections.
+
+### Shared Broken Relationship Endpoint Label Slice
+
+Implementation completed:
+
+- Added shared broken-relationship endpoint status and endpoint line labels to
+  the diagnostics model.
+- Updated browser Relationship Studio diagnostics to use the shared compact
+  missing-endpoint status label.
+- Updated mobile Relationship Studio diagnostics to use shared source and
+  target endpoint line labels.
+- Extended focused diagnostics coverage for missing endpoint status and line
+  labels.
+
+Evaluation before implementation:
+
+- Browser and mobile both rendered broken relationship diagnostics from the
+  shared diagnostics model, but each renderer assembled `Missing source`,
+  `Missing target`, `Source`, and `Target` labels locally.
+- The endpoint names, missing flags, and diagnostic context were already owned
+  by the shared model, so endpoint label ownership belonged in core.
+- The browser and mobile layouts need different presentation density, but not
+  different product language.
+
+Root cause and best path:
+
+- Root cause: the diagnostics model originally exposed endpoint booleans and
+  names only, leaving each renderer to compose human-readable endpoint status.
+- The best path was to add both a compact `endpointStatusLabel` for browser
+  summary rows and explicit `sourceLineLabel`/`targetLineLabel` values for
+  mobile stacked rows.
+
+Re-evaluation after implementation:
+
+- Broken relationship endpoint wording is now consistent across browser and
+  mobile while still fitting each layout.
+- The diagnostics model remains narrow and avoids pulling layout-specific
+  components into core.
+- No remaining renderer-local broken endpoint status assembly was found after
+  scanning the Relationship Studio review sections.
+
+### Shared Duplicate Relationship Review Copy Slice
+
+Implementation completed:
+
+- Added shared duplicate group count and cleanup summary labels to the
+  Relationship Studio review model.
+- Added a shared duplicate group row removal summary label to each duplicate
+  group.
+- Updated browser Relationship Studio duplicate review and bulk cleanup panels
+  to use the shared duplicate copy.
+- Updated mobile Relationship Studio duplicate review and bulk cleanup panels to
+  use the same shared copy.
+- Extended focused relationship coverage for duplicate group row and review
+  summary labels.
+
+Evaluation before implementation:
+
+- Browser and mobile both used the shared duplicate relationship grouping model,
+  but each renderer assembled `duplicate group`, `duplicates`, and cleanup
+  summary wording locally.
+- Duplicate grouping owns the retained relationship id and duplicate ids, so the
+  row-level removal summary belongs with the model that decides what will be
+  kept or removed.
+- Bulk cleanup copy is product behavior text, not platform layout text, so it
+  should remain consistent across browser and mobile.
+
+Root cause and best path:
+
+- Root cause: duplicate grouping was modeled as cleanup data first, leaving
+  renderer code to explain the cleanup decision.
+- The best path was to add small copy fields to the existing
+  `RelationshipStudioReviewModel` and `RelationshipDuplicateGroup`, avoiding a
+  larger review component abstraction while centralizing behavior wording.
+
+Re-evaluation after implementation:
+
+- Browser and mobile now share duplicate group counts, row removal summaries,
+  and bulk cleanup summary copy.
+- The cleanup behavior is unchanged; only the model now owns the explanation of
+  what will be retained and removed.
+- No remaining renderer-local duplicate cleanup sentence assembly was found
+  after scanning the Relationship Studio review and bulk-edit sections.
+
+### Shared Relationship Graph Summary Copy Slice
+
+Implementation completed:
+
+- Added shared connected-record, visible-link, and combined summary labels to
+  the relationship graph view model.
+- Added a shared filtered graph-node result summary formatter.
+- Updated browser Relationship Studio health and Graph panels to use the shared
+  graph count labels.
+- Updated mobile Relationship Studio health and Graph panels to use the same
+  graph summary and filtered-result copy.
+- Extended focused graph model coverage for graph summary and filtered-result
+  labels.
+
+Evaluation before implementation:
+
+- Browser and mobile both rendered graph counts from the same graph view model,
+  but each renderer assembled count labels locally.
+- Browser used `visible relationship links` while mobile shortened the same
+  concept to `visible links`, creating small but avoidable wording drift.
+- The graph model already owns the filtered node and edge lists, so count labels
+  belong with that model.
+
+Root cause and best path:
+
+- Root cause: graph counts were initially treated as simple render-time values
+  instead of user-facing workflow state.
+- The best path was to add summary labels to `RelationshipGraphViewModel` plus a
+  small helper for mobile's additional graph search result summary, avoiding a
+  larger graph panel abstraction.
+
+Re-evaluation after implementation:
+
+- Browser and mobile now use consistent connected-record and visible
+  relationship-link wording.
+- The graph model remains layout-agnostic while exposing the copy each platform
+  needs for its graph summaries.
+- No remaining graph count sentence duplication was found after scanning the
+  Relationship Studio health and Graph sections.
+
+### Shared Relationship Editor Selected Endpoint Summary Slice
+
+Implementation completed:
+
+- Added nullable selected Source and Target summary labels to the shared
+  relationship editor options model.
+- Updated mobile Relationship Studio form summaries to use the shared selected
+  endpoint labels instead of assembling `Source`, `Target`, and `Missing entry`
+  text locally.
+- Removed now-unused mobile selected endpoint variables.
+- Extended focused editor option coverage for selected and missing endpoint
+  summary labels.
+
+Evaluation before implementation:
+
+- Mobile displays selected Source and Target summaries below searchable selects,
+  while browser relies on native select values in a denser layout.
+- The selected endpoint state already belongs to
+  `RelationshipEditorOptionsModel`, but mobile still owned the explanatory
+  labels and missing-entry fallback locally.
+- Adding summary labels to the options model improves cohesion without forcing
+  browser to adopt the mobile stacked summary presentation.
+
+Root cause and best path:
+
+- Root cause: the mobile searchable-select workflow needed additional
+  confirmation text after selection, and that copy was introduced in the screen
+  rather than the shared editor model.
+- The best path was to expose nullable `selectedSourceSummaryLabel` and
+  `selectedTargetSummaryLabel` fields next to the existing selected endpoint
+  objects.
+
+Re-evaluation after implementation:
+
+- Mobile selected endpoint summaries now use shared Source/Target and
+  missing-entry wording.
+- Browser behavior remains unchanged because the shared model now provides the
+  labels without requiring the browser to render them.
+- No remaining mobile-local selected Source/Target summary assembly was found
+  after scanning the Relationship Studio form section.
+
+### Shared Relationship List Direction Status Slice
+
+Implementation completed:
+
+- Added a shared direction/status label to saved relationship list items.
+- Updated browser Relationship Studio saved relationship rows to use the shared
+  direction/status label instead of composing `Directional` or `Mutual` locally.
+- Updated mobile Relationship Studio saved relationship rows to show the same
+  shared direction/status label.
+- Extended focused relationship list coverage for directional and mutual saved
+  link rows.
+
+Evaluation before implementation:
+
+- Browser and mobile both rendered saved relationship rows from the shared list
+  model, but only browser composed the human-readable direction/status label.
+- Mobile showed the symbolic direction line and status separately, which was
+  correct but less cohesive with the browser row metadata.
+- The list item already owns direction and status labels, so the combined row
+  metadata label belongs in the shared model.
+
+Root cause and best path:
+
+- Root cause: the list model originally exposed symbolic relationship direction
+  for endpoint lines, while browser later added human-readable row metadata in
+  the renderer.
+- The best path was to add a `directionStatusLabel` beside the existing
+  `directionLabel`, preserving endpoint-line symbols while centralizing the row
+  metadata copy.
+
+Re-evaluation after implementation:
+
+- Browser and mobile saved relationship rows now share the same
+  `Directional - Canon` or `Mutual - Canon` style metadata labels.
+- The endpoint direction symbol remains available where it is useful for compact
+  source-to-target lines.
+- No remaining renderer-local Directional/Mutual saved-list copy was found after
+  scanning the Relationship Studio saved relationship rows.
+
+### Shared Relationship Studio Region Label Slice
+
+Implementation completed:
+
+- Added shared Relationship Studio region labels for relationship filters, graph
+  filters, graph nodes, graph edges, graph node tags, and selected graph-node
+  relationships.
+- Updated browser Relationship Studio ARIA region labels to use the shared
+  relationship copy.
+- Extended focused relationship copy coverage for the new region labels.
+
+Evaluation before implementation:
+
+- Relationship Studio copy is largely centralized in core, but several browser
+  filter and graph region labels remained hardcoded in the renderer.
+- These labels describe stable product regions rather than layout-only
+  implementation details, so they should move with the rest of the Relationship
+  Studio copy.
+- Mobile does not render the same landmark structure, so this slice should not
+  force mobile markup changes.
+
+Root cause and best path:
+
+- Root cause: browser graph accessibility labels were added directly to the
+  markup while earlier slices focused on visible actions and row models.
+- The best path was to extend `relationshipFeatureCopy` with only the stable
+  region labels and let browser consume those fields.
+
+Re-evaluation after implementation:
+
+- Browser Relationship Studio region labels now share the same core copy source
+  as the rest of the relationship workflow.
+- Mobile remains unchanged because the same structural regions do not exist in
+  its stacked screen layout.
+- No remaining hardcoded browser Relationship Studio graph/filter ARIA region
+  labels were found after scanning the page.
+
+### Shared Relationship Form Placeholder Slice
+
+Implementation completed:
+
+- Added shared placeholder text to the relationship type and note control
+  descriptors.
+- Updated browser Relationship Studio relationship form fields to use the shared
+  type and note placeholders.
+- Updated mobile Relationship Studio relationship form fields to use the same
+  shared type and note placeholders.
+- Extended focused control descriptor coverage for relationship form
+  placeholders.
+
+Evaluation before implementation:
+
+- Browser had helpful placeholder examples for relationship type and note
+  fields, while mobile rendered the same fields without placeholder guidance.
+- The labels and accessibility labels already lived in shared control
+  descriptors, so placeholder copy belonged with those controls as well.
+- The change did not require a broader descriptor migration because only these
+  two relationship editor controls needed placeholder copy.
+
+Root cause and best path:
+
+- Root cause: placeholder guidance was added in the browser form markup after
+  the controls themselves were centralized.
+- The best path was to add placeholder fields directly to the existing
+  relationship type and note descriptors and let both platforms consume them.
+
+Re-evaluation after implementation:
+
+- Browser and mobile relationship forms now share the same type examples and
+  note guidance.
+- Mobile gains the same lightweight drafting affordance without changing field
+  layout or validation.
+- No remaining hardcoded relationship type or note placeholder literals were
+  found after scanning the Relationship Studio form sections.
+
+### Shared Timeline Involved Record Copy Slice
+
+Implementation completed:
+
+- Added shared involved-record search labels, placeholders, option-list labels,
+  empty-state text, saved-event guidance, selected-list labels, and selected
+  summary text to the timeline editor model.
+- Updated browser timeline involved-record controls to use the shared model copy.
+- Updated mobile timeline involved-record controls and selected summary to use
+  the same shared model copy.
+- Extended focused timeline editor model coverage for the involved-record copy
+  contract.
+
+Evaluation before implementation:
+
+- Browser and mobile both rendered involved-record controls from the shared
+  timeline editor model, but search labels, placeholders, empty text, and
+  selected summaries were still assembled in each renderer.
+- The timeline editor model already owns the visible options, selected records,
+  display expansion labels, and duplicate warnings, so the surrounding control
+  copy belongs with that model.
+- The browser and mobile layouts differ, but the involved-record workflow copy
+  should stay identical.
+
+Root cause and best path:
+
+- Root cause: relationship-backed involved records were modeled first as data and
+  migration state, while renderer-local copy remained from the original
+  browser/mobile forms.
+- The best path was to extend `TimelineEditorInvolvedRecordsModel` with a small
+  set of copy fields and a preformatted selected summary, avoiding a new shared
+  component abstraction.
+
+Re-evaluation after implementation:
+
+- Browser and mobile involved-record controls now share search, placeholder,
+  empty-state, saved-event, and selected-record wording.
+- The model remains layout-agnostic while giving each platform the copy needed
+  for its presentation.
+- No remaining hardcoded involved-record search or selected-summary text was
+  found after scanning browser and mobile timeline editor sections.
+
+### Shared Timeline Surface Region Copy Slice
+
+Implementation completed:
+
+- Added shared timeline era, highlight, and table labels to timeline feature
+  copy.
+- Added a shared named-era count label to the timeline era manager model.
+- Updated browser timeline era, highlight, table, and era-count rendering to use
+  shared timeline copy/model fields.
+- Updated mobile timeline era manager summary to use the shared named-era count
+  label.
+- Extended focused timeline coverage for timeline surface labels and era manager
+  count text.
+
+Evaluation before implementation:
+
+- Browser and mobile both rendered timeline era manager state from the shared
+  model, but each composed named-era count text locally.
+- Browser timeline surface ARIA labels and table caption were hardcoded even
+  though timeline workflow copy already lives in core.
+- The era manager model owns era counts, and timeline feature copy owns stable
+  region labels, so these strings belonged in core rather than renderers.
+
+Root cause and best path:
+
+- Root cause: the browser timeline overview kept structural labels from its
+  first implementation while later timeline workflow copy was centralized.
+- The best path was to add a small set of stable region labels to
+  `timelineFeatureCopy` and a computed `namedEraCountLabel` to
+  `TimelineEraManagerModel`.
+
+Re-evaluation after implementation:
+
+- Browser and mobile timeline era count wording now comes from the same model.
+- Browser timeline eras, highlights, and table labels now share the same
+  timeline copy source as the rest of the workflow.
+- No remaining hardcoded timeline era/highlight/table surface labels were found
+  after scanning the browser and mobile timeline sections.
+
+### Shared Timeline Involved Record Blocking Message Slice
+
+Implementation completed:
+
+- Added a shared save-before-edit message to the timeline involved-record editor
+  model.
+- Updated browser timeline involved-record editing to use the shared blocking
+  message when a saved event cannot yet use relationship-backed controls.
+- Extended focused timeline editor model coverage for the blocking message.
+
+Evaluation before implementation:
+
+- The timeline involved-record model already owned search, empty-state,
+  selected-record, and saved-event guidance copy.
+- Browser still hardcoded the blocking state for saved events that must be saved
+  before relationship-backed involved-record editing is available.
+- That blocking state describes the same involved-record workflow, so it belongs
+  in the model with the surrounding copy.
+
+Root cause and best path:
+
+- Root cause: the blocking copy was left behind in the browser branch that
+  handles persisted timeline events without a ready relationship field control.
+- The best path was to add one `saveBeforeEditMessage` field to
+  `TimelineEditorInvolvedRecordsModel` rather than broaden the control API.
+
+Re-evaluation after implementation:
+
+- Browser involved-record blocking copy now comes from the shared timeline model.
+- Mobile behavior remains unchanged because it does not render that exact
+  browser blocking branch.
+- No remaining hardcoded save-before-edit involved-record text was found after
+  scanning browser and mobile timeline editor sections.
+
+### Shared Mobile Notes Placeholder Adoption Slice
+
+Implementation completed:
+
+- Updated mobile entry and timeline editor notes fields to use the shared
+  `entryEditorFieldCopy.notesPlaceholder`.
+- Reused the existing core entry editor placeholder contract already used by the
+  browser editor.
+
+Evaluation before implementation:
+
+- Browser notes fields already consumed the shared notes placeholder from core.
+- Mobile rendered the same placeholder as a local literal, creating unnecessary
+  copy drift risk.
+- The placeholder already existed in core and was covered by entry editor tests,
+  so this only needed renderer adoption.
+
+Root cause and best path:
+
+- Root cause: mobile notes fields were added before all editor field copy was
+  consistently consumed from shared entry editor copy.
+- The best path was to import `entryEditorFieldCopy` in the mobile entry screen
+  and use the existing placeholder field.
+
+Re-evaluation after implementation:
+
+- Browser and mobile notes fields now use the same shared notes placeholder.
+- No schema or behavior changes were needed.
+- No remaining hardcoded `Markdown-style drafting notes` placeholder was found
+  after scanning browser and mobile entry editors.
+
+### Shared Mobile Entry Section Search Label Slice
+
+Implementation completed:
+
+- Added a shared section-search label to entry list copy.
+- Updated mobile entry list filtering to use the shared section-search label.
+- Extended focused entry list copy coverage for the new label.
+
+Evaluation before implementation:
+
+- Mobile entry list filtering still hardcoded `Search this section` even though
+  entry list help and clear-filter actions already used shared copy.
+- The label describes entry list workflow, not mobile-only layout, so it belongs
+  with `entryListCopy`.
+
+Root cause and best path:
+
+- Root cause: the mobile list search field was added after the original entry
+  list command labels were centralized.
+- The best path was to extend `entryListCopy` with a single
+  `searchSectionLabel` field and consume it in the mobile screen.
+
+Re-evaluation after implementation:
+
+- Mobile entry list search now uses shared entry list copy.
+- Browser behavior remains unchanged because this exact mobile search control is
+  not rendered on the browser timeline/editor surface.
+- No remaining hardcoded `Search this section` label was found after scanning
+  the entry screens.
+
+### Shared Relationship Search Placeholder Slice
+
+Implementation completed:
+
+- Added shared search placeholder copy for graph records, relationship picker
+  entries, and saved relationships.
+- Updated browser Relationship Studio saved relationship search to use the
+  shared relationship search placeholder.
+- Updated mobile Relationship Studio graph, entry picker, and saved
+  relationship searches to use the shared placeholders.
+- Extended focused relationship copy coverage for the search placeholders.
+
+Evaluation before implementation:
+
+- Browser and mobile Relationship Studio searches already shared labels, but
+  placeholders remained hardcoded in renderers.
+- The placeholders describe what each Relationship Studio search indexes, so
+  they belong with the shared relationship workflow copy.
+- This can be solved without changing search behavior or field components.
+
+Root cause and best path:
+
+- Root cause: labels were centralized before the more detailed placeholder copy
+  was introduced in platform screens.
+- The best path was to add one placeholder per existing shared search label in
+  `relationshipFeatureCopy` and consume those fields in browser and mobile.
+
+Re-evaluation after implementation:
+
+- Relationship Studio search labels and placeholders now share the same core copy
+  source across browser and mobile.
+- No search behavior changed.
+- No remaining hardcoded Relationship Studio search placeholder literals were
+  found after scanning browser and mobile relationship screens.
+
+### Shared Timeline Involved Filter Placeholder Slice
+
+Implementation completed:
+
+- Added a shared placeholder for the timeline involved-record filter search.
+- Updated mobile timeline involved filtering to use the shared placeholder.
+- Extended focused timeline copy coverage for the involved-filter placeholder.
+
+Evaluation before implementation:
+
+- Timeline involved filtering already used a shared label and empty-state copy,
+  but mobile still hardcoded the placeholder that explains searchable record
+  fields.
+- The placeholder describes timeline filter behavior, so it belongs in
+  `timelineFeatureCopy` with the matching label.
+
+Root cause and best path:
+
+- Root cause: the mobile timeline involved filter search placeholder was added
+  after timeline filter labels were centralized.
+- The best path was to add a single
+  `searchInvolvedFiltersPlaceholder` field to timeline copy and consume it in
+  the mobile timeline browser.
+
+Re-evaluation after implementation:
+
+- Timeline involved filter label, placeholder, and empty-state copy now come from
+  the shared timeline copy model.
+- Browser behavior remains unchanged because this compact involved-filter search
+  is mobile-only.
+- No remaining hardcoded timeline involved-filter placeholder was found after
+  scanning the mobile timeline browser.
+
+### Shared Browser Entry Section Search Placeholder Slice
+
+Implementation completed:
+
+- Updated browser section search to use the shared entry list section-search
+  copy.
+- Reused the existing `entryListCopy.searchSectionLabel` contract already
+  adopted by mobile.
+
+Evaluation before implementation:
+
+- Mobile entry list search already consumed shared `entryListCopy`, but browser
+  section search still hardcoded the same `Search this section` placeholder.
+- The string describes the same section filtering workflow, so both platforms
+  should share the entry list copy source.
+
+Root cause and best path:
+
+- Root cause: the mobile section search was centralized first, leaving the
+  browser section page with the original literal placeholder.
+- The best path was a direct renderer adoption because `SectionPage` already
+  imports `entryListCopy`.
+
+Re-evaluation after implementation:
+
+- Browser and mobile section search now use the same shared section-search copy.
+- No behavior or routing changed.
+- No remaining hardcoded `Search this section` placeholder was found after
+  scanning browser and mobile entry screens.
+
+### Shared Relationship Field Search Label Slice
+
+Implementation completed:
+
+- Added a shared formatter for relationship-backed field target search labels.
+- Updated browser relationship-backed field controls to use the shared search
+  label formatter.
+- Updated mobile relationship-backed field controls to use the same formatter.
+- Extended focused relationship field coverage for the shared search label.
+
+Evaluation before implementation:
+
+- Relationship-backed field controls already shared placeholder, empty-state,
+  and clear/create copy.
+- Browser and mobile still assembled `Search [field label]` locally, which left
+  one piece of the same linked-record search workflow outside the shared model.
+- The label is deterministic from the relationship field config, so a small
+  formatter is sufficient.
+
+Root cause and best path:
+
+- Root cause: placeholder and empty-state copy were centralized before the
+  visible dynamic search label.
+- The best path was to add `getRelationshipFieldSearchLabel` alongside
+  `relationshipFieldCopy` and use it in both renderers.
+
+Re-evaluation after implementation:
+
+- Browser and mobile linked-record target search labels now come from the same
+  helper.
+- No layout or relationship behavior changed.
+- No remaining renderer-local `Search ${field label}` relationship-field target
+  labels were found after scanning browser and mobile entry editors.
+
+### Shared Knowledge Search Copy Slice
+
+Implemented:
+
+- Added shared field-configuration search labels, placeholders, order fallback
+  placeholder, and empty-state text to the Knowledge schema model.
+- Added shared hidden-detail cleanup search labels, placeholders, filtered empty
+  text, and no-target empty text to the Knowledge schema model.
+- Updated browser Knowledge and mobile More surfaces to consume the shared model
+  copy for field settings and hidden-detail cleanup workflows.
+- Extended focused Knowledge schema tests to cover the shared copy contract.
+
+Evaluation before implementation:
+
+- Browser Knowledge and mobile More both exposed field settings search and
+  hidden-detail cleanup search, but each renderer owned its labels and empty
+  states locally.
+- The workflow is cross-platform and already backed by the shared Knowledge
+  schema model, so renderer-local copy was unnecessary drift risk.
+- The order input fallback placeholder was also duplicated and belongs with the
+  field configuration workflow copy.
+
+Root cause and best path:
+
+- Root cause: earlier Knowledge work centralized section and row models before
+  centralizing the search and empty-state text for the same workflows.
+- The best path was to extend `getKnowledgeSchemaModel` rather than introduce a
+  separate renderer helper, because both clients already construct and use the
+  schema model.
+
+Re-evaluation after implementation:
+
+- Browser and mobile now share the same copy for field-settings search,
+  hidden-detail search, and their filtered/empty states.
+- The change does not alter filtering, cleanup, field override behavior, or
+  layout.
+- Remaining Knowledge copy that is still local is tied to surface-specific form
+  structure or broader vocabulary workflow text, so it should be evaluated in a
+  later slice instead of folded into this one.
+
+### Shared Field Configuration Vocabulary Control Slice
+
+Implemented:
+
+- Added shared field-configuration vocabulary labels, no-vocabulary option,
+  vocabulary mode options, and explanatory help text to the Knowledge schema
+  model.
+- Updated browser Knowledge field settings to render vocabulary select labels
+  and options from the shared model.
+- Updated mobile More field settings to render the same shared vocabulary
+  options while preserving field-specific accessibility labels.
+- Extended focused Knowledge schema tests for the shared vocabulary control
+  contract.
+
+Evaluation before implementation:
+
+- Field settings already used shared per-field accessibility labels, but browser
+  and mobile still duplicated the visible vocabulary option copy.
+- The duplicated option labels affect the same schema workflow on both
+  platforms and should not drift as vocabulary modes evolve.
+- Broader vocabulary-manager row copy includes form-layout differences, so it
+  should remain outside this smaller field-configuration slice.
+
+Root cause and best path:
+
+- Root cause: the field override model exposed field-specific labels but not
+  the shared vocabulary control vocabulary used to configure those fields.
+- The best path was to extend the existing Knowledge schema model instead of
+  creating a separate field-settings copy module.
+
+Re-evaluation after implementation:
+
+- Browser and mobile now use the same no-vocabulary option, vocabulary mode
+  options, and relationship-backed help copy.
+- Mobile still keeps dynamic accessibility labels for each field-specific
+  select, and browser retains its native select behavior.
+- No data model, field override, or vocabulary persistence behavior changed.
+
+### Shared Vocabulary Value Editor Copy Slice
+
+Implemented:
+
+- Added shared vocabulary value editor labels, search label, alias guidance,
+  new-value labels, and archived restore guidance to the Knowledge schema
+  model.
+- Added a per-vocabulary search placeholder to each vocabulary row.
+- Updated browser Knowledge and mobile More vocabulary editors to consume the
+  shared visible copy while preserving per-row and per-value accessibility
+  labels.
+- Added optional `accessibilityLabel` support to the mobile `Field` primitive so
+  visible labels can be concise without losing screen-reader specificity.
+- Extended focused Knowledge schema tests for the vocabulary editor copy and
+  dynamic row search placeholder.
+
+Evaluation before implementation:
+
+- Browser and mobile had the same vocabulary value editing workflow but used
+  different local visible labels for edit and add-value fields.
+- Mobile lacked the vocabulary-specific search placeholder that browser already
+  provided.
+- Per-value accessibility labels were already generated in the shared model and
+  should be preserved rather than replaced by generic visible labels.
+
+Root cause and best path:
+
+- Root cause: vocabulary rows modeled dynamic aria labels and row actions, but
+  not the generic visible editor labels and help text shared by both platforms.
+- The best path was to extend the Knowledge schema model and add a small mobile
+  primitive prop for accessible-label overrides.
+
+Re-evaluation after implementation:
+
+- Browser and mobile now share visible vocabulary value editor labels, alias
+  guidance, archived restore guidance, and search placeholders.
+- Mobile screen-reader labels remain specific to the vocabulary or value being
+  edited.
+- No vocabulary filtering, add, update, archive, restore, or ordering behavior
+  changed.
+
+### Shared Field Setting Label And Error Slice
+
+Implemented:
+
+- Added shared field-setting status labels, visible field labels, hidden toggle
+  label, current-vocabulary label, and validation messages to the Knowledge
+  schema model.
+- Updated browser Knowledge field settings to use the shared labels and errors.
+- Updated mobile More field settings to use shared visible labels while keeping
+  field-specific accessibility labels through existing row copy.
+- Extended focused Knowledge schema tests for the shared field-setting contract.
+
+Evaluation before implementation:
+
+- Browser and mobile both duplicated the same field-setting status labels,
+  visible input labels, hidden toggle label, current-vocabulary label, and
+  validation messages.
+- These strings are part of the same cross-platform field configuration
+  workflow and should evolve through one shared model.
+- Dynamic field-specific accessibility labels already existed and needed to be
+  preserved.
+
+Root cause and best path:
+
+- Root cause: earlier field configuration modeling prioritized dynamic labels
+  and actions, leaving generic visible labels and validation copy in each
+  renderer.
+- The best path was to extend `schemaModel.fieldConfiguration` rather than
+  duplicate a second copy source.
+
+Re-evaluation after implementation:
+
+- Browser and mobile now share the same field-setting visible labels, status
+  labels, and validation messages.
+- Mobile retains dynamic accessibility labels for field-specific controls.
+- No field override validation rules, save/reset behavior, or persisted schema
+  data changed.
+
+### Shared Field Configuration Section Copy Slice
+
+Implemented:
+
+- Added the field-configuration section title and intro detail to the Knowledge
+  schema model.
+- Updated browser Knowledge and mobile More to use the shared section title and
+  intro for field configuration.
+- Extended focused Knowledge schema tests for the shared section copy.
+
+Evaluation before implementation:
+
+- Browser and mobile exposed the same field configuration workflow with
+  separately authored section titles and intro text.
+- The workflow is already fully backed by `schemaModel.fieldConfiguration`, so
+  keeping the section framing local was unnecessary drift risk.
+
+Root cause and best path:
+
+- Root cause: earlier slices centralized controls and empty states first, but
+  the section-level framing remained local to each surface.
+- The best path was to add title/detail to the existing field-configuration
+  model and leave browser-only structural text such as the kicker local.
+
+Re-evaluation after implementation:
+
+- Browser and mobile now present the same field-configuration title and intent.
+- The browser retains its page-specific kicker for visual hierarchy only.
+- No field configuration behavior, filtering, or persistence changed.
+
+### Shared Custom Type Setup Copy Slice
+
+Implemented:
+
+- Added shared custom-type count text, empty state, add-fields visible label,
+  and add-fields validation text to the Knowledge type-setup model.
+- Updated browser Knowledge custom type setup to use the shared model copy.
+- Updated mobile More custom type setup to use the same shared copy while
+  preserving custom-section-specific accessibility labels.
+- Extended focused Knowledge schema tests for the custom type setup contract.
+
+Evaluation before implementation:
+
+- Browser and mobile both exposed custom entry type setup, but duplicated the
+  empty state and add-field validation text.
+- Mobile used section-specific visible add-field labels while browser used a
+  generic label; the workflow benefits from concise shared visible text plus
+  dynamic accessibility labels.
+- The existing type-setup model already owns this area, so local renderer copy
+  was unnecessary.
+
+Root cause and best path:
+
+- Root cause: type setup exposed the route, action, and custom count number but
+  not the surrounding workflow copy for custom type management.
+- The best path was to extend `schemaModel.typeSetup` and keep the dynamic
+  custom-section labels on each row.
+
+Re-evaluation after implementation:
+
+- Browser and mobile now share the custom type count sentence, no-custom-types
+  empty state, add-fields visible label, and add-fields validation text.
+- Mobile keeps section-specific accessibility labels for the add-fields input
+  and action.
+- No custom type creation, add-field parsing, deletion, or field persistence
+  behavior changed.
+
+### Shared Workbench Index Copy Slice
+
+Implemented:
+
+- Added Workbench index shell copy to the shared Workbench record index model.
+- Added per-view title, count text, and empty-state copy to Workbench saved
+  views.
+- Updated browser Workbench record index labels, search placeholder, grouping
+  labels, editor fallback aria label, and empty state to use the shared model.
+- Updated mobile Workbench review queues to use the shared view title, count
+  text, and empty-state copy.
+- Extended focused Workbench record model tests for the shared copy contract.
+
+Evaluation before implementation:
+
+- Browser Workbench owned the record index labels, search placeholder, grouping
+  aria labels, and empty-view state locally.
+- Mobile Workbench review queues generated the same conceptual view title,
+  count text, and empty state locally.
+- The Workbench record index model already owns the saved views, counts, and
+  selected context, so view copy belongs there.
+
+Root cause and best path:
+
+- Root cause: earlier Workbench modeling focused on records, routes, and saved
+  queue membership before centralizing the surface copy around those queues.
+- The best path was to extend `getWorkbenchRecordIndexModel` and
+  `WorkbenchRecordView` instead of creating renderer-specific helpers.
+
+Re-evaluation after implementation:
+
+- Browser and mobile now share saved-view titles, count text, and empty states.
+- Browser index search and grouping labels now come from the same model as the
+  saved views they control.
+- No Workbench filtering, routing, view membership, selection, or editor
+  behavior changed.
+
+### Shared Mobile Select Field Copy Slice
+
+Implemented:
+
+- Added shared select-field fallback copy to the core control descriptors.
+- Updated the mobile `SelectField` primitive to use shared fallback search
+  placeholder, no-results text, cancel label, selected-value fallback, and open
+  hint.
+- Added focused control descriptor tests for the shared select-field copy.
+
+Evaluation before implementation:
+
+- Mobile select modals are reused by Workbench, Relationships, Knowledge, and
+  entry editors, but their fallback copy lived inside the primitive.
+- This created a hidden local copy contract for picker workflows that should
+  remain consistent across mobile surfaces.
+- Browser native selects do not use this modal copy, so the slice should remain
+  scoped to the shared mobile primitive instead of adding browser-specific
+  behavior.
+
+Root cause and best path:
+
+- Root cause: shared control descriptors modeled filters and editor controls,
+  but not the reusable mobile select modal fallback language.
+- The best path was to add a small `selectFieldCopy` export and keep all modal
+  behavior in the existing mobile primitive.
+
+Re-evaluation after implementation:
+
+- Mobile picker fallback copy now has one tested source of truth.
+- Existing callers can still provide custom searchable placeholders where a
+  workflow needs more specific guidance.
+- No picker selection, search filtering, modal behavior, or accessibility state
+  behavior changed.
+
+### Shared Knowledge Overview Summary Slice
+
+Implemented:
+
+- Added shared Knowledge overview labels, count details, and compact mobile
+  summary sentences to the Knowledge schema model.
+- Updated browser Knowledge stat cards to read their labels and details from
+  the shared overview model.
+- Updated mobile More Knowledge summary text to use the same shared overview
+  model instead of assembling total counts locally.
+- Extended focused Knowledge schema tests for the shared overview contract.
+
+Evaluation before implementation:
+
+- Browser and mobile both introduced the same Knowledge setup workflow with
+  local count labels and summary wording.
+- The browser rendered the counts as cards while mobile rendered compact
+  sentences, but both communicated the same entry type, field, linked-field,
+  and hidden-detail totals.
+- Keeping the count wording local increased drift risk and made future schema
+  terminology changes more expensive.
+
+Root cause and best path:
+
+- Root cause: earlier Knowledge model slices centralized detailed schema
+  workflows first, while the top-level overview remained partly owned by each
+  renderer.
+- The best path was to add a small `overview` object to
+  `getKnowledgeSchemaModel` and let each surface keep its existing layout.
+
+Re-evaluation after implementation:
+
+- Browser and mobile now share Knowledge overview count labels and summary
+  text.
+- Renderer scans show the previous overview total sentences no longer exist in
+  browser or mobile code; remaining matches are shared model and test copy.
+- No Knowledge navigation, filtering, schema editing, hidden-detail cleanup, or
+  layout behavior changed.
+
+### Shared Knowledge Section Summary Slice
+
+Implemented:
+
+- Added shared section field-count labels, relationship-backed field-count
+  labels, schema summary text, and field-configuration summary text to each
+  Knowledge section row.
+- Updated mobile More Knowledge overview, Field Configuration, and custom type
+  setup rows to use the shared section summary text.
+- Updated browser Knowledge current-structure relationship-field count text to
+  use the shared section row label.
+- Extended focused Knowledge schema tests for the shared section summary
+  contract.
+
+Evaluation before implementation:
+
+- Mobile assembled section counts in multiple places with local wording such
+  as `linked`, while browser used `relationship-backed` wording for a similar
+  concept.
+- The section rows already own field counts, relationship-field counts, entry
+  counts, and routes, so summary text belongs beside that data.
+- Leaving the summaries local would make future schema terminology changes
+  require renderer-by-renderer edits.
+
+Root cause and best path:
+
+- Root cause: section rows initially exposed raw counts and dynamic actions,
+  while compact count sentences were introduced directly in the renderers.
+- The best path was to add summary strings to `KnowledgeSectionRow`, preserving
+  each surface's layout while centralizing terminology and pluralization.
+
+Re-evaluation after implementation:
+
+- Browser and mobile now share section field-count and
+  relationship-backed-field terminology.
+- Renderer scans found no remaining local `fieldCount`/`relationshipFieldCount`
+  section-summary assembly in the Knowledge and More surfaces.
+- No custom entry type editing, field ordering, Knowledge routing, or schema
+  persistence behavior changed.
+
+### Shared Custom Field Retention Copy Slice
+
+Implemented:
+
+- Added a shared retained-value summary to each Knowledge field row.
+- Added a shared remove-field accessibility hint that explains hidden-detail
+  retention for custom field removal.
+- Updated browser Knowledge custom field rows and mobile More custom field rows
+  to consume the shared retained-value copy.
+- Updated mobile remove-field actions to consume the shared accessibility hint.
+- Extended focused Knowledge schema tests for the retained-value and
+  remove-field hint contract.
+
+Evaluation before implementation:
+
+- Browser and mobile both warned users that custom field values remain saved
+  under their field keys, but the sentence was assembled locally in each
+  renderer.
+- Mobile also hardcoded the removal hint for the same data-retention behavior.
+- This warning is part of the custom-field data contract and should stay
+  consistent wherever custom fields are renamed, reordered, or removed.
+
+Root cause and best path:
+
+- Root cause: field rows exposed actions and field metadata, but not the
+  user-facing retention copy derived from the field key.
+- The best path was to attach the retained-value summary and removal hint to
+  `KnowledgeFieldRow`, where field key, label, mode, and removal actions
+  already meet.
+
+Re-evaluation after implementation:
+
+- Browser and mobile now share custom-field retained-value wording.
+- Mobile removal hints now share the same data-retention language as the field
+  row copy.
+- Renderer scans found no remaining local retained-value or custom-field
+  removal-retention warning text in the Knowledge and More surfaces.
+- No field rename, move, removal, hidden-detail generation, or confirmation
+  behavior changed.
+
+### Shared Vocabulary Status Summary Slice
+
+Implemented:
+
+- Added a compact active/archived value status summary to each Knowledge
+  vocabulary row.
+- Updated browser Knowledge vocabulary rows to use the shared status summary
+  instead of assembling active and archived counts locally.
+- Extended focused Knowledge schema tests for the vocabulary status summary
+  contract.
+
+Evaluation before implementation:
+
+- Vocabulary rows already exposed active and archived counts plus a longer
+  summary, but browser still assembled the compact status line locally.
+- The count status is deterministic from the shared row model and should not be
+  renderer-specific terminology.
+- Mobile already used the longer shared vocabulary summary, so this slice
+  should remain narrow and avoid changing the mobile layout.
+
+Root cause and best path:
+
+- Root cause: earlier vocabulary slices centralized row actions and editor
+  labels before centralizing the compact browser row status.
+- The best path was to add `statusSummary` to `KnowledgeVocabularyRow` and use
+  it where the compact browser status line appears.
+
+Re-evaluation after implementation:
+
+- Browser vocabulary rows now use the shared active/archived status summary.
+- Renderer scans found no remaining local active/archive count assembly in the
+  Knowledge and More vocabulary surfaces.
+- No vocabulary filtering, value editing, archive/restore behavior, or mobile
+  layout changed.
+
+### Shared Vocabulary Field Usage Summary Slice
+
+Implemented:
+
+- Added shared display summary text to each Knowledge vocabulary field-usage
+  row.
+- Updated browser Knowledge vocabulary usage chips to use the shared usage
+  summary text.
+- Updated mobile More vocabulary usage summaries to use the same shared
+  per-usage text while preserving the compact mobile prefix.
+- Extended focused Knowledge schema tests for vocabulary field-usage summary
+  text.
+
+Evaluation before implementation:
+
+- Browser displayed vocabulary field usage as `Section: Field (Mode)` chips,
+  while mobile assembled a similar but slightly different `Section Field
+(Mode)` compact sentence.
+- The vocabulary field-usage row already owns section, field, mode, route, and
+  action labels, so the display summary should live in the same model.
+- Leaving this local would make vocabulary usage terminology diverge between
+  browser and mobile as field configuration expands.
+
+Root cause and best path:
+
+- Root cause: earlier vocabulary slices centralized row actions and editor
+  controls, but the per-usage display phrase remained in the renderers.
+- The best path was to add `summaryText` to
+  `KnowledgeVocabularyFieldUsageRow` and keep each platform's surrounding
+  layout unchanged.
+
+Re-evaluation after implementation:
+
+- Browser and mobile now share vocabulary field-usage display text.
+- Renderer scans found no remaining local `usage.sectionTitle`,
+  `usage.fieldLabel`, or `usage.modeLabel` display assembly in Knowledge and
+  More.
+- No vocabulary routing, field-usage detection, search, or value editing
+  behavior changed.
+
+### Shared Vocabulary Usage Prefix Slice
+
+Implemented:
+
+- Added shared vocabulary field-usage intro text to each Knowledge vocabulary
+  row.
+- Updated mobile More vocabulary usage summaries to use the shared intro text
+  before the shared per-usage summaries.
+- Extended focused Knowledge schema tests for the shared usage intro contract.
+
+Evaluation before implementation:
+
+- The per-usage display text was shared, but mobile still hardcoded the
+  surrounding `used by` phrase for the same vocabulary usage workflow.
+- The phrase depends on the vocabulary row label and belongs with
+  `fieldUsageLabel` and the usage rows.
+- Browser currently uses chips and does not need the intro phrase, so the
+  shared row model should expose it without forcing a browser layout change.
+
+Root cause and best path:
+
+- Root cause: the first usage-summary slice centralized each usage item but
+  left the mobile row-level sentence prefix in the renderer.
+- The best path was to add `fieldUsageSummaryIntro` to
+  `KnowledgeVocabularyRow` and keep the mobile compact sentence structure.
+
+Re-evaluation after implementation:
+
+- Mobile now renders vocabulary usage intro and usage items from the shared
+  Knowledge model.
+- Focused Knowledge and mobile render tests pass.
+- No vocabulary usage detection, routing, or browser layout behavior changed.
+
+### Shared Workbench Context Detail Copy Slice
+
+Implemented:
+
+- Updated Workbench related-record chips so their shared `detailText` includes
+  relationship type plus section when a relationship is present.
+- Added shared selected-context relationship management labels to the Workbench
+  record index model.
+- Added shared inline-editor kicker and empty-state copy to the Workbench index
+  model copy.
+- Updated browser Workbench selected context and inline editor empty state to
+  consume the shared model copy.
+- Updated mobile Workbench Context empty state to use the shared selected
+  context title and detail.
+- Extended focused Workbench record model tests for shared chip detail,
+  relationship management action labels, and inline-editor empty copy.
+
+Evaluation before implementation:
+
+- Browser Workbench selected context still assembled related-record subtitles
+  from relationship type and section locally.
+- The selected context also hardcoded `Manage Links`, while relationship copy
+  was already shared in core.
+- Browser inline editor empty copy was hardcoded beside Workbench model-owned
+  editor accessibility copy.
+- Mobile Context mode had a separate no-record message for the same selected
+  context empty state.
+
+Root cause and best path:
+
+- Root cause: earlier Workbench modeling centralized record lists, views, and
+  selected-context data first, leaving a few small display phrases in the
+  browser renderer.
+- The best path was to enrich existing Workbench model fields instead of adding
+  a new UI abstraction.
+
+Re-evaluation after implementation:
+
+- Browser Workbench now renders related-record subtitles, relationship
+  management labels, and inline-editor empty copy from the shared model.
+- Mobile Workbench Context now renders the same selected-context empty state as
+  browser when no record is selected.
+- Focused Workbench tests pass and renderer scans show the previous hardcoded
+  Workbench context strings now only appear in model/test copy.
+- No Workbench routing, selection, relationship navigation, or editor behavior
+  changed.
+
+### Shared Entry List Surface Label Slice
+
+Implemented:
+
+- Added shared entry-list surface labels for Entries, Filters, Sections, and
+  tag filtering to the entry list model.
+- Added shared formatters for entry list shown-count text, section entries
+  ARIA labels, section filters ARIA labels, and section search labels.
+- Updated browser section pages to consume shared entry-list headings, ARIA
+  labels, shown-count text, and tag-filter labels.
+- Updated mobile Entries to consume shared Filters/Sections titles for the
+  browse controls block.
+- Extended focused entry-list model tests for the shared label contract.
+
+Evaluation before implementation:
+
+- Browser and mobile both exposed the same browse/filter workflow but still
+  owned some surface labels locally.
+- Browser assembled entries/filter region labels, shown-count text, section
+  search labels, and tag filter labels inline.
+- Mobile hardcoded the top-level Filters/Sections block title for the same
+  browse/filter workflow.
+
+Root cause and best path:
+
+- Root cause: earlier entry-list slices centralized list rows, empty states,
+  search labels, and controls before the surrounding browse/filter surface
+  labels were moved into the model.
+- The best path was to add small label helpers to `entryListModel` rather than
+  introduce a new UI abstraction.
+
+Re-evaluation after implementation:
+
+- Browser and mobile now share entry-list browse/filter surface labels through
+  the entry list model.
+- Focused entry-list and mobile render tests pass.
+- Renderer scans found no remaining local fixed `Filters`/`Sections`,
+  `Filter by tag`, shown-count, or section search label assembly in the target
+  browser/mobile entry-list surfaces.
+- No filtering, sorting, routing, tag selection, or archive behavior changed.
+
+### Shared Mobile Timeline Move Label Adoption Slice
+
+Implemented:
+
+- Updated mobile timeline entry move controls to use the shared entry-list row
+  move labels and accessibility labels without renderer-local fallbacks.
+- Focused mobile render coverage continues to verify timeline row actions.
+
+Evaluation before implementation:
+
+- The shared entry-list model already provided timeline move labels and
+  accessibility labels.
+- Mobile still kept local `Earlier`/`Later` fallback copy, which duplicated the
+  shared model and could drift from browser/timeline copy.
+- The controls are timeline-only, so they should render only when the shared
+  row model provides move metadata.
+
+Root cause and best path:
+
+- Root cause: mobile timeline move controls were introduced defensively before
+  the shared row model became the authoritative copy source.
+- The best path was to remove local fallbacks and guard rendering on the shared
+  move labels already exposed by `EntryListItem`.
+
+Re-evaluation after implementation:
+
+- Mobile timeline move controls now get their labels exclusively from the
+  shared entry-list model.
+- Focused mobile render tests pass.
+- Renderer scans found no remaining mobile-local `Earlier`/`Later` fallback
+  copy in the Entries screen.
+- No timeline move behavior, disabled state, or ordering logic changed.
+
+### Shared Browser Timeline Filter Label Slice
+
+Implemented:
+
+- Added shared Timeline filter labels for the Era and Involved entry browser
+  filters.
+- Updated browser Timeline browse filters to use shared Timeline copy for Era,
+  Involved entry, Any Era, and Any Involved labels.
+- Extended focused Timeline copy tests for the shared browser filter labels.
+
+Evaluation before implementation:
+
+- Mobile Timeline already used shared `Any Era` and `Any Involved` labels.
+- Browser Timeline browse still hardcoded equivalent filter labels and option
+  text locally.
+- These labels are part of the same Timeline filtering workflow and should not
+  drift across platforms.
+
+Root cause and best path:
+
+- Root cause: earlier Timeline filter work centralized mobile controls and
+  broader Timeline surface labels, but browser select labels stayed in
+  `SectionPage`.
+- The best path was to extend `timelineFeatureCopy` with the missing filter
+  labels and consume existing shared any-filter labels in browser.
+
+Re-evaluation after implementation:
+
+- Browser Timeline browse now uses shared copy for Era and Involved filters.
+- Focused Timeline tests and render smoke coverage pass.
+- Renderer scans found no remaining browser-local `Any era` or
+  `Any linked entry` option text.
+- No Timeline filtering, routing, era selection, or involved-record filtering
+  behavior changed.
+
+### Shared Container Accessibility Label Slice
+
+Implemented:
+
+- Added a shared Relationship Studio mode picker accessibility label to the
+  relationship studio mode model.
+- Added shared Knowledge Schema labels for custom type field ordering and the
+  custom field preview panel.
+- Added a shared Workbench editor accessibility label formatter for the default
+  editor panel and section-specific inline editors.
+- Updated browser Relationship Studio, entry-section legacy relationship review,
+  Knowledge Schema, and Workbench panels to consume shared model labels instead
+  of page-local copy.
+
+Evaluation before implementation:
+
+- The affected pages already used shared view models for the surrounding
+  workflows.
+- A small set of aria labels and panel titles still lived directly in browser
+  page components, so accessibility naming could drift from mobile and shared
+  copy contracts.
+- These labels did not require a product decision because they preserve the
+  existing workflow structure and only move ownership into the relevant shared
+  model.
+
+Root cause and best path:
+
+- Root cause: earlier UX slices centralized primary workflow copy but left some
+  container-level accessibility labels behind in renderer code.
+- The best path was to add explicit model fields for labels that describe a
+  shared workflow surface, and to add one small formatter for the Workbench
+  section-specific editor label.
+
+Re-evaluation after implementation:
+
+- Renderer scans found no remaining page-local copies of the migrated
+  Relationship Studio modes, custom field preview, field order, or Workbench
+  editor labels.
+- Focused relationship, knowledge schema, and Workbench model tests pass.
+- No page structure, route behavior, data shape, or editing behavior changed.
+
+### Shared Relationship Text Review Row Copy Slice
+
+Implemented:
+
+- Added shared relationship text review row labels for unresolved text and
+  suggestions.
+- Added a shared relationship text review count formatter for the browser
+  review panel kicker.
+- Updated browser and mobile entry-context and Relationship Studio relationship
+  text review rows to use the shared unresolved and suggestions labels.
+- Updated browser exact-match row migration actions to use the existing shared
+  exact-match migration label.
+
+Evaluation before implementation:
+
+- Browser and mobile both render relationship text review rows for migrating
+  legacy text into saved relationship links.
+- The shared relationship text review model already owned the row data,
+  summary, exact-match labels, review action label, and batch migration label.
+- The remaining row fragments were renderer-local, so the same workflow could
+  drift across browser and mobile.
+
+Root cause and best path:
+
+- Root cause: earlier relationship review model work centralized actions and
+  diagnostics before the row sentence fragments were extracted.
+- The best path was to move only the repeated row labels and count formatter
+  into `relationshipTextReviewCopy`/relationship field helpers, preserving the
+  existing row layout.
+
+Re-evaluation after implementation:
+
+- Browser and mobile entry-context and Relationship Studio surfaces now use
+  shared copy for unresolved text, suggestions, and exact-match row migration
+  labels.
+- Focused relationship field tests pass.
+- No migration behavior, relationship creation, dirty-state blocking, or row
+  visibility behavior changed.
+
+### Shared Relationship Filter Search Copy Slice
+
+Implemented:
+
+- Added shared Relationship Studio graph filter labels for Section and Tag.
+- Updated browser Relationship Studio graph filters to consume the shared
+  Section and Tag labels.
+- Updated mobile relationship source and target pickers to use the existing
+  shared relationship entry search placeholder instead of local `Search entries`
+  copy.
+
+Evaluation before implementation:
+
+- Relationship Studio already centralized most graph and relationship picker
+  copy in `relationshipFeatureCopy`.
+- Browser graph filtering still owned the Section and Tag filter labels locally.
+- Mobile source and target relationship pickers still used a shorter local
+  search placeholder while the entry picker model already exposed the more
+  useful shared placeholder.
+
+Root cause and best path:
+
+- Root cause: graph filter and picker placeholder copy was centralized in
+  adjacent slices, but these small filter labels and mobile select-search
+  placeholders were left behind in renderers.
+- The best path was to add only the missing graph filter labels to
+  `relationshipFeatureCopy` and reuse the existing shared entry search
+  placeholder for mobile source/target pickers.
+
+Re-evaluation after implementation:
+
+- Targeted renderer scans found no remaining local `Search entries`, Section,
+  or Tag copy in the Relationship Studio filter/picker surfaces.
+- Focused relationship model tests pass.
+- No graph filtering, relationship source/target selection, search behavior, or
+  route behavior changed.
+
+### Shared Knowledge Hierarchy Copy Slice
+
+Implemented:
+
+- Added shared Knowledge Schema kicker labels for Type Setup, Field
+  Configuration, Vocabulary Manager, Hidden Detail Cleanup, Entry Types, and
+  Reusable Knowledge.
+- Updated browser Knowledge sections to consume those shared hierarchy labels.
+- Updated mobile custom entry type field preview text to use the shared custom
+  field preview title.
+
+Evaluation before implementation:
+
+- Knowledge Schema already owned the section titles, descriptions, navigation
+  actions, field labels, and custom field preview accessibility label.
+- Browser still owned the page hierarchy kickers locally, and mobile still
+  owned the visible custom field preview label locally.
+- These labels describe existing shared workflow sections rather than
+  platform-specific presentation, so keeping them in renderers created avoidable
+  browser/mobile copy drift.
+
+Root cause and best path:
+
+- Root cause: earlier Knowledge slices centralized controls and row copy before
+  the outer section hierarchy labels were moved into the model.
+- The best path was to add explicit kicker labels to the existing Knowledge
+  schema model and reuse the existing custom field preview title on mobile.
+
+Re-evaluation after implementation:
+
+- Targeted renderer scans found no remaining local Knowledge hierarchy or field
+  preview labels in the browser Knowledge page or mobile More screen.
+- Focused Knowledge schema tests pass.
+- No Knowledge navigation, field configuration, vocabulary editing, hidden
+  detail cleanup, or custom entry type behavior changed.
+
+### Shared Destructive Dialog Copy Slice
+
+Implemented:
+
+- Added shared destructive confirmation dialog labels for generic destructive
+  actions, permanent delete dialogs, and cancel actions.
+- Added a shared Knowledge Schema destructive action kicker label to the
+  Knowledge schema model.
+- Updated browser Data, Knowledge, Relationships, Workspaces, and shared entry
+  delete/reset confirmation dialogs to consume shared dialog copy instead of
+  page-local labels.
+- Updated the mobile destructive confirmation presenter to use the same shared
+  cancel label.
+
+Evaluation before implementation:
+
+- Destructive action titles, messages, and confirm labels were already
+  centralized in the shared destructive-action model.
+- Browser dialog hierarchy labels and cancel actions still lived directly in
+  individual pages, so destructive confirmation copy could drift by surface.
+- The Knowledge dialog needed a Knowledge-owned kicker because its destructive
+  actions are schema-management actions, while Relationships and Workspaces
+  share permanent-delete framing.
+
+Root cause and best path:
+
+- Root cause: earlier destructive-action work centralized action-specific copy
+  but left dialog-level labels in renderer components.
+- The best path was to add a small shared dialog-copy object for generic
+  destructive confirmation labels and expose the Knowledge-specific kicker from
+  the Knowledge schema model.
+
+Re-evaluation after implementation:
+
+- Targeted renderer scans found no remaining page-local `Destructive action`,
+  `Knowledge schema action`, `Permanent delete`, or literal destructive-dialog
+  `Cancel` labels in browser pages or the mobile destructive confirmation
+  presenter.
+- Focused destructive-action and Knowledge schema tests pass.
+- No destructive action behavior, confirmation title formatting, recovery
+  snapshot behavior, or mobile confirmation behavior changed.
+
+### Shared Data Storage Save Line Label Slice
+
+Implemented:
+
+- Added a shared `Manual save` storage status line label to Data storage copy.
+- Updated browser Data storage status modeling to consume the shared line label
+  instead of passing local page copy into the shared storage status model.
+
+Evaluation before implementation:
+
+- Data storage panel title, kicker, guidance, diagnostics label, recovery
+  guidance, and storage-load labels already lived in shared Data copy.
+- The browser page still supplied the `Manual save` line label locally while
+  building the shared storage status model.
+- This was a small ownership gap in the same storage-status workflow rather
+  than a behavior or product decision.
+
+Root cause and best path:
+
+- Root cause: the storage status helper accepted a line label parameter before
+  all Data panel copy had been centralized.
+- The best path was to add the missing label to `dataStorageCopy` and keep the
+  existing helper signature unchanged.
+
+Re-evaluation after implementation:
+
+- Targeted scans found no remaining page-local `Manual save` line-label usage.
+- Focused Data model tests pass.
+- No save behavior, storage recovery behavior, diagnostics text, or mobile Data
+  behavior changed.
+
+### Shared Entry Detail Timeline Surface Copy Slice
+
+Implemented:
+
+- Added a shared selected-entry relationship kicker label to Relationship copy.
+- Added a shared Timeline overview title plus visible-event and review-issue
+  count formatters to Timeline copy/helpers.
+- Updated the shared browser entry detail relationship panel and Timeline
+  overview to consume shared labels/count formatters.
+- Updated the mobile Timeline review summary to use the shared review-issue
+  count formatter.
+
+Evaluation before implementation:
+
+- Entry detail panels, relationship groups, and Timeline review data already
+  came from shared models.
+- The reusable browser entry view component still owned section header copy for
+  linked records and Timeline overview counts locally.
+- Mobile Timeline used the same review issue count sentence locally, so the
+  count wording could drift between browser and mobile.
+
+Root cause and best path:
+
+- Root cause: prior relationship/timeline slices centralized row actions and
+  filters before moving these outer entry-detail section labels into shared
+  copy.
+- The best path was to add only the missing relationship kicker and Timeline
+  title/count helpers, then adopt them in existing browser/mobile renderers.
+
+Re-evaluation after implementation:
+
+- Targeted scans found no remaining renderer-local linked-record header,
+  Timeline overview title, visible-event count, or Timeline review-issue count
+  strings in the affected browser/mobile surfaces.
+- Focused relationship, Timeline, and entry render tests pass.
+- No relationship grouping, Timeline sorting, review diagnostics, or navigation
+  behavior changed.
+
+### Shared Utilities And Runtime Recovery Kicker Slice
+
+Implemented:
+
+- Added a shared Utilities overview kicker label to the Utilities overview
+  model.
+- Added a shared runtime diagnostics kicker label to the runtime recovery copy
+  model.
+- Updated browser Utilities and runtime recovery fallback surfaces to consume
+  those shared labels instead of page-local copy.
+
+Evaluation before implementation:
+
+- Utilities overview title, detail, metrics, actions, and destinations were
+  already centralized in the shared workflow destination model.
+- Runtime recovery already centralized retry, Data, reload, diagnostics title,
+  diagnostics description, textarea label, and download feedback copy.
+- The remaining kicker labels were still renderer-local even though they
+  described shared utility/recovery surfaces.
+
+Root cause and best path:
+
+- Root cause: prior Utilities and runtime recovery slices centralized primary
+  actions and content before the smaller section hierarchy labels were moved
+  into the same models.
+- The best path was to add one label to each existing model and consume those
+  fields directly in the browser renderers.
+
+Re-evaluation after implementation:
+
+- Targeted scans found no remaining browser-local `Workflow Hub` or runtime
+  fallback `Local-only report` kicker copy.
+- Focused workflow destination and runtime recovery tests pass.
+- No route focus behavior, utility actions, diagnostics generation, download
+  behavior, or runtime recovery behavior changed.
+
+### Shared Relationship Review Display Limits Slice
+
+Implemented:
+
+- Added `relationshipReviewDisplayLimits` to `@valgaron/core` as the shared
+  collapsed-list contract for Relationship Studio review queues.
+- Updated browser Relationship Studio Review to use `getLimitedResultModel`
+  for orphaned records, duplicate relationship groups, and legacy text review
+  items instead of local `slice(...)` calculations and hardcoded thresholds.
+- Updated mobile Relationship Studio Review to use the same shared review
+  limits for the same queues, replacing the previous mixed mobile/browser
+  thresholds.
+- Added core coverage that locks the relationship review limits as a shared
+  browser/mobile model.
+
+Evaluation before implementation:
+
+- The issue was still needed because Relationship Studio Review is the same
+  workflow on browser and mobile, but its collapsed preview limits were split
+  across renderer code: browser showed 10 orphaned records, 6 duplicate groups,
+  and 8 legacy text items while mobile showed 12 orphaned records, 5 duplicate
+  groups, and 6 legacy text items.
+- Root cause: earlier slices centralized hidden-count text and expansion labels
+  first, leaving the actual review queue limits as page-local constants.
+- Best path: add one small shared review-limit model and adopt the existing
+  `getLimitedResultModel` helper instead of adding a new component abstraction.
+
+Re-evaluation after implementation:
+
+- Browser and mobile now use the same collapsed Relationship Studio Review
+  queue limits and the same visible/hidden count calculation.
+- The chosen limits preserve the more generous existing browser duplicate and
+  legacy text previews while keeping the mobile orphaned-record preview, which
+  reduces unnecessary expansion interactions without adding new controls.
+- No schema, route, persistence, or product decision changed.
+
+### Shared Workbench Drafting Prompt Display Limit Slice
+
+Implemented:
+
+- Added `workbenchDisplayLimits.selectedDraftingPrompts` to `@valgaron/core`.
+- Updated browser Workbench selected-record context to use
+  `getLimitedResultModel` and the shared prompt limit instead of a page-local
+  `slice(0, 4)` calculation.
+- Updated mobile Workbench context mode to use the same shared prompt limit
+  instead of its previous local `slice(0, 3)` calculation.
+- Updated mobile render coverage so the prompt-heavy selected-record fixture
+  verifies the new shared collapsed count.
+
+Evaluation before implementation:
+
+- The issue was still needed because selected-record Workbench context is the
+  same drafting workflow on browser and mobile, but browser exposed four
+  prompts before expansion while mobile exposed three.
+- Root cause: the prompt expansion labels and hidden-count text had already
+  been centralized, but the collapsed prompt limit stayed in each renderer.
+- Best path: add one small shared Workbench display-limit model and reuse
+  `getLimitedResultModel`; no new component abstraction or route behavior was
+  needed.
+
+Re-evaluation after implementation:
+
+- Browser and mobile selected-record context now expose four drafting prompts
+  before expansion and compute hidden counts through the same helper.
+- The mobile context workflow now needs one fewer expansion interaction for
+  prompt-heavy records while preserving the same compact layout pattern.
+- No schema, route, persistence, editor transaction, or product decision
+  changed.
+
+### Shared Knowledge Vocabulary Value Display Limit Slice
+
+Implemented:
+
+- Added `knowledgeDisplayLimits.vocabularyValues` to `@valgaron/core`.
+- Updated browser Knowledge Vocabulary Manager rows to use
+  `getLimitedResultModel` and the shared value limit instead of local
+  `slice(0, 8)` and `length > 8` checks.
+- Updated mobile More Vocabulary Manager rows to use the same shared value
+  limit instead of local `slice(0, 4)`, hidden-count subtraction, and
+  `length > 4` checks.
+- Extended mobile render coverage with an over-limit ancestry vocabulary so the
+  hidden-count and expansion affordance remain tested under the shared limit.
+
+Evaluation before implementation:
+
+- The issue was still needed because browser and mobile both edit the same
+  durable vocabulary values, but browser exposed eight values before expansion
+  while mobile exposed four.
+- Root cause: prior Knowledge slices centralized row copy, commands, hidden
+  count formatting, and field usage labels, but left the value preview limit in
+  each renderer.
+- Best path: add one shared Knowledge display-limit constant and reuse the
+  existing limited-result helper; no schema model or storage migration was
+  needed.
+
+Re-evaluation after implementation:
+
+- Browser and mobile Vocabulary Manager rows now expose eight matching active
+  values before expansion and compute hidden counts through the same helper.
+- Mobile users need fewer expansion interactions when editing common taxonomy
+  vocabularies while preserving the existing compact row layout.
+- No schema, route, persistence, vocabulary mutation, or product decision
+  changed.
+
+### Shared Section Relationship Text Review Display Limit Slice
+
+Implemented:
+
+- Added `relationshipTextReviewDisplayLimits.sectionItems` to
+  `@valgaron/core`.
+- Updated browser section relationship text review to use
+  `getLimitedResultModel` and the shared section review limit instead of local
+  `slice(0, 6)` and `length > 6` checks.
+- Updated mobile Entries context relationship text review to use the same
+  shared section review limit instead of reading the mobile feature limit
+  directly.
+- Added core coverage that keeps the section review limit aligned with the
+  existing mobile context review limit.
+
+Evaluation before implementation:
+
+- The issue was still needed because section-level relationship text review is
+  the same cleanup workflow on browser and mobile, but browser still owned a
+  page-local numeric limit while mobile read a shared mobile limit.
+- Root cause: earlier relationship review slices centralized count copy and
+  row actions, but left the per-section collapsed review limit split across
+  renderers.
+- Best path: add a small relationship text review display-limit model that
+  preserves the current six-item behavior and lets both renderers use
+  `getLimitedResultModel`.
+
+Re-evaluation after implementation:
+
+- Browser section review and mobile context review now use the same collapsed
+  six-item limit and hidden-count calculation.
+- The slice reduces future drift without changing review routing, migration
+  suggestions, batch migration, or cleanup behavior.
+- No schema, route, persistence, or product decision changed.
+
+### Shared Mobile Knowledge Overview Display Limits Slice
+
+Implemented:
+
+- Extended `knowledgeDisplayLimits` with the mobile Knowledge overview preview
+  limits for schema sections, relationship-backed field summaries, field
+  configuration sections, vocabulary rows, and hidden-detail cleanup rows.
+- Updated mobile More Knowledge overview lists to use `getLimitedResultModel`
+  for visible rows and hidden counts instead of local `slice(...)` and manual
+  subtraction.
+- Updated mobile More expansion thresholds to read the same shared display
+  policy used to build each visible row model.
+- Added core coverage for the Knowledge overview preview limits.
+
+Evaluation before implementation:
+
+- The issue was still needed because mobile More is the compact Knowledge hub
+  for schema setup, field configuration, vocabulary management, and cleanup,
+  but its preview row counts were scattered as page-local numeric constants.
+- Root cause: prior slices centralized row copy, action labels, hidden-count
+  text, and vocabulary value limits, but the mobile overview caps remained in
+  the renderer.
+- Best path: extend the existing Knowledge display-limit policy and reuse
+  `getLimitedResultModel`; this preserves the current compact mobile layout
+  without introducing a new component abstraction.
+
+Re-evaluation after implementation:
+
+- Mobile More now computes visible Knowledge overview rows and hidden counts
+  from shared display models across schema sections, relationship-backed field
+  summaries, field configuration sections, vocabulary rows, and hidden-detail
+  cleanup rows.
+- The same shared constants control both row visibility and expansion
+  thresholds, reducing future drift in mobile Knowledge workflows.
+- No browser behavior, schema, route, persistence, or product decision changed.
+
+### Shared Utilities Compact Knowledge Metrics Slice
+
+Implemented:
+
+- Added `knowledgeSummary.compactMetricLines` to the shared Utilities overview
+  model.
+- Moved the mobile Project Tools compact Knowledge metrics composition out of
+  mobile More and into `@valgaron/core`.
+- Updated mobile More to render the compact metric lines directly instead of
+  using `metrics.slice(0, 3)` and `metrics[3]`.
+- Added shared workflow destination coverage for the compact metric lines.
+
+Evaluation before implementation:
+
+- The issue was still needed because mobile Project Tools rendered a compact
+  Knowledge summary by assuming the full metrics array always had exactly four
+  items.
+- Root cause: browser Utilities displays the full metrics list, while mobile
+  needs a denser two-line summary; the compact projection was left in the
+  renderer rather than the shared Utilities model.
+- Best path: keep the full metrics array for browser and add a compact metric
+  projection to the shared model for mobile.
+
+Re-evaluation after implementation:
+
+- Mobile Project Tools now renders compact Knowledge summary lines from the
+  shared Utilities model without local slicing or positional indexing.
+- Browser Utilities remains unchanged and still renders the full metrics list.
+- No route focus behavior, Knowledge schema counts, Utilities actions, or
+  product decision changed.
+
+### Shared Entry Editor Base Field Layout Slice
+
+Implemented:
+
+- Added `getEntryEditorBaseFieldLayout` to `@valgaron/core`.
+- Moved normal-entry and Timeline-entry leading/trailing base field split rules
+  out of browser and mobile renderers.
+- Updated browser Timeline editor, browser entry editor, and mobile Entries
+  editor to render `leadingFields` and `trailingFields` from the shared layout
+  model.
+- Added core coverage that normal entries lead with name, summary, and notes
+  while Timeline entries lead with name and summary before Timeline-specific
+  chronology fields.
+
+Evaluation before implementation:
+
+- The issue was still needed because browser and mobile both depended on the
+  same base editor fields but encoded the normal versus Timeline split with
+  local `slice(...)` calls.
+- Root cause: earlier slices centralized field labels, notes preview copy, and
+  Timeline editor groups, but left the base-field layout rule in renderers.
+- Best path: add a small shared layout model that preserves existing visual
+  order without introducing a broader form abstraction.
+
+Re-evaluation after implementation:
+
+- Browser and mobile entry editors now use the same shared base-field layout
+  for normal and Timeline records.
+- The renderer scan no longer finds local `baseFields.slice(...)` usage in the
+  entry editor surfaces.
+- No schema, route, persistence, field labels, notes preview behavior, or
+  product decision changed.
+
+### Shared In-Fiction World Draft Field Layout Slice
+
+Implemented:
+
+- Added `getPlanetaryWorldDraftFieldLayout` to `@valgaron/core`.
+- Moved the browser Workspaces in-fiction world form's first-four/trailing
+  field split out of the renderer.
+- Updated browser Workspaces and mobile Workspaces to consume the shared
+  in-fiction world draft field layout.
+- Added core coverage for the leading and trailing field groups.
+
+Evaluation before implementation:
+
+- The issue was still needed because in-fiction world form fields are shared by
+  browser and mobile, but the browser form encoded its grid/trailing split with
+  local `slice(...)` calls while mobile consumed the raw descriptor list.
+- Root cause: earlier Workspaces slices centralized field descriptors, form
+  titles, and action copy, but not the form layout projection.
+- Best path: add a small layout helper beside the existing draft field
+  descriptors, preserving current browser grid behavior and mobile sequential
+  rendering.
+
+Re-evaluation after implementation:
+
+- Browser Workspaces now uses shared leading/trailing in-fiction world draft
+  fields, and mobile Workspaces maps the shared full field layout.
+- The renderer scan no longer finds `planetaryWorldDraftFields.slice(...)`.
+- No schema, persistence, draft normalization, validation, or product decision
+  changed.
+
+### Shared Entry Card Detail Preview Slice
+
+Implemented:
+
+- Added `getEntryCardDetailPreviewModel` to `@valgaron/core`.
+- Moved the browser entry card's compact two-detail preview assembly out of the
+  renderer.
+- Updated browser `EntryCard` to render the shared preview model.
+- Added core coverage for the compact preview cap and text.
+
+Evaluation before implementation:
+
+- The issue was still needed because entry cards are a primary scanning surface
+  in browser Workbench/section lists, but their detail preview cap and text
+  assembly were local renderer logic.
+- Root cause: entry detail display and list row copy were centralized earlier,
+  while the compact card preview remained embedded in the component.
+- Best path: add a small model helper that preserves the existing two-detail
+  preview without expanding the entry list model contract.
+
+Re-evaluation after implementation:
+
+- Browser entry cards now use the same core detail-field resolution and compact
+  preview model.
+- The renderer scan no longer finds the local card-detail `slice(0, 2)` chain.
+- No mobile behavior, route behavior, field visibility rules, or product
+  decision changed.
+
+### Shared Custom Entry Type Draft Field Layout Slice
+
+Implemented:
+
+- Added `getEntryTypeDraftFieldLayout` to `@valgaron/core`.
+- Moved the browser Knowledge custom entry type form's leading/trailing field
+  split out of the renderer.
+- Updated browser Knowledge and mobile More to consume the shared custom entry
+  type draft field layout.
+- Added core coverage for the shared full, leading, and trailing field groups.
+
+Evaluation before implementation:
+
+- The issue was still needed because custom entry type creation is a shared
+  browser/mobile Knowledge workflow, but the browser encoded its two-column
+  first-row layout with local `slice(...)` calls while mobile rendered the raw
+  descriptor list.
+- Root cause: earlier Knowledge slices centralized the draft field descriptors,
+  parsing, preview, and validation behavior without centralizing the form layout
+  projection.
+- Best path: add a small shared layout helper beside the existing descriptor
+  list, preserving browser density and mobile sequential rendering without
+  schema, route, or persistence changes.
+
+Re-evaluation after implementation:
+
+- Browser Knowledge now uses shared leading/trailing custom entry type draft
+  fields, and mobile More maps the shared full field layout.
+- The remaining renderer-local `entryTypeDraftFields` uses are for descriptor
+  lookup and typing rather than layout splitting.
+- No field labels, validation, draft normalization, schema migration, or product
+  decision changed.
+
+### Shared Workbench Record View Limit Slice
+
+Implemented:
+
+- Added `workbenchDisplayLimits.recordViewRows` to `@valgaron/core`.
+- Replaced the browser Workbench page's local `viewLimit: 24` with the shared
+  named limit.
+- Added display-limit coverage for the Workbench record view cap.
+
+Evaluation before implementation:
+
+- The issue was still needed because browser Workbench was the last production
+  surface passing a hardcoded record index cap directly into the shared
+  Workbench model.
+- Root cause: the core Workbench index already accepted an injected `viewLimit`,
+  but only selected-record drafting prompt caps had been named in
+  `workbenchDisplayLimits`.
+- Best path: add a named display limit and keep the existing Workbench model API
+  unchanged, preserving browser density and mobile's existing platform-specific
+  entry result cap.
+
+Re-evaluation after implementation:
+
+- Browser Workbench now uses a named shared record view cap.
+- Mobile remains intentionally governed by `mobileFeatureDisplayLimits` for its
+  smaller-screen entry results.
+- No record filtering, routing, selection, query, or persistence behavior
+  changed.
+
+### Shared Entry Tag Label Adoption Slice
+
+Implemented:
+
+- Updated browser entry cards to use `entryDisplayCopy.tagsLabel` for tag-row
+  accessibility instead of a renderer-local literal.
+- Updated mobile Workbench selected-record context to use the same shared tag
+  label before the selected entry's tag list.
+
+Evaluation before implementation:
+
+- The issue was still needed because browser entry detail already consumed the
+  shared entry display tag label, while browser entry cards and mobile
+  Workbench context still hardcoded the same label locally.
+- Root cause: tag metadata copy was centralized for detail display first, but
+  compact entry-card and selected-context render paths were left behind.
+- Best path: adopt the existing `entryDisplayCopy.tagsLabel` in the two
+  renderers without adding a new model or changing tag layout.
+
+Re-evaluation after implementation:
+
+- Browser card tag rows, browser detail tag rows, and mobile selected-context
+  tag summaries now share the same entry display label source.
+- No tag parsing, filtering, routing, persistence, or platform layout behavior
+  changed.
+
+### Shared Timeline Table Label Adoption Slice
+
+Implemented:
+
+- Added shared Timeline table column labels for order, event, date, era, links,
+  and actions.
+- Updated the browser entry-detail Timeline table to consume the shared column
+  labels.
+- Updated the same table's unassigned-era fallback to consume
+  `timelineFeatureCopy.unassignedEraLabel`.
+- Replaced the Timeline grouping helper's local unassigned-era fallback with
+  the same shared label.
+
+Evaluation before implementation:
+
+- The issue was still needed because the browser Timeline table caption already
+  used shared Timeline copy, while the adjacent column headers and one
+  unassigned-era fallback remained renderer literals.
+- Root cause: earlier Timeline copy slices centralized regions, filters, era
+  summaries, and row actions, but left the table header labels from the first
+  browser table implementation.
+- Best path: extend `timelineFeatureCopy` with a narrow table-column label
+  contract and reuse the existing unassigned-era label, without changing the
+  Timeline table layout or mobile stacked Timeline presentation.
+
+Re-evaluation after implementation:
+
+- Browser Timeline table caption, headers, and unassigned-era fallback now share
+  Timeline copy ownership.
+- Timeline era grouping now uses the same unassigned-era label as browser and
+  mobile filters.
+- No Timeline sorting, grouping, route, relationship, or persistence behavior
+  changed.
+
+### Shared Utilities Overview Empty-State Copy Slice
+
+Implemented:
+
+- Added shared `reviewSummary.emptyActionText` to the Utilities overview model.
+- Updated browser Utilities and mobile More to consume the shared no-hotspots
+  message.
+- Updated mobile More to use the shared Utilities overview title for the Project
+  Tools section instead of a local literal.
+- Added focused Utilities overview coverage for the empty review-hotspots state
+  copy.
+
+Evaluation before implementation:
+
+- The issue was still needed because the Utilities overview model already owned
+  the Project Tools title, review-hotspots title, detail, metrics, and actions,
+  but mobile still hardcoded the section title and both platforms hardcoded the
+  no-hotspots message.
+- Root cause: the Review Hotspots empty state was added at the renderer layer
+  after the overview model was created.
+- Best path: extend the existing overview model with one empty-state text field
+  and adopt the existing shared title in mobile More.
+
+Re-evaluation after implementation:
+
+- Browser Utilities and mobile More now share Project Tools and Review Hotspots
+  empty-state copy through the Utilities overview model.
+- No destination routing, review hotspot detection, metrics, or action behavior
+  changed.
+
+### Shared Relationship Entry Filter Label Slice
+
+Implemented:
+
+- Added shared relationship list entry-filter labels for the filter field and
+  the empty `Any entry` option.
+- Updated browser Relationship Studio Links filtering to consume the shared
+  labels.
+- Added focused relationship copy coverage for the labels.
+
+Evaluation before implementation:
+
+- The issue was still needed because browser Links mode already consumed shared
+  relationship search labels, type-filter labels, and clear-filter labels, but
+  the adjacent entry filter label and empty option remained local literals.
+- Root cause: the entry filter select is browser-specific, so it was left out
+  when shared Relationship Studio search and filter copy was centralized.
+- Best path: add two narrow copy fields to `relationshipFeatureCopy` and adopt
+  them in the browser select without forcing mobile to render the same native
+  select interaction.
+
+Re-evaluation after implementation:
+
+- Browser Relationship Studio Links filter copy now comes from the same shared
+  relationship copy source as the other filters.
+- Mobile remains unchanged because it uses a different touch workflow for
+  entry-filter state.
+- No relationship filtering, routing, graph, or saved-link behavior changed.
+
+### Shared Mobile Destructive Hint Model Slice
+
+Implemented:
+
+- Added a shared delete accessibility hint to custom entry type Knowledge rows.
+- Added shared delete accessibility hints to workspace and in-fiction world row
+  models.
+- Updated mobile More and mobile Workspaces destructive buttons to consume the
+  shared hints instead of local literals.
+- Added focused Knowledge and Workspaces model coverage for the hint contract.
+
+Evaluation before implementation:
+
+- The issue was still needed because mobile destructive buttons already used
+  shared row-specific labels and confirmation subjects, but several
+  accessibility hints still lived as mobile-only literals.
+- Root cause: earlier destructive-confirmation slices centralized titles,
+  labels, and subjects first, leaving static hint text beside mobile button
+  rendering.
+- Best path: add narrow hint fields to the existing shared row models and adopt
+  them in mobile, without changing confirmation behavior or adding browser-only
+  hints where the browser layout does not currently use them.
+
+Re-evaluation after implementation:
+
+- Mobile custom entry type, workspace, and in-fiction world destructive actions
+  now receive labels, confirmation subjects, and hints from shared models.
+- Browser behavior remains unchanged, and destructive mutation/confirmation
+  flows are untouched.
+
 ## Final Implementation Recommendation
 
 The first milestone described above is now implemented for the current
@@ -7872,8 +13114,10 @@ Current completed baseline includes:
 - Browser and mobile relationship route-focused first paint opens directly in
   Links mode.
 - Relationship Studio review, graph, link creation, and bulk cleanup modes.
-- Knowledge-owned custom entry types, user field management, vocabulary review,
-  hidden-detail cleanup, and schema portability coverage.
+- Knowledge-owned custom entry types, user field management, durable browser
+  Vocabulary Manager, hidden-detail cleanup, and schema portability coverage.
+- Schema `3` workspace-owned vocabularies with clean-break v3 storage,
+  export/import, Markdown reference export, and diagnostics count coverage.
 - Custom Timeline event editor grouping for chronology, outcomes, involved
   records, contextual create-and-link, and existing relationship summaries.
 - Browser Workbench dirty-route protection for inline editor state.
@@ -7885,11 +13129,8 @@ Current completed baseline includes:
   Workbench, Timeline, Relationship Studio, and Knowledge review surfaces
   without introducing a durable triage queue.
 
-The next approved product track is durable schema/vocabulary editing. It should
-begin with schema `3`, clean-break document handling, workspace-owned
-vocabularies, a Vocabulary Manager first slice, browser-first built-in field
-configuration for label/help/visibility/order/vocabulary overrides, and focused
-mobile vocabulary editing inside More.
+The remaining approved durable schema/vocabulary track should continue with
+broader workflow refinements rather than missing durable schema capabilities.
 
 A durable cross-surface triage queue remains gated until users need assignment,
 dismissal, severity ordering, or progress tracking across Workbench selected
@@ -7899,7 +13140,7 @@ navigation friction, because the current Project Tools hub exposes Knowledge
 setup, Data, Workspaces, and focused Help from the first screenful on browser
 and mobile.
 
-The next implementation should stay slice-based: evaluate whether the schema
-friction point is still real, identify the durable data root cause, design the
-smallest cohesive schema `3` shape, implement vocabulary management first, then
-re-evaluate with focused web, mobile, import/export, and schema tests.
+The next implementation should stay slice-based: evaluate observed workflow
+friction in the active Workbench, Timeline, Relationship Studio, or Knowledge
+surface, then add only the smallest shared browser/mobile model or control that
+removes that friction before re-evaluating.

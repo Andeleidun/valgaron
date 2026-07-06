@@ -1,6 +1,6 @@
 import { describe, expect, it } from '@jest/globals';
 import { applyEntry, entryFromDraft } from './codexEntries';
-import { createSeedWorldDocument } from './seedCodex';
+import { cloneWorkspaceSchema, createSeedWorldDocument } from './seedCodex';
 import { getActiveWorld } from './worldDocument';
 import {
   createCustomEntryType,
@@ -38,6 +38,7 @@ function createCompleteSingleRecordWorld(
         custom: true,
       },
     ],
+    schema: cloneWorkspaceSchema(),
     codex: {
       artifacts: [
         {
@@ -94,6 +95,7 @@ describe('workflow destinations', () => {
     const overview = getUtilitiesOverviewModel(world);
 
     expect(overview.title).toBe('Project Tools');
+    expect(overview.kickerLabel).toBe('Workflow Hub');
     expect(overview.destinations).toBe(utilityWorkflowDestinations);
     expect(overview.knowledgeSummary.title).toBe('Knowledge Schema');
     expect(overview.knowledgeSummary.metrics).toEqual(
@@ -102,6 +104,10 @@ describe('workflow destinations', () => {
         'No hidden detail cleanup targets.',
       ])
     );
+    expect(overview.knowledgeSummary.compactMetricLines).toEqual([
+      '5 entry types, 22 fields, 3 relationship-backed fields.',
+      'No hidden detail cleanup targets.',
+    ]);
     expect(
       overview.knowledgeSummary.actions.map((action) => action.actionLabel)
     ).toEqual(['Open Type Setup']);
@@ -117,6 +123,7 @@ describe('workflow destinations', () => {
       title: 'Review hotspots',
       detail:
         'Jump to existing review surfaces when cleanup signals appear across records, chronology, relationships, or schema.',
+      emptyActionText: 'No cross-surface review hotspots need action.',
     });
     expect(overview.reviewSummary.metrics).toEqual(
       expect.arrayContaining([

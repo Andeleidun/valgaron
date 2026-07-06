@@ -8,9 +8,12 @@ import type {
   WorldWorkspace,
 } from '@valgaron/core';
 import {
+  formatExpansionControlLabel,
+  formatHiddenCountText,
   getCodexHelpRoute,
   getCodexScreenIntro,
   formatWorkspaceFeatureAccessibilityLabel,
+  getPlanetaryWorldDraftFieldLayout,
   getWorkspaceFormKicker,
   getWorkspaceFormTitle,
   getWorkspaceFeatureModel,
@@ -20,7 +23,6 @@ import {
   normalizePlanetaryWorldDraft,
   normalizeWorkspaceDraft,
   planetaryWorldDraftFrom,
-  planetaryWorldDraftFields,
   workspaceDraftFields,
   workspaceDraftFrom,
   workspaceFeatureActions,
@@ -154,6 +156,7 @@ export function WorkspacesScreen() {
   const planetaryWorldBaselineDraft = planetaryWorldDraftFrom(
     selectedPlanetaryWorld ?? undefined
   );
+  const planetaryWorldFieldLayout = getPlanetaryWorldDraftFieldLayout();
   const isPlanetaryWorldDraftDirty = hasUnsavedChanges(
     planetaryWorldBaselineDraft,
     planetaryWorldDraft
@@ -212,12 +215,14 @@ export function WorkspacesScreen() {
     );
   }
 
-  function deleteWorkspace(workspaceId: string) {
+  function deleteWorkspace(workspaceId: string, workspaceName: string) {
     confirmDiscardUnsavedChangesOnMobile(
       shouldConfirmWorkspaceAction(workspaceId),
       () =>
-        confirmMobileDestructiveAction('delete-workspace', () =>
-          controller.permanentlyDeleteWorkspace(workspaceId)
+        confirmMobileDestructiveAction(
+          'delete-workspace',
+          () => controller.permanentlyDeleteWorkspace(workspaceId),
+          workspaceName
         )
     );
   }
@@ -276,14 +281,16 @@ export function WorkspacesScreen() {
       selectedPlanetaryWorldId === planetaryWorld.id &&
         isPlanetaryWorldDraftDirty,
       () =>
-        confirmMobileDestructiveAction('delete-planetary-world', () =>
-          controller.permanentlyDeletePlanetaryWorld(planetaryWorld.id)
+        confirmMobileDestructiveAction(
+          'delete-planetary-world',
+          () => controller.permanentlyDeletePlanetaryWorld(planetaryWorld.id),
+          planetaryWorld.name
         )
     );
   }
 
   function updatePlanetaryWorldDraft(
-    key: (typeof planetaryWorldDraftFields)[number]['key'],
+    key: (typeof planetaryWorldFieldLayout.fields)[number]['key'],
     value: string
   ) {
     setPlanetaryWorldDraft((current) => ({
@@ -401,7 +408,7 @@ export function WorkspacesScreen() {
                     onPress={() => duplicateWorkspace(workspace.id)}
                   />
                   <ActionButton
-                    accessibilityHint="Deletes this workspace after confirmation."
+                    accessibilityHint={workspaceRow.deleteAccessibilityHint}
                     accessibilityLabel={formatWorkspaceFeatureAccessibilityLabel(
                       'delete-workspace',
                       workspace.name
@@ -409,7 +416,9 @@ export function WorkspacesScreen() {
                     label={workspaceFeatureActions.deletePermanently}
                     tone="danger"
                     disabled={!actionState.canDelete}
-                    onPress={() => deleteWorkspace(workspace.id)}
+                    onPress={() =>
+                      deleteWorkspace(workspace.id, workspace.name)
+                    }
                   />
                 </ButtonRow>
                 {!actionState.canArchive ? (
@@ -425,19 +434,23 @@ export function WorkspacesScreen() {
         )}
         {workspaceModel.workspaces.hiddenCount > 0 ? (
           <MutedText>
-            {workspaceModel.workspaces.hiddenCount} more workspace
-            {workspaceModel.workspaces.hiddenCount === 1 ? '' : 's'}.
+            {formatHiddenCountText({
+              hiddenCount: workspaceModel.workspaces.hiddenCount,
+              singularItemLabel: 'workspace',
+              pluralItemLabel: 'workspaces',
+            })}
           </MutedText>
         ) : null}
         {workspaceModel.workspaces.totalCount > workspaceFeatureResultLimit ? (
           <ButtonRow>
             <ActionButton
               expanded={showAllWorkspaces}
-              label={
-                showAllWorkspaces
-                  ? 'Show Fewer Workspaces'
-                  : `Show ${workspaceModel.workspaces.hiddenCount} More Workspaces`
-              }
+              label={formatExpansionControlLabel({
+                isExpanded: showAllWorkspaces,
+                hiddenCount: workspaceModel.workspaces.hiddenCount,
+                pluralItemLabel: 'Workspaces',
+                singularItemLabel: 'Workspace',
+              })}
               onPress={() =>
                 setShowAllWorkspaces((currentValue) => !currentValue)
               }
@@ -559,7 +572,9 @@ export function WorkspacesScreen() {
                     onPress={() => archivePlanetaryWorld(planetaryWorld)}
                   />
                   <ActionButton
-                    accessibilityHint="Deletes this in-fiction world after confirmation."
+                    accessibilityHint={
+                      planetaryWorldRow.deleteAccessibilityHint
+                    }
                     accessibilityLabel={formatWorkspaceFeatureAccessibilityLabel(
                       'delete-planetary-world',
                       planetaryWorld.name
@@ -577,8 +592,11 @@ export function WorkspacesScreen() {
         )}
         {workspaceModel.planetaryWorlds.hiddenCount > 0 ? (
           <MutedText>
-            {workspaceModel.planetaryWorlds.hiddenCount} more in-fiction world
-            {workspaceModel.planetaryWorlds.hiddenCount === 1 ? '' : 's'}.
+            {formatHiddenCountText({
+              hiddenCount: workspaceModel.planetaryWorlds.hiddenCount,
+              singularItemLabel: 'in-fiction world',
+              pluralItemLabel: 'in-fiction worlds',
+            })}
           </MutedText>
         ) : null}
         {workspaceModel.planetaryWorlds.totalCount >
@@ -586,18 +604,19 @@ export function WorkspacesScreen() {
           <ButtonRow>
             <ActionButton
               expanded={showAllPlanetaryWorlds}
-              label={
-                showAllPlanetaryWorlds
-                  ? 'Show Fewer In-Fiction Worlds'
-                  : `Show ${workspaceModel.planetaryWorlds.hiddenCount} More In-Fiction Worlds`
-              }
+              label={formatExpansionControlLabel({
+                isExpanded: showAllPlanetaryWorlds,
+                hiddenCount: workspaceModel.planetaryWorlds.hiddenCount,
+                pluralItemLabel: 'In-Fiction Worlds',
+                singularItemLabel: 'In-Fiction World',
+              })}
               onPress={() =>
                 setShowAllPlanetaryWorlds((currentValue) => !currentValue)
               }
             />
           </ButtonRow>
         ) : null}
-        {planetaryWorldDraftFields.map((field) => (
+        {planetaryWorldFieldLayout.fields.map((field) => (
           <Field
             autoCapitalize={field.key === 'tags' ? 'words' : undefined}
             autoCorrect={field.key === 'tags' ? false : undefined}

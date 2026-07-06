@@ -9,7 +9,8 @@ import {
   validateRelationshipDraft,
   validateWorkspaceDraft,
 } from './draftValidation';
-import { worldSections } from './seedCodex';
+import { createSeedWorldDocument, worldSections } from './seedCodex';
+import { getActiveWorld } from './worldDocument';
 
 describe('draft validation', () => {
   it('requires entry names while allowing fast summary-free capture', () => {
@@ -23,6 +24,73 @@ describe('draft validation', () => {
     expect(validateEntryDraft(section, { ...draft, name: 'Mira' })).toEqual({
       ok: true,
     });
+  });
+
+  it('validates restricted workspace vocabulary fields', () => {
+    const world = getActiveWorld(createSeedWorldDocument());
+    const section = world.entryTypes.find((item) => item.id === 'characters');
+    if (!section) {
+      throw new Error('Expected character section.');
+    }
+    const workspaceSchema = {
+      ...world.schema,
+      vocabularies: world.schema.vocabularies.map((vocabulary) =>
+        vocabulary.id === 'character-profession'
+          ? {
+              ...vocabulary,
+              values: vocabulary.values.map((value) =>
+                value.label === 'Surveyor'
+                  ? { ...value, aliases: ['Pathfinder'] }
+                  : value
+              ),
+            }
+          : vocabulary
+      ),
+      fieldOverrides: {
+        ...world.schema.fieldOverrides,
+        characters: {
+          ...world.schema.fieldOverrides.characters,
+          profession: {
+            ...world.schema.fieldOverrides.characters?.profession,
+            vocabularyId: 'character-profession',
+            vocabularyMode: 'restricted' as const,
+          },
+        },
+      },
+    };
+    const draft = {
+      ...createEmptyDraft(),
+      name: 'Mira',
+      details: { profession: 'Navigator' },
+    };
+
+    expect(validateEntryDraft(section, draft, { workspaceSchema })).toEqual({
+      ok: false,
+      errors: [
+        'Profession must use an active Character profession value. Try Artisan, Guide, Healer, Mage, Merchant.',
+      ],
+    });
+    expect(
+      validateEntryDraft(
+        section,
+        { ...draft, details: { profession: 'Surveyor' } },
+        { workspaceSchema }
+      )
+    ).toEqual({ ok: true });
+    expect(
+      validateEntryDraft(
+        section,
+        { ...draft, details: { profession: 'Pathfinder' } },
+        { workspaceSchema }
+      )
+    ).toEqual({ ok: true });
+    expect(
+      validateEntryDraft(
+        section,
+        { ...draft, details: { profession: '' } },
+        { workspaceSchema }
+      )
+    ).toEqual({ ok: true });
   });
 
   it('validates relationship endpoints and type', () => {

@@ -37,12 +37,14 @@ export type UtilityOverviewAction = {
 };
 
 export type UtilitiesOverviewModel = {
+  kickerLabel: string;
   title: string;
   detail: string;
   knowledgeSummary: {
     title: string;
     detail: string;
     metrics: string[];
+    compactMetricLines: string[];
     actions: UtilityOverviewAction[];
   };
   shortcutSummary: {
@@ -53,6 +55,7 @@ export type UtilitiesOverviewModel = {
   reviewSummary: {
     title: string;
     detail: string;
+    emptyActionText: string;
     totalIssueCount: number;
     metrics: string[];
     actions: UtilityOverviewAction[];
@@ -136,6 +139,13 @@ function formatReadyCount(count: number, singularLabel: string): string {
   return count > 0
     ? `${formatCount(count, singularLabel)} ready to review.`
     : `No ${singularLabel}s ready to review.`;
+}
+
+function getCompactMetricLines(metrics: readonly string[]): string[] {
+  const primaryLine = metrics.slice(0, 3).join(', ');
+  return [primaryLine ? `${primaryLine}.` : '', ...metrics.slice(3)].filter(
+    (line) => line.length > 0
+  );
 }
 
 const workbenchReviewHotspotPriority = [
@@ -309,22 +319,26 @@ export function getUtilitiesOverviewModel(
         )} ready to review.`
       : 'No hidden detail cleanup targets.';
 
+  const knowledgeMetrics = [
+    formatCount(schemaModel.totals.entryTypeCount, 'entry type'),
+    formatCount(schemaModel.totals.fieldCount, 'field'),
+    formatCount(
+      schemaModel.totals.relationshipFieldCount,
+      'relationship-backed field'
+    ),
+    cleanupDetail,
+  ];
+
   return {
+    kickerLabel: 'Workflow Hub',
     title: 'Project Tools',
     detail:
       'Open setup, backup, and reference workflows from one place while the primary workspace stays focused on drafting, chronology, and relationships.',
     knowledgeSummary: {
       title: schemaModel.title,
       detail: schemaModel.typeSetup.detail,
-      metrics: [
-        formatCount(schemaModel.totals.entryTypeCount, 'entry type'),
-        formatCount(schemaModel.totals.fieldCount, 'field'),
-        formatCount(
-          schemaModel.totals.relationshipFieldCount,
-          'relationship-backed field'
-        ),
-        cleanupDetail,
-      ],
+      metrics: knowledgeMetrics,
+      compactMetricLines: getCompactMetricLines(knowledgeMetrics),
       actions: [
         {
           id: 'type-setup',
@@ -364,6 +378,7 @@ export function getUtilitiesOverviewModel(
       title: 'Review hotspots',
       detail:
         'Jump to existing review surfaces when cleanup signals appear across records, chronology, relationships, or schema.',
+      emptyActionText: 'No cross-surface review hotspots need action.',
       totalIssueCount:
         workbenchIssueCount +
         timelineReview.totalIssueCount +

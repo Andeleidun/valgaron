@@ -25,8 +25,11 @@ import {
   deleteStagedRelationshipDraft,
   draftFromEntry,
   draftTransactionEntryId,
+  entryDisplayCopy,
   entryDraftStatusControl,
+  entryEditorDisplayLimits,
   entryEditorCopy,
+  entryEditorFieldCopy,
   entryListCopy,
   entryNameCopyFeedback,
   entryPinnedControl,
@@ -35,6 +38,8 @@ import {
   entryStatusFilterControl,
   entryUpdatedFilterControl,
   filterRelationshipEntryPickerItems,
+  formatExpansionControlLabel,
+  formatHiddenCountText,
   getFeedbackTone,
   getCodexHelpRoute,
   getCodexScreenIntro,
@@ -42,24 +47,28 @@ import {
   getEntrySectionNavigationOptions,
   getEntryTagFilterOptions,
   getEntries,
-  getEntryEditorBaseFields,
+  getEntryEditorBaseFieldLayout,
+  getEntryEditorNewTitle,
   getEntryEditorNotesPreviewModel,
   getEntryEditorSelectedActionModel,
   getLimitedResultModel,
   getMobileWorkbenchModeModel,
   getMobileWorkbenchModeSummary,
   getEntryListEmptyStateModel,
-  getEntryEditorNewTitle,
   getEntryEditorSubmitLabel,
+  getEntryEditorTitle,
   getEntrySortControlOptions,
   getEntryRelationshipGroupsModel,
+  getStagedRelationshipDraftRowModel,
   getEntryNameCopiedMessage,
   getEntryNameCopyText,
   getRelationshipEntryContextRoute,
   getRelationshipFieldConfigsForEntryKind,
+  getRelationshipManagementAccessibilityLabel,
   getRelationshipManagementRoute,
   hasUnsavedChanges,
   relationshipFieldCopy,
+  getRelationshipFieldSearchLabel,
   getRelationshipFieldLinks,
   getRelationshipFieldTextMigration,
   getRelationshipFieldTargetId,
@@ -71,6 +80,7 @@ import {
   getRelationshipTextReviewUnresolvedLabel,
   relationshipTextReviewCopy,
   formatLimitedTextList,
+  formatTimelineReviewIssueCount,
   getTimelineSummaryModel,
   getTimelineBrowseModel,
   getTimelineEventEditorModel,
@@ -82,10 +92,15 @@ import {
   buildRelationshipFieldTextMigrationOperation,
   makeFieldRelationship,
   mobileFeatureDisplayLimits,
+  normalizeStagedRelationshipDrafts,
   relationshipFeatureCopy,
+  hasDuplicateStagedRelationshipDraft,
+  relationshipTextReviewDisplayLimits,
+  stagedRelationshipDraftCopy,
   timelineFeatureCopy,
   timelineUnassignedEraFilterValue,
   upsertStagedRelationshipDraft,
+  workbenchDisplayLimits,
   type MobileWorkbenchModeId,
   type WorkbenchRecordIndexItem,
   type WorkbenchRecordViewId,
@@ -401,11 +416,16 @@ export function EntriesScreen({
       }),
     [expandedTimelineEventGroups, timelineBrowse]
   );
-  const sectionEntries = getEntries(controller.activeWorld.codex, section.id);
-  const sectionEntryById = useMemo(
-    () => new Map(sectionEntries.map((entry) => [entry.id, entry])),
-    [sectionEntries]
+  const timelineEventItemById = useMemo(
+    () =>
+      new Map(
+        (timelineBrowse?.groups ?? [])
+          .flatMap((group) => group.events)
+          .map((event) => [event.id, event])
+      ),
+    [timelineBrowse]
   );
+  const sectionEntries = getEntries(controller.activeWorld.codex, section.id);
   const timelineEraManager = useMemo(
     () =>
       section.id === 'timeline'
@@ -504,12 +524,16 @@ export function EntriesScreen({
         0
       )
     : 0;
-  const visibleWorkbenchDraftingPrompts = showAllWorkbenchDraftingPrompts
-    ? selectedWorkbenchContext.incompletePrompts
-    : selectedWorkbenchContext.incompletePrompts.slice(0, 3);
+  const workbenchDraftingPromptModel = getLimitedResultModel(
+    selectedWorkbenchContext.incompletePrompts,
+    showAllWorkbenchDraftingPrompts
+      ? selectedWorkbenchContext.incompletePrompts.length
+      : workbenchDisplayLimits.selectedDraftingPrompts
+  );
+  const visibleWorkbenchDraftingPrompts =
+    workbenchDraftingPromptModel.visibleItems;
   const hiddenWorkbenchDraftingPromptCount =
-    selectedWorkbenchContext.incompletePrompts.length -
-    visibleWorkbenchDraftingPrompts.length;
+    workbenchDraftingPromptModel.hiddenCount;
   const relationshipTextReviewItems = useMemo(
     () =>
       getRelationshipFieldConfigsForEntryKind(section.kind).length > 0
@@ -523,15 +547,16 @@ export function EntriesScreen({
   const relationshipTextReviewExactItems = relationshipTextReviewItems.filter(
     (item) => item.exactMatchCount > 0
   );
-  const visibleRelationshipTextReviewItems = showAllRelationshipTextReviewItems
-    ? relationshipTextReviewItems
-    : relationshipTextReviewItems.slice(
-        0,
-        mobileFeatureDisplayLimits.relationshipTextReviewItems
-      );
+  const relationshipTextReviewDisplayModel = getLimitedResultModel(
+    relationshipTextReviewItems,
+    showAllRelationshipTextReviewItems
+      ? relationshipTextReviewItems.length
+      : relationshipTextReviewDisplayLimits.sectionItems
+  );
+  const visibleRelationshipTextReviewItems =
+    relationshipTextReviewDisplayModel.visibleItems;
   const hiddenRelationshipTextReviewItemCount =
-    relationshipTextReviewItems.length -
-    visibleRelationshipTextReviewItems.length;
+    relationshipTextReviewDisplayModel.hiddenCount;
   const workbenchModeModel = getMobileWorkbenchModeModel({
     activeMode: workbenchMode,
     hasReviewItems: relationshipTextReviewItems.length > 0,
@@ -548,7 +573,8 @@ export function EntriesScreen({
     sectionSingularTitle: section.singularTitle,
     sectionTitle: section.title,
     selectedEntryName: selectedEntry?.name,
-    stagedRelationshipCount: stagedRelationships.length,
+    stagedRelationshipCount:
+      normalizeStagedRelationshipDrafts(stagedRelationships).length,
     surface: fixedSectionId === 'timeline' ? 'timeline' : 'workbench',
     visibleRecordCount: routedWorkbenchView?.count ?? entries.length,
   });
@@ -559,9 +585,8 @@ export function EntriesScreen({
       }),
     [section.id]
   );
-  const baseFields = getEntryEditorBaseFields(section, draft);
-  const leadingBaseFields =
-    section.id === 'timeline' ? baseFields.slice(0, 2) : baseFields.slice(0, 3);
+  const baseFieldLayout = getEntryEditorBaseFieldLayout(section, draft);
+  const leadingBaseFields = baseFieldLayout.leadingFields;
   const notesPreview = getEntryEditorNotesPreviewModel(draft.notes);
   const editorModel = useMemo(
     () =>
@@ -576,11 +601,13 @@ export function EntriesScreen({
         sectionEntries,
         sections: controller.activeWorld.entryTypes,
         selectedEntry,
+        workspaceSchema: controller.activeWorld.schema,
       }),
     [
       controller.activeWorld.codex,
       controller.activeWorld.entryTypes,
       controller.activeWorld.relationships,
+      controller.activeWorld.schema,
       draft,
       expandedLinkedFieldPreferredTargets,
       expandedLinkedFieldTargets,
@@ -631,6 +658,7 @@ export function EntriesScreen({
           involvedRecordQuery: timelineEditorInvolvedRecordQuery,
           section,
           selectedEntry,
+          suggestionLimit: entryEditorDisplayLimits.detailSuggestions,
           stagedRelationships,
           world: controller.activeWorld,
         })
@@ -654,12 +682,11 @@ export function EntriesScreen({
   }
   const canStageRelationshipLinks =
     !selectedEntry && stagedRelationshipTargetOptions.length > 0;
-  const isDuplicateStagedRelationship = stagedRelationships.some(
-    (relationship) =>
-      relationship.targetEntryId === stagedTargetEntryId &&
-      relationship.type.trim().toLowerCase() ===
-        stagedRelationshipType.trim().toLowerCase()
-  );
+  const isDuplicateStagedRelationship = hasDuplicateStagedRelationshipDraft({
+    stagedRelationships,
+    targetEntryId: stagedTargetEntryId,
+    type: stagedRelationshipType,
+  });
 
   useEffect(() => {
     setCopyStatus('');
@@ -1034,14 +1061,7 @@ export function EntriesScreen({
     if (!stagedTargetEntryId || !stagedRelationshipType.trim()) {
       return;
     }
-    const normalizedType = stagedRelationshipType.trim().toLowerCase();
-    if (
-      stagedRelationships.some(
-        (relationship) =>
-          relationship.targetEntryId === stagedTargetEntryId &&
-          relationship.type.trim().toLowerCase() === normalizedType
-      )
-    ) {
+    if (isDuplicateStagedRelationship) {
       return;
     }
     const relationshipDraft: RelationshipDraft = {
@@ -1130,10 +1150,14 @@ export function EntriesScreen({
 
   function deleteSelectedEntry(entry: NonNullable<typeof selectedEntry>) {
     confirmDiscardUnsavedChangesOnMobile(isDraftDirty, () => {
-      confirmMobileDestructiveAction('delete-entry', () => {
-        controller.permanentlyDeleteEntry(entry);
-        clearSavedDraft();
-      });
+      confirmMobileDestructiveAction(
+        'delete-entry',
+        () => {
+          controller.permanentlyDeleteEntry(entry);
+          clearSavedDraft();
+        },
+        entry.name
+      );
     });
   }
 
@@ -1174,6 +1198,67 @@ export function EntriesScreen({
         [key]: value,
       },
     }));
+  }
+
+  function renderMobileTimelineEditorField(
+    field: NonNullable<
+      typeof timelineEditorModel
+    >['chronology']['fields'][number]
+  ) {
+    return (
+      <View key={field.key} style={styles.fieldWithSuggestions}>
+        <Field
+          label={field.label}
+          value={field.value}
+          multiline={field.multiline}
+          testID={`entries.timeline.field.${field.key}`}
+          onChangeText={(value) => setDetailValue(field.key, value)}
+        />
+        {field.helpText ? (
+          <Text style={styles.fieldHelpText}>{field.helpText}</Text>
+        ) : null}
+        {field.canonicalReplacement ? (
+          <ButtonRow>
+            <ActionButton
+              accessibilityLabel={field.canonicalReplacement.accessibilityLabel}
+              label={field.canonicalReplacement.label}
+              onPress={() => {
+                const replacement = field.canonicalReplacement;
+                if (replacement) {
+                  setDetailValue(field.key, replacement.value);
+                }
+              }}
+            />
+          </ButtonRow>
+        ) : null}
+        {field.suggestionActions.length > 0 ? (
+          <ButtonRow>
+            {field.suggestionActions.map((suggestion) => (
+              <ActionButton
+                accessibilityLabel={suggestion.accessibilityLabel}
+                key={suggestion.value}
+                label={suggestion.label}
+                onPress={() => setDetailValue(field.key, suggestion.value)}
+              />
+            ))}
+          </ButtonRow>
+        ) : null}
+        {field.hiddenSuggestionLabel ? (
+          <MutedText>{field.hiddenSuggestionLabel}</MutedText>
+        ) : null}
+      </View>
+    );
+  }
+
+  function renderMobileTimelineEditorFieldGroup(
+    group: NonNullable<typeof timelineEditorModel>['chronology']
+  ) {
+    return group.fields.length > 0 ? (
+      <View key={group.id} style={styles.fieldGroup}>
+        <Text style={styles.fieldGroupTitle}>{group.label}</Text>
+        {group.fields.map(renderMobileTimelineEditorField)}
+      </View>
+    ) : null;
   }
 
   function saveMobileRelationshipLink(
@@ -1533,7 +1618,13 @@ export function EntriesScreen({
       </SectionBlock>
 
       {showIndexMode ? (
-        <SectionBlock title={fixedSectionId ? 'Filters' : 'Sections'}>
+        <SectionBlock
+          title={
+            fixedSectionId
+              ? entryListCopy.filtersTitle
+              : entryListCopy.sectionsTitle
+          }
+        >
           {fixedSectionId ? null : (
             <ButtonRow>
               {sectionNavigationOptions.map((option) => (
@@ -1551,7 +1642,7 @@ export function EntriesScreen({
           <Field
             autoCapitalize="none"
             autoCorrect={false}
-            label="Search this section"
+            label={entryListCopy.searchSectionLabel}
             value={query}
             onChangeText={setQuery}
           />
@@ -1598,7 +1689,7 @@ export function EntriesScreen({
           ) : null}
           <ButtonRow>
             <ActionButton
-              label={`New ${section.singularTitle}`}
+              label={getEntryEditorNewTitle(section)}
               onPress={resetDraft}
             />
             <CheckboxField
@@ -1650,8 +1741,7 @@ export function EntriesScreen({
             <>
               <MutedText>
                 {timelineFeatureCopy.eraManagerTitle}:{' '}
-                {timelineEraManager.totalEraCount} named era
-                {timelineEraManager.totalEraCount === 1 ? '' : 's'}.
+                {timelineEraManager.namedEraCountLabel}.
               </MutedText>
               <ButtonRow>
                 <ActionButton
@@ -1746,7 +1836,9 @@ export function EntriesScreen({
                     label={timelineFeatureCopy.searchInvolvedFiltersLabel}
                     value={timelineInvolvedEntryQuery}
                     onChangeText={setTimelineInvolvedEntryQuery}
-                    placeholder="Record name, section, tag, status, or id"
+                    placeholder={
+                      timelineFeatureCopy.searchInvolvedFiltersPlaceholder
+                    }
                   />
                   <ButtonRow>
                     <ActionButton
@@ -1779,8 +1871,11 @@ export function EntriesScreen({
                   </ButtonRow>
                   {hiddenTimelineInvolvedEntryCount > 0 ? (
                     <MutedText>
-                      {hiddenTimelineInvolvedEntryCount} more involved record
-                      {hiddenTimelineInvolvedEntryCount === 1 ? '' : 's'}.
+                      {formatHiddenCountText({
+                        hiddenCount: hiddenTimelineInvolvedEntryCount,
+                        singularItemLabel: 'involved record',
+                        pluralItemLabel: 'involved records',
+                      })}
                     </MutedText>
                   ) : null}
                   {timelineInvolvedEntryMatches.length >
@@ -1788,11 +1883,12 @@ export function EntriesScreen({
                     <ButtonRow>
                       <ActionButton
                         expanded={showAllTimelineInvolvedEntries}
-                        label={
-                          showAllTimelineInvolvedEntries
-                            ? 'Show Fewer Involved Records'
-                            : `Show ${hiddenTimelineInvolvedEntryCount} More Involved Records`
-                        }
+                        label={formatExpansionControlLabel({
+                          isExpanded: showAllTimelineInvolvedEntries,
+                          hiddenCount: hiddenTimelineInvolvedEntryCount,
+                          pluralItemLabel: 'Involved Records',
+                          singularItemLabel: 'Involved Record',
+                        })}
                         onPress={() =>
                           setShowAllTimelineInvolvedEntries(
                             (currentValue) => !currentValue
@@ -1834,14 +1930,16 @@ export function EntriesScreen({
                         </MutedText>
                         <ButtonRow>
                           <ActionButton
-                            accessibilityLabel={`Edit ${event.name}`}
-                            label="Edit"
+                            accessibilityLabel={event.openAccessibilityLabel}
+                            label={event.openLabel}
                             testID={`timeline.event.${event.id}.edit`}
                             onPress={() => chooseEntry(event.id)}
                           />
                           <ActionButton
-                            accessibilityLabel={`Review context for ${event.name}`}
-                            label="Context"
+                            accessibilityLabel={
+                              event.reviewContextAccessibilityLabel
+                            }
+                            label={event.reviewContextLabel}
                             testID={`timeline.event.${event.id}.context`}
                             onPress={() => chooseEntry(event.id, 'context')}
                           />
@@ -1850,9 +1948,11 @@ export function EntriesScreen({
                     ))}
                     {group.hiddenEventCount > 0 ? (
                       <MutedText>
-                        {group.hiddenEventCount} more{' '}
-                        {group.hiddenEventCount === 1 ? 'event' : 'events'} in
-                        this era.
+                        {formatHiddenCountText({
+                          hiddenCount: group.hiddenEventCount,
+                          singularItemLabel: 'event in this era',
+                          pluralItemLabel: 'events in this era',
+                        })}
                       </MutedText>
                     ) : null}
                     {group.eventCount >
@@ -1862,11 +1962,14 @@ export function EntriesScreen({
                           expanded={Boolean(
                             expandedTimelineEventGroups[group.era]
                           )}
-                          label={
-                            expandedTimelineEventGroups[group.era]
-                              ? 'Show Fewer Era Events'
-                              : `Show ${group.hiddenEventCount} More Era Events`
-                          }
+                          label={formatExpansionControlLabel({
+                            isExpanded: Boolean(
+                              expandedTimelineEventGroups[group.era]
+                            ),
+                            hiddenCount: group.hiddenEventCount,
+                            pluralItemLabel: 'Era Events',
+                            singularItemLabel: 'Era Event',
+                          })}
                           onPress={() =>
                             setExpandedTimelineEventGroups((current) => ({
                               ...current,
@@ -1888,8 +1991,10 @@ export function EntriesScreen({
                   {timelineBrowse.review.title}
                 </Text>
                 <MutedText>
-                  {timelineBrowse.review.totalIssueCount} review issue
-                  {timelineBrowse.review.totalIssueCount === 1 ? '' : 's'}.
+                  {formatTimelineReviewIssueCount(
+                    timelineBrowse.review.totalIssueCount
+                  )}
+                  .
                 </MutedText>
                 {timelineBrowse.review.reviewSummary.items.map(
                   (summaryItem) => {
@@ -1913,13 +2018,16 @@ export function EntriesScreen({
                             <MutedText>{target.label}</MutedText>
                             <ButtonRow>
                               {target.eventIds.map((eventId) => {
-                                const event = sectionEntryById.get(eventId);
-                                return event ? (
+                                const eventItem =
+                                  timelineEventItemById.get(eventId);
+                                return eventItem ? (
                                   <ActionButton
-                                    accessibilityLabel={`Edit ${event.name}`}
+                                    accessibilityLabel={
+                                      eventItem.openAccessibilityLabel
+                                    }
                                     key={eventId}
-                                    label={`Edit ${event.name}`}
-                                    onPress={() => chooseEntry(event.id)}
+                                    label={eventItem.openLabel}
+                                    onPress={() => chooseEntry(eventItem.id)}
                                   />
                                 ) : null;
                               })}
@@ -1970,13 +2078,14 @@ export function EntriesScreen({
               <Text style={styles.entryTitle}>{item.entryName}</Text>
               <MutedText>{item.fieldLabel}</MutedText>
               <MutedText>
-                Unresolved: {getRelationshipTextReviewUnresolvedLabel(item)}.{' '}
+                {relationshipTextReviewCopy.unresolvedLabel}:{' '}
+                {getRelationshipTextReviewUnresolvedLabel(item)}.{' '}
                 {getRelationshipTextReviewExactMatchLabel(item)}
               </MutedText>
               {item.suggestedTargets.length > 0 ? (
                 <>
                   <MutedText>
-                    Suggestions:{' '}
+                    {relationshipTextReviewCopy.suggestionsLabel}:{' '}
                     {formatLimitedTextList({
                       values: getRelationshipTextReviewSuggestionLabels(item),
                       separator: '; ',
@@ -1987,10 +2096,10 @@ export function EntriesScreen({
                     <ButtonRow key={suggestion.fragment}>
                       {suggestion.targets.map((target) => (
                         <ActionButton
-                          accessibilityLabel={`Link ${suggestion.fragment} to ${target.name}`}
+                          accessibilityLabel={target.accessibilityLabel}
                           disabled={isDraftDirty}
                           key={target.id}
-                          label={`Link ${target.name}`}
+                          label={target.label}
                           onPress={() =>
                             migrateMobileReviewItemSuggestion(
                               item,
@@ -2021,20 +2130,24 @@ export function EntriesScreen({
           ))}
           {hiddenRelationshipTextReviewItemCount > 0 ? (
             <MutedText>
-              {hiddenRelationshipTextReviewItemCount} more legacy text item
-              {hiddenRelationshipTextReviewItemCount === 1 ? '' : 's'}.
+              {formatHiddenCountText({
+                hiddenCount: hiddenRelationshipTextReviewItemCount,
+                singularItemLabel: 'legacy text item',
+                pluralItemLabel: 'legacy text items',
+              })}
             </MutedText>
           ) : null}
           {relationshipTextReviewItems.length >
-          mobileFeatureDisplayLimits.relationshipTextReviewItems ? (
+          relationshipTextReviewDisplayLimits.sectionItems ? (
             <ButtonRow>
               <ActionButton
                 expanded={showAllRelationshipTextReviewItems}
-                label={
-                  showAllRelationshipTextReviewItems
-                    ? 'Show Fewer Legacy Text Items'
-                    : `Show ${hiddenRelationshipTextReviewItemCount} More Legacy Text Items`
-                }
+                label={formatExpansionControlLabel({
+                  isExpanded: showAllRelationshipTextReviewItems,
+                  hiddenCount: hiddenRelationshipTextReviewItemCount,
+                  pluralItemLabel: 'Legacy Text Items',
+                  singularItemLabel: 'Legacy Text Item',
+                })}
                 onPress={() =>
                   setShowAllRelationshipTextReviewItems(
                     (currentValue) => !currentValue
@@ -2049,19 +2162,13 @@ export function EntriesScreen({
       {showIndexMode ? (
         <SectionBlock
           title={
-            routedWorkbenchView
-              ? `Workbench ${routedWorkbenchView.label}`
-              : section.title
+            routedWorkbenchView ? routedWorkbenchView.title : section.title
           }
         >
           {routedWorkbenchView ? (
             routedWorkbenchView.records.length > 0 ? (
               <>
-                <MutedText>
-                  {routedWorkbenchView.count}{' '}
-                  {routedWorkbenchView.count === 1 ? 'record' : 'records'} in
-                  this review queue.
-                </MutedText>
+                <MutedText>{routedWorkbenchView.countLabel}</MutedText>
                 {routedWorkbenchView.records.map((record) => (
                   <View key={record.id} style={styles.entryRow}>
                     <View style={styles.entryText}>
@@ -2074,13 +2181,15 @@ export function EntriesScreen({
                     </View>
                     <ButtonRow>
                       <ActionButton
-                        accessibilityLabel={`Edit ${record.name}`}
-                        label="Edit"
+                        accessibilityLabel={record.editAccessibilityLabel}
+                        label={record.editLabel}
                         onPress={() => chooseWorkbenchRecord(record)}
                       />
                       <ActionButton
-                        accessibilityLabel={`Review context for ${record.name}`}
-                        label="Context"
+                        accessibilityLabel={
+                          record.reviewContextAccessibilityLabel
+                        }
+                        label={record.reviewContextLabel}
                         onPress={() => chooseWorkbenchRecord(record, 'context')}
                       />
                     </ButtonRow>
@@ -2088,17 +2197,18 @@ export function EntriesScreen({
                 ))}
                 {routedWorkbenchHiddenRecordCount > 0 ? (
                   <MutedText>
-                    {routedWorkbenchHiddenRecordCount} more record
-                    {routedWorkbenchHiddenRecordCount === 1 ? '' : 's'}.
+                    {formatHiddenCountText({
+                      hiddenCount: routedWorkbenchHiddenRecordCount,
+                      singularItemLabel: 'record',
+                      pluralItemLabel: 'records',
+                    })}
                   </MutedText>
                 ) : null}
               </>
             ) : (
               <>
-                <MutedText>No records in this review queue.</MutedText>
-                <MutedText>
-                  Open another Workbench view or clear filters.
-                </MutedText>
+                <MutedText>{routedWorkbenchView.emptyTitle}</MutedText>
+                <MutedText>{routedWorkbenchView.emptyDetail}</MutedText>
               </>
             )
           ) : entries.length > 0 ? (
@@ -2115,31 +2225,36 @@ export function EntriesScreen({
                   </View>
                   <ButtonRow>
                     <ActionButton
-                      accessibilityLabel={`Edit ${entry.name}`}
-                      label="Edit"
+                      accessibilityLabel={entry.editAccessibilityLabel}
+                      label={entry.editLabel}
                       testID={`entries.entry.${entry.id}`}
                       onPress={() => chooseEntry(entry.id)}
                     />
                     <ActionButton
-                      accessibilityLabel={`Review context for ${entry.name}`}
-                      label="Context"
+                      accessibilityLabel={entry.reviewContextAccessibilityLabel}
+                      label={entry.reviewContextLabel}
                       testID={`entries.entry.${entry.id}.context`}
                       onPress={() => chooseEntry(entry.id, 'context')}
                     />
                   </ButtonRow>
-                  {section.id === 'timeline' && entries.length > 1 ? (
+                  {section.id === 'timeline' &&
+                  entries.length > 1 &&
+                  entry.moveEarlierAccessibilityLabel &&
+                  entry.moveEarlierLabel &&
+                  entry.moveLaterAccessibilityLabel &&
+                  entry.moveLaterLabel ? (
                     <ButtonRow>
                       <ActionButton
-                        accessibilityLabel={`Move ${entry.name} earlier`}
-                        label="Earlier"
+                        accessibilityLabel={entry.moveEarlierAccessibilityLabel}
+                        label={entry.moveEarlierLabel}
                         disabled={index === 0}
                         onPress={() =>
                           controller.moveTimelineEvent(entry.id, 'earlier')
                         }
                       />
                       <ActionButton
-                        accessibilityLabel={`Move ${entry.name} later`}
-                        label="Later"
+                        accessibilityLabel={entry.moveLaterAccessibilityLabel}
+                        label={entry.moveLaterLabel}
                         disabled={index === entries.length - 1}
                         onPress={() =>
                           controller.moveTimelineEvent(entry.id, 'later')
@@ -2151,19 +2266,23 @@ export function EntriesScreen({
               ))}
               {hiddenEntryCount > 0 ? (
                 <MutedText>
-                  {hiddenEntryCount} more record
-                  {hiddenEntryCount === 1 ? '' : 's'}.
+                  {formatHiddenCountText({
+                    hiddenCount: hiddenEntryCount,
+                    singularItemLabel: 'record',
+                    pluralItemLabel: 'records',
+                  })}
                 </MutedText>
               ) : null}
               {entries.length > mobileFeatureDisplayLimits.entryResults ? (
                 <ButtonRow>
                   <ActionButton
                     expanded={showAllEntryResults}
-                    label={
-                      showAllEntryResults
-                        ? 'Show Fewer Records'
-                        : `Show ${hiddenEntryCount} More Records`
-                    }
+                    label={formatExpansionControlLabel({
+                      isExpanded: showAllEntryResults,
+                      hiddenCount: hiddenEntryCount,
+                      pluralItemLabel: 'Records',
+                      singularItemLabel: 'Record',
+                    })}
                     onPress={() =>
                       setShowAllEntryResults((currentValue) => !currentValue)
                     }
@@ -2175,6 +2294,14 @@ export function EntriesScreen({
             <>
               <MutedText>{entryListEmptyState.title}</MutedText>
               <MutedText>{entryListEmptyState.detail}</MutedText>
+              {entryListEmptyState.showArchivedAction ? (
+                <ButtonRow>
+                  <ActionButton
+                    label={entryListEmptyState.showArchivedActionLabel ?? ''}
+                    onPress={() => setShowArchived(true)}
+                  />
+                </ButtonRow>
+              ) : null}
             </>
           )}
         </SectionBlock>
@@ -2186,24 +2313,29 @@ export function EntriesScreen({
             {section.title} - {selectedEntry.status}
           </MutedText>
           <MutedText>
-            {selectedEntry.summary || 'No summary has been drafted yet.'}
+            {selectedEntry.summary || selectedWorkbenchContext.noSummaryText}
           </MutedText>
           {selectedEntry.tags.length > 0 ? (
-            <MutedText>Tags: {selectedEntry.tags.join(', ')}</MutedText>
+            <MutedText>
+              {entryDisplayCopy.tagsLabel}: {selectedEntry.tags.join(', ')}
+            </MutedText>
           ) : null}
           <MutedText>
-            Relationships: {selectedWorkbenchContext.relationshipCount}.
+            {selectedWorkbenchContext.relationshipsLabel}:{' '}
+            {selectedWorkbenchContext.relationshipCount}.
           </MutedText>
           <MutedText>
-            Completeness:{' '}
+            {selectedWorkbenchContext.completenessLabel}:{' '}
             {selectedWorkbenchContext.completionPercent === null
-              ? 'Complete'
+              ? selectedWorkbenchContext.completeLabel
               : `${selectedWorkbenchContext.completionPercent}%`}
             .
           </MutedText>
           {selectedWorkbenchContext.reviewSummary.hasIssues ? (
             <>
-              <MutedText>Review summary:</MutedText>
+              <MutedText>
+                {selectedWorkbenchContext.reviewSummaryTitle}:
+              </MutedText>
               {selectedWorkbenchContext.reviewSummary.items
                 .filter((item) => item.hasIssues)
                 .map((item) => (
@@ -2215,28 +2347,32 @@ export function EntriesScreen({
           ) : null}
           {selectedWorkbenchContext.incompletePrompts.length > 0 ? (
             <>
-              <MutedText>Drafting prompts:</MutedText>
+              <MutedText>
+                {selectedWorkbenchContext.draftingPromptsTitle}:
+              </MutedText>
               {visibleWorkbenchDraftingPrompts.map((prompt) => (
                 <MutedText key={prompt}>{prompt}</MutedText>
               ))}
               {hiddenWorkbenchDraftingPromptCount > 0 ? (
                 <MutedText>
-                  {hiddenWorkbenchDraftingPromptCount} more drafting{' '}
-                  {hiddenWorkbenchDraftingPromptCount === 1
-                    ? 'prompt'
-                    : 'prompts'}
-                  .
+                  {formatHiddenCountText({
+                    hiddenCount: hiddenWorkbenchDraftingPromptCount,
+                    singularItemLabel: 'drafting prompt',
+                    pluralItemLabel: 'drafting prompts',
+                  })}
                 </MutedText>
               ) : null}
-              {selectedWorkbenchContext.incompletePrompts.length > 3 ? (
+              {selectedWorkbenchContext.incompletePrompts.length >
+              workbenchDisplayLimits.selectedDraftingPrompts ? (
                 <ButtonRow>
                   <ActionButton
                     expanded={showAllWorkbenchDraftingPrompts}
-                    label={
-                      showAllWorkbenchDraftingPrompts
-                        ? 'Show Fewer Drafting Prompts'
-                        : `Show ${hiddenWorkbenchDraftingPromptCount} More Drafting Prompts`
-                    }
+                    label={formatExpansionControlLabel({
+                      isExpanded: showAllWorkbenchDraftingPrompts,
+                      hiddenCount: hiddenWorkbenchDraftingPromptCount,
+                      pluralItemLabel: 'Drafting Prompts',
+                      singularItemLabel: 'Drafting Prompt',
+                    })}
                     onPress={() =>
                       setShowAllWorkbenchDraftingPrompts(
                         (currentValue) => !currentValue
@@ -2249,11 +2385,14 @@ export function EntriesScreen({
           ) : null}
           <ButtonRow>
             <ActionButton
-              label="Edit Record"
+              accessibilityLabel={
+                selectedWorkbenchContext.editRecordAccessibilityLabel
+              }
+              label={selectedWorkbenchContext.editRecordLabel}
               onPress={() => setWorkbenchMode('edit')}
             />
             <ActionButton
-              label="Back to Index"
+              label={selectedWorkbenchContext.backToIndexLabel}
               onPress={() => setWorkbenchMode('index')}
             />
           </ButtonRow>
@@ -2283,8 +2422,10 @@ export function EntriesScreen({
                     relationship.relatedSectionId ? (
                       <ButtonRow>
                         <ActionButton
-                          accessibilityLabel={`Review context for ${relationship.relatedEntryName}`}
-                          label="Review Context"
+                          accessibilityLabel={
+                            relationship.openEntryAccessibilityLabel
+                          }
+                          label={relationship.openEntryLabel}
                           onPress={() =>
                             openRelatedEntryRoute(
                               getMobileRouteHref(
@@ -2315,7 +2456,9 @@ export function EntriesScreen({
           )}
           <ButtonRow>
             <ActionButton
-              accessibilityLabel={`Manage links for ${selectedEntry.name}`}
+              accessibilityLabel={getRelationshipManagementAccessibilityLabel(
+                selectedEntry
+              )}
               label={relationshipFeatureCopy.manageLinksLabel}
               onPress={() =>
                 openExternalRoute(
@@ -2335,18 +2478,14 @@ export function EntriesScreen({
       {showContextMode &&
       !selectedEntry &&
       relationshipTextReviewItems.length === 0 ? (
-        <SectionBlock title="Record context">
-          <MutedText>Select a record from Index to review its links.</MutedText>
+        <SectionBlock title={selectedWorkbenchContext.emptyTitle}>
+          <MutedText>{selectedWorkbenchContext.emptyDetail}</MutedText>
         </SectionBlock>
       ) : null}
 
       {showEditMode ? (
         <SectionBlock
-          title={
-            selectedEntry
-              ? `Edit ${selectedEntry.name}`
-              : getEntryEditorNewTitle(section)
-          }
+          title={getEntryEditorTitle({ section, selectedEntry })}
           titleTestID="entries.editor.title"
         >
           {controller.formMessage ? (
@@ -2389,7 +2528,7 @@ export function EntriesScreen({
                   <MutedText>{notesPreview.emptyText}</MutedText>
                 )}
               </View>
-              {baseFields.slice(3).map((field) => (
+              {baseFieldLayout.trailingFields.map((field) => (
                 <Field
                   autoCapitalize="none"
                   autoCorrect={false}
@@ -2427,37 +2566,9 @@ export function EntriesScreen({
           />
           {timelineEditorModel ? (
             <>
-              {[timelineEditorModel.chronology].map((group) => (
-                <View key={group.id} style={styles.fieldGroup}>
-                  <Text style={styles.fieldGroupTitle}>{group.label}</Text>
-                  {group.fields.map((field) => (
-                    <View key={field.key} style={styles.fieldWithSuggestions}>
-                      <Field
-                        label={field.label}
-                        value={field.value}
-                        multiline={field.multiline}
-                        testID={`entries.timeline.field.${field.key}`}
-                        onChangeText={(value) =>
-                          setDetailValue(field.key, value)
-                        }
-                      />
-                      {field.suggestions.length > 0 ? (
-                        <ButtonRow>
-                          {field.suggestions.map((suggestion) => (
-                            <ActionButton
-                              key={suggestion}
-                              label={suggestion}
-                              onPress={() =>
-                                setDetailValue(field.key, suggestion)
-                              }
-                            />
-                          ))}
-                        </ButtonRow>
-                      ) : null}
-                    </View>
-                  ))}
-                </View>
-              ))}
+              {renderMobileTimelineEditorFieldGroup(
+                timelineEditorModel.chronology
+              )}
               <View style={styles.relationshipGroup}>
                 <Text style={styles.relationshipGroupTitle}>
                   {timelineEditorModel.involvedRecords.title}
@@ -2467,16 +2578,17 @@ export function EntriesScreen({
                 </MutedText>
                 {selectedEntry ? (
                   <MutedText>
-                    Use the relationship-backed controls below to update
-                    involved records.
+                    {timelineEditorModel.involvedRecords.savedEntryMessage}
                   </MutedText>
                 ) : (
                   <>
                     <Field
                       autoCapitalize="none"
                       autoCorrect={false}
-                      label="Search involved records"
-                      placeholder="Character, place, faction, or lore note"
+                      label={timelineEditorModel.involvedRecords.searchLabel}
+                      placeholder={
+                        timelineEditorModel.involvedRecords.searchPlaceholder
+                      }
                       value={timelineEditorInvolvedRecordQuery}
                       onChangeText={(value) => {
                         setTimelineEditorInvolvedRecordQuery(value);
@@ -2502,7 +2614,7 @@ export function EntriesScreen({
                     {timelineEditorModel.involvedRecords.options.length ===
                     0 ? (
                       <MutedText>
-                        No involved records match this search.
+                        {timelineEditorModel.involvedRecords.emptySearchLabel}
                       </MutedText>
                     ) : null}
                     {timelineEditorModel.involvedRecords.display
@@ -2524,35 +2636,37 @@ export function EntriesScreen({
                     ) : null}
                   </>
                 )}
-                {timelineEditorModel.involvedRecords.selectedRecords.length >
-                0 ? (
+                {timelineEditorModel.involvedRecords
+                  .selectedRecordsSummaryLabel ? (
                   <MutedText>
-                    Selected:{' '}
-                    {timelineEditorModel.involvedRecords.selectedRecords
-                      .map((record) => record.name)
-                      .join(', ')}
+                    {
+                      timelineEditorModel.involvedRecords
+                        .selectedRecordsSummaryLabel
+                    }
                   </MutedText>
                 ) : null}
+                {timelineEditorModel.involvedRecords
+                  .duplicateStagedTargetLabel ? (
+                  <StatusText tone="warning">
+                    {
+                      timelineEditorModel.involvedRecords
+                        .duplicateStagedTargetLabel
+                    }
+                  </StatusText>
+                ) : null}
               </View>
-              {[timelineEditorModel.outcomes].map((group) => (
-                <View key={group.id} style={styles.fieldGroup}>
-                  <Text style={styles.fieldGroupTitle}>{group.label}</Text>
-                  {group.fields.map((field) => (
-                    <Field
-                      key={field.key}
-                      label={field.label}
-                      multiline={field.multiline}
-                      testID={`entries.timeline.field.${field.key}`}
-                      value={field.value}
-                      onChangeText={(value) => setDetailValue(field.key, value)}
-                    />
-                  ))}
-                </View>
-              ))}
+              {renderMobileTimelineEditorFieldGroup(
+                timelineEditorModel.outcomes
+              )}
+              {timelineEditorModel.extraDetails
+                ? renderMobileTimelineEditorFieldGroup(
+                    timelineEditorModel.extraDetails
+                  )
+                : null}
               <Field
                 label={entryEditorCopy.notesLabel}
                 multiline
-                placeholder="Markdown-style drafting notes"
+                placeholder={entryEditorFieldCopy.notesPlaceholder}
                 testID="entries.editor.notes"
                 value={draft.notes}
                 onChangeText={(value) =>
@@ -2571,7 +2685,7 @@ export function EntriesScreen({
                   <MutedText>{notesPreview.emptyText}</MutedText>
                 )}
               </View>
-              {baseFields.slice(3).map((field) => (
+              {baseFieldLayout.trailingFields.map((field) => (
                 <Field
                   autoCapitalize="none"
                   autoCorrect={false}
@@ -2604,18 +2718,41 @@ export function EntriesScreen({
                       testID={`entries.field.${field.key}`}
                       onChangeText={(value) => setDetailValue(field.key, value)}
                     />
-                    {field.suggestions.length > 0 ? (
+                    {field.helpText ? (
+                      <Text style={styles.fieldHelpText}>{field.helpText}</Text>
+                    ) : null}
+                    {field.canonicalReplacement ? (
                       <ButtonRow>
-                        {field.suggestions.map((suggestion) => (
+                        <ActionButton
+                          accessibilityLabel={
+                            field.canonicalReplacement.accessibilityLabel
+                          }
+                          label={field.canonicalReplacement.label}
+                          onPress={() => {
+                            const replacement = field.canonicalReplacement;
+                            if (replacement) {
+                              setDetailValue(field.key, replacement.value);
+                            }
+                          }}
+                        />
+                      </ButtonRow>
+                    ) : null}
+                    {field.suggestionActions.length > 0 ? (
+                      <ButtonRow>
+                        {field.suggestionActions.map((suggestion) => (
                           <ActionButton
-                            key={suggestion}
-                            label={suggestion}
+                            accessibilityLabel={suggestion.accessibilityLabel}
+                            key={suggestion.value}
+                            label={suggestion.label}
                             onPress={() =>
-                              setDetailValue(field.key, suggestion)
+                              setDetailValue(field.key, suggestion.value)
                             }
                           />
                         ))}
                       </ButtonRow>
+                    ) : null}
+                    {field.hiddenSuggestionLabel ? (
+                      <MutedText>{field.hiddenSuggestionLabel}</MutedText>
                     ) : null}
                   </View>
                 ))}
@@ -2665,7 +2802,7 @@ export function EntriesScreen({
                           <Field
                             autoCapitalize="none"
                             autoCorrect={false}
-                            label={`Search ${config.label}`}
+                            label={getRelationshipFieldSearchLabel(config)}
                             value={fieldQuery}
                             onChangeText={(value) => {
                               setLinkedFieldQueries((current) => ({
@@ -2899,38 +3036,40 @@ export function EntriesScreen({
           {!timelineEditorModel && canStageRelationshipLinks ? (
             <View style={styles.relationshipGroup}>
               <Text style={styles.relationshipGroupTitle}>
-                Links to create on save
+                {stagedRelationshipDraftCopy.title}
               </Text>
-              <MutedText>
-                Stage relationship links while drafting this entry. They will be
-                saved together when the entry is saved.
-              </MutedText>
+              <MutedText>{stagedRelationshipDraftCopy.detail}</MutedText>
               <SelectField
-                label="Target record"
+                label={stagedRelationshipDraftCopy.targetLabel}
                 options={[
-                  { label: 'Choose record', value: '' },
+                  {
+                    label: stagedRelationshipDraftCopy.targetEmptyLabel,
+                    value: '',
+                  },
                   ...stagedRelationshipTargetOptions,
                 ]}
                 searchable
-                searchPlaceholder="Search records"
+                searchPlaceholder={
+                  stagedRelationshipDraftCopy.targetSearchPlaceholder
+                }
                 value={stagedTargetEntryId}
                 onValueChange={setStagedTargetEntryId}
               />
               <Field
-                label="Relationship type"
+                label={stagedRelationshipDraftCopy.typeLabel}
                 value={stagedRelationshipType}
                 onChangeText={setStagedRelationshipType}
-                placeholder="references, member of, located in"
+                placeholder={stagedRelationshipDraftCopy.typePlaceholder}
               />
               <Field
-                label="Note"
+                label={stagedRelationshipDraftCopy.noteLabel}
                 value={stagedRelationshipNote}
                 multiline
                 onChangeText={setStagedRelationshipNote}
-                placeholder="Why this link matters"
+                placeholder={stagedRelationshipDraftCopy.notePlaceholder}
               />
               <ActionButton
-                label="Stage Link"
+                label={stagedRelationshipDraftCopy.stageLabel}
                 disabled={
                   !stagedTargetEntryId ||
                   !stagedRelationshipType.trim() ||
@@ -2940,27 +3079,29 @@ export function EntriesScreen({
               />
               {isDuplicateStagedRelationship ? (
                 <MutedText>
-                  That staged link is already in the save list.
+                  {stagedRelationshipDraftCopy.duplicateMessage}
                 </MutedText>
               ) : null}
               {stagedRelationships.map((relationship) => {
                 const target = stagedRelationshipTargetById.get(
                   relationship.targetEntryId
                 );
+                const rowModel = getStagedRelationshipDraftRowModel({
+                  relationship,
+                  targetLabel: target?.label,
+                });
                 return (
                   <View key={relationship.stagedId} style={styles.linkedField}>
                     <Text style={styles.relationshipGroupTitle}>
-                      {relationship.type}
+                      {rowModel.kicker}
                     </Text>
-                    <MutedText>
-                      This entry links to{' '}
-                      {target?.label ?? relationship.targetEntryId}.
-                    </MutedText>
-                    {relationship.note ? (
-                      <MutedText>{relationship.note}</MutedText>
+                    <MutedText>{rowModel.detail}</MutedText>
+                    {rowModel.note ? (
+                      <MutedText>{rowModel.note}</MutedText>
                     ) : null}
                     <ActionButton
-                      label="Remove"
+                      accessibilityLabel={rowModel.removeAccessibilityLabel}
+                      label={rowModel.removeLabel}
                       tone="danger"
                       onPress={() =>
                         setStagedRelationships((current) =>
@@ -2981,7 +3122,8 @@ export function EntriesScreen({
               label={getEntryEditorSubmitLabel({
                 section,
                 selectedEntry,
-                stagedRelationshipCount: stagedRelationships.length,
+                stagedRelationshipCount:
+                  normalizeStagedRelationshipDrafts(stagedRelationships).length,
               })}
               testID="entries.editor.save"
               tone="accent"
@@ -3116,6 +3258,11 @@ const styles = StyleSheet.create({
   },
   fieldWithSuggestions: {
     gap: valgaronSpacing.sm,
+  },
+  fieldHelpText: {
+    color: valgaronColors.muted,
+    fontSize: valgaronTypography.sizes.sm,
+    lineHeight: 20,
   },
   fieldGroup: {
     borderTopColor: valgaronColors.border,

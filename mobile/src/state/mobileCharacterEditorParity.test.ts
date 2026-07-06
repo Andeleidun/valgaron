@@ -1,9 +1,13 @@
 import { describe, expect, it } from '@jest/globals';
 import {
+  createEmptyDraft,
   createSeedWorldDocument,
   draftFromEntry,
+  entryEditorDisplayLimits,
   getActiveWorld,
   getEntries,
+  type WorldEntry,
+  type WorldSectionConfig,
 } from '@valgaron/core';
 import { getMobileRouteHref } from '../navigation/mobileRoutes';
 import { getMobileEntryEditorModel } from './mobileEntryEditorModel';
@@ -112,6 +116,57 @@ describe('mobile character editor parity', () => {
     ).toContain('The Cartographers Guild');
     expect(Array.from(affiliationsField?.selectedTargetIds ?? [])).toContain(
       'faction-cartographers-guild'
+    );
+  });
+
+  it('reports hidden suggestion counts for capped mobile editor suggestions', () => {
+    const section: WorldSectionConfig = {
+      id: 'artifacts',
+      kind: 'artifact',
+      title: 'Artifacts',
+      singularTitle: 'Artifact',
+      description: 'Objects with history.',
+      custom: true,
+      detailFields: [
+        {
+          key: 'origin',
+          label: 'Origin',
+          suggestFromExistingValues: true,
+        },
+      ],
+    };
+    const sectionEntries: WorldEntry[] = Array.from(
+      { length: entryEditorDisplayLimits.detailSuggestions + 2 },
+      (_, index) => ({
+        createdAt: '2026-01-01T00:00:00.000Z',
+        fields: { origin: `Origin ${index + 1}` },
+        id: `artifact-${index + 1}`,
+        kind: 'artifact',
+        name: `Artifact ${index + 1}`,
+        notes: '',
+        pinned: false,
+        status: 'draft',
+        summary: '',
+        tags: [],
+        updatedAt: '2026-01-01T00:00:00.000Z',
+      })
+    );
+    const editorModel = getMobileEntryEditorModel({
+      draft: createEmptyDraft(),
+      section,
+      sectionEntries,
+      selectedEntry: null,
+    });
+    const originField = editorModel.detailFieldGroups[0]?.fields.find(
+      (field) => field.key === 'origin'
+    );
+
+    expect(originField?.suggestions).toHaveLength(
+      entryEditorDisplayLimits.detailSuggestions
+    );
+    expect(originField?.hiddenSuggestionCount).toBe(2);
+    expect(originField?.hiddenSuggestionLabel).toBe(
+      '2 more suggestions available. Type to use another value.'
     );
   });
 });

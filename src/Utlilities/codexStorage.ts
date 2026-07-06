@@ -1,16 +1,13 @@
 import {
   createFallbackWorldDocument,
-  getActiveWorld,
   parseWorldDocument,
-  type WorldCodex,
   type WorldDocument,
 } from '@valgaron/core';
 import { browserLocalStorageAdapter } from './storageAdapter';
 
-export const CODEX_STORAGE_KEY = 'valgaron.worldDocument.v2';
-export const LEGACY_CODEX_STORAGE_KEY = 'valgaron.worldCodex.v1';
+export const CODEX_STORAGE_KEY = 'valgaron.worldDocument.v3';
 
-type StoredDocumentSource = 'current' | 'legacy' | 'seed';
+type StoredDocumentSource = 'current' | 'seed';
 
 type StoredValueResult =
   | {
@@ -48,11 +45,6 @@ const storedDocumentKeys: readonly {
     key: CODEX_STORAGE_KEY,
     source: 'current',
     label: 'current saved document',
-  },
-  {
-    key: LEGACY_CODEX_STORAGE_KEY,
-    source: 'legacy',
-    label: 'legacy saved codex',
   },
 ];
 
@@ -96,7 +88,7 @@ export function loadWorldDocumentWithStatus(): WorldDocumentLoadResult {
       const parsedValue: unknown = JSON.parse(storedResult.value);
       const document = parseWorldDocument(parsedValue);
       if (document) {
-        const recovered = issues.length > 0 || storedResult.source === 'legacy';
+        const recovered = issues.length > 0;
         return {
           document,
           status: {
@@ -142,25 +134,4 @@ export function saveWorldDocument(document: WorldDocument): boolean {
 /** Create a fresh seed document; callers save it through the normal save path. */
 export function resetWorldDocumentStorage(): WorldDocument {
   return createFallbackWorldDocument();
-}
-
-export function loadCodex(): WorldCodex {
-  return getActiveWorld(loadWorldDocument()).codex;
-}
-
-export function saveCodex(codex: WorldCodex): boolean {
-  const document = loadWorldDocument();
-  const activeWorld = getActiveWorld(document);
-  return saveWorldDocument({
-    ...document,
-    worlds: document.worlds.map((world) =>
-      world.id === activeWorld.id ? { ...world, codex } : world
-    ),
-    savedAt: new Date().toISOString(),
-  });
-}
-
-/** Create a fresh seed codex for compatibility with the earlier codex helper API. */
-export function resetCodexStorage(): WorldCodex {
-  return getActiveWorld(resetWorldDocumentStorage()).codex;
 }

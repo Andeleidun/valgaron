@@ -18,9 +18,7 @@ import {
 } from '@valgaron/platform';
 
 export const MOBILE_WORLD_DOCUMENT_STORAGE_KEY =
-  'valgaron.mobile.worldDocument.v2';
-export const MOBILE_RECOVERY_SNAPSHOT_STORAGE_KEY =
-  'valgaron.mobile.recoverySnapshot.v1';
+  'valgaron.mobile.worldDocument.v3';
 export const MOBILE_RECOVERY_SNAPSHOTS_STORAGE_KEY =
   'valgaron.mobile.recoverySnapshots.v2';
 const MOBILE_RECOVERY_SNAPSHOT_LIMIT = 8;
@@ -81,7 +79,6 @@ export async function resetMobileE2EWorldDocument(
   const checkedAt = new Date().toISOString();
   await Promise.all([
     saveMobileWorldDocument(storage, document),
-    storage.remove(MOBILE_RECOVERY_SNAPSHOT_STORAGE_KEY),
     storage.remove(MOBILE_RECOVERY_SNAPSHOTS_STORAGE_KEY),
   ]);
   return {
@@ -128,9 +125,6 @@ export async function saveMobileRecoverySnapshot(
     MOBILE_RECOVERY_SNAPSHOTS_STORAGE_KEY,
     nextSnapshots
   );
-  if (didSave) {
-    void storage.remove(MOBILE_RECOVERY_SNAPSHOT_STORAGE_KEY);
-  }
   return didSave;
 }
 
@@ -152,25 +146,13 @@ export async function loadMobileRecoverySnapshots(
   if (loadedSnapshots.ok && loadedSnapshots.value) {
     return loadedSnapshots.value;
   }
-  const loaded = await loadJsonValue(
-    storage,
-    MOBILE_RECOVERY_SNAPSHOT_STORAGE_KEY,
-    parseMobileRecoverySnapshot,
-    'Saved recovery snapshot is not a valid Valgaron document.'
-  );
-  return loaded.ok && loaded.value ? [loaded.value] : [];
+  return [];
 }
 
 export async function deleteMobileRecoverySnapshot(
   storage: AsyncStringStorageAdapter
 ): Promise<boolean> {
-  const didDeleteList = await storage.remove(
-    MOBILE_RECOVERY_SNAPSHOTS_STORAGE_KEY
-  );
-  const didDeleteLegacy = await storage.remove(
-    MOBILE_RECOVERY_SNAPSHOT_STORAGE_KEY
-  );
-  return didDeleteList && didDeleteLegacy;
+  return storage.remove(MOBILE_RECOVERY_SNAPSHOTS_STORAGE_KEY);
 }
 
 export async function deleteMobileRecoverySnapshotById(
@@ -252,10 +234,7 @@ function parseMobileRecoverySnapshots(
 function normalizeMobileRecoverySnapshotReason(
   value: string
 ): MobileRecoverySnapshotReason | null {
-  if (isRecoverySnapshotReason(value)) {
-    return value;
-  }
-  return value === 'entry-delete' ? 'permanent-delete' : null;
+  return isRecoverySnapshotReason(value) ? value : null;
 }
 
 function createMobileSnapshotId(

@@ -41,13 +41,15 @@ Valgaron World Codex is a local-first tool for drafting and organizing fiction o
 - Runtime recovery screens with retry and Data access when a web or mobile render failure is caught.
 - Local diagnostics export on the Data route or tab with app version, schema version, storage target, recovery state, platform runtime context, and document counts without world content by default.
 - Neutral starter sample data.
-- Manual browser `localStorage` persistence under `valgaron.worldDocument.v2`, with migration support for the earlier `valgaron.worldCodex.v1` shape.
+- Manual browser `localStorage` persistence under `valgaron.worldDocument.v3`.
 - Versioned multi-workspace document storage with active project/universe workspace switching in the UI.
 - Separate in-fiction world/planet records inside each project/universe workspace.
-- Knowledge setup for custom entry type creation, custom field hints such as
-  multiline fields and suggested choices, controlled values, lore definition
-  types, relationship-backed field rules, observed flexible-value review,
-  hidden detail cleanup review, and recovery-snapshotted hidden detail clearing.
+- Knowledge setup for custom entry type creation, field configuration for
+  labels, help text, visibility, order, vocabulary attachment, and
+  suggested/restricted vocabulary behavior, searchable field settings, durable
+  vocabulary value editing/search with aliases, lore definition types,
+  relationship-backed field rules, hidden detail cleanup review, and
+  recovery-snapshotted hidden detail clearing.
 - Utilities and mobile More Project Tools include Review Hotspots that route to
   existing Workbench, Timeline, Relationship Studio, and Knowledge cleanup
   surfaces without adding a durable triage queue. Workbench review hotspots use
@@ -113,7 +115,7 @@ Pages** will publish the site.
 
 ## Local Data
 
-The app loads neutral starter data when no saved world document exists or when saved data cannot be parsed as a known document shape. Legacy codex data is migrated into the current versioned world document shape. When saved data is unreadable or invalid, the Data route shows the recovery status and local storage issues instead of silently hiding the fallback. Web edits remain in the current browser session until the header Save button writes them to localStorage; mobile edits save to the installed app's local storage area through the Expo app. Local data remains in the current browser profile or mobile app storage area unless exported by the user.
+The app loads neutral starter data when no saved world document exists or when saved data cannot be parsed as the current document shape. The runtime reads only the current `valgaron.worldDocument.v3` storage key; unreadable or invalid current data is reported in the Data route instead of silently hiding the fallback. Web edits remain in the current browser session until the header Save button writes them to localStorage; mobile edits save to the installed app's local storage area through the Expo app. Local data remains in the current browser profile or mobile app storage area unless exported by the user.
 
 Deleting an entry also removes relationships attached to that entry so local graph views do not keep broken links. Archiving an entry keeps it addressable by existing relationships. Active-workspace JSON export produces a focused backup for the current project/universe workspace. Full-document JSON export produces a backup containing every local workspace, in-fiction world/planet record, custom entry type, entry, and relationship. Both JSON backup shapes include export metadata and can be pasted back into the import preview.
 
@@ -130,7 +132,7 @@ Diagnostics are local-only JSON reports for debugging storage or rendering failu
 - `docs/deployment/static-hosting.md` explains GitHub Pages and PWA deployment behavior.
 - `docs/versioning.md` defines release, schema, and dependency update expectations.
 - `docs/release/versioning-and-maintenance.md` is the release operations playbook.
-- `docs/release/schema-migrations.md` records current and legacy saved-document schema expectations.
+- `docs/release/schema-migrations.md` records current saved-document schema expectations.
 - `docs/qa/manual-release-checklist.md` and `docs/qa/runtime-recovery.md` cover manual release and recovery checks.
 - `docs/qa/mobile-maestro.md` covers local Android Maestro E2E setup and runs.
 - `PLACE_RELATIONSHIP_TREE.md` explains the place logical tree and relationship-backed place fields.

@@ -5,6 +5,7 @@ export type DestructiveActionId =
   | 'delete-planetary-world'
   | 'delete-entry-type'
   | 'remove-entry-type-field'
+  | 'clear-hidden-entry-detail'
   | 'clear-hidden-entry-details'
   | 'reset-document'
   | 'import-document'
@@ -16,6 +17,12 @@ export type DestructiveActionCopy = {
   message: string;
   confirmLabel: string;
 };
+
+export const destructiveActionDialogCopy = {
+  cancelLabel: 'Cancel',
+  destructiveActionKickerLabel: 'Destructive action',
+  permanentDeleteKickerLabel: 'Permanent delete',
+} as const;
 
 export const destructiveActionCopy: Record<
   DestructiveActionId,
@@ -57,11 +64,17 @@ export const destructiveActionCopy: Record<
       'Remove this field from the custom type? Existing entry values stay saved as hidden details for review and cleanup.',
     confirmLabel: 'Remove Field',
   },
+  'clear-hidden-entry-detail': {
+    title: 'Clear Hidden Detail',
+    message:
+      'Clear this hidden detail value from the entry and save a recovery snapshot first?',
+    confirmLabel: 'Clear Detail',
+  },
   'clear-hidden-entry-details': {
-    title: 'Clear Hidden Details',
+    title: 'Clear All Hidden Details',
     message:
       'Clear all hidden detail values from entries in the current workspace and save a recovery snapshot first?',
-    confirmLabel: 'Clear Hidden Details',
+    confirmLabel: 'Clear All Hidden Details',
   },
   'reset-document': {
     title: 'Reset Codex',
@@ -110,15 +123,17 @@ export function formatDestructiveActionTitle(
     case 'delete-entry-type':
     case 'delete-snapshot':
       return `Delete ${subjectName}?`;
+    case 'restore-snapshot':
+      return `Restore ${subjectName}?`;
     case 'remove-entry-type-field':
       return `Remove ${subjectName}?`;
+    case 'clear-hidden-entry-detail':
+      return `Clear ${subjectName}?`;
     case 'clear-hidden-entry-details':
       return 'Clear hidden detail values?';
     case 'reset-document':
       return 'Reset this local workspace?';
     case 'import-document':
       return 'Import this backup?';
-    case 'restore-snapshot':
-      return 'Restore this recovery snapshot?';
   }
 }

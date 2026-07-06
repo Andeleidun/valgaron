@@ -71,12 +71,15 @@ export type DataRecoverySnapshotRow = {
   reasonTitle: string;
   reasonPhrase: string;
   activeWorldName: string;
+  confirmationSubject: string;
   countSummary: string;
   createdAtText: string;
   mobileSummaryText: string;
   restoreLabel: string;
+  restoreAccessibilityLabel: string;
   restoreAccessibilityHint: string;
   deleteLabel: string;
+  deleteAccessibilityLabel: string;
   deleteAccessibilityHint: string;
   latestPrefix: string;
 };
@@ -162,6 +165,26 @@ export const dataShellExportActions: readonly DataShellExportAction[] =
     };
   });
 
+export const dataShellMenuCopy = {
+  triggerLabel: 'Data Menu',
+  menuAccessibilityLabel: 'Data actions',
+  importJsonBackupLabel: 'Import JSON Backup',
+  downloadUnavailableMessage:
+    'Download is unavailable in this runtime; open Data for copyable exports.',
+} as const;
+
+export function formatDataShellDownloadResultMessage({
+  didDownload,
+  successLabel,
+}: {
+  didDownload: boolean;
+  successLabel: string;
+}): string {
+  return didDownload
+    ? `${successLabel} downloaded.`
+    : dataShellMenuCopy.downloadUnavailableMessage;
+}
+
 export const dataRecoverySnapshotCopy = {
   title: 'Recovery snapshots',
   description:
@@ -235,7 +258,19 @@ export const dataImportCopy = {
     'The pasted import text will be cleared from this screen.',
   clearAfterReplacementMessage:
     'The pasted import text will be cleared after this document replacement.',
+  fileUnavailableMessage:
+    'File import is unavailable in this runtime; paste the JSON backup instead.',
 } as const;
+
+export function formatDataImportFileLoadedMessage(filename: string): string {
+  return `Loaded ${filename}. Review the preview before importing.`;
+}
+
+export function formatDataImportFileReadFailedMessage(
+  filename: string
+): string {
+  return `Could not read ${filename}. Paste the JSON backup instead.`;
+}
 
 export const dataExportCopy = {
   title: 'Export',
@@ -268,6 +303,7 @@ export function formatDataDownloadSuccessMessage(filename: string): string {
 export const dataStorageCopy = {
   kicker: 'Storage status',
   title: 'Manual local save',
+  manualSaveLineLabel: 'Manual save',
   manualSaveGuidance:
     'Edits stay in this session until you use the header Save button. Export JSON backups before clearing browser data, switching browsers, using private browsing, uninstalling the mobile app, or changing devices.',
   mobileCurrentWorkspaceLabel: 'Current workspace',
@@ -421,6 +457,8 @@ export function getDataRecoverySnapshotModel(
     .sort(compareRecoverySnapshotsByCreatedAtDescending)
     .map((snapshot, index) => {
       const reasonPhrase = getRecoverySnapshotReasonPhrase(snapshot.reason);
+      const reasonTitle = getRecoverySnapshotReasonTitle(snapshot.reason);
+      const confirmationSubject = `${reasonTitle} for ${snapshot.activeWorldName}`;
       const countSummary = `${snapshot.worldCount} world${
         snapshot.worldCount === 1 ? '' : 's'
       }, ${snapshot.entryCount} entries, ${
@@ -429,16 +467,19 @@ export function getDataRecoverySnapshotModel(
       const createdAtText = formatUpdatedAt(snapshot.createdAt);
       return {
         id: snapshot.id,
-        reasonTitle: getRecoverySnapshotReasonTitle(snapshot.reason),
+        reasonTitle,
         reasonPhrase,
         activeWorldName: snapshot.activeWorldName,
+        confirmationSubject,
         countSummary,
         createdAtText,
         mobileSummaryText: `Recovery snapshot ${reasonPhrase}: ${snapshot.activeWorldName}, ${snapshot.entryCount} entries, ${snapshot.relationshipCount} relationships, saved ${createdAtText}.`,
         restoreLabel: dataRecoverySnapshotCopy.restoreLabel,
+        restoreAccessibilityLabel: `Restore ${confirmationSubject}`,
         restoreAccessibilityHint:
           dataRecoverySnapshotCopy.restoreAccessibilityHint,
         deleteLabel: dataRecoverySnapshotCopy.deleteLabel,
+        deleteAccessibilityLabel: `Delete ${confirmationSubject}`,
         deleteAccessibilityHint:
           dataRecoverySnapshotCopy.deleteAccessibilityHint,
         latestPrefix: index === 0 ? 'Latest: ' : 'Older: ',

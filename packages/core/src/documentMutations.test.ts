@@ -11,6 +11,7 @@ import {
   archiveEntryInActiveWorkspace,
   archivePlanetaryWorldInActiveWorkspace,
   createEntryTypeInActiveWorkspace,
+  clearHiddenEntryDetailInActiveWorkspace,
   clearHiddenEntryDetailsInActiveWorkspace,
   deleteEntryFromActiveWorkspace,
   deleteEntryTypeFromActiveWorkspace,
@@ -386,6 +387,81 @@ describe('document mutation commands', () => {
     });
     expect(cleanedArtifact.updatedAt).toBe(updatedAt);
     expect(getActiveWorld(cleaned).updatedAt).toBe(updatedAt);
+  });
+
+  it('clears one hidden entry detail without changing other custom fields', () => {
+    const created = createEntryTypeInActiveWorkspace({
+      document: createSeedWorldDocument(),
+      draft: {
+        title: 'Artifacts',
+        singularTitle: 'Artifact',
+        description: 'Objects with worldbuilding importance.',
+        fields: 'Origin, Power, Cost',
+      },
+    });
+    const artifactSection = getActiveWorld(created).entryTypes.find(
+      (section) => section.id === 'artifacts'
+    );
+    if (!artifactSection) {
+      throw new Error('Expected artifacts section.');
+    }
+    const artifact = entryFromDraft(artifactSection, {
+      name: 'Glass Key',
+      summary: 'A key made of dawn glass.',
+      notes: '',
+      tags: 'artifact',
+      status: 'draft',
+      pinned: false,
+      details: {
+        origin: 'Glassroot Forest',
+        power: 'Opens dawn doors',
+        cost: 'One true name',
+      },
+    });
+    const withEntry = updateActiveWorkspace(created, (workspace) => ({
+      ...workspace,
+      codex: applyEntry(workspace.codex, artifact, workspace.entryTypes),
+    }));
+    const withRemovedFields = ['power', 'cost'].reduce(
+      (currentDocument, fieldKey) =>
+        removeEntryTypeFieldInActiveWorkspace({
+          document: currentDocument,
+          fieldKey,
+          sectionId: 'artifacts',
+        }),
+      withEntry
+    );
+
+    const cleaned = clearHiddenEntryDetailInActiveWorkspace({
+      document: withRemovedFields,
+      entryId: artifact.id,
+      fieldKey: 'power',
+      sectionId: 'artifacts',
+      updatedAt,
+    });
+    const cleanedArtifact = getActiveWorld(cleaned).codex.artifacts[0];
+
+    expect(cleanedArtifact.fields).toEqual({
+      origin: 'Glassroot Forest',
+      cost: 'One true name',
+    });
+    expect(cleanedArtifact.updatedAt).toBe(updatedAt);
+    expect(getActiveWorld(cleaned).updatedAt).toBe(updatedAt);
+  });
+
+  it('does not clear active fields through hidden-detail cleanup', () => {
+    const document = createSeedWorldDocument();
+    const character = getActiveWorld(document).codex.characters[0];
+
+    const unchanged = clearHiddenEntryDetailInActiveWorkspace({
+      document,
+      entryId: character.id,
+      fieldKey: 'ancestry',
+      sectionId: 'characters',
+      updatedAt,
+    });
+
+    expect(unchanged).toBe(document);
   });
 
   it('reassigns timeline eras in the active workspace', () => {

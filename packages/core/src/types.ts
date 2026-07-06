@@ -65,6 +65,49 @@ export type WorldDetailField = {
   suggestFromExistingValues?: boolean;
 };
 
+export type WorldVocabularyValueStatus = 'active' | 'archived';
+
+export type WorldVocabularyValue = {
+  id: string;
+  label: string;
+  description: string;
+  aliases: string[];
+  status: WorldVocabularyValueStatus;
+  order?: number;
+};
+
+export type WorldVocabulary = {
+  id: string;
+  name: string;
+  description: string;
+  values: WorldVocabularyValue[];
+};
+
+export type WorldVocabularyMode = 'suggestions' | 'restricted';
+
+export type WorldFieldOverride = {
+  label?: string;
+  helpText?: string;
+  hidden?: boolean;
+  order?: number;
+  vocabularyId?: string;
+  vocabularyMode?: WorldVocabularyMode;
+};
+
+export type WorldVocabularyIgnoredCandidate = {
+  vocabularyId: string;
+  value: string;
+};
+
+export type WorldWorkspaceSchema = {
+  vocabularies: WorldVocabulary[];
+  fieldOverrides: Record<
+    WorldSectionId,
+    Record<WorldDetailFieldKey, WorldFieldOverride>
+  >;
+  ignoredVocabularyCandidates: WorldVocabularyIgnoredCandidate[];
+};
+
 export type WorldSectionConfig = {
   id: WorldSectionId;
   kind: WorldEntryKind;
@@ -109,6 +152,7 @@ export type WorldWorkspace = {
   status: WorldWorkspaceStatus;
   planetaryWorlds: InFictionWorld[];
   entryTypes: WorldSectionConfig[];
+  schema: WorldWorkspaceSchema;
   codex: WorldCodex;
   relationships: WorldRelationship[];
   createdAt: string;
@@ -116,7 +160,7 @@ export type WorldWorkspace = {
 };
 
 export type WorldDocument = {
-  schemaVersion: 2;
+  schemaVersion: 3;
   activeWorldId: string;
   worlds: WorldWorkspace[];
   savedAt: string;
