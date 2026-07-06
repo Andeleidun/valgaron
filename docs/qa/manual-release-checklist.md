@@ -42,7 +42,7 @@ Check these routes at phone, tablet, and desktop widths:
 - Relationships;
 - Knowledge;
 - Utilities;
-- Characters;
+- Workbench filtered to Characters;
 - Data;
 - Workspaces;
 - Help.

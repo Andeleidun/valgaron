@@ -23,9 +23,14 @@ Schema `3` or later should be reserved for product decisions that require new
 durable document data, such as workspace-owned editable vocabularies or built-in
 field definitions that no longer fit the current field metadata.
 
+Schema `3` is approved as the next durable schema/vocabulary editing track, but
+schema `2` remains current until the implementation updates the document model,
+storage key, import/export behavior, diagnostics, tests, and release notes.
+
 Schema changes must include:
 
-1. parser or migration behavior for existing saved documents when feasible;
+1. parser or migration behavior for existing saved documents when required by
+   the product decision;
 2. focused tests for the new and previous supported schema shape;
 3. import/export verification;
 4. release notes that explain user impact;

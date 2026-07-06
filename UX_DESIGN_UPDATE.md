@@ -29,7 +29,8 @@ taxonomy-generated fields, relationship diagnostics, and focused tests.
 The safest path is an incremental migration:
 
 - Add shared core view models first.
-- Keep current routes working as compatibility routes.
+- Replace obsolete section-heavy routes with canonical workflow routes because
+  there are no live users or live data to preserve.
 - Build new web/mobile surfaces behind the same route intents.
 - Move behavior gradually from page-specific components to shared model helpers.
 - Only add document schema migrations when user-defined fields require durable
@@ -183,6 +184,449 @@ Accepted decision:
 Why this matters:
 
 This is a cross-platform IA change, not a cosmetic refactor.
+
+## Current Decision Gate Review
+
+Date: 2026-07-06
+
+Gate 1: Product surface agreement
+
+- Decision: keep the workflow surface model.
+- Browser remains Workbench, Timeline, Relationships, Knowledge, and Utilities.
+- Mobile remains Workbench, Timeline, Links, and More.
+- Outcome: no new page family is needed.
+
+Gate 2: First release scope
+
+- Decision: start durable schema and vocabulary editing next.
+- The Workbench, relationship-backed fields, Timeline, Relationship Studio,
+  Knowledge, Utilities, Help, and Data baseline is complete enough to support
+  the next schema-owned workflow.
+- Outcome: the next implementation work should begin with schema/vocabulary
+  product modeling instead of additional broad IA consolidation.
+
+Gate 3: Unsaved link strategy
+
+- Decision: keep staged local draft graph behavior.
+- Outcome: no auto-created shell records should be introduced.
+
+Gate 4: Mobile navigation shape
+
+- Decision: keep four tabs.
+- Knowledge remains inside More until schema editing becomes a high-frequency
+  workflow.
+- Outcome: do not add a fifth mobile tab now.
+
+Gate 5: Schema MVP boundary
+
+- Decision: introduce schema `3` for durable schema and vocabulary settings.
+- Schema `2` remains the current runtime shape until the implementation slice
+  starts, but the next durable schema work is approved to create a cleaner
+  document model for workspace-owned vocabularies, built-in field overrides,
+  and reusable field definitions.
+- Outcome: schema `3` should be designed before implementation touches storage,
+  import/export, or Knowledge editing UI.
+
+Gate 6: Compatibility and migration policy
+
+- Decision: keep the clean-break policy.
+- There are no live users and no live data to protect, so direct
+  Characters/Places/Factions/Lore browser routes should not be preserved as
+  compatibility surfaces.
+- Outcome: canonical record workflows stay on `/entries?sectionId=...`; future
+  schema changes may use clean-break storage/import behavior unless a later
+  product decision introduces real compatibility requirements.
+
+Gate 7: Acceptance evidence
+
+- Decision: keep the existing evidence bar.
+- Current route/navigation changes require format, typecheck, ESLint, Jest,
+  Vite build, browser smoke, and route-intent/mobile-route coverage when
+  affected.
+- Outcome: no weaker evidence gate is accepted for cross-platform IA changes.
+
+Future Gate 8: Durable schema evolution
+
+- Decision: approved as the next product scope.
+- Strategy: use schema `3`, a clean break, workspace-owned vocabularies, scoped
+  built-in field configuration, Vocabulary Manager first, and focused mobile
+  vocabulary editing.
+
+Future Gate 9: Cross-surface triage queue
+
+- Decision: not approved now.
+- Trigger: approve only when users need assignment, dismissal, severity
+  ordering, progress tracking, or a single queue spanning Workbench, Timeline,
+  Relationship Studio, and Knowledge cleanup.
+
+Future Gate 10: Further Utilities consolidation
+
+- Decision: not approved now.
+- Trigger: approve only after observed navigation friction shows Project Tools
+  is not sufficient.
+
+## Durable Schema And Vocabulary Decisions
+
+Date: 2026-07-06
+
+Gate 5: Schema version strategy
+
+- Accepted option: introduce schema `3` for durable schema/vocabulary settings.
+- Rationale: the selected next scope is durable schema editing, not just
+  review-only Knowledge. A new schema gives the document an explicit home for
+  workspace-owned vocabularies, built-in field overrides, and reusable field
+  definitions instead of overloading existing v2 structures.
+- Consequences: storage, import/export, diagnostics, fixtures, tests, and
+  release docs must be updated as part of the schema implementation slice.
+
+Gate 6: Schema compatibility policy
+
+- Accepted option: clean break.
+- Rationale: there are no live users and no live data, so schema `3` does not
+  need to preserve v2 import compatibility as a product requirement.
+- Consequences: implementation can replace the current document shape and
+  storage key directly, while tests should focus on the active schema and
+  invalid/unreadable fallback behavior.
+
+Gate 7: Vocabulary ownership
+
+- Accepted option: workspace-owned vocabularies.
+- Rationale: ancestry, profession, place categories, lore categories, faction
+  types, and similar values are world-specific. They should travel with the
+  exported workspace/document instead of living in app-global settings.
+- Consequences: vocabulary data belongs in the world document, is included in
+  JSON export/import, and should be surfaced from Knowledge/More.
+
+Gate 8: Built-in field edit scope
+
+- Accepted option: allow label, help text, visibility, order, and vocabulary
+  edits for built-in fields.
+- Rationale: this gives users meaningful schema control without allowing full
+  deletion or type mutation of core fields that existing editors depend on.
+- Consequences: the first schema design needs field override records, stable
+  field ids, hidden-field behavior, and clear hidden-value cleanup paths.
+
+Gate 9: First implementation slice
+
+- Accepted option: Vocabulary Manager first.
+- Rationale: durable vocabularies immediately improve ancestry, profession,
+  categories, lore definition types, and other repeated worldbuilding values.
+  Field-configuration UI can build on the same schema foundation after the
+  vocabulary model is stable.
+- Consequences: the next slice should model vocabulary collections, wire them
+  into Knowledge, use them in editors/autocomplete, and cover export/import.
+
+Gate 10: Mobile schema editing scope
+
+- Accepted option: focused mobile vocabulary editing, with deeper field
+  configuration web-first.
+- Rationale: mobile users should be able to add and maintain common values such
+  as ancestry or profession, but dense field configuration is better handled on
+  the browser first.
+- Consequences: mobile More should support vocabulary list/value management,
+  while built-in field order/visibility/help editing can initially be browser
+  Knowledge only.
+
+Gate 11: Vocabulary collection shape
+
+- Accepted option: one flat workspace vocabulary registry.
+- Rationale: reusable vocabularies such as ancestry, profession, place type,
+  lore category, faction type, culture, material, or language should be defined
+  once per workspace and attached to fields by id.
+- Consequences: schema `3` needs vocabulary collection records and field-to-
+  vocabulary mappings rather than nesting all values directly under fields.
+
+Gate 12: Vocabulary value metadata
+
+- Accepted option: label, description, aliases, status, and sort order.
+- Rationale: durable values need enough metadata to support lightweight
+  definitions, alternate search terms, cleanup/archive behavior, and stable
+  manual ordering without turning every vocabulary value into a full codex
+  record.
+- Consequences: Vocabulary Manager must support editing at least labels and
+  should make description, aliases, archive status, and ordering available in
+  the first durable model.
+
+Gate 13: Built-in field override storage
+
+- Accepted option: sparse overrides by stable field key per entry type.
+- Rationale: built-in fields should keep runtime defaults while schema `3`
+  stores only intentional changes such as label, help text, visibility, order,
+  and vocabulary attachment.
+- Consequences: editor models must merge built-in defaults with workspace
+  overrides at runtime, and tests must cover sparse override behavior.
+
+Gate 14: Hidden built-in fields
+
+- Accepted option: hide from editor only; keep saved values and expose cleanup
+  in Knowledge.
+- Rationale: hiding a field is an authoring-layout choice, not a destructive
+  data cleanup action.
+- Consequences: hidden built-in values should remain in exported data and should
+  appear in hidden-detail cleanup until explicitly cleared.
+
+Gate 15: First Vocabulary Manager UI
+
+- Accepted option: Knowledge page Vocabulary Manager first.
+- Rationale: Knowledge already owns schema understanding, vocabulary review,
+  lore definition overview, and hidden-detail cleanup. A separate Settings page
+  would add navigation surface area, while inline editor vocabulary management
+  would clutter drafting.
+- Consequences: the first schema `3` UI slice should add a Knowledge-managed
+  vocabulary list with value add/edit/archive/reorder and field usage context.
+
+Gate 16: Mobile vocabulary editing
+
+- Accepted option: mobile More supports add/edit/archive vocabulary values,
+  descriptions, aliases, and ordering.
+- Rationale: mobile should support focused vocabulary maintenance while leaving
+  deeper built-in field configuration web-first.
+- Consequences: More needs a compact vocabulary editor with value metadata and
+  ordering controls, but not the full browser field-configuration interface.
+
+Gate 17: Seed vocabularies
+
+- Accepted option: seed editable default vocabularies for built-in fields.
+- Rationale: first-use schema editing should not start from empty setup screens.
+  Neutral defaults for character ancestry, profession, place category, faction
+  type, lore category, and similar fields give users immediate examples while
+  remaining fully editable.
+- Consequences: seed data must distinguish editable vocabulary defaults from
+  hardcoded application constraints.
+
+Gate 18: Observed values conversion
+
+- Accepted option: show observed values as review candidates the user can
+  accept into durable vocabularies.
+- Rationale: existing entry values are useful signals, but automatically
+  promoting them can preserve typos or one-off draft wording as durable schema.
+- Consequences: Vocabulary Manager should include review candidate actions
+  rather than silently mutating vocabularies during schema creation.
+
+Gate 19: Vocabulary enforcement in editors
+
+- Accepted option: per-field toggle for suggestion-only or restricted
+  vocabulary behavior, with every field defaulting to suggestion-only.
+- Rationale: creative drafting should stay fluid by default, while specific
+  fields can become controlled when a world needs stricter consistency.
+- Consequences: field overrides need an enforcement mode, editor validation
+  must respect restricted fields, and tests should cover both modes.
+
+Gate 20: Alias behavior
+
+- Accepted option: aliases are search and match helpers only.
+- Rationale: aliases should improve findability without changing saved entry
+  values unexpectedly.
+- Consequences: alias matching can inform search, suggestions, and future
+  cleanup prompts, but saving a field should not auto-normalize to a canonical
+  label in the first schema `3` slice.
+
+Gate 21: Vocabulary value status
+
+- Accepted option: active and archived only.
+- Rationale: the first durable vocabulary model needs a lightweight way to
+  remove values from suggestions without adding a separate review status
+  workflow.
+- Consequences: archived vocabulary values remain in historical entry values
+  and exports, but should be hidden from default suggestions and available in
+  management views.
+
+Gate 22: Field configuration first scope
+
+- Accepted option: browser-only field configuration for vocabulary attachment
+  and visibility.
+- Rationale: attaching vocabularies and hiding fields are the first structural
+  controls needed to make the Vocabulary Manager useful. Label, help text, and
+  ordering can follow once the attachment model is proven.
+- Consequences: the first browser field configuration slice should avoid the
+  full accepted override surface and focus on vocabulary selection plus
+  visibility, with mobile remaining vocabulary-focused.
+
+Gate 23: Schema `3` storage key
+
+- Accepted option: use a new `valgaron.worldDocument.v3` storage key.
+- Rationale: the schema `3` track is an intentional clean break, so the storage
+  key should make stale local data and current runtime shape unambiguous.
+- Consequences: old local v2 data will not load automatically as the active
+  document. Recovery behavior must explain unsupported or unreadable storage
+  rather than silently hiding it.
+
+Gate 24: Schema `3` implementation order
+
+- Accepted option: core schema first, then browser Knowledge, then mobile More,
+  then editor integration.
+- Rationale: schema, import/export, diagnostics, and fixtures are the source of
+  truth. UI work should consume that model instead of inventing temporary
+  screen-local schema state.
+- Consequences: implementation should begin in `@valgaron/core` with typed
+  models and tests before changing browser or mobile screens.
+
+Gate 25: Editor integration timing
+
+- Accepted option: persist Vocabulary Manager first; editor suggestions come in
+  the second implementation slice.
+- Rationale: the durable vocabulary model needs to be stable before every entry
+  editor starts consuming it.
+- Consequences: the first schema `3` slice may be more Knowledge/Data focused
+  than drafting focused; editor autocomplete and restriction behavior follow
+  after persistence and management are proven.
+
+Gate 26: Restricted vocabulary validation timing
+
+- Accepted option: implement restricted validation in the same slice as editor
+  vocabulary suggestions.
+- Rationale: storing an enforcement mode without honoring it creates a
+  misleading schema control.
+- Consequences: restricted validation should wait until editor suggestions land,
+  then include user-facing validation copy, save blocking, and tests.
+
+Gate 27: Release evidence for schema `3`
+
+- Accepted option: require the full release evidence bar before considering
+  schema `3` complete.
+- Rationale: schema changes affect storage, import/export, diagnostics, web,
+  mobile, and PWA behavior.
+- Consequences: completion requires `npm run check:release`, mobile typecheck
+  and tests, browser smoke, and focused schema/import/export coverage.
+
+Gate 28: Rollback and recovery UX
+
+- Accepted option: unreadable or wrong-schema local data should show recovery
+  state and starter data with Data route guidance.
+- Rationale: clean break should not mean silent data loss or a blocked app.
+- Consequences: schema `3` storage failures and unsupported old storage should
+  remain visible in recovery diagnostics, with clear export/import/reset
+  guidance where applicable.
+
+Gate 29: Vocabulary id strategy
+
+- Accepted option: stable generated ids from the initial label slug plus a
+  collision suffix.
+- Rationale: exported schema should remain readable, while label renames should
+  not break field attachments or entry references.
+- Consequences: id generation must happen once when the vocabulary or value is
+  created; renaming the label must not rename the id.
+
+Gate 30: Vocabulary attachment defaults
+
+- Accepted option: attach seeded vocabularies automatically to matching built-in
+  fields.
+- Rationale: schema `3` should improve first-use behavior immediately, not seed
+  vocabulary collections that users must manually wire before they matter.
+- Consequences: seed document creation must include default field override
+  attachments for supported built-in fields.
+
+Gate 31: Initial seed vocabulary scope
+
+- Accepted option: include Characters, Places, Factions, Lore, and Timeline.
+- Rationale: Timeline has become a primary workflow, so event authoring should
+  benefit from durable vocabulary structure alongside the other world records.
+- Consequences: the schema `3` seed model should define initial vocabulary
+  collections and field attachments for all five built-in record families.
+
+Gate 32: Duplicate vocabulary value labels
+
+- Accepted option: prevent duplicate active labels within the same vocabulary.
+- Rationale: duplicate active labels make suggestions, restricted validation,
+  and cleanup ambiguous.
+- Consequences: add/edit validation should compare normalized labels among
+  active values in the same vocabulary.
+
+Gate 33: Archived value reuse
+
+- Accepted option: re-adding an archived label restores the archived value.
+- Rationale: this avoids duplicate ids for the same conceptual value while
+  keeping archive reversible.
+- Consequences: add-value flows should detect archived label matches and offer
+  or perform restore instead of creating a new value.
+
+Gate 34: Sort order
+
+- Accepted option: manual order first, alphabetical fallback.
+- Rationale: creators often want curated value order that differs from
+  alphabetical order, while fallback sorting keeps imported or unranked values
+  predictable.
+- Consequences: vocabulary values need an optional order field and UI controls
+  for reordering.
+
+Gate 35: Observed candidate source
+
+- Accepted option: generate observed candidates from current workspace entries
+  only.
+- Rationale: workspace-owned vocabularies should reflect the active creative
+  project instead of pulling unrelated values from other projects.
+- Consequences: Knowledge candidate generation should use the active workspace,
+  not the whole document.
+
+Gate 36: Observed candidate actions
+
+- Accepted option: accept, ignore, or merge into an existing value as an alias.
+- Rationale: this supports cleanup without destructive entry rewrites or
+  automatic normalization.
+- Consequences: candidate state needs accepted/ignored handling, and merge
+  should add the observed value as an alias on the selected vocabulary value.
+
+Gate 37: Field visibility behavior
+
+- Accepted option: hidden fields move to an expandable "Hidden values" detail
+  block.
+- Rationale: hidden fields should leave the main editor while still making
+  retained data discoverable and clearable.
+- Consequences: detail/read-only views should expose hidden values separately
+  when they exist, and Knowledge cleanup should continue to list them.
+
+Gate 38: Vocabulary Manager placement inside Knowledge
+
+- Accepted option: replace the current vocabulary review with the Vocabulary
+  Manager.
+- Rationale: once durable vocabulary editing exists, passive vocabulary review
+  should become part of the manager instead of a duplicate adjacent section.
+- Consequences: the manager must preserve the useful review context that the
+  current Knowledge vocabulary rows provide.
+
+Gate 39: Mobile Vocabulary Manager depth
+
+- Accepted option: mobile More edits values in a compact list/detail flow.
+- Rationale: this supports value labels, descriptions, aliases, archive state,
+  and ordering without cramming every action into dense inline rows.
+- Consequences: mobile More should expose vocabulary selection, value list, and
+  focused value editing, but not full built-in field configuration.
+
+Gate 40: Import conflict policy
+
+- Accepted option: full-document import replaces the document wholesale after
+  validation, with a single warning when schema or vocabulary replacement impact
+  needs to be called out.
+- Rationale: full replacement matches the current local backup mental model and
+  avoids merge complexity. A single warning is enough when the import will
+  replace existing vocabularies and schema settings.
+- Consequences: do not build per-vocabulary merge conflict UI for the schema
+  `3` slice.
+
+Gate 41: Markdown export of vocabularies
+
+- Accepted option: include vocabularies in Markdown reference export.
+- Rationale: durable world vocabularies are useful human reference material,
+  not just machine-readable settings.
+- Consequences: Markdown export should include vocabulary names, active values,
+  descriptions, aliases where useful, and archived values only if the export
+  mode explicitly includes archival/reference detail.
+
+Gate 42: Diagnostics content safety
+
+- Accepted option: diagnostics include vocabulary counts only, not labels,
+  descriptions, or aliases.
+- Rationale: vocabulary labels and descriptions can reveal world content.
+- Consequences: diagnostics should report counts and structural status only.
+
+Gate 43: First implementation boundary
+
+- Accepted option: first slice covers core schema `3` document model, seed
+  vocabularies, export/import, and diagnostics tests only.
+- Rationale: this keeps the first implementation slice focused on the durable
+  data foundation before browser, mobile, or editor UI consumes it.
+- Consequences: the next code slice should not include Vocabulary Manager UI or
+  editor suggestions until the schema `3` core model passes focused tests.
 
 ## Implementation Progress
 
@@ -3906,16 +4350,16 @@ Tasks:
 
 - Extend shell route ids and route intent parsing for Workbench/Timeline/Links.
 - Add Workbench selection model.
-- Add compatibility route tests.
+- Add canonical workflow route tests.
 - Add an initial web Workbench route shell.
-- Add mobile Workbench tab or adapt Entries tab label/path behind compatibility
+- Add mobile Workbench tab or adapt Entries tab label/path behind shared route
   helpers.
 
 Re-evaluation:
 
-- Current compatibility and top-level navigation paths have coverage. Future
-  route work should be driven by new product workflow needs, not foundation
-  parity.
+- Current canonical workflow routes and top-level navigation paths have
+  coverage. Future route work should be driven by new product workflow needs,
+  not foundation parity.
 
 ### Phase 2: Shared Record Index And Context Models
 
@@ -3995,7 +4439,8 @@ Re-evaluation:
 Evaluation before work:
 
 - Root cause: Browser section pages force section-by-section workflow.
-- Best path: Introduce three-pane Workbench while preserving old routes.
+- Best path: Introduce three-pane Workbench and remove obsolete section-heavy
+  routes.
 - Current status: Complete for the current prototype. Browser Workbench has a
   real route, shared index, selected context, section actions, relationship
   actions, deep-link hydration, route-persisted saved views, inline selected
@@ -4007,16 +4452,17 @@ Tasks:
 - Move section deep links into Workbench selection state.
 - Render universal index, editor, and context inspector.
 - Move legacy review into Review Tray.
-- Keep old section routes as redirects or wrappers.
+- Remove old section routes instead of preserving redirects or wrappers.
 - Update browser smoke tests and screenshots.
 
 Re-evaluation:
 
 - Current browser Workbench supports browsing, context review, quick creation,
   saved-record editing, relationship-backed field maintenance, and explicit
-  handoff to legacy section editors when users want the older route. Future
-  Workbench work should be scoped as visual polish, review-tray consolidation,
-  or performance validation, not MVP workflow completion.
+  handoff to Timeline, Relationship Studio, and Knowledge when those workflows
+  are more specific than record editing. Future Workbench work should be scoped
+  as visual polish, review-tray consolidation, or performance validation, not
+  MVP workflow completion.
 
 ### Phase 6: Mobile Workbench
 
@@ -7410,7 +7856,7 @@ workflow friction or close a documented parity gap.
 
 Current completed baseline includes:
 
-- Browser Workbench compatibility route.
+- Canonical browser Workbench record route.
 - Mobile Workbench modes that separate Index, Edit, and Context workflows.
 - Shared relationship field, entity chip, picker, context, route intent,
   timeline, relationship studio, and knowledge/schema models in `@valgaron/core`.
@@ -7439,17 +7885,21 @@ Current completed baseline includes:
   Workbench, Timeline, Relationship Studio, and Knowledge review surfaces
   without introducing a durable triage queue.
 
-Remaining larger follow-ups are deliberate product decisions: durable v3
-schema/vocabulary editing and a durable cross-surface triage queue.
-Cross-surface triage should wait until users need assignment, dismissal,
-severity ordering, or progress tracking across Workbench selected context,
-Timeline Review, Relationship Studio Review, and Knowledge cleanup.
+The next approved product track is durable schema/vocabulary editing. It should
+begin with schema `3`, clean-break document handling, workspace-owned
+vocabularies, a Vocabulary Manager first slice, browser-first built-in field
+configuration for label/help/visibility/order/vocabulary overrides, and focused
+mobile vocabulary editing inside More.
+
+A durable cross-surface triage queue remains gated until users need assignment,
+dismissal, severity ordering, or progress tracking across Workbench selected
+context, Timeline Review, Relationship Studio Review, and Knowledge cleanup.
 Additional Utilities consolidation should only proceed after observed
 navigation friction, because the current Project Tools hub exposes Knowledge
 setup, Data, Workspaces, and focused Help from the first screenful on browser
 and mobile.
 
-No remaining implementation gaps were found that require changing the core
-direction. The next work should stay slice-based: evaluate whether a friction
-point is still real, identify the root cause, make the smallest cohesive
-platform-paired improvement, then re-evaluate with focused tests.
+The next implementation should stay slice-based: evaluate whether the schema
+friction point is still real, identify the durable data root cause, design the
+smallest cohesive schema `3` shape, implement vocabulary management first, then
+re-evaluate with focused web, mobile, import/export, and schema tests.

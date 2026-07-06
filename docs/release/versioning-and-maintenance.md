@@ -41,9 +41,13 @@ decisions that require new durable document data, such as workspace-owned
 editable vocabularies or built-in field definitions that do not fit current
 field metadata.
 
+Schema `3` has been approved as the next durable schema/vocabulary editing
+track. Treat it as pending implementation until the document model, storage key,
+import/export behavior, diagnostics, tests, and release notes are updated.
+
 World document schema changes must include:
 
-- parser or migration behavior when feasible;
+- parser or migration behavior when required by the product decision;
 - fixtures or tests for every supported schema shape;
 - import/export round-trip tests;
 - diagnostics impact review;

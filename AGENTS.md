@@ -18,6 +18,13 @@ Use this order when files disagree:
 3. `README.md`.
 4. Future planning documents, once intentionally added for Valgaron.
 
+## Decision Gates
+
+- When work is blocked on product, UX, schema, navigation, compatibility, release, or implementation decision gates, explain the gate in detail before proceeding.
+- For each gate, provide clear options, tradeoffs, recommended choice, and consequences for web, mobile, data, tests, and documentation where relevant.
+- Do not silently choose decision-gate answers unless the user has already explicitly provided the decision for that exact gate.
+- After presenting decision-gate options, proceed only after the user chooses, or after the user explicitly asks to use recommendations.
+
 ## Prototype Constraints
 
 - Build for the web first as a local browser prototype.
