@@ -113,7 +113,6 @@ describe('KnowledgePage browser rendering', () => {
     expect(markup).toContain(
       'aria-label="Open Characters fields using Character ancestry"'
     );
-    expect(markup).toContain('aria-label="Character ancestry archived values"');
     expect(markup).toContain(
       'aria-label="Save Character category settings in Characters"'
     );

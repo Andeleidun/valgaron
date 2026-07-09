@@ -54,6 +54,8 @@
 .vwb-brand {
   display: grid;
   gap: 1px;
+  min-height: 44px;
+  align-content: center;
   line-height: 1.1;
 }
 
@@ -140,6 +142,11 @@
   text-align: center;
 }
 
+.vwb-primary-button,
+.vwb-secondary-button {
+  text-decoration: none;
+}
+
 .vwb-link-button {
   border: 0;
   background: transparent;
@@ -208,6 +215,11 @@
   outline: none;
 }
 
+.vwb-overview-page {
+  display: grid;
+  gap: 18px;
+}
+
 .vwb-hero,
 .vwb-panel,
 .vwb-entry-card,
@@ -230,14 +242,11 @@
   max-width: 760px;
   margin: 4px 0 14px;
   color: var(--vwb-heading);
-  font-size: clamp(2rem, 6vw, 4.25rem);
-  line-height: 0.98;
+  font-size: clamp(1.8rem, 4.5vw, 3.1rem);
+  line-height: 1.04;
 }
 
-.vwb-hero h1 {
-  margin-bottom: 14px;
-}
-
+.vwb-hero h1,
 .vwb-hero h2 {
   max-width: 620px;
   margin: 4px 0 14px;
@@ -271,6 +280,11 @@
   background: var(--vwb-surface-strong);
   color: var(--vwb-text);
   padding: 12px 14px;
+}
+
+.vwb-overview-page .vwb-stat-grid,
+.vwb-overview-page .vwb-local-data-notice {
+  margin-block: 0;
 }
 
 .vwb-local-data-notice strong {
@@ -403,6 +417,10 @@
   gap: 16px;
   align-items: start;
   margin-top: 18px;
+}
+
+.vwb-workbench-layout.is-empty-editor {
+  grid-template-columns: minmax(0, 1.45fr) minmax(280px, 0.55fr);
 }
 
 .vwb-workbench-view-list {
@@ -584,6 +602,24 @@
   margin: 0;
 }
 
+.vwb-entry-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  align-items: center;
+  line-height: 1.45;
+}
+
+.vwb-entry-card-meta span {
+  min-width: 0;
+}
+
+.vwb-entry-card-meta span + span::before {
+  color: var(--vwb-border);
+  content: '/';
+  margin-right: 8px;
+}
+
 .vwb-entry-card-header a {
   color: var(--vwb-accent);
   font-weight: 700;
@@ -684,6 +720,17 @@
   border-radius: 8px;
   background: var(--vwb-surface-strong);
   padding: 12px;
+}
+
+.vwb-relationship-row-heading {
+  display: grid;
+  gap: 3px;
+  justify-items: start;
+}
+
+.vwb-relationship-row-heading strong {
+  color: var(--vwb-heading);
+  overflow-wrap: anywhere;
 }
 
 .vwb-relationship-row a {
@@ -1543,6 +1590,10 @@
   .vwb-stat-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  .vwb-workbench-layout.is-empty-editor {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 768px) {
@@ -1577,8 +1628,29 @@
   }
 
   .vwb-header-menu-list {
-    right: auto;
-    left: 0;
+    right: 0;
+    left: auto;
+  }
+
+  .vwb-nav-link,
+  .vwb-secondary-button,
+  .vwb-primary-button,
+  .vwb-secondary-link,
+  .vwb-save-status {
+    min-height: 44px;
+  }
+
+  .vwb-tag-filter {
+    min-height: 36px;
+    padding-block: 6px;
+  }
+
+  .vwb-search-field input,
+  .vwb-filter-row input,
+  .vwb-filter-row select,
+  .vwb-form input,
+  .vwb-form select {
+    min-height: 44px;
   }
 }
 
@@ -1586,29 +1658,36 @@
   .vwb-app-header {
     display: flex;
     flex-wrap: wrap;
-    align-items: flex-start;
+    align-items: center;
+    gap: 8px;
+    padding-block: 8px;
   }
 
   .vwb-brand {
-    flex: 1 0 100%;
+    order: 1;
+    flex: 1 1 150px;
+    min-width: 0;
   }
 
   .vwb-top-nav {
+    order: 2;
     flex: 1 0 100%;
+    padding-bottom: 2px;
   }
 
   .vwb-save-status {
+    order: 1;
     flex: 0 0 auto;
   }
 
   .vwb-header-menu {
+    order: 1;
     flex: 0 0 auto;
   }
 
   .vwb-main {
-    margin-left: 10px;
-    margin-right: auto;
-    width: min(355px, calc(100% - 20px));
+    width: calc(100% - 20px);
+    margin-inline: auto;
   }
 }
 

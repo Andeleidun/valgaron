@@ -7,6 +7,7 @@ const config = {
   testEnvironment: 'node',
   testMatch: [
     '<rootDir>/src/**/*.test.ts',
+    '<rootDir>/src/**/*.test.tsx',
     '<rootDir>/packages/**/*.test.ts',
     '<rootDir>/mobile/src/**/*.test.ts',
   ],

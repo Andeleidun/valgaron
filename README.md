@@ -135,6 +135,8 @@ Diagnostics are local-only JSON reports for debugging storage or rendering failu
 - `docs/release/schema-migrations.md` records current saved-document schema expectations.
 - `docs/qa/manual-release-checklist.md` and `docs/qa/runtime-recovery.md` cover manual release and recovery checks.
 - `docs/qa/mobile-maestro.md` covers local Android Maestro E2E setup and runs.
+- `CURRENT_UI_UX_AUDIT.md` records the July 2026 browser UI/UX audit findings.
+- `docs/planning/current-ui-ux-audit-implementation-plan.md` maps those audit findings to implementation phases, validation, and rollback guidance.
 - `PLACE_RELATIONSHIP_TREE.md` explains the place logical tree and relationship-backed place fields.
 - `PLACE_TREE_IMPLEMENTATION_PLAN.md` records the place taxonomy implementation plan and completed work.
 - `CHARACTER_RELATIONSHIP_TREE.md` explains the character logical tree, including creator-defined ancestry/profession fields and relationship-backed fields.

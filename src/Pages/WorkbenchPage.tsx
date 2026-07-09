@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { NavLink, useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import {
   commitEntryDraftTransaction,
   draftFromEntry,
@@ -56,18 +56,20 @@ function RecordCard({
           >
             {record.selectLabel}
           </button>
-          <NavLink
+          <Link
             aria-label={record.editAccessibilityLabel}
             className="vwb-secondary-button"
             to={record.editorRoute}
           >
             {record.editLabel}
-          </NavLink>
+          </Link>
         </div>
       </div>
       <p>{record.summaryText}</p>
-      <small>
-        {record.sectionTitle} - {record.tagsText} - {record.updatedText}
+      <small className="vwb-entry-card-meta">
+        <span>{record.sectionTitle}</span>
+        <span>{record.tagsText}</span>
+        <span>{record.updatedText}</span>
       </small>
     </article>
   );
@@ -162,6 +164,7 @@ export function WorkbenchPage({
       : null;
   const editorSection = templateSection ?? selected.section;
   const editorEntry = templateDraft ? null : selectedEntry;
+  const isWorkbenchEmptyEditor = !editorSection && !selected.record;
   const editorSectionEntries = editorSection
     ? getEntries(activeWorld.codex, editorSection.id)
     : [];
@@ -310,10 +313,12 @@ export function WorkbenchPage({
       </section>
 
       <section
-        className="vwb-workbench-layout"
+        className={`vwb-workbench-layout ${
+          isWorkbenchEmptyEditor ? 'is-empty-editor' : ''
+        }`}
         aria-label={model.copy.layoutAriaLabel}
       >
-        <div className="vwb-panel">
+        <div className="vwb-panel vwb-workbench-index-panel">
           <div className="vwb-section-heading">
             <div>
               <p className="vwb-kicker">{model.copy.recordIndexKicker}</p>
@@ -423,11 +428,11 @@ export function WorkbenchPage({
           </div>
         </div>
 
-        <section
-          className="vwb-panel"
-          aria-label={formatWorkbenchEditorAccessibilityLabel(editorSection)}
-        >
-          {editorSection ? (
+        {editorSection ? (
+          <section
+            className="vwb-panel vwb-workbench-editor-panel"
+            aria-label={formatWorkbenchEditorAccessibilityLabel(editorSection)}
+          >
             <>
               <div className="vwb-section-heading">
                 <div>
@@ -551,15 +556,13 @@ export function WorkbenchPage({
                 workspaceSchema={activeWorld.schema}
               />
             </>
-          ) : (
-            <div className="vwb-empty-results" role="status">
-              <strong>{model.copy.noEditorTargetTitle}</strong>
-              <p>{model.copy.noEditorTargetDetail}</p>
-            </div>
-          )}
-        </section>
+          </section>
+        ) : null}
 
-        <aside className="vwb-panel" aria-labelledby="workbench-context-title">
+        <aside
+          className="vwb-panel vwb-workbench-context-panel"
+          aria-labelledby="workbench-context-title"
+        >
           <div className="vwb-section-heading">
             <div>
               <p className="vwb-kicker">{selected.kicker}</p>
@@ -661,27 +664,27 @@ export function WorkbenchPage({
                   <h3>{selected.linkedRecordsTitle}</h3>
                   <div className="vwb-entity-chip-list">
                     {selected.relatedRecordChips.map((chip) => (
-                      <NavLink
+                      <Link
                         className="vwb-entity-chip"
                         key={`${chip.relationshipId ?? 'record'}-${chip.id}`}
                         to={chip.route}
                       >
                         <span>{chip.label}</span>
                         <small>{chip.detailText}</small>
-                      </NavLink>
+                      </Link>
                     ))}
                   </div>
                 </div>
               ) : null}
-              <NavLink
+              <Link
                 aria-label={selected.editRecordAccessibilityLabel}
                 className="vwb-secondary-button"
                 to={selected.record.editorRoute}
               >
                 {selected.editRecordLabel}
-              </NavLink>
+              </Link>
               {selected.relationshipStudioRoute ? (
-                <NavLink
+                <Link
                   aria-label={
                     selected.relationshipStudioAccessibilityLabel ?? undefined
                   }
@@ -689,7 +692,7 @@ export function WorkbenchPage({
                   to={selected.relationshipStudioRoute}
                 >
                   {selected.relationshipStudioLabel}
-                </NavLink>
+                </Link>
               ) : null}
             </div>
           ) : (

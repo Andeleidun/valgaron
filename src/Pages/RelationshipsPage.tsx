@@ -610,7 +610,7 @@ export function RelationshipsPage({
             <div className="vwb-relationship-list">
               {brokenRelationships.map((relationship) => (
                 <article className="vwb-relationship-row" key={relationship.id}>
-                  <div>
+                  <div className="vwb-relationship-row-heading">
                     <span className="vwb-entry-kind">
                       {relationship.endpointStatusLabel}
                     </span>
@@ -780,7 +780,7 @@ export function RelationshipsPage({
                     className="vwb-relationship-row"
                     key={`${item.entryId}-${item.fieldKey}`}
                   >
-                    <div>
+                    <div className="vwb-relationship-row-heading">
                       <span className="vwb-entry-kind">{item.fieldLabel}</span>
                       <strong>{item.entryName}</strong>
                       <p>
@@ -1073,7 +1073,7 @@ export function RelationshipsPage({
                       className="vwb-relationship-row"
                       key={relationship.id}
                     >
-                      <div>
+                      <div className="vwb-relationship-row-heading">
                         <span className="vwb-entry-kind">
                           {relationship.directionStatusLabel}
                         </span>

@@ -37,13 +37,17 @@ export function Overview({ document }: { document: WorldDocument }) {
   } = overview;
 
   return (
-    <main className="vwb-main" id="main-content" tabIndex={-1}>
+    <main
+      className="vwb-main vwb-overview-page"
+      id="main-content"
+      tabIndex={-1}
+    >
       <section className="vwb-hero" aria-labelledby="overview-title">
         <div>
           <p className="vwb-kicker">
             {getWorkspaceOverviewWorkspaceKicker(summary)}
           </p>
-          <h2 id="overview-title">{intro.title}</h2>
+          <h1 id="overview-title">{intro.title}</h1>
         </div>
         <p>{intro.detail}</p>
       </section>

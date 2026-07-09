@@ -320,6 +320,7 @@ export function SectionPage({
             requestedTimelineInvolvedEntryId
           )
         );
+        setIsEntryFormDirty(false);
         appliedRouteSelectionKeyRef.current = routeSelectionKey;
       } else {
         cancelRouteSelection();
