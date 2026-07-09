@@ -1,5 +1,10 @@
-import { getCodexHelpScreenModel, getCodexScreenIntro } from '@valgaron/core';
+import {
+  getCodexHelpScreenModel,
+  getCodexScreenIntro,
+  valgaronPrivacyPolicy,
+} from '@valgaron/core';
 import { router, useLocalSearchParams } from 'expo-router';
+import { Linking } from 'react-native';
 import { getMobileRouteHref } from '../navigation/mobileRoutes';
 import { getMobileRouteParam } from '../navigation/mobileRouteParams';
 import {
@@ -92,6 +97,15 @@ export function HelpScreen() {
 
       <SectionBlock title={helpModel.privacy.title}>
         <MutedText>{helpModel.privacy.detail}</MutedText>
+        <ButtonRow>
+          <ActionButton
+            accessibilityHint="Opens the hosted web privacy policy."
+            label={valgaronPrivacyPolicy.actionLabel}
+            onPress={() => {
+              void Linking.openURL(valgaronPrivacyPolicy.webUrl);
+            }}
+          />
+        </ButtonRow>
       </SectionBlock>
 
       <SectionBlock title={helpModel.releaseLimits.title}>

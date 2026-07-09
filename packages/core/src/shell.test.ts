@@ -12,6 +12,7 @@ import {
   localPersistenceCopy,
   mobilePrimaryRouteOrder,
   mobileWebPrimaryRouteOrder,
+  valgaronPrivacyPolicy,
   valgaronProduct,
   webPrimaryRouteOrder,
 } from './shell';
@@ -19,6 +20,12 @@ import {
 describe('shell contracts', () => {
   it('exposes stable Valgaron product labels', () => {
     expect(valgaronProduct.fullTitle).toBe('Valgaron World Codex');
+    expect(valgaronPrivacyPolicy).toEqual({
+      title: 'Valgaron World Codex Privacy Policy',
+      webPath: '/privacy',
+      webUrl: 'https://andeleidun.github.io/valgaron/privacy',
+      actionLabel: 'Read Privacy Policy',
+    });
   });
 
   it('keeps web and mobile route labels aligned for shared tasks', () => {

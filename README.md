@@ -127,7 +127,7 @@ Diagnostics are local-only JSON reports for debugging storage or rendering failu
 
 - `docs/user-guide.md` explains core concepts, everyday workflows, local data, exports, imports, snapshots, offline use, diagnostics, and release limits.
 - `docs/support.md` explains how to report issues without sharing world content by default.
-- `PRIVACY.md` explains local web and mobile storage, diagnostics, and what the app does not collect.
+- `PRIVACY.md` and the web `/privacy` route explain local web and mobile storage, diagnostics, and what the app does not collect.
 - `docs/security-privacy.md` documents import safety, Markdown safety, diagnostics scope, static-host header limitations, and dependency review.
 - `docs/deployment/static-hosting.md` explains GitHub Pages and PWA deployment behavior.
 - `docs/versioning.md` defines release, schema, and dependency update expectations.

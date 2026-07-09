@@ -37,6 +37,9 @@ jest.mock('react-native', () => {
   return {
     KeyboardAvoidingView: ({ children }: MockNativeProps) =>
       ReactRuntime.createElement('div', null, renderChildren(children)),
+    Linking: {
+      openURL: jest.fn(),
+    },
     Modal: ({ children, visible }: MockNativeProps) =>
       visible
         ? ReactRuntime.createElement('div', null, renderChildren(children))
@@ -124,6 +127,7 @@ describe('HelpScreen render smoke', () => {
     expect(markup).toContain('related lore');
     expect(markup).toContain('uninstalling the mobile app');
     expect(markup).toContain('mobile app uninstall');
+    expect(markup).toContain('Read Privacy Policy');
     expect(markup).not.toContain('origins, forms, and notable events');
   });
 

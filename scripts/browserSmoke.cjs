@@ -246,6 +246,7 @@ const routeChecks = [
       'Use relationship-backed character fields',
       'related lore',
       'Report problems without world content',
+      'Read Privacy Policy',
     ],
     expectedLinks: [
       {
@@ -256,6 +257,20 @@ const routeChecks = [
         href: '/help?topic=timeline',
         label: 'Timeline',
       },
+      {
+        href: '/privacy',
+        label: 'Read Privacy Policy',
+      },
+    ],
+  },
+  {
+    path: '/privacy',
+    expectedText: [
+      'Valgaron World Codex Privacy Policy',
+      'Effective date: July 9, 2026',
+      'What Valgaron Stores Locally',
+      'What Valgaron Does Not Collect',
+      'We do not sell user data.',
     ],
   },
   {

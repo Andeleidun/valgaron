@@ -1,5 +1,9 @@
 import { Link, NavLink, useSearchParams } from 'react-router-dom';
-import { getCodexHelpScreenModel, getCodexScreenIntro } from '@valgaron/core';
+import {
+  getCodexHelpScreenModel,
+  getCodexScreenIntro,
+  valgaronPrivacyPolicy,
+} from '@valgaron/core';
 
 export function HelpPage() {
   const intro = getCodexScreenIntro('help');
@@ -153,6 +157,14 @@ export function HelpPage() {
           </div>
         </div>
         <p>{helpModel.privacy.detail}</p>
+        <div className="vwb-action-row">
+          <Link
+            className="vwb-secondary-button"
+            to={valgaronPrivacyPolicy.webPath}
+          >
+            {valgaronPrivacyPolicy.actionLabel}
+          </Link>
+        </div>
       </section>
 
       <section className="vwb-panel" aria-labelledby="help-limits-title">

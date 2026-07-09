@@ -35,6 +35,7 @@ import { DataPage } from './Pages/DataPage';
 import { HelpPage } from './Pages/HelpPage';
 import { KnowledgePage } from './Pages/KnowledgePage';
 import { Overview } from './Pages/OverviewPage';
+import { PrivacyPage } from './Pages/PrivacyPage';
 import { RelationshipsPage } from './Pages/RelationshipsPage';
 import { TimelinePage } from './Pages/TimelinePage';
 import { UtilitiesPage } from './Pages/UtilitiesPage';
@@ -490,6 +491,7 @@ function AppShell() {
               element={<UtilitiesPage activeWorld={activeWorld} />}
             />
             <Route path="/help" element={<HelpPage />} />
+            <Route path="/privacy" element={<PrivacyPage />} />
             <Route
               path="/entries"
               element={

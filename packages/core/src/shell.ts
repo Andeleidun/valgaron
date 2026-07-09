@@ -46,6 +46,13 @@ export const valgaronProduct = {
   version: '0.0.0',
 } as const;
 
+export const valgaronPrivacyPolicy = {
+  title: 'Valgaron World Codex Privacy Policy',
+  webPath: '/privacy',
+  webUrl: 'https://andeleidun.github.io/valgaron/privacy',
+  actionLabel: 'Read Privacy Policy',
+} as const;
+
 export const codexShellRoutes = {
   overview: { id: 'overview', title: 'Overview', path: '/' },
   entries: { id: 'entries', title: 'Workbench', path: '/entries' },
