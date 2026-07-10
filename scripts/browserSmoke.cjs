@@ -1100,14 +1100,16 @@ async function assertKnowledgeDestructiveDialog(browserPath, profilePrefix) {
     }
     await waitForRuntimeCondition(
       cdp,
-      "Boolean(Array.from(document.querySelectorAll('.vwb-entry-card')).find((card) => card.textContent?.includes('Smoke Relics'))?.querySelector('button[aria-label=\"Remove Origin\"]'))"
+      "Boolean(Array.from(document.querySelectorAll('.vwb-entry-card')).find((card) => card.textContent?.includes('Smoke Relics'))?.querySelector('button[aria-label=\"Remove Origin from Smoke Relics\"]'))"
     );
     const openResult = await evaluateRuntime(
       cdp,
       `(() => {
         const customTypeCard = Array.from(document.querySelectorAll('.vwb-entry-card'))
           .find((row) => row.textContent?.includes('Smoke Relics'));
-        const removeButton = customTypeCard?.querySelector('button[aria-label="Remove Origin"]');
+        const removeButton = customTypeCard?.querySelector(
+          'button[aria-label="Remove Origin from Smoke Relics"]'
+        );
         const issues = [];
         if (!customTypeCard) {
           issues.push('created custom type card is missing');
