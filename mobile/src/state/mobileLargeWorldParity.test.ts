@@ -28,6 +28,7 @@ function createCharacter(index: number): WorldEntry {
       role: 'supporting cast',
       statusNote: '',
     },
+    images: [],
     notes: '',
     createdAt: '2026-06-01T00:00:00.000Z',
     updatedAt: '2026-06-01T00:00:00.000Z',

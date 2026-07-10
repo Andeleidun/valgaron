@@ -264,6 +264,7 @@ function seedEntry(input: SeedEntryInput): WorldEntry {
     pinned: false,
     createdAt: SEED_CREATED_AT,
     fields: { ...input.fields },
+    images: [],
     tags: [...input.tags],
   };
 }
@@ -514,6 +515,7 @@ function cloneEntries(entries: WorldEntry[]): WorldEntry[] {
     ...entry,
     tags: [...entry.tags],
     fields: { ...entry.fields },
+    images: entry.images.map((image) => ({ ...image })),
   }));
 }
 
@@ -580,9 +582,10 @@ export function createSeedWorld(): WorldWorkspace {
 
 export function createSeedWorldDocument(): WorldDocument {
   return {
-    schemaVersion: 3,
+    schemaVersion: 4,
     activeWorldId: SEED_WORLD_ID,
     worlds: [createSeedWorld()],
+    assets: [],
     savedAt: SEED_SAVED_AT,
   };
 }

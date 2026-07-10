@@ -7,7 +7,18 @@
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
     "platforms": ["android", "ios", "web"],
-    "plugins": ["./plugins/withEmbeddedDebugBundle.cjs"],
+    "plugins": [
+      "./plugins/withEmbeddedDebugBundle.cjs",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow Valgaron to choose images for local codex entries.",
+          "cameraPermission": false,
+          "microphonePermission": false
+        }
+      ],
+      "expo-sharing"
+    ],
     "android": {
       "package": "com.valgaron.mobile"
     },

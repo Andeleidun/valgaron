@@ -38,6 +38,7 @@ describe('KnowledgePage browser rendering', () => {
       tags: 'artifact',
       status: 'draft',
       pinned: false,
+      images: [],
       details: {
         origin: 'Glassroot Forest',
         power: 'Opens dawn doors',

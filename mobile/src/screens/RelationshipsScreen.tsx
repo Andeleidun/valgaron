@@ -49,6 +49,7 @@ import {
   valgaronTypography,
 } from '@valgaron/ui-tokens';
 import { useMobileCodex } from '../state/MobileCodexContext';
+import { useMobileSectionPreferences } from '../state/useMobileSectionPreferences';
 import { getMobileRouteHref } from '../navigation/mobileRoutes';
 import { getMobileRouteParam } from '../navigation/mobileRouteParams';
 import {
@@ -57,6 +58,7 @@ import {
   CheckboxField,
   Field,
   MutedText,
+  MobileSectionDashboard,
   ScreenHeader,
   ScreenScroll,
   SectionBlock,
@@ -66,8 +68,23 @@ import {
 import { confirmMobileDestructiveAction } from './mobileConfirm';
 import { confirmDiscardUnsavedChangesOnMobile } from './unsavedChangesConfirm';
 
+const relationshipDashboardSectionIds = [
+  'links.mode',
+  'links.health',
+  'links.repair',
+  'links.graph',
+  'links.pickers',
+  'links.editor',
+  'links.saved',
+  'links.review',
+] as const;
+
 export function RelationshipsScreen() {
   const controller = useMobileCodex();
+  const dashboard = useMobileSectionPreferences({
+    screenId: 'links',
+    sectionIds: relationshipDashboardSectionIds,
+  });
   const routeParams = useLocalSearchParams<{
     entryId?: string;
     entryQuery?: string;
@@ -498,913 +515,964 @@ export function RelationshipsScreen() {
     <ScreenScroll>
       <ScreenHeader title={intro.title} detail={intro.detail} />
 
-      <SectionBlock title={studioModeModel.title}>
-        <MutedText>{studioModeModel.activeMode.detail}</MutedText>
-        <ButtonRow>
-          {studioModeModel.modes.map((mode) => (
-            <ActionButton
-              key={mode.id}
-              label={mode.label}
-              selected={mode.isActive}
-              tone={mode.isActive ? 'accent' : 'neutral'}
-              onPress={() => setStudioMode(mode.id)}
-            />
-          ))}
-        </ButtonRow>
-      </SectionBlock>
-
-      {showReviewMode ? (
-        <SectionBlock title={relationshipFeatureCopy.healthSectionTitle}>
+      <MobileSectionDashboard
+        collapsed={dashboard.collapsed}
+        isLoaded={dashboard.isLoaded}
+        onMove={dashboard.move}
+        onReset={dashboard.reset}
+        onResetAll={dashboard.resetAll}
+        onSetCollapsed={dashboard.setCollapsed}
+        order={dashboard.order}
+      >
+        <SectionBlock sectionId="links.mode" title={studioModeModel.title}>
+          <MutedText>{studioModeModel.activeMode.detail}</MutedText>
           <ButtonRow>
-            <ActionButton
-              label={relationshipFeatureCopy.helpLabel}
-              onPress={() =>
-                confirmDiscardUnsavedChangesOnMobile(isDraftDirty, () =>
-                  router.push({
-                    ...getMobileRouteHref(getCodexHelpRoute('relationships')),
-                  })
-                )
-              }
-            />
-          </ButtonRow>
-          {relationshipReview.reviewSummary.items.map((item) => (
-            <MutedText key={item.id}>
-              {item.title}: {item.countLabel}. {item.detail}
-            </MutedText>
-          ))}
-          <MutedText>
-            {relationshipFeatureCopy.graphViewTitle}: {graphView.summaryLabel}
-          </MutedText>
-        </SectionBlock>
-      ) : null}
-
-      {showReviewMode ? (
-        <SectionBlock title={relationshipFeatureCopy.repairBrokenLinksTitle}>
-          {brokenRelationships.length > 0 ? (
-            brokenRelationships.map((relationship) => (
-              <View key={relationship.id} style={styles.relationshipRow}>
-                <Text style={styles.entryTitle}>{relationship.type}</Text>
-                <MutedText>{relationship.sourceLineLabel}</MutedText>
-                <MutedText>{relationship.targetLineLabel}</MutedText>
-                <ButtonRow>
-                  <ActionButton
-                    accessibilityLabel={relationship.repairAccessibilityLabel}
-                    label={relationshipFeatureCopy.repairLabel}
-                    tone="accent"
-                    onPress={() => repairRelationship(relationship.id)}
-                  />
-                  <ActionButton
-                    accessibilityHint={relationship.deleteAccessibilityHint}
-                    accessibilityLabel={relationship.deleteAccessibilityLabel}
-                    label={relationshipFeatureCopy.deleteLabel}
-                    tone="danger"
-                    onPress={() => deleteRelationship(relationship.id)}
-                  />
-                </ButtonRow>
-              </View>
-            ))
-          ) : (
-            <MutedText>
-              {relationshipFeatureCopy.noBrokenRelationshipsTitle}
-            </MutedText>
-          )}
-          {orphanedEntries.length > 0 ? (
-            <>
-              <MutedText>
-                {relationshipFeatureCopy.orphanedRecordsLabel}
-              </MutedText>
-              {visibleOrphanedEntries.map((entry) => (
-                <View key={entry.id} style={styles.relationshipRow}>
-                  <Text style={styles.entryTitle}>{entry.name}</Text>
-                  <MutedText>{entry.sectionTitle}</MutedText>
-                  <ButtonRow>
-                    <ActionButton
-                      accessibilityLabel={entry.manageLinksAccessibilityLabel}
-                      label={entry.manageLinksLabel}
-                      onPress={() =>
-                        confirmDiscardUnsavedChangesOnMobile(
-                          isDraftDirty,
-                          () => {
-                            setEntryFilter(entry.id);
-                            setEntryQuery(entry.name);
-                            setRelationshipQuery(entry.name);
-                            setDraft((current) => ({
-                              ...current,
-                              sourceEntryId: entry.id,
-                            }));
-                            setStudioMode('links');
-                          }
-                        )
-                      }
-                    />
-                  </ButtonRow>
-                </View>
-              ))}
-              {hiddenOrphanedEntryCount > 0 ? (
-                <MutedText>
-                  {formatHiddenCountText({
-                    hiddenCount: hiddenOrphanedEntryCount,
-                    singularItemLabel: 'orphaned record',
-                    pluralItemLabel: 'orphaned records',
-                  })}
-                </MutedText>
-              ) : null}
-              {orphanedEntries.length >
-              relationshipReviewDisplayLimits.orphanedEntries ? (
-                <ButtonRow>
-                  <ActionButton
-                    expanded={showAllOrphanedEntries}
-                    label={formatExpansionControlLabel({
-                      isExpanded: showAllOrphanedEntries,
-                      hiddenCount: hiddenOrphanedEntryCount,
-                      pluralItemLabel: 'Orphaned Records',
-                      singularItemLabel: 'Orphaned Record',
-                    })}
-                    onPress={() =>
-                      setShowAllOrphanedEntries((currentValue) => !currentValue)
-                    }
-                  />
-                </ButtonRow>
-              ) : null}
-            </>
-          ) : (
-            <MutedText>
-              {relationshipFeatureCopy.noOrphanedRecordsMessage}
-            </MutedText>
-          )}
-          {duplicateRelationshipGroups.length > 0 ? (
-            <>
-              <MutedText>
-                {relationshipFeatureCopy.duplicateRelationshipsLabel}
-              </MutedText>
-              <MutedText>
-                {relationshipFeatureCopy.duplicateRelationshipsDetail}
-              </MutedText>
-              {visibleDuplicateRelationshipGroups.map((group) => (
-                <View key={group.id} style={styles.relationshipRow}>
-                  <Text style={styles.entryTitle}>
-                    {group.sourceName} - {group.targetName}
-                  </Text>
-                  <MutedText>{group.type}</MutedText>
-                  <MutedText>{group.removalSummaryLabel}</MutedText>
-                </View>
-              ))}
-              {hiddenDuplicateRelationshipGroupCount > 0 ? (
-                <MutedText>
-                  {formatHiddenCountText({
-                    hiddenCount: hiddenDuplicateRelationshipGroupCount,
-                    singularItemLabel: 'duplicate group',
-                    pluralItemLabel: 'duplicate groups',
-                  })}
-                </MutedText>
-              ) : null}
-              {duplicateRelationshipGroups.length >
-              relationshipReviewDisplayLimits.duplicateRelationshipGroups ? (
-                <ButtonRow>
-                  <ActionButton
-                    expanded={showAllDuplicateGroups}
-                    label={formatExpansionControlLabel({
-                      isExpanded: showAllDuplicateGroups,
-                      hiddenCount: hiddenDuplicateRelationshipGroupCount,
-                      pluralItemLabel: 'Duplicate Groups',
-                      singularItemLabel: 'Duplicate Group',
-                    })}
-                    onPress={() =>
-                      setShowAllDuplicateGroups((currentValue) => !currentValue)
-                    }
-                  />
-                </ButtonRow>
-              ) : null}
-            </>
-          ) : null}
-          {legacyTextItems.length > 0 ? (
-            <>
-              <MutedText>{relationshipTextReviewCopy.title}</MutedText>
-              <MutedText>
-                {getRelationshipTextReviewSummary(legacyTextItems.length)}
-              </MutedText>
-              {visibleLegacyTextItems.map((item) => (
-                <View
-                  key={`${item.entryId}-${item.fieldKey}`}
-                  style={styles.relationshipRow}
-                >
-                  <Text style={styles.entryTitle}>{item.entryName}</Text>
-                  <MutedText>{item.fieldLabel}</MutedText>
-                  <MutedText>
-                    {relationshipTextReviewCopy.unresolvedLabel}:{' '}
-                    {getRelationshipTextReviewUnresolvedLabel(item)}.{' '}
-                    {getRelationshipTextReviewExactMatchLabel(item)}
-                  </MutedText>
-                  <ButtonRow>
-                    <ActionButton
-                      accessibilityLabel={item.reviewEntryAccessibilityLabel}
-                      label={item.reviewEntryLabel}
-                      onPress={() => {
-                        confirmDiscardUnsavedChangesOnMobile(
-                          isDraftDirty,
-                          () => {
-                            router.push({
-                              ...getMobileRouteHref(item.reviewEntryRoute),
-                            });
-                          }
-                        );
-                      }}
-                    />
-                  </ButtonRow>
-                </View>
-              ))}
-              {hiddenLegacyTextItemCount > 0 ? (
-                <MutedText>
-                  {formatHiddenCountText({
-                    hiddenCount: hiddenLegacyTextItemCount,
-                    singularItemLabel: 'legacy text item',
-                    pluralItemLabel: 'legacy text items',
-                  })}
-                </MutedText>
-              ) : null}
-              {legacyTextItems.length >
-              relationshipReviewDisplayLimits.legacyTextItems ? (
-                <ButtonRow>
-                  <ActionButton
-                    expanded={showAllLegacyTextItems}
-                    label={formatExpansionControlLabel({
-                      isExpanded: showAllLegacyTextItems,
-                      hiddenCount: hiddenLegacyTextItemCount,
-                      pluralItemLabel: 'Legacy Text Items',
-                      singularItemLabel: 'Legacy Text Item',
-                    })}
-                    onPress={() =>
-                      setShowAllLegacyTextItems((currentValue) => !currentValue)
-                    }
-                  />
-                </ButtonRow>
-              ) : null}
-            </>
-          ) : null}
-        </SectionBlock>
-      ) : null}
-
-      {showGraphMode ? (
-        <SectionBlock title={relationshipFeatureCopy.graphBrowserTitle}>
-          <Field
-            autoCapitalize="none"
-            autoCorrect={false}
-            label={relationshipFeatureCopy.searchGraphRecordsLabel}
-            value={graphNodeQuery}
-            onChangeText={setGraphNodeQuery}
-            placeholder={relationshipFeatureCopy.searchGraphRecordsPlaceholder}
-          />
-          <ButtonRow>
-            <ActionButton
-              label={relationshipFeatureCopy.anySectionLabel}
-              selected={graphSectionFilter === ''}
-              tone={graphSectionFilter === '' ? 'accent' : 'neutral'}
-              onPress={() => setGraphSectionFilter('')}
-            />
-            {controller.sections.map((item) => (
+            {studioModeModel.modes.map((mode) => (
               <ActionButton
-                key={item.id}
-                label={item.title}
-                selected={graphSectionFilter === item.id}
-                tone={graphSectionFilter === item.id ? 'accent' : 'neutral'}
-                onPress={() =>
-                  setGraphSectionFilter((current) =>
-                    current === item.id ? '' : item.id
-                  )
-                }
+                key={mode.id}
+                label={mode.label}
+                selected={mode.isActive}
+                tone={mode.isActive ? 'accent' : 'neutral'}
+                onPress={() => setStudioMode(mode.id)}
               />
             ))}
           </ButtonRow>
-          <SelectField
-            accessibilityLabel={
-              relationshipGraphStatusFilterControl.accessibilityLabel
-            }
-            label={relationshipGraphStatusFilterControl.label}
-            options={relationshipGraphStatusFilterControl.options}
-            value={graphStatusFilter}
-            onValueChange={setGraphStatusFilter}
-          />
-          {relationshipTypeFilterOptions.length > 1 ? (
-            <SelectField
-              accessibilityLabel={
-                relationshipGraphTypeFilterControl.accessibilityLabel
-              }
-              label={relationshipGraphTypeFilterControl.label}
-              options={relationshipTypeFilterOptions}
-              value={graphTypeFilter}
-              onValueChange={setGraphTypeFilter}
-            />
-          ) : null}
-          {availableGraphTags.length > 0 ? (
+        </SectionBlock>
+
+        {showReviewMode ? (
+          <SectionBlock
+            sectionId="links.health"
+            title={relationshipFeatureCopy.healthSectionTitle}
+          >
             <ButtonRow>
               <ActionButton
-                label={relationshipFeatureCopy.allTagsLabel}
-                selected={graphTagFilter === ''}
-                tone={graphTagFilter === '' ? 'accent' : 'neutral'}
-                onPress={() => setGraphTagFilter('')}
-              />
-              {availableGraphTags.map((tag) => (
-                <ActionButton
-                  key={tag}
-                  label={tag}
-                  selected={graphTagFilter === tag}
-                  tone={graphTagFilter === tag ? 'accent' : 'neutral'}
-                  onPress={() =>
-                    setGraphTagFilter((current) => (current === tag ? '' : tag))
-                  }
-                />
-              ))}
-            </ButtonRow>
-          ) : null}
-          {hasGraphFilters ? (
-            <ButtonRow>
-              <ActionButton
-                label={relationshipFeatureCopy.clearGraphFiltersLabel}
-                onPress={clearGraphFilters}
-              />
-            </ButtonRow>
-          ) : null}
-          {graphView.nodes.length > 0 ? (
-            <>
-              <MutedText>
-                {getRelationshipGraphNodeResultSummary({
-                  matchedCount: matchingGraphNodes.length,
-                  totalCount: graphView.nodes.length,
-                })}
-              </MutedText>
-              {displayedGraphNodes.length > 0 ? (
-                <ButtonRow>
-                  {displayedGraphNodes.map((node) => (
-                    <ActionButton
-                      key={node.id}
-                      label={node.name}
-                      selected={selectedGraphNodeId === node.id}
-                      tone={
-                        selectedGraphNodeId === node.id ? 'accent' : 'neutral'
-                      }
-                      onPress={() =>
-                        setSelectedGraphNodeId((current) =>
-                          current === node.id ? null : node.id
-                        )
-                      }
-                    />
-                  ))}
-                </ButtonRow>
-              ) : (
-                <MutedText>
-                  {relationshipFeatureCopy.noGraphSearchMatchesMessage}
-                </MutedText>
-              )}
-              {hiddenGraphNodeCount > 0 ? (
-                <MutedText>
-                  {formatHiddenCountText({
-                    hiddenCount: hiddenGraphNodeCount,
-                    singularItemLabel: 'graph record',
-                    pluralItemLabel: 'graph records',
-                  })}
-                </MutedText>
-              ) : null}
-              {matchingGraphNodes.length >
-              mobileFeatureDisplayLimits.pickerResults ? (
-                <ButtonRow>
-                  <ActionButton
-                    expanded={showAllGraphNodes}
-                    label={formatExpansionControlLabel({
-                      isExpanded: showAllGraphNodes,
-                      hiddenCount: hiddenGraphNodeCount,
-                      pluralItemLabel: 'Graph Records',
-                      singularItemLabel: 'Graph Record',
-                    })}
-                    onPress={() =>
-                      setShowAllGraphNodes((currentValue) => !currentValue)
-                    }
-                  />
-                </ButtonRow>
-              ) : null}
-              {selectedGraphNode ? (
-                <View style={styles.relationshipRow}>
-                  <Text style={styles.entryTitle}>
-                    {selectedGraphNode.name}
-                  </Text>
-                  <MutedText>
-                    {selectedGraphNode.sectionTitle} -{' '}
-                    {selectedGraphNode.statusLabel}
-                  </MutedText>
-                  {selectedGraphEdges.map((edge) => (
-                    <View key={edge.id} style={styles.graphEdgeRow}>
-                      <MutedText>
-                        {edge.sourceName} {edge.directionLabel}{' '}
-                        {edge.targetName} - {edge.label}
-                      </MutedText>
-                      <ButtonRow>
-                        <ActionButton
-                          accessibilityLabel={edge.editAccessibilityLabel}
-                          label={edge.editLabel}
-                          onPress={() => editRelationship(edge.id)}
-                        />
-                      </ButtonRow>
-                    </View>
-                  ))}
-                  <ButtonRow>
-                    <ActionButton
-                      accessibilityLabel={
-                        selectedGraphNode.openEntryAccessibilityLabel
-                      }
-                      label={selectedGraphNode.openEntryLabel}
-                      onPress={() =>
-                        confirmDiscardUnsavedChangesOnMobile(
-                          isDraftDirty,
-                          () => {
-                            router.push({
-                              ...getMobileRouteHref(
-                                selectedGraphNode.contextRoute
-                              ),
-                            });
-                          }
-                        )
-                      }
-                    />
-                    <ActionButton
-                      accessibilityLabel={
-                        selectedGraphNode.filterListAccessibilityLabel
-                      }
-                      label={selectedGraphNode.filterListLabel}
-                      onPress={() => {
-                        setEntryFilter(selectedGraphNode.id);
-                        setStudioMode('links');
-                      }}
-                    />
-                  </ButtonRow>
-                </View>
-              ) : null}
-            </>
-          ) : (
-            <MutedText>
-              {relationshipFeatureCopy.noConnectedGraphMatchesMessage}
-            </MutedText>
-          )}
-        </SectionBlock>
-      ) : null}
-
-      {showLinksMode ? (
-        <SectionBlock title={relationshipFeatureCopy.entryPickersTitle}>
-          <Field
-            autoCapitalize="none"
-            autoCorrect={false}
-            label={relationshipFeatureCopy.searchEntriesLabel}
-            value={entryQuery}
-            onChangeText={setEntryQuery}
-            placeholder={relationshipFeatureCopy.searchEntriesPlaceholder}
-          />
-          {entries.length > 0 ? (
-            <>
-              {displayedEntries.map((entry) => {
-                const pickerActions =
-                  getRelationshipPickerItemActionModel(entry);
-                return (
-                  <View key={entry.id} style={styles.entryPickerRow}>
-                    <View style={styles.entryText}>
-                      <Text style={styles.entryTitle}>{entry.label}</Text>
-                      <MutedText>{entry.detailText}</MutedText>
-                    </View>
-                    <ButtonRow>
-                      <ActionButton
-                        accessibilityLabel={
-                          pickerActions.sourceAccessibilityLabel
-                        }
-                        label={pickerActions.sourceLabel}
-                        selected={draft.sourceEntryId === entry.id}
-                        tone={
-                          draft.sourceEntryId === entry.id
-                            ? 'accent'
-                            : 'neutral'
-                        }
-                        onPress={() =>
-                          setDraft((current) => ({
-                            ...current,
-                            sourceEntryId: entry.id,
-                          }))
-                        }
-                      />
-                      <ActionButton
-                        accessibilityLabel={
-                          pickerActions.targetAccessibilityLabel
-                        }
-                        label={pickerActions.targetLabel}
-                        selected={draft.targetEntryId === entry.id}
-                        tone={
-                          draft.targetEntryId === entry.id
-                            ? 'accent'
-                            : 'neutral'
-                        }
-                        onPress={() =>
-                          setDraft((current) => ({
-                            ...current,
-                            targetEntryId: entry.id,
-                          }))
-                        }
-                      />
-                    </ButtonRow>
-                  </View>
-                );
-              })}
-              {hiddenEntryCount > 0 ? (
-                <MutedText>
-                  {formatHiddenCountText({
-                    hiddenCount: hiddenEntryCount,
-                    singularItemLabel: 'record',
-                    pluralItemLabel: 'records',
-                  })}
-                </MutedText>
-              ) : null}
-              {entries.length > mobileFeatureDisplayLimits.pickerResults ? (
-                <ButtonRow>
-                  <ActionButton
-                    expanded={showAllEntryPickerRecords}
-                    label={formatExpansionControlLabel({
-                      isExpanded: showAllEntryPickerRecords,
-                      hiddenCount: hiddenEntryCount,
-                      pluralItemLabel: 'Entry Records',
-                      singularItemLabel: 'Entry Record',
-                    })}
-                    onPress={() =>
-                      setShowAllEntryPickerRecords(
-                        (currentValue) => !currentValue
-                      )
-                    }
-                  />
-                </ButtonRow>
-              ) : null}
-            </>
-          ) : (
-            <MutedText>{entryPickerModel.emptyText}</MutedText>
-          )}
-        </SectionBlock>
-      ) : null}
-
-      {showLinksMode ? (
-        <SectionBlock title={relationshipFormHeaderModel.title}>
-          {controller.formMessage ? (
-            <StatusText tone={getFeedbackTone(controller.formMessage)}>
-              {controller.formMessage}
-            </StatusText>
-          ) : null}
-          {isDraftDirty ? (
-            <StatusText tone="warning">
-              {relationshipFormHeaderModel.unsavedDraftLabel}
-            </StatusText>
-          ) : null}
-          {relationshipEntries.length < 2 ? (
-            <StatusText tone="warning">
-              {relationshipFeatureCopy.minimumEntriesTitle}{' '}
-              {relationshipFeatureCopy.minimumEntriesDetail}
-            </StatusText>
-          ) : (
-            <>
-              <SelectField
-                accessibilityLabel={
-                  relationshipSourceControl.accessibilityLabel
-                }
-                label={relationshipSourceControl.label}
-                options={relationshipEntryOptions}
-                searchable
-                searchPlaceholder={
-                  relationshipFeatureCopy.searchEntriesPlaceholder
-                }
-                value={draft.sourceEntryId}
-                onValueChange={(value) =>
-                  setDraft((current) => ({ ...current, sourceEntryId: value }))
-                }
-              />
-              {relationshipOptions.selectedSourceSummaryLabel ? (
-                <MutedText>
-                  {relationshipOptions.selectedSourceSummaryLabel}
-                </MutedText>
-              ) : null}
-              <SelectField
-                accessibilityLabel={
-                  relationshipTargetControl.accessibilityLabel
-                }
-                label={relationshipTargetControl.label}
-                options={relationshipEntryOptions}
-                searchable
-                searchPlaceholder={
-                  relationshipFeatureCopy.searchEntriesPlaceholder
-                }
-                value={draft.targetEntryId}
-                onValueChange={(value) =>
-                  setDraft((current) => ({ ...current, targetEntryId: value }))
-                }
-              />
-              {relationshipOptions.selectedTargetSummaryLabel ? (
-                <MutedText>
-                  {relationshipOptions.selectedTargetSummaryLabel}
-                </MutedText>
-              ) : null}
-              <Field
-                label={relationshipTypeControl.label}
-                placeholder={relationshipTypeControl.placeholder}
-                value={draft.type}
-                onChangeText={(value) =>
-                  setDraft((current) => ({ ...current, type: value }))
-                }
-              />
-              <ButtonRow>
-                {relationshipTypeSuggestions
-                  .slice(
-                    0,
-                    mobileFeatureDisplayLimits.relationshipTypeSuggestions
+                label={relationshipFeatureCopy.helpLabel}
+                onPress={() =>
+                  confirmDiscardUnsavedChangesOnMobile(isDraftDirty, () =>
+                    router.push({
+                      ...getMobileRouteHref(getCodexHelpRoute('relationships')),
+                    })
                   )
-                  .map((type) => (
-                    <ActionButton
-                      key={type}
-                      label={type}
-                      selected={draft.type === type}
-                      tone={draft.type === type ? 'accent' : 'neutral'}
-                      onPress={() =>
-                        setDraft((current) => ({ ...current, type }))
-                      }
-                    />
-                  ))}
-              </ButtonRow>
-              <Field
-                label={relationshipNoteControl.label}
-                placeholder={relationshipNoteControl.placeholder}
-                value={draft.note}
-                multiline
-                onChangeText={(value) =>
-                  setDraft((current) => ({ ...current, note: value }))
                 }
               />
-              <CheckboxField
-                accessibilityLabel={
-                  relationshipDirectionalControl.accessibilityLabel
-                }
-                checked={draft.directional}
-                label={relationshipDirectionalControl.label}
-                onChange={(checked) =>
-                  setDraft((current) => ({
-                    ...current,
-                    directional: checked,
-                  }))
-                }
-              />
-              <SelectField
-                accessibilityLabel={
-                  relationshipDraftStatusControl.accessibilityLabel
-                }
-                label={relationshipDraftStatusControl.label}
-                options={relationshipDraftStatusControl.options}
-                value={draft.status}
-                onValueChange={(value) =>
-                  setDraft((current) => ({
-                    ...current,
-                    status: value,
-                  }))
-                }
-              />
-              <ButtonRow>
-                <ActionButton
-                  label={relationshipFeatureCopy.saveRelationshipLabel}
-                  tone="accent"
-                  onPress={() => {
-                    const didSave = controller.saveRelationshipDraft(
-                      draft,
-                      editingRelationship ?? undefined
-                    );
-                    if (didSave) {
-                      resetDraft(true);
-                    }
-                  }}
-                />
-                <ActionButton
-                  label={relationshipFeatureCopy.clearDraftLabel}
-                  onPress={resetDraft}
-                />
-              </ButtonRow>
-            </>
-          )}
-        </SectionBlock>
-      ) : null}
-
-      {showLinksMode ? (
-        <SectionBlock title={relationshipFeatureCopy.savedSectionTitle}>
-          <Field
-            autoCapitalize="none"
-            autoCorrect={false}
-            label={relationshipFeatureCopy.searchRelationshipsLabel}
-            value={relationshipQuery}
-            onChangeText={setRelationshipQuery}
-            placeholder={relationshipFeatureCopy.searchRelationshipsPlaceholder}
-          />
-          {relationshipTypeFilterOptions.length > 1 ? (
-            <SelectField
-              accessibilityLabel={
-                relationshipListTypeFilterControl.accessibilityLabel
-              }
-              label={relationshipListTypeFilterControl.label}
-              options={relationshipTypeFilterOptions}
-              value={typeFilter}
-              onValueChange={setTypeFilter}
-            />
-          ) : null}
-          {entryFilter ? (
-            <MutedText>
-              {`Showing links attached to ${
-                selectedEntryFilter?.name ?? entryFilter
-              }.`}
-            </MutedText>
-          ) : null}
-          {entryFilter || relationshipQuery || typeFilter ? (
-            <ButtonRow>
-              {typeFilter ? (
-                <ActionButton
-                  label={relationshipFeatureCopy.clearTypeFilterLabel}
-                  onPress={() => setTypeFilter('')}
-                />
-              ) : null}
-              {entryFilter ? (
-                <ActionButton
-                  label={relationshipFeatureCopy.clearEntryFilterLabel}
-                  onPress={() => setEntryFilter('')}
-                />
-              ) : null}
-              {relationshipQuery ? (
-                <ActionButton
-                  label={relationshipFeatureCopy.clearSearchLabel}
-                  onPress={() => setRelationshipQuery('')}
-                />
-              ) : null}
             </ButtonRow>
-          ) : null}
-          {relationshipItems.length > 0 ? (
-            <>
-              {displayedRelationshipItems.map((relationship) => (
+            {relationshipReview.reviewSummary.items.map((item) => (
+              <MutedText key={item.id}>
+                {item.title}: {item.countLabel}. {item.detail}
+              </MutedText>
+            ))}
+            <MutedText>
+              {relationshipFeatureCopy.graphViewTitle}: {graphView.summaryLabel}
+            </MutedText>
+          </SectionBlock>
+        ) : null}
+
+        {showReviewMode ? (
+          <SectionBlock
+            sectionId="links.repair"
+            title={relationshipFeatureCopy.repairBrokenLinksTitle}
+          >
+            {brokenRelationships.length > 0 ? (
+              brokenRelationships.map((relationship) => (
                 <View key={relationship.id} style={styles.relationshipRow}>
                   <Text style={styles.entryTitle}>{relationship.type}</Text>
-                  <MutedText>
-                    {relationship.sourceName} {relationship.directionLabel}{' '}
-                    {relationship.targetName}
-                  </MutedText>
-                  <MutedText>{relationship.directionStatusLabel}</MutedText>
-                  {relationship.note ? (
-                    <MutedText>{relationship.note}</MutedText>
-                  ) : null}
+                  <MutedText>{relationship.sourceLineLabel}</MutedText>
+                  <MutedText>{relationship.targetLineLabel}</MutedText>
                   <ButtonRow>
                     <ActionButton
-                      accessibilityLabel={
-                        relationship.openSourceAccessibilityLabel
-                      }
-                      label={relationship.openSourceLabel}
-                      disabled={!relationship.sourceContextRoute}
-                      onPress={() =>
-                        confirmDiscardUnsavedChangesOnMobile(
-                          isDraftDirty,
-                          () => {
-                            router.push({
-                              ...getMobileRouteHref(
-                                relationship.sourceContextRoute
-                              ),
-                            });
-                          }
-                        )
-                      }
-                    />
-                    <ActionButton
-                      accessibilityLabel={
-                        relationship.openTargetAccessibilityLabel
-                      }
-                      label={relationship.openTargetLabel}
-                      disabled={!relationship.targetContextRoute}
-                      onPress={() =>
-                        confirmDiscardUnsavedChangesOnMobile(
-                          isDraftDirty,
-                          () => {
-                            router.push({
-                              ...getMobileRouteHref(
-                                relationship.targetContextRoute
-                              ),
-                            });
-                          }
-                        )
-                      }
-                    />
-                    <ActionButton
-                      accessibilityLabel={relationship.editAccessibilityLabel}
-                      label={relationship.editLabel}
-                      onPress={() => editRelationship(relationship.id)}
+                      accessibilityLabel={relationship.repairAccessibilityLabel}
+                      label={relationshipFeatureCopy.repairLabel}
+                      tone="accent"
+                      onPress={() => repairRelationship(relationship.id)}
                     />
                     <ActionButton
                       accessibilityHint={relationship.deleteAccessibilityHint}
                       accessibilityLabel={relationship.deleteAccessibilityLabel}
-                      label={relationship.deleteLabel}
+                      label={relationshipFeatureCopy.deleteLabel}
                       tone="danger"
                       onPress={() => deleteRelationship(relationship.id)}
                     />
                   </ButtonRow>
                 </View>
-              ))}
-              {hiddenRelationshipCount > 0 ? (
+              ))
+            ) : (
+              <MutedText>
+                {relationshipFeatureCopy.noBrokenRelationshipsTitle}
+              </MutedText>
+            )}
+            {orphanedEntries.length > 0 ? (
+              <>
                 <MutedText>
-                  {formatHiddenCountText({
-                    hiddenCount: hiddenRelationshipCount,
-                    singularItemLabel: 'link',
-                    pluralItemLabel: 'links',
-                  })}
+                  {relationshipFeatureCopy.orphanedRecordsLabel}
                 </MutedText>
-              ) : null}
-              {relationshipItems.length >
-              mobileFeatureDisplayLimits.relationshipResults ? (
-                <ButtonRow>
-                  <ActionButton
-                    expanded={showAllRelationshipResults}
-                    label={formatExpansionControlLabel({
-                      isExpanded: showAllRelationshipResults,
-                      hiddenCount: hiddenRelationshipCount,
-                      pluralItemLabel: 'Relationship Links',
-                      singularItemLabel: 'Relationship Link',
+                {visibleOrphanedEntries.map((entry) => (
+                  <View key={entry.id} style={styles.relationshipRow}>
+                    <Text style={styles.entryTitle}>{entry.name}</Text>
+                    <MutedText>{entry.sectionTitle}</MutedText>
+                    <ButtonRow>
+                      <ActionButton
+                        accessibilityLabel={entry.manageLinksAccessibilityLabel}
+                        label={entry.manageLinksLabel}
+                        onPress={() =>
+                          confirmDiscardUnsavedChangesOnMobile(
+                            isDraftDirty,
+                            () => {
+                              setEntryFilter(entry.id);
+                              setEntryQuery(entry.name);
+                              setRelationshipQuery(entry.name);
+                              setDraft((current) => ({
+                                ...current,
+                                sourceEntryId: entry.id,
+                              }));
+                              setStudioMode('links');
+                            }
+                          )
+                        }
+                      />
+                    </ButtonRow>
+                  </View>
+                ))}
+                {hiddenOrphanedEntryCount > 0 ? (
+                  <MutedText>
+                    {formatHiddenCountText({
+                      hiddenCount: hiddenOrphanedEntryCount,
+                      singularItemLabel: 'orphaned record',
+                      pluralItemLabel: 'orphaned records',
                     })}
+                  </MutedText>
+                ) : null}
+                {orphanedEntries.length >
+                relationshipReviewDisplayLimits.orphanedEntries ? (
+                  <ButtonRow>
+                    <ActionButton
+                      expanded={showAllOrphanedEntries}
+                      label={formatExpansionControlLabel({
+                        isExpanded: showAllOrphanedEntries,
+                        hiddenCount: hiddenOrphanedEntryCount,
+                        pluralItemLabel: 'Orphaned Records',
+                        singularItemLabel: 'Orphaned Record',
+                      })}
+                      onPress={() =>
+                        setShowAllOrphanedEntries(
+                          (currentValue) => !currentValue
+                        )
+                      }
+                    />
+                  </ButtonRow>
+                ) : null}
+              </>
+            ) : (
+              <MutedText>
+                {relationshipFeatureCopy.noOrphanedRecordsMessage}
+              </MutedText>
+            )}
+            {duplicateRelationshipGroups.length > 0 ? (
+              <>
+                <MutedText>
+                  {relationshipFeatureCopy.duplicateRelationshipsLabel}
+                </MutedText>
+                <MutedText>
+                  {relationshipFeatureCopy.duplicateRelationshipsDetail}
+                </MutedText>
+                {visibleDuplicateRelationshipGroups.map((group) => (
+                  <View key={group.id} style={styles.relationshipRow}>
+                    <Text style={styles.entryTitle}>
+                      {group.sourceName} - {group.targetName}
+                    </Text>
+                    <MutedText>{group.type}</MutedText>
+                    <MutedText>{group.removalSummaryLabel}</MutedText>
+                  </View>
+                ))}
+                {hiddenDuplicateRelationshipGroupCount > 0 ? (
+                  <MutedText>
+                    {formatHiddenCountText({
+                      hiddenCount: hiddenDuplicateRelationshipGroupCount,
+                      singularItemLabel: 'duplicate group',
+                      pluralItemLabel: 'duplicate groups',
+                    })}
+                  </MutedText>
+                ) : null}
+                {duplicateRelationshipGroups.length >
+                relationshipReviewDisplayLimits.duplicateRelationshipGroups ? (
+                  <ButtonRow>
+                    <ActionButton
+                      expanded={showAllDuplicateGroups}
+                      label={formatExpansionControlLabel({
+                        isExpanded: showAllDuplicateGroups,
+                        hiddenCount: hiddenDuplicateRelationshipGroupCount,
+                        pluralItemLabel: 'Duplicate Groups',
+                        singularItemLabel: 'Duplicate Group',
+                      })}
+                      onPress={() =>
+                        setShowAllDuplicateGroups(
+                          (currentValue) => !currentValue
+                        )
+                      }
+                    />
+                  </ButtonRow>
+                ) : null}
+              </>
+            ) : null}
+            {legacyTextItems.length > 0 ? (
+              <>
+                <MutedText>{relationshipTextReviewCopy.title}</MutedText>
+                <MutedText>
+                  {getRelationshipTextReviewSummary(legacyTextItems.length)}
+                </MutedText>
+                {visibleLegacyTextItems.map((item) => (
+                  <View
+                    key={`${item.entryId}-${item.fieldKey}`}
+                    style={styles.relationshipRow}
+                  >
+                    <Text style={styles.entryTitle}>{item.entryName}</Text>
+                    <MutedText>{item.fieldLabel}</MutedText>
+                    <MutedText>
+                      {relationshipTextReviewCopy.unresolvedLabel}:{' '}
+                      {getRelationshipTextReviewUnresolvedLabel(item)}.{' '}
+                      {getRelationshipTextReviewExactMatchLabel(item)}
+                    </MutedText>
+                    <ButtonRow>
+                      <ActionButton
+                        accessibilityLabel={item.reviewEntryAccessibilityLabel}
+                        label={item.reviewEntryLabel}
+                        onPress={() => {
+                          confirmDiscardUnsavedChangesOnMobile(
+                            isDraftDirty,
+                            () => {
+                              router.push({
+                                ...getMobileRouteHref(item.reviewEntryRoute),
+                              });
+                            }
+                          );
+                        }}
+                      />
+                    </ButtonRow>
+                  </View>
+                ))}
+                {hiddenLegacyTextItemCount > 0 ? (
+                  <MutedText>
+                    {formatHiddenCountText({
+                      hiddenCount: hiddenLegacyTextItemCount,
+                      singularItemLabel: 'legacy text item',
+                      pluralItemLabel: 'legacy text items',
+                    })}
+                  </MutedText>
+                ) : null}
+                {legacyTextItems.length >
+                relationshipReviewDisplayLimits.legacyTextItems ? (
+                  <ButtonRow>
+                    <ActionButton
+                      expanded={showAllLegacyTextItems}
+                      label={formatExpansionControlLabel({
+                        isExpanded: showAllLegacyTextItems,
+                        hiddenCount: hiddenLegacyTextItemCount,
+                        pluralItemLabel: 'Legacy Text Items',
+                        singularItemLabel: 'Legacy Text Item',
+                      })}
+                      onPress={() =>
+                        setShowAllLegacyTextItems(
+                          (currentValue) => !currentValue
+                        )
+                      }
+                    />
+                  </ButtonRow>
+                ) : null}
+              </>
+            ) : null}
+          </SectionBlock>
+        ) : null}
+
+        {showGraphMode ? (
+          <SectionBlock
+            sectionId="links.graph"
+            title={relationshipFeatureCopy.graphBrowserTitle}
+          >
+            <Field
+              autoCapitalize="none"
+              autoCorrect={false}
+              label={relationshipFeatureCopy.searchGraphRecordsLabel}
+              value={graphNodeQuery}
+              onChangeText={setGraphNodeQuery}
+              placeholder={
+                relationshipFeatureCopy.searchGraphRecordsPlaceholder
+              }
+            />
+            <ButtonRow>
+              <ActionButton
+                label={relationshipFeatureCopy.anySectionLabel}
+                selected={graphSectionFilter === ''}
+                tone={graphSectionFilter === '' ? 'accent' : 'neutral'}
+                onPress={() => setGraphSectionFilter('')}
+              />
+              {controller.sections.map((item) => (
+                <ActionButton
+                  key={item.id}
+                  label={item.title}
+                  selected={graphSectionFilter === item.id}
+                  tone={graphSectionFilter === item.id ? 'accent' : 'neutral'}
+                  onPress={() =>
+                    setGraphSectionFilter((current) =>
+                      current === item.id ? '' : item.id
+                    )
+                  }
+                />
+              ))}
+            </ButtonRow>
+            <SelectField
+              accessibilityLabel={
+                relationshipGraphStatusFilterControl.accessibilityLabel
+              }
+              label={relationshipGraphStatusFilterControl.label}
+              options={relationshipGraphStatusFilterControl.options}
+              value={graphStatusFilter}
+              onValueChange={setGraphStatusFilter}
+            />
+            {relationshipTypeFilterOptions.length > 1 ? (
+              <SelectField
+                accessibilityLabel={
+                  relationshipGraphTypeFilterControl.accessibilityLabel
+                }
+                label={relationshipGraphTypeFilterControl.label}
+                options={relationshipTypeFilterOptions}
+                value={graphTypeFilter}
+                onValueChange={setGraphTypeFilter}
+              />
+            ) : null}
+            {availableGraphTags.length > 0 ? (
+              <ButtonRow>
+                <ActionButton
+                  label={relationshipFeatureCopy.allTagsLabel}
+                  selected={graphTagFilter === ''}
+                  tone={graphTagFilter === '' ? 'accent' : 'neutral'}
+                  onPress={() => setGraphTagFilter('')}
+                />
+                {availableGraphTags.map((tag) => (
+                  <ActionButton
+                    key={tag}
+                    label={tag}
+                    selected={graphTagFilter === tag}
+                    tone={graphTagFilter === tag ? 'accent' : 'neutral'}
                     onPress={() =>
-                      setShowAllRelationshipResults(
-                        (currentValue) => !currentValue
+                      setGraphTagFilter((current) =>
+                        current === tag ? '' : tag
                       )
                     }
                   />
-                </ButtonRow>
-              ) : null}
-            </>
-          ) : (
-            <>
+                ))}
+              </ButtonRow>
+            ) : null}
+            {hasGraphFilters ? (
+              <ButtonRow>
+                <ActionButton
+                  label={relationshipFeatureCopy.clearGraphFiltersLabel}
+                  onPress={clearGraphFilters}
+                />
+              </ButtonRow>
+            ) : null}
+            {graphView.nodes.length > 0 ? (
+              <>
+                <MutedText>
+                  {getRelationshipGraphNodeResultSummary({
+                    matchedCount: matchingGraphNodes.length,
+                    totalCount: graphView.nodes.length,
+                  })}
+                </MutedText>
+                {displayedGraphNodes.length > 0 ? (
+                  <ButtonRow>
+                    {displayedGraphNodes.map((node) => (
+                      <ActionButton
+                        key={node.id}
+                        label={node.name}
+                        selected={selectedGraphNodeId === node.id}
+                        tone={
+                          selectedGraphNodeId === node.id ? 'accent' : 'neutral'
+                        }
+                        onPress={() =>
+                          setSelectedGraphNodeId((current) =>
+                            current === node.id ? null : node.id
+                          )
+                        }
+                      />
+                    ))}
+                  </ButtonRow>
+                ) : (
+                  <MutedText>
+                    {relationshipFeatureCopy.noGraphSearchMatchesMessage}
+                  </MutedText>
+                )}
+                {hiddenGraphNodeCount > 0 ? (
+                  <MutedText>
+                    {formatHiddenCountText({
+                      hiddenCount: hiddenGraphNodeCount,
+                      singularItemLabel: 'graph record',
+                      pluralItemLabel: 'graph records',
+                    })}
+                  </MutedText>
+                ) : null}
+                {matchingGraphNodes.length >
+                mobileFeatureDisplayLimits.pickerResults ? (
+                  <ButtonRow>
+                    <ActionButton
+                      expanded={showAllGraphNodes}
+                      label={formatExpansionControlLabel({
+                        isExpanded: showAllGraphNodes,
+                        hiddenCount: hiddenGraphNodeCount,
+                        pluralItemLabel: 'Graph Records',
+                        singularItemLabel: 'Graph Record',
+                      })}
+                      onPress={() =>
+                        setShowAllGraphNodes((currentValue) => !currentValue)
+                      }
+                    />
+                  </ButtonRow>
+                ) : null}
+                {selectedGraphNode ? (
+                  <View style={styles.relationshipRow}>
+                    <Text style={styles.entryTitle}>
+                      {selectedGraphNode.name}
+                    </Text>
+                    <MutedText>
+                      {selectedGraphNode.sectionTitle} -{' '}
+                      {selectedGraphNode.statusLabel}
+                    </MutedText>
+                    {selectedGraphEdges.map((edge) => (
+                      <View key={edge.id} style={styles.graphEdgeRow}>
+                        <MutedText>
+                          {edge.sourceName} {edge.directionLabel}{' '}
+                          {edge.targetName} - {edge.label}
+                        </MutedText>
+                        <ButtonRow>
+                          <ActionButton
+                            accessibilityLabel={edge.editAccessibilityLabel}
+                            label={edge.editLabel}
+                            onPress={() => editRelationship(edge.id)}
+                          />
+                        </ButtonRow>
+                      </View>
+                    ))}
+                    <ButtonRow>
+                      <ActionButton
+                        accessibilityLabel={
+                          selectedGraphNode.openEntryAccessibilityLabel
+                        }
+                        label={selectedGraphNode.openEntryLabel}
+                        onPress={() =>
+                          confirmDiscardUnsavedChangesOnMobile(
+                            isDraftDirty,
+                            () => {
+                              router.push({
+                                ...getMobileRouteHref(
+                                  selectedGraphNode.contextRoute
+                                ),
+                              });
+                            }
+                          )
+                        }
+                      />
+                      <ActionButton
+                        accessibilityLabel={
+                          selectedGraphNode.filterListAccessibilityLabel
+                        }
+                        label={selectedGraphNode.filterListLabel}
+                        onPress={() => {
+                          setEntryFilter(selectedGraphNode.id);
+                          setStudioMode('links');
+                        }}
+                      />
+                    </ButtonRow>
+                  </View>
+                ) : null}
+              </>
+            ) : (
               <MutedText>
-                {relationshipQuery.trim() || typeFilter || entryFilter
-                  ? relationshipFeatureCopy.noMatchesTitle
-                  : relationshipFeatureCopy.emptyTitle}
+                {relationshipFeatureCopy.noConnectedGraphMatchesMessage}
               </MutedText>
-              <MutedText>
-                {relationshipQuery.trim() || typeFilter || entryFilter
-                  ? relationshipFeatureCopy.noMatchesDetail
-                  : relationshipFeatureCopy.emptyDetail}
-              </MutedText>
-            </>
-          )}
-        </SectionBlock>
-      ) : null}
+            )}
+          </SectionBlock>
+        ) : null}
 
-      {showBulkEditMode ? (
-        <SectionBlock title={studioModeModel.activeMode.label}>
-          <MutedText>{studioModeModel.activeMode.detail}</MutedText>
-          {legacyTextItems.length > 0 ? (
-            <>
+        {showLinksMode ? (
+          <SectionBlock
+            sectionId="links.pickers"
+            title={relationshipFeatureCopy.entryPickersTitle}
+          >
+            <Field
+              autoCapitalize="none"
+              autoCorrect={false}
+              label={relationshipFeatureCopy.searchEntriesLabel}
+              value={entryQuery}
+              onChangeText={setEntryQuery}
+              placeholder={relationshipFeatureCopy.searchEntriesPlaceholder}
+            />
+            {entries.length > 0 ? (
+              <>
+                {displayedEntries.map((entry) => {
+                  const pickerActions =
+                    getRelationshipPickerItemActionModel(entry);
+                  return (
+                    <View key={entry.id} style={styles.entryPickerRow}>
+                      <View style={styles.entryText}>
+                        <Text style={styles.entryTitle}>{entry.label}</Text>
+                        <MutedText>{entry.detailText}</MutedText>
+                      </View>
+                      <ButtonRow>
+                        <ActionButton
+                          accessibilityLabel={
+                            pickerActions.sourceAccessibilityLabel
+                          }
+                          label={pickerActions.sourceLabel}
+                          selected={draft.sourceEntryId === entry.id}
+                          tone={
+                            draft.sourceEntryId === entry.id
+                              ? 'accent'
+                              : 'neutral'
+                          }
+                          onPress={() =>
+                            setDraft((current) => ({
+                              ...current,
+                              sourceEntryId: entry.id,
+                            }))
+                          }
+                        />
+                        <ActionButton
+                          accessibilityLabel={
+                            pickerActions.targetAccessibilityLabel
+                          }
+                          label={pickerActions.targetLabel}
+                          selected={draft.targetEntryId === entry.id}
+                          tone={
+                            draft.targetEntryId === entry.id
+                              ? 'accent'
+                              : 'neutral'
+                          }
+                          onPress={() =>
+                            setDraft((current) => ({
+                              ...current,
+                              targetEntryId: entry.id,
+                            }))
+                          }
+                        />
+                      </ButtonRow>
+                    </View>
+                  );
+                })}
+                {hiddenEntryCount > 0 ? (
+                  <MutedText>
+                    {formatHiddenCountText({
+                      hiddenCount: hiddenEntryCount,
+                      singularItemLabel: 'record',
+                      pluralItemLabel: 'records',
+                    })}
+                  </MutedText>
+                ) : null}
+                {entries.length > mobileFeatureDisplayLimits.pickerResults ? (
+                  <ButtonRow>
+                    <ActionButton
+                      expanded={showAllEntryPickerRecords}
+                      label={formatExpansionControlLabel({
+                        isExpanded: showAllEntryPickerRecords,
+                        hiddenCount: hiddenEntryCount,
+                        pluralItemLabel: 'Entry Records',
+                        singularItemLabel: 'Entry Record',
+                      })}
+                      onPress={() =>
+                        setShowAllEntryPickerRecords(
+                          (currentValue) => !currentValue
+                        )
+                      }
+                    />
+                  </ButtonRow>
+                ) : null}
+              </>
+            ) : (
+              <MutedText>{entryPickerModel.emptyText}</MutedText>
+            )}
+          </SectionBlock>
+        ) : null}
+
+        {showLinksMode ? (
+          <SectionBlock
+            sectionId="links.editor"
+            title={relationshipFormHeaderModel.title}
+          >
+            {controller.formMessage ? (
+              <StatusText tone={getFeedbackTone(controller.formMessage)}>
+                {controller.formMessage}
+              </StatusText>
+            ) : null}
+            {isDraftDirty ? (
+              <StatusText tone="warning">
+                {relationshipFormHeaderModel.unsavedDraftLabel}
+              </StatusText>
+            ) : null}
+            {relationshipEntries.length < 2 ? (
+              <StatusText tone="warning">
+                {relationshipFeatureCopy.minimumEntriesTitle}{' '}
+                {relationshipFeatureCopy.minimumEntriesDetail}
+              </StatusText>
+            ) : (
+              <>
+                <SelectField
+                  accessibilityLabel={
+                    relationshipSourceControl.accessibilityLabel
+                  }
+                  label={relationshipSourceControl.label}
+                  options={relationshipEntryOptions}
+                  searchable
+                  searchPlaceholder={
+                    relationshipFeatureCopy.searchEntriesPlaceholder
+                  }
+                  value={draft.sourceEntryId}
+                  onValueChange={(value) =>
+                    setDraft((current) => ({
+                      ...current,
+                      sourceEntryId: value,
+                    }))
+                  }
+                />
+                {relationshipOptions.selectedSourceSummaryLabel ? (
+                  <MutedText>
+                    {relationshipOptions.selectedSourceSummaryLabel}
+                  </MutedText>
+                ) : null}
+                <SelectField
+                  accessibilityLabel={
+                    relationshipTargetControl.accessibilityLabel
+                  }
+                  label={relationshipTargetControl.label}
+                  options={relationshipEntryOptions}
+                  searchable
+                  searchPlaceholder={
+                    relationshipFeatureCopy.searchEntriesPlaceholder
+                  }
+                  value={draft.targetEntryId}
+                  onValueChange={(value) =>
+                    setDraft((current) => ({
+                      ...current,
+                      targetEntryId: value,
+                    }))
+                  }
+                />
+                {relationshipOptions.selectedTargetSummaryLabel ? (
+                  <MutedText>
+                    {relationshipOptions.selectedTargetSummaryLabel}
+                  </MutedText>
+                ) : null}
+                <Field
+                  label={relationshipTypeControl.label}
+                  placeholder={relationshipTypeControl.placeholder}
+                  value={draft.type}
+                  onChangeText={(value) =>
+                    setDraft((current) => ({ ...current, type: value }))
+                  }
+                />
+                <ButtonRow>
+                  {relationshipTypeSuggestions
+                    .slice(
+                      0,
+                      mobileFeatureDisplayLimits.relationshipTypeSuggestions
+                    )
+                    .map((type) => (
+                      <ActionButton
+                        key={type}
+                        label={type}
+                        selected={draft.type === type}
+                        tone={draft.type === type ? 'accent' : 'neutral'}
+                        onPress={() =>
+                          setDraft((current) => ({ ...current, type }))
+                        }
+                      />
+                    ))}
+                </ButtonRow>
+                <Field
+                  label={relationshipNoteControl.label}
+                  placeholder={relationshipNoteControl.placeholder}
+                  value={draft.note}
+                  multiline
+                  onChangeText={(value) =>
+                    setDraft((current) => ({ ...current, note: value }))
+                  }
+                />
+                <CheckboxField
+                  accessibilityLabel={
+                    relationshipDirectionalControl.accessibilityLabel
+                  }
+                  checked={draft.directional}
+                  label={relationshipDirectionalControl.label}
+                  onChange={(checked) =>
+                    setDraft((current) => ({
+                      ...current,
+                      directional: checked,
+                    }))
+                  }
+                />
+                <SelectField
+                  accessibilityLabel={
+                    relationshipDraftStatusControl.accessibilityLabel
+                  }
+                  label={relationshipDraftStatusControl.label}
+                  options={relationshipDraftStatusControl.options}
+                  value={draft.status}
+                  onValueChange={(value) =>
+                    setDraft((current) => ({
+                      ...current,
+                      status: value,
+                    }))
+                  }
+                />
+                <ButtonRow>
+                  <ActionButton
+                    label={relationshipFeatureCopy.saveRelationshipLabel}
+                    tone="accent"
+                    onPress={() => {
+                      const didSave = controller.saveRelationshipDraft(
+                        draft,
+                        editingRelationship ?? undefined
+                      );
+                      if (didSave) {
+                        resetDraft(true);
+                      }
+                    }}
+                  />
+                  <ActionButton
+                    label={relationshipFeatureCopy.clearDraftLabel}
+                    onPress={() => resetDraft()}
+                  />
+                </ButtonRow>
+              </>
+            )}
+          </SectionBlock>
+        ) : null}
+
+        {showLinksMode ? (
+          <SectionBlock
+            sectionId="links.saved"
+            title={relationshipFeatureCopy.savedSectionTitle}
+          >
+            <Field
+              autoCapitalize="none"
+              autoCorrect={false}
+              label={relationshipFeatureCopy.searchRelationshipsLabel}
+              value={relationshipQuery}
+              onChangeText={setRelationshipQuery}
+              placeholder={
+                relationshipFeatureCopy.searchRelationshipsPlaceholder
+              }
+            />
+            {relationshipTypeFilterOptions.length > 1 ? (
+              <SelectField
+                accessibilityLabel={
+                  relationshipListTypeFilterControl.accessibilityLabel
+                }
+                label={relationshipListTypeFilterControl.label}
+                options={relationshipTypeFilterOptions}
+                value={typeFilter}
+                onValueChange={setTypeFilter}
+              />
+            ) : null}
+            {entryFilter ? (
               <MutedText>
-                {getRelationshipTextReviewSummary(legacyTextItems.length)}
+                {`Showing links attached to ${
+                  selectedEntryFilter?.name ?? entryFilter
+                }.`}
               </MutedText>
-              {isDraftDirty ? (
-                <StatusText tone="warning">
-                  {relationshipTextReviewCopy.draftBlockedMessage}
-                </StatusText>
-              ) : null}
-              {exactLegacyTextItems.length > 0 ? (
+            ) : null}
+            {entryFilter || relationshipQuery || typeFilter ? (
+              <ButtonRow>
+                {typeFilter ? (
+                  <ActionButton
+                    label={relationshipFeatureCopy.clearTypeFilterLabel}
+                    onPress={() => setTypeFilter('')}
+                  />
+                ) : null}
+                {entryFilter ? (
+                  <ActionButton
+                    label={relationshipFeatureCopy.clearEntryFilterLabel}
+                    onPress={() => setEntryFilter('')}
+                  />
+                ) : null}
+                {relationshipQuery ? (
+                  <ActionButton
+                    label={relationshipFeatureCopy.clearSearchLabel}
+                    onPress={() => setRelationshipQuery('')}
+                  />
+                ) : null}
+              </ButtonRow>
+            ) : null}
+            {relationshipItems.length > 0 ? (
+              <>
+                {displayedRelationshipItems.map((relationship) => (
+                  <View key={relationship.id} style={styles.relationshipRow}>
+                    <Text style={styles.entryTitle}>{relationship.type}</Text>
+                    <MutedText>
+                      {relationship.sourceName} {relationship.directionLabel}{' '}
+                      {relationship.targetName}
+                    </MutedText>
+                    <MutedText>{relationship.directionStatusLabel}</MutedText>
+                    {relationship.note ? (
+                      <MutedText>{relationship.note}</MutedText>
+                    ) : null}
+                    <ButtonRow>
+                      <ActionButton
+                        accessibilityLabel={
+                          relationship.openSourceAccessibilityLabel
+                        }
+                        label={relationship.openSourceLabel}
+                        disabled={!relationship.sourceContextRoute}
+                        onPress={() =>
+                          confirmDiscardUnsavedChangesOnMobile(
+                            isDraftDirty,
+                            () => {
+                              router.push({
+                                ...getMobileRouteHref(
+                                  relationship.sourceContextRoute
+                                ),
+                              });
+                            }
+                          )
+                        }
+                      />
+                      <ActionButton
+                        accessibilityLabel={
+                          relationship.openTargetAccessibilityLabel
+                        }
+                        label={relationship.openTargetLabel}
+                        disabled={!relationship.targetContextRoute}
+                        onPress={() =>
+                          confirmDiscardUnsavedChangesOnMobile(
+                            isDraftDirty,
+                            () => {
+                              router.push({
+                                ...getMobileRouteHref(
+                                  relationship.targetContextRoute
+                                ),
+                              });
+                            }
+                          )
+                        }
+                      />
+                      <ActionButton
+                        accessibilityLabel={relationship.editAccessibilityLabel}
+                        label={relationship.editLabel}
+                        onPress={() => editRelationship(relationship.id)}
+                      />
+                      <ActionButton
+                        accessibilityHint={relationship.deleteAccessibilityHint}
+                        accessibilityLabel={
+                          relationship.deleteAccessibilityLabel
+                        }
+                        label={relationship.deleteLabel}
+                        tone="danger"
+                        onPress={() => deleteRelationship(relationship.id)}
+                      />
+                    </ButtonRow>
+                  </View>
+                ))}
+                {hiddenRelationshipCount > 0 ? (
+                  <MutedText>
+                    {formatHiddenCountText({
+                      hiddenCount: hiddenRelationshipCount,
+                      singularItemLabel: 'link',
+                      pluralItemLabel: 'links',
+                    })}
+                  </MutedText>
+                ) : null}
+                {relationshipItems.length >
+                mobileFeatureDisplayLimits.relationshipResults ? (
+                  <ButtonRow>
+                    <ActionButton
+                      expanded={showAllRelationshipResults}
+                      label={formatExpansionControlLabel({
+                        isExpanded: showAllRelationshipResults,
+                        hiddenCount: hiddenRelationshipCount,
+                        pluralItemLabel: 'Relationship Links',
+                        singularItemLabel: 'Relationship Link',
+                      })}
+                      onPress={() =>
+                        setShowAllRelationshipResults(
+                          (currentValue) => !currentValue
+                        )
+                      }
+                    />
+                  </ButtonRow>
+                ) : null}
+              </>
+            ) : (
+              <>
+                <MutedText>
+                  {relationshipQuery.trim() || typeFilter || entryFilter
+                    ? relationshipFeatureCopy.noMatchesTitle
+                    : relationshipFeatureCopy.emptyTitle}
+                </MutedText>
+                <MutedText>
+                  {relationshipQuery.trim() || typeFilter || entryFilter
+                    ? relationshipFeatureCopy.noMatchesDetail
+                    : relationshipFeatureCopy.emptyDetail}
+                </MutedText>
+              </>
+            )}
+          </SectionBlock>
+        ) : null}
+
+        {showBulkEditMode ? (
+          <SectionBlock
+            sectionId="links.review"
+            title={studioModeModel.activeMode.label}
+          >
+            <MutedText>{studioModeModel.activeMode.detail}</MutedText>
+            {legacyTextItems.length > 0 ? (
+              <>
+                <MutedText>
+                  {getRelationshipTextReviewSummary(legacyTextItems.length)}
+                </MutedText>
+                {isDraftDirty ? (
+                  <StatusText tone="warning">
+                    {relationshipTextReviewCopy.draftBlockedMessage}
+                  </StatusText>
+                ) : null}
+                {exactLegacyTextItems.length > 0 ? (
+                  <ButtonRow>
+                    <ActionButton
+                      disabled={isDraftDirty}
+                      label={relationshipTextReviewCopy.batchExactMatchLabel}
+                      tone="accent"
+                      onPress={migrateExactLegacyText}
+                    />
+                  </ButtonRow>
+                ) : (
+                  <MutedText>
+                    {relationshipTextReviewCopy.noExactMatchesFound}
+                  </MutedText>
+                )}
+              </>
+            ) : null}
+            {duplicateRelationshipGroups.length > 0 ? (
+              <>
+                <MutedText>
+                  {relationshipReview.duplicateRelationshipCleanupSummary}
+                </MutedText>
+                {isDraftDirty ? (
+                  <StatusText tone="warning">
+                    {
+                      relationshipFeatureCopy.duplicateRelationshipsCleanupBlockedMessage
+                    }
+                  </StatusText>
+                ) : null}
                 <ButtonRow>
                   <ActionButton
                     disabled={isDraftDirty}
-                    label={relationshipTextReviewCopy.batchExactMatchLabel}
+                    label={
+                      relationshipFeatureCopy.duplicateRelationshipsCleanupLabel
+                    }
                     tone="accent"
-                    onPress={migrateExactLegacyText}
+                    onPress={deleteDuplicateRelationships}
                   />
                 </ButtonRow>
-              ) : (
-                <MutedText>
-                  {relationshipTextReviewCopy.noExactMatchesFound}
-                </MutedText>
-              )}
-            </>
-          ) : null}
-          {duplicateRelationshipGroups.length > 0 ? (
-            <>
-              <MutedText>
-                {relationshipReview.duplicateRelationshipCleanupSummary}
-              </MutedText>
-              {isDraftDirty ? (
-                <StatusText tone="warning">
-                  {
-                    relationshipFeatureCopy.duplicateRelationshipsCleanupBlockedMessage
-                  }
-                </StatusText>
-              ) : null}
-              <ButtonRow>
-                <ActionButton
-                  disabled={isDraftDirty}
-                  label={
-                    relationshipFeatureCopy.duplicateRelationshipsCleanupLabel
-                  }
-                  tone="accent"
-                  onPress={deleteDuplicateRelationships}
-                />
-              </ButtonRow>
-            </>
-          ) : null}
-        </SectionBlock>
-      ) : null}
+              </>
+            ) : null}
+          </SectionBlock>
+        ) : null}
+      </MobileSectionDashboard>
     </ScreenScroll>
   );
 }

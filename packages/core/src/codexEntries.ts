@@ -13,6 +13,7 @@ import type {
   WorldDetailField,
   WorldDetailFieldKey,
   WorldEntry,
+  WorldImageAsset,
   WorldEntryKind,
   WorldEntryStatus,
   WorldSectionConfig,
@@ -753,6 +754,8 @@ export type EntryDraft = {
   status: WorldEntryStatus;
   pinned: boolean;
   details: Record<string, string>;
+  images?: WorldEntry['images'];
+  stagedAssets?: WorldImageAsset[];
 };
 
 /** Create a blank entry draft for forms. */
@@ -765,6 +768,7 @@ export function createEmptyDraft(): EntryDraft {
     status: 'draft',
     pinned: false,
     details: {},
+    images: [],
   };
 }
 
@@ -856,6 +860,7 @@ export function draftFromEntry(
     status: entry.status,
     pinned: entry.pinned,
     details,
+    images: entry.images.map((image) => ({ ...image })),
   };
 }
 
@@ -916,6 +921,9 @@ export function entryFromDraft(
     createdAt: existingEntry?.createdAt ?? new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     fields: entryFieldsFromDraft(fieldKeys, draft),
+    images: (draft.images ?? existingEntry?.images ?? []).map((image) => ({
+      ...image,
+    })),
   };
 
   return base;
@@ -995,6 +1003,10 @@ export function duplicateEntry(
     createdAt: timestamp,
     updatedAt: timestamp,
     fields: { ...entry.fields },
+    images: entry.images.map((image) => ({
+      ...image,
+      id: `image-${makeLocalIdSuffix()}`,
+    })),
     tags: [...entry.tags],
     kind: section.kind,
   };

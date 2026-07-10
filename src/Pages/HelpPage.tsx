@@ -4,6 +4,7 @@ import {
   getCodexScreenIntro,
   valgaronPrivacyPolicy,
 } from '@valgaron/core';
+import { DashboardPage } from '../Components/Dashboard/DashboardPage';
 
 export function HelpPage() {
   const intro = getCodexScreenIntro('help');
@@ -21,163 +22,209 @@ export function HelpPage() {
         </p>
       </section>
 
-      {focusedTopic ? (
-        <section className="vwb-panel" aria-labelledby="help-focused-title">
+      <DashboardPage
+        ariaLabel="Help dashboard cards"
+        forcedVisibleCardIds={focusedTopic ? ['help.focus'] : []}
+        pageId="help"
+        summary="Arrange focused guidance, workflow topics, and reference cards."
+      >
+        {focusedTopic ? (
+          <section
+            className="vwb-panel"
+            aria-labelledby="help-focused-title"
+            data-dashboard-card-id="help.focus"
+          >
+            <div className="vwb-section-heading">
+              <div>
+                <p className="vwb-kicker">
+                  {helpModel.sections.focused.kicker}
+                </p>
+                <h2 id="help-focused-title">{focusedTopic.title}</h2>
+              </div>
+            </div>
+            <p>{focusedTopic.detail}</p>
+          </section>
+        ) : null}
+
+        <section
+          className="vwb-panel"
+          aria-labelledby="help-start-title"
+          data-dashboard-card-id="help.start"
+        >
           <div className="vwb-section-heading">
             <div>
-              <p className="vwb-kicker">{helpModel.sections.focused.kicker}</p>
-              <h2 id="help-focused-title">{focusedTopic.title}</h2>
+              <p className="vwb-kicker">{helpModel.sections.firstUse.kicker}</p>
+              <h2 id="help-start-title">{helpModel.sections.firstUse.title}</h2>
             </div>
           </div>
-          <p>{focusedTopic.detail}</p>
+          <p>{helpModel.firstUse}</p>
         </section>
-      ) : null}
 
-      <section className="vwb-panel" aria-labelledby="help-start-title">
-        <div className="vwb-section-heading">
-          <div>
-            <p className="vwb-kicker">{helpModel.sections.firstUse.kicker}</p>
-            <h2 id="help-start-title">{helpModel.sections.firstUse.title}</h2>
-          </div>
-        </div>
-        <p>{helpModel.firstUse}</p>
-      </section>
-
-      <section className="vwb-panel" aria-labelledby="help-actions-title">
-        <div className="vwb-section-heading">
-          <div>
-            <p className="vwb-kicker">
-              {helpModel.sections.quickActions.kicker}
-            </p>
-            <h2 id="help-actions-title">
-              {helpModel.sections.quickActions.title}
-            </h2>
-          </div>
-        </div>
-        <div className="vwb-action-row">
-          {helpModel.quickActions.map((action) => (
-            <NavLink
-              className="vwb-secondary-button"
-              key={action.id}
-              to={action.path}
-            >
-              {action.label}
-            </NavLink>
-          ))}
-        </div>
-      </section>
-
-      <section className="vwb-panel" aria-labelledby="help-topics-title">
-        <div className="vwb-section-heading">
-          <div>
-            <h2 id="help-topics-title">
-              {helpModel.sections.focusTopics.title}
-            </h2>
-          </div>
-        </div>
-        <div className="vwb-action-row">
-          {helpModel.focusTopics.map((topic) => {
-            const isFocused = focusedTopic?.id === topic.id;
-            return (
-              <Link
-                aria-current={isFocused ? 'page' : undefined}
-                className={`vwb-secondary-button ${
-                  isFocused ? 'is-active' : ''
-                }`}
-                key={topic.id}
-                to={topic.path}
-              >
-                {topic.title}
-              </Link>
-            );
-          })}
-        </div>
-      </section>
-
-      <section
-        className="vwb-help-grid"
-        aria-label={helpModel.sections.workflow.ariaLabel}
-      >
-        {helpModel.workflowTopics.map((section) => (
-          <article className="vwb-panel" key={section.title}>
-            <p className="vwb-kicker">{helpModel.sections.workflow.kicker}</p>
-            <h2>{section.title}</h2>
-            <ul className="vwb-compact-list">
-              {section.items.map((item) => (
-                <li key={item}>{item}</li>
-              ))}
-            </ul>
-          </article>
-        ))}
-      </section>
-
-      <section className="vwb-panel" aria-labelledby="help-data-title">
-        <div className="vwb-section-heading">
-          <div>
-            <p className="vwb-kicker">{helpModel.sections.data.kicker}</p>
-            <h2 id="help-data-title">{helpModel.data.title}</h2>
-          </div>
-        </div>
-        <p>{helpModel.data.summary}</p>
-        <dl className="vwb-detail-list">
-          {helpModel.data.details.map((item) => (
-            <div key={item.term}>
-              <dt>{item.term}</dt>
-              <dd>{item.detail}</dd>
+        <section
+          className="vwb-panel"
+          aria-labelledby="help-actions-title"
+          data-dashboard-card-id="help.actions"
+        >
+          <div className="vwb-section-heading">
+            <div>
+              <p className="vwb-kicker">
+                {helpModel.sections.quickActions.kicker}
+              </p>
+              <h2 id="help-actions-title">
+                {helpModel.sections.quickActions.title}
+              </h2>
             </div>
+          </div>
+          <div className="vwb-action-row">
+            {helpModel.quickActions.map((action) => (
+              <NavLink
+                className="vwb-secondary-button"
+                key={action.id}
+                to={action.path}
+              >
+                {action.label}
+              </NavLink>
+            ))}
+          </div>
+        </section>
+
+        <section
+          className="vwb-panel"
+          aria-labelledby="help-topics-title"
+          data-dashboard-card-id="help.topics"
+        >
+          <div className="vwb-section-heading">
+            <div>
+              <h2 id="help-topics-title">
+                {helpModel.sections.focusTopics.title}
+              </h2>
+            </div>
+          </div>
+          <div className="vwb-action-row">
+            {helpModel.focusTopics.map((topic) => {
+              const isFocused = focusedTopic?.id === topic.id;
+              return (
+                <Link
+                  aria-current={isFocused ? 'page' : undefined}
+                  className={`vwb-secondary-button ${
+                    isFocused ? 'is-active' : ''
+                  }`}
+                  key={topic.id}
+                  to={topic.path}
+                >
+                  {topic.title}
+                </Link>
+              );
+            })}
+          </div>
+        </section>
+
+        <section
+          className="vwb-help-grid"
+          aria-label={helpModel.sections.workflow.ariaLabel}
+          data-dashboard-card-id="help.workflow"
+        >
+          {helpModel.workflowTopics.map((section) => (
+            <article className="vwb-panel" key={section.title}>
+              <p className="vwb-kicker">{helpModel.sections.workflow.kicker}</p>
+              <h2>{section.title}</h2>
+              <ul className="vwb-compact-list">
+                {section.items.map((item) => (
+                  <li key={item}>{item}</li>
+                ))}
+              </ul>
+            </article>
           ))}
-        </dl>
-      </section>
+        </section>
 
-      <section className="vwb-panel" aria-labelledby="help-offline-title">
-        <div className="vwb-section-heading">
-          <div>
-            <p className="vwb-kicker">{helpModel.sections.offline.kicker}</p>
-            <h2 id="help-offline-title">{helpModel.offline.title}</h2>
+        <section
+          className="vwb-panel"
+          aria-labelledby="help-data-title"
+          data-dashboard-card-id="help.data"
+        >
+          <div className="vwb-section-heading">
+            <div>
+              <p className="vwb-kicker">{helpModel.sections.data.kicker}</p>
+              <h2 id="help-data-title">{helpModel.data.title}</h2>
+            </div>
           </div>
-        </div>
-        <p>{helpModel.offline.detail}</p>
-      </section>
+          <p>{helpModel.data.summary}</p>
+          <dl className="vwb-detail-list">
+            {helpModel.data.details.map((item) => (
+              <div key={item.term}>
+                <dt>{item.term}</dt>
+                <dd>{item.detail}</dd>
+              </div>
+            ))}
+          </dl>
+        </section>
 
-      <section className="vwb-panel" aria-labelledby="help-support-title">
-        <div className="vwb-section-heading">
-          <div>
-            <p className="vwb-kicker">{helpModel.sections.support.kicker}</p>
-            <h2 id="help-support-title">{helpModel.support.title}</h2>
+        <section
+          className="vwb-panel"
+          aria-labelledby="help-offline-title"
+          data-dashboard-card-id="help.offline"
+        >
+          <div className="vwb-section-heading">
+            <div>
+              <p className="vwb-kicker">{helpModel.sections.offline.kicker}</p>
+              <h2 id="help-offline-title">{helpModel.offline.title}</h2>
+            </div>
           </div>
-        </div>
-        <p>{helpModel.support.detail}</p>
-      </section>
+          <p>{helpModel.offline.detail}</p>
+        </section>
 
-      <section className="vwb-panel" aria-labelledby="help-privacy-title">
-        <div className="vwb-section-heading">
-          <div>
-            <p className="vwb-kicker">{helpModel.sections.privacy.kicker}</p>
-            <h2 id="help-privacy-title">{helpModel.privacy.title}</h2>
+        <section
+          className="vwb-panel"
+          aria-labelledby="help-support-title"
+          data-dashboard-card-id="help.support"
+        >
+          <div className="vwb-section-heading">
+            <div>
+              <p className="vwb-kicker">{helpModel.sections.support.kicker}</p>
+              <h2 id="help-support-title">{helpModel.support.title}</h2>
+            </div>
           </div>
-        </div>
-        <p>{helpModel.privacy.detail}</p>
-        <div className="vwb-action-row">
-          <Link
-            className="vwb-secondary-button"
-            to={valgaronPrivacyPolicy.webPath}
-          >
-            {valgaronPrivacyPolicy.actionLabel}
-          </Link>
-        </div>
-      </section>
+          <p>{helpModel.support.detail}</p>
+        </section>
 
-      <section className="vwb-panel" aria-labelledby="help-limits-title">
-        <div className="vwb-section-heading">
-          <div>
-            <p className="vwb-kicker">
-              {helpModel.sections.releaseLimits.kicker}
-            </p>
-            <h2 id="help-limits-title">{helpModel.releaseLimits.title}</h2>
+        <section
+          className="vwb-panel"
+          aria-labelledby="help-privacy-title"
+          data-dashboard-card-id="help.privacy"
+        >
+          <div className="vwb-section-heading">
+            <div>
+              <p className="vwb-kicker">{helpModel.sections.privacy.kicker}</p>
+              <h2 id="help-privacy-title">{helpModel.privacy.title}</h2>
+            </div>
           </div>
-        </div>
-        <p>{helpModel.releaseLimits.detail}</p>
-      </section>
+          <p>{helpModel.privacy.detail}</p>
+          <div className="vwb-action-row">
+            <Link
+              className="vwb-secondary-button"
+              to={valgaronPrivacyPolicy.webPath}
+            >
+              {valgaronPrivacyPolicy.actionLabel}
+            </Link>
+          </div>
+        </section>
+
+        <section
+          className="vwb-panel"
+          aria-labelledby="help-limits-title"
+          data-dashboard-card-id="help.limits"
+        >
+          <div className="vwb-section-heading">
+            <div>
+              <p className="vwb-kicker">
+                {helpModel.sections.releaseLimits.kicker}
+              </p>
+              <h2 id="help-limits-title">{helpModel.releaseLimits.title}</h2>
+            </div>
+          </div>
+          <p>{helpModel.releaseLimits.detail}</p>
+        </section>
+      </DashboardPage>
     </main>
   );
 }

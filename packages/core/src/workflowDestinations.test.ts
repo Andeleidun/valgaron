@@ -53,6 +53,7 @@ function createCompleteSingleRecordWorld(
           createdAt: '2026-07-06T00:00:00.000Z',
           updatedAt: '2026-07-06T00:00:00.000Z',
           fields: {},
+          images: [],
         },
       ],
       characters: [],

@@ -30,12 +30,19 @@ import {
   type DataExportMode,
 } from '@valgaron/core';
 import { useMobileCodex } from '../state/MobileCodexContext';
+import { useMobileSectionPreferences } from '../state/useMobileSectionPreferences';
 import {
   getMobileRouteHref,
   mobileRouteFocusParam,
 } from '../navigation/mobileRoutes';
 import { getMobileRouteParam } from '../navigation/mobileRouteParams';
 import { getMobileExportText } from '../state/mobileDataExport';
+import {
+  installMobileZipAssets,
+  pickMobileWorldBackup,
+  shareMobileZipBackup,
+  type ParsedMobileWorldZipBackup,
+} from '../state/mobileZipBackups';
 import { parseMobileWorldImport } from '../storage/mobileStorage';
 import {
   ActionButton,
@@ -43,6 +50,7 @@ import {
   ButtonRow,
   Field,
   MutedText,
+  MobileSectionDashboard,
   ScreenHeader,
   ScreenScroll,
   SectionBlock,
@@ -51,8 +59,21 @@ import {
 import { confirmMobileDestructiveAction } from './mobileConfirm';
 import { confirmDiscardUnsavedChangesOnMobile } from './unsavedChangesConfirm';
 
+const dataDashboardSectionIds = [
+  'data.storage',
+  'data.export',
+  'data.import',
+  'data.recovery',
+  'data.reset',
+  'data.help',
+] as const;
+
 export function DataScreen() {
   const controller = useMobileCodex();
+  const dashboard = useMobileSectionPreferences({
+    screenId: 'data',
+    sectionIds: dataDashboardSectionIds,
+  });
   const intro = getCodexScreenIntro('data');
   const routeParams = useLocalSearchParams<{
     [mobileRouteFocusParam]?: string;
@@ -107,6 +128,8 @@ export function DataScreen() {
   const [importResult, setImportResult] = useState<ReturnType<
     typeof parseMobileWorldImport
   > | null>(null);
+  const [zipImportResult, setZipImportResult] =
+    useState<ParsedMobileWorldZipBackup | null>(null);
   const importReview = useMemo(
     () => getDataImportReviewState(importText, importResult),
     [importResult, importText]
@@ -239,6 +262,7 @@ export function DataScreen() {
       () => {
         setImportText('');
         setImportResult(null);
+        setZipImportResult(null);
         setShareMessage('');
       },
       undefined,
@@ -252,6 +276,7 @@ export function DataScreen() {
   function clearTransientDataDrafts() {
     setImportText('');
     setImportResult(null);
+    setZipImportResult(null);
     setShareMessage('');
   }
 
@@ -275,8 +300,19 @@ export function DataScreen() {
       return;
     }
     confirmMobileDestructiveAction('import-document', () => {
-      controller.importDocumentText(importText);
-      clearTransientDataDrafts();
+      void (async () => {
+        if (
+          zipImportResult &&
+          !(await installMobileZipAssets(zipImportResult))
+        ) {
+          setShareMessage(
+            'Uploaded images could not be stored. The current document was left unchanged.'
+          );
+          return;
+        }
+        controller.importDocumentText(importText);
+        clearTransientDataDrafts();
+      })();
     });
   }
 
@@ -317,217 +353,288 @@ export function DataScreen() {
     }
   }
 
+  async function shareZip() {
+    if (exportMode !== 'active-json' && exportMode !== 'full-json') return;
+    try {
+      setShareMessage('Verifying images and creating ZIP…');
+      setShareMessage(
+        await shareMobileZipBackup(
+          controller.document,
+          controller.activeWorld.name,
+          exportMode === 'active-json' ? 'active' : 'full'
+        )
+      );
+    } catch (error) {
+      setShareMessage(
+        error instanceof Error ? error.message : 'ZIP sharing failed.'
+      );
+    }
+  }
+
+  async function chooseBackupFile() {
+    try {
+      const picked = await pickMobileWorldBackup();
+      if (!picked) return;
+      setImportText(picked.jsonText);
+      setImportResult(picked.result);
+      setZipImportResult(picked.zip);
+      setShareMessage(
+        picked.result.ok
+          ? `${picked.filename} loaded${
+              picked.zip
+                ? ` with ${picked.zip.files.length} uploaded image file${
+                    picked.zip.files.length === 1 ? '' : 's'
+                  }`
+                : ''
+            }.`
+          : picked.result.error
+      );
+    } catch {
+      setShareMessage('The selected backup could not be read.');
+    }
+  }
+
   return (
     <ScreenScroll scrollRef={scrollRef}>
       <ScreenHeader title={intro.title} detail={intro.detail} />
 
-      <SectionBlock title={dataStorageCopy.title}>
-        <BodyText>{storageStatus.saveLine}</BodyText>
-        {controller.formMessage ? (
-          <StatusText tone={getFeedbackTone(controller.formMessage)}>
-            {controller.formMessage}
-          </StatusText>
-        ) : null}
-        <MutedText>{storageStatus.loadLine}</MutedText>
-        <MutedText>{storageStatus.recoveryLine}</MutedText>
-        {storageStatus.currentWorkspaceLine ? (
-          <MutedText>{storageStatus.currentWorkspaceLine}</MutedText>
-        ) : null}
-        <MutedText>
-          {dataStorageCopy.diagnosticsLabel}:{' '}
-          {getDataDiagnosticsSummaryText(diagnostics)}
-        </MutedText>
-        {lastImportPreviewText ? (
-          <MutedText>
-            {dataImportCopy.lastImportLabel}: {lastImportPreviewText.title}.{' '}
-            {lastImportPreviewText.detail}
-          </MutedText>
-        ) : null}
-      </SectionBlock>
-
-      <SectionBlock
-        title={dataExportCopy.title}
-        onLayout={(event) => {
-          setFocusedSectionOffsets(
-            Object.values(dataExportSectionIds),
-            event.nativeEvent.layout.y
-          );
-        }}
+      <MobileSectionDashboard
+        collapsed={dashboard.collapsed}
+        isLoaded={dashboard.isLoaded}
+        onMove={dashboard.move}
+        onReset={dashboard.reset}
+        onResetAll={dashboard.resetAll}
+        onSetCollapsed={dashboard.setCollapsed}
+        order={dashboard.order}
       >
-        <ButtonRow>
-          {dataExportOptions.map((option) => (
+        <SectionBlock sectionId="data.storage" title={dataStorageCopy.title}>
+          <BodyText>{storageStatus.saveLine}</BodyText>
+          {controller.formMessage ? (
+            <StatusText tone={getFeedbackTone(controller.formMessage)}>
+              {controller.formMessage}
+            </StatusText>
+          ) : null}
+          <MutedText>{storageStatus.loadLine}</MutedText>
+          <MutedText>{storageStatus.recoveryLine}</MutedText>
+          {storageStatus.currentWorkspaceLine ? (
+            <MutedText>{storageStatus.currentWorkspaceLine}</MutedText>
+          ) : null}
+          <MutedText>
+            {dataStorageCopy.diagnosticsLabel}:{' '}
+            {getDataDiagnosticsSummaryText(diagnostics)}
+          </MutedText>
+          {lastImportPreviewText ? (
+            <MutedText>
+              {dataImportCopy.lastImportLabel}: {lastImportPreviewText.title}.{' '}
+              {lastImportPreviewText.detail}
+            </MutedText>
+          ) : null}
+        </SectionBlock>
+
+        <SectionBlock
+          sectionId="data.export"
+          title={dataExportCopy.title}
+          onLayout={(event) => {
+            setFocusedSectionOffsets(
+              Object.values(dataExportSectionIds),
+              event.nativeEvent.layout.y
+            );
+          }}
+        >
+          <ButtonRow>
+            {dataExportOptions.map((option) => (
+              <ActionButton
+                key={option.mode}
+                label={option.label}
+                selected={exportMode === option.mode}
+                tone={exportMode === option.mode ? 'accent' : 'neutral'}
+                onPress={() => selectExportMode(option.mode)}
+              />
+            ))}
+          </ButtonRow>
+          <MutedText>{selectedExportOption.description}</MutedText>
+          <Field
+            autoCapitalize="none"
+            autoCorrect={false}
+            label={selectedExportOption.textAreaLabel}
+            value={exportText}
+            multiline
+            onChangeText={updateExportText}
+          />
+          {exportDraftState.statusMessage ? (
+            <StatusText tone={getFeedbackTone(exportDraftState.statusMessage)}>
+              {exportDraftState.statusMessage}
+            </StatusText>
+          ) : null}
+          <ButtonRow>
             <ActionButton
-              key={option.mode}
-              label={option.label}
-              selected={exportMode === option.mode}
-              tone={exportMode === option.mode ? 'accent' : 'neutral'}
-              onPress={() => selectExportMode(option.mode)}
+              label={dataExportCopy.shareLabel}
+              tone="accent"
+              disabled={!exportDraftState.canShare}
+              onPress={() => {
+                void shareExport();
+              }}
             />
-          ))}
-        </ButtonRow>
-        <MutedText>{selectedExportOption.description}</MutedText>
-        <Field
-          autoCapitalize="none"
-          autoCorrect={false}
-          label={selectedExportOption.textAreaLabel}
-          value={exportText}
-          multiline
-          onChangeText={updateExportText}
-        />
-        {exportDraftState.statusMessage ? (
-          <StatusText tone={getFeedbackTone(exportDraftState.statusMessage)}>
-            {exportDraftState.statusMessage}
-          </StatusText>
-        ) : null}
-        <ButtonRow>
+            {exportMode === 'active-json' || exportMode === 'full-json' ? (
+              <ActionButton
+                label={
+                  exportMode === 'active-json'
+                    ? 'Share Active ZIP'
+                    : 'Share Full ZIP'
+                }
+                onPress={() => void shareZip()}
+              />
+            ) : null}
+            {exportDraftState.isEdited ? (
+              <ActionButton
+                label={dataExportCopy.refreshLabel}
+                onPress={refreshExportText}
+              />
+            ) : null}
+          </ButtonRow>
+          {shareMessage ? (
+            <StatusText tone={getFeedbackTone(shareMessage)}>
+              {shareMessage}
+            </StatusText>
+          ) : null}
+        </SectionBlock>
+
+        <SectionBlock
+          sectionId="data.import"
+          title={dataImportCopy.title}
+          onLayout={(event) => {
+            setFocusedSectionOffset(
+              'import-json-backup',
+              event.nativeEvent.layout.y
+            );
+          }}
+        >
           <ActionButton
-            label={dataExportCopy.shareLabel}
-            tone="accent"
-            disabled={!exportDraftState.canShare}
-            onPress={() => {
-              void shareExport();
+            label="Choose JSON or ZIP backup"
+            onPress={() => void chooseBackupFile()}
+          />
+          {importReview.error ? (
+            <StatusText tone="danger">{importReview.error}</StatusText>
+          ) : null}
+          {importReview.previewText ? (
+            <MutedText>
+              {dataImportCopy.previewStatusLabel}:{' '}
+              {importReview.previewText.title}.{' '}
+              {importReview.previewText.detail}
+            </MutedText>
+          ) : null}
+          <Field
+            autoCapitalize="none"
+            autoCorrect={false}
+            label={dataImportCopy.textAreaLabel}
+            value={importText}
+            multiline
+            placeholder={dataImportCopy.placeholder}
+            onChangeText={(text) => {
+              setImportText(text);
+              setImportResult(null);
             }}
           />
-          {exportDraftState.isEdited ? (
+          <ButtonRow>
             <ActionButton
-              label={dataExportCopy.refreshLabel}
-              onPress={refreshExportText}
+              label={dataImportCopy.previewLabel}
+              disabled={!hasImportText}
+              onPress={previewImport}
             />
-          ) : null}
-        </ButtonRow>
-        {shareMessage ? (
-          <StatusText tone={getFeedbackTone(shareMessage)}>
-            {shareMessage}
-          </StatusText>
-        ) : null}
-      </SectionBlock>
+            <ActionButton
+              label={dataImportCopy.importLabel}
+              tone="accent"
+              disabled={!importReview.canImport}
+              onPress={requestImport}
+            />
+            <ActionButton
+              label={dataImportCopy.clearLabel}
+              disabled={!hasImportText}
+              onPress={clearImportText}
+            />
+          </ButtonRow>
+        </SectionBlock>
 
-      <SectionBlock
-        title={dataImportCopy.title}
-        onLayout={(event) => {
-          setFocusedSectionOffset(
-            'import-json-backup',
-            event.nativeEvent.layout.y
-          );
-        }}
-      >
-        {importReview.error ? (
-          <StatusText tone="danger">{importReview.error}</StatusText>
-        ) : null}
-        {importReview.previewText ? (
-          <MutedText>
-            {dataImportCopy.previewStatusLabel}:{' '}
-            {importReview.previewText.title}. {importReview.previewText.detail}
-          </MutedText>
-        ) : null}
-        <Field
-          autoCapitalize="none"
-          autoCorrect={false}
-          label={dataImportCopy.textAreaLabel}
-          value={importText}
-          multiline
-          placeholder={dataImportCopy.placeholder}
-          onChangeText={(text) => {
-            setImportText(text);
-            setImportResult(null);
-          }}
-        />
-        <ButtonRow>
+        <SectionBlock
+          sectionId="data.recovery"
+          title={recoverySnapshotModel.title}
+        >
+          <MutedText>{recoverySnapshotModel.countLabel}</MutedText>
+          <MutedText>{recoverySnapshotModel.description}</MutedText>
+          {recoverySnapshotModel.rows.length > 0 ? (
+            <>
+              {recoverySnapshotModel.rows.map((snapshot) => (
+                <Fragment key={snapshot.id}>
+                  <MutedText>
+                    {snapshot.latestPrefix}
+                    {snapshot.mobileSummaryText}
+                  </MutedText>
+                  <ButtonRow>
+                    <ActionButton
+                      accessibilityLabel={snapshot.restoreAccessibilityLabel}
+                      accessibilityHint={snapshot.restoreAccessibilityHint}
+                      label={snapshot.restoreLabel}
+                      onPress={() =>
+                        replaceDocumentAfterConfirm(
+                          'restore-snapshot',
+                          () => controller.restoreRecoverySnapshot(snapshot.id),
+                          snapshot.confirmationSubject
+                        )
+                      }
+                    />
+                    <ActionButton
+                      accessibilityLabel={snapshot.deleteAccessibilityLabel}
+                      accessibilityHint={snapshot.deleteAccessibilityHint}
+                      label={snapshot.deleteLabel}
+                      tone="danger"
+                      onPress={() =>
+                        confirmMobileDestructiveAction(
+                          'delete-snapshot',
+                          () => controller.deleteRecoverySnapshot(snapshot.id),
+                          snapshot.confirmationSubject
+                        )
+                      }
+                    />
+                  </ButtonRow>
+                </Fragment>
+              ))}
+            </>
+          ) : (
+            <>
+              <MutedText>{recoverySnapshotModel.emptyTitle}</MutedText>
+              <MutedText>{recoverySnapshotModel.emptyDetail}</MutedText>
+            </>
+          )}
+        </SectionBlock>
+
+        <SectionBlock sectionId="data.reset" title={dataResetCopy.title}>
+          <MutedText>{dataResetCopy.description}</MutedText>
           <ActionButton
-            label={dataImportCopy.previewLabel}
-            disabled={!hasImportText}
-            onPress={previewImport}
+            accessibilityHint={dataResetCopy.accessibilityHint}
+            label={dataResetCopy.actionLabel}
+            tone="danger"
+            onPress={() =>
+              replaceDocumentAfterConfirm(
+                'reset-document',
+                controller.resetToSeed
+              )
+            }
           />
+        </SectionBlock>
+
+        <SectionBlock sectionId="data.help" title={dataHelpCopy.title}>
+          <BodyText>{codexDataHelpSummary}</BodyText>
           <ActionButton
-            label={dataImportCopy.importLabel}
-            tone="accent"
-            disabled={!importReview.canImport}
-            onPress={requestImport}
+            label={dataHelpCopy.openHelpLabel}
+            onPress={openDataHelp}
           />
-          <ActionButton
-            label={dataImportCopy.clearLabel}
-            disabled={!hasImportText}
-            onPress={clearImportText}
-          />
-        </ButtonRow>
-      </SectionBlock>
-
-      <SectionBlock title={recoverySnapshotModel.title}>
-        <MutedText>{recoverySnapshotModel.countLabel}</MutedText>
-        <MutedText>{recoverySnapshotModel.description}</MutedText>
-        {recoverySnapshotModel.rows.length > 0 ? (
-          <>
-            {recoverySnapshotModel.rows.map((snapshot) => (
-              <Fragment key={snapshot.id}>
-                <MutedText>
-                  {snapshot.latestPrefix}
-                  {snapshot.mobileSummaryText}
-                </MutedText>
-                <ButtonRow>
-                  <ActionButton
-                    accessibilityLabel={snapshot.restoreAccessibilityLabel}
-                    accessibilityHint={snapshot.restoreAccessibilityHint}
-                    label={snapshot.restoreLabel}
-                    onPress={() =>
-                      replaceDocumentAfterConfirm(
-                        'restore-snapshot',
-                        () => controller.restoreRecoverySnapshot(snapshot.id),
-                        snapshot.confirmationSubject
-                      )
-                    }
-                  />
-                  <ActionButton
-                    accessibilityLabel={snapshot.deleteAccessibilityLabel}
-                    accessibilityHint={snapshot.deleteAccessibilityHint}
-                    label={snapshot.deleteLabel}
-                    tone="danger"
-                    onPress={() =>
-                      confirmMobileDestructiveAction(
-                        'delete-snapshot',
-                        () => controller.deleteRecoverySnapshot(snapshot.id),
-                        snapshot.confirmationSubject
-                      )
-                    }
-                  />
-                </ButtonRow>
-              </Fragment>
-            ))}
-          </>
-        ) : (
-          <>
-            <MutedText>{recoverySnapshotModel.emptyTitle}</MutedText>
-            <MutedText>{recoverySnapshotModel.emptyDetail}</MutedText>
-          </>
-        )}
-      </SectionBlock>
-
-      <SectionBlock title={dataResetCopy.title}>
-        <MutedText>{dataResetCopy.description}</MutedText>
-        <ActionButton
-          accessibilityHint={dataResetCopy.accessibilityHint}
-          label={dataResetCopy.actionLabel}
-          tone="danger"
-          onPress={() =>
-            replaceDocumentAfterConfirm(
-              'reset-document',
-              controller.resetToSeed
-            )
-          }
-        />
-      </SectionBlock>
-
-      <SectionBlock title={dataHelpCopy.title}>
-        <BodyText>{codexDataHelpSummary}</BodyText>
-        <ActionButton
-          label={dataHelpCopy.openHelpLabel}
-          onPress={openDataHelp}
-        />
-        {codexDataHelpTopics.map((topic) => (
-          <MutedText key={topic.title}>
-            {topic.title}: {topic.items.join(' ')}
-          </MutedText>
-        ))}
-      </SectionBlock>
+          {codexDataHelpTopics.map((topic) => (
+            <MutedText key={topic.title}>
+              {topic.title}: {topic.items.join(' ')}
+            </MutedText>
+          ))}
+        </SectionBlock>
+      </MobileSectionDashboard>
     </ScreenScroll>
   );
 }

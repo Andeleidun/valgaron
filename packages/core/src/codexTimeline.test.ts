@@ -54,6 +54,7 @@ function timelineEvent(
       era,
       consequences: '',
     },
+    images: [],
   };
 }
 

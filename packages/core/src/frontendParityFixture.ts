@@ -63,6 +63,7 @@ function entry(input: EntryInput): WorldEntry {
     createdAt,
     updatedAt: input.updatedAt ?? createdAt,
     fields: { ...input.fields },
+    images: [],
   };
 }
 
@@ -399,6 +400,7 @@ export function createFrontendParityWorldDocument(): WorldDocument {
     schemaVersion: CURRENT_WORLD_SCHEMA_VERSION,
     activeWorldId: activeWorkspace.id,
     worlds: [activeWorkspace, secondaryWorkspace],
+    assets: [],
     savedAt,
   };
 }

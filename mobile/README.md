@@ -8,7 +8,8 @@ using compact native tabs for repeated editing on a phone.
   with AsyncStorage.
 - It uses the same shared codex schema and seed data as the web prototype.
 - It stays local to the current device and does not add remote or account-based workflows.
-- Uninstalling the app can remove local data; use JSON export for portable backups.
+- Uninstalling the app can remove local data; use ZIP export when uploaded
+  images must be included in a portable backup.
 - The main tabs are Workbench, Timeline, Links, and More.
 - Workbench supports browsing, search, editing, custom sections, archived
   records, and selected-record review summaries.

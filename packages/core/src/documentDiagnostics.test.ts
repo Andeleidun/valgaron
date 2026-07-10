@@ -41,7 +41,11 @@ describe('document diagnostics', () => {
     const diagnostics = getWorldDocumentDiagnostics(document);
 
     expect(diagnostics).toMatchObject({
-      schemaVersion: 3,
+      schemaVersion: 4,
+      referencedWebImageCount: 0,
+      referencedUploadedImageCount: 0,
+      imageAssetMetadataCount: 0,
+      reachableUploadedImageByteTotal: 0,
       workspaceCount: 1,
       vocabularyCount: 7,
       activeVocabularyValueCount: expect.any(Number),

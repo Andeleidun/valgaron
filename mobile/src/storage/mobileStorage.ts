@@ -18,6 +18,8 @@ import {
 } from '@valgaron/platform';
 
 export const MOBILE_WORLD_DOCUMENT_STORAGE_KEY =
+  'valgaron.mobile.worldDocument.v4';
+export const LEGACY_MOBILE_WORLD_DOCUMENT_STORAGE_KEY =
   'valgaron.mobile.worldDocument.v3';
 export const MOBILE_RECOVERY_SNAPSHOTS_STORAGE_KEY =
   'valgaron.mobile.recoverySnapshots.v2';
@@ -55,6 +57,22 @@ export async function loadMobileWorldDocument(
       status: {
         source: 'saved',
         message: `Loaded the saved codex from ${localPersistenceCopy.deviceSaveTarget}.`,
+        checkedAt,
+      },
+    };
+  }
+  const legacyLoaded = await loadJsonValue(
+    storage,
+    LEGACY_MOBILE_WORLD_DOCUMENT_STORAGE_KEY,
+    parseWorldDocument,
+    'Saved schema 3 data is not a valid Valgaron World Codex document.'
+  );
+  if (legacyLoaded.ok && legacyLoaded.value) {
+    return {
+      document: legacyLoaded.value,
+      status: {
+        source: loaded.ok ? 'saved' : 'recovered',
+        message: `Loaded and migrated the schema 3 codex from ${localPersistenceCopy.deviceSaveTarget}. The schema 3 value remains available until schema 4 saves successfully.`,
         checkedAt,
       },
     };

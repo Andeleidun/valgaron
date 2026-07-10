@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import {
   BrowserRouter,
   Link,
@@ -8,7 +8,7 @@ import {
   Routes,
 } from 'react-router-dom';
 import './App.css';
-import { ResetConfirmationDialog } from './Components/Codex/CodexEntryViews';
+import { ResetConfirmationDialog } from './Components/Codex/ResetConfirmationDialog';
 import { ErrorBoundary } from './Components/Common/ErrorBoundary/ErrorBoundary';
 import { RuntimeErrorFallback } from './Components/Common/RuntimeErrorFallback';
 import {
@@ -31,16 +31,52 @@ import {
 import { downloadTextFile, slugFilename } from './Utlilities/fileDownloads';
 import { useBeforeUnloadWarning } from './Utlilities/unsavedChanges';
 import { useWorldDocumentState } from './Utlilities/useWorldDocumentState';
-import { DataPage } from './Pages/DataPage';
-import { HelpPage } from './Pages/HelpPage';
-import { KnowledgePage } from './Pages/KnowledgePage';
-import { Overview } from './Pages/OverviewPage';
-import { PrivacyPage } from './Pages/PrivacyPage';
-import { RelationshipsPage } from './Pages/RelationshipsPage';
-import { TimelinePage } from './Pages/TimelinePage';
-import { UtilitiesPage } from './Pages/UtilitiesPage';
-import { WorkbenchPage } from './Pages/WorkbenchPage';
-import { WorkspacesPage } from './Pages/WorkspacesPage';
+const DataPage = lazy(() =>
+  import('./Pages/DataPage').then((module) => ({ default: module.DataPage }))
+);
+const HelpPage = lazy(() =>
+  import('./Pages/HelpPage').then((module) => ({ default: module.HelpPage }))
+);
+const KnowledgePage = lazy(() =>
+  import('./Pages/KnowledgePage').then((module) => ({
+    default: module.KnowledgePage,
+  }))
+);
+const Overview = lazy(() =>
+  import('./Pages/OverviewPage').then((module) => ({
+    default: module.Overview,
+  }))
+);
+const PrivacyPage = lazy(() =>
+  import('./Pages/PrivacyPage').then((module) => ({
+    default: module.PrivacyPage,
+  }))
+);
+const RelationshipsPage = lazy(() =>
+  import('./Pages/RelationshipsPage').then((module) => ({
+    default: module.RelationshipsPage,
+  }))
+);
+const TimelinePage = lazy(() =>
+  import('./Pages/TimelinePage').then((module) => ({
+    default: module.TimelinePage,
+  }))
+);
+const UtilitiesPage = lazy(() =>
+  import('./Pages/UtilitiesPage').then((module) => ({
+    default: module.UtilitiesPage,
+  }))
+);
+const WorkbenchPage = lazy(() =>
+  import('./Pages/WorkbenchPage').then((module) => ({
+    default: module.WorkbenchPage,
+  }))
+);
+const WorkspacesPage = lazy(() =>
+  import('./Pages/WorkspacesPage').then((module) => ({
+    default: module.WorkspacesPage,
+  }))
+);
 
 const routerBaseName =
   import.meta.env.BASE_URL === '/' ? undefined : import.meta.env.BASE_URL;
@@ -396,117 +432,129 @@ function AppShell() {
             />
           )}
         >
-          <Routes>
-            <Route path="/" element={<Overview document={document} />} />
-            <Route
-              path="/relationships"
-              element={
-                <RelationshipsPage
-                  codex={codex}
-                  onDeleteRelationship={unlinkRelationship}
-                  onSaveEntry={saveEntry}
-                  onSaveRelationship={saveRelationship}
-                  relationships={relationships}
-                  sections={sections}
-                />
-              }
-            />
-            <Route
-              path="/data"
-              element={
-                <DataPage
-                  activeWorld={activeWorld}
-                  document={document}
-                  loadStatus={loadStatus}
-                  onDeleteSnapshot={deleteSnapshot}
-                  onImportDocument={importDocument}
-                  onRequestReset={(afterReset) => {
-                    setAfterResetConfirm(afterReset ? () => afterReset : null);
-                    setIsResetPending(true);
-                  }}
-                  onRestoreSnapshot={restoreSnapshot}
-                  recoverySnapshots={recoverySnapshots}
-                  recoverySnapshotStatus={recoverySnapshotStatus}
-                  saveStatus={saveStatus}
-                />
-              }
-            />
-            <Route
-              path="/workspaces"
-              element={
-                <WorkspacesPage
-                  activeWorld={activeWorld}
-                  document={document}
-                  onArchivePlanetaryWorld={archivePlanetaryWorld}
-                  onArchiveWorkspace={archiveWorkspace}
-                  onCreateWorkspace={createWorkspace}
-                  onDeletePlanetaryWorld={permanentlyDeletePlanetaryWorld}
-                  onDeleteWorkspace={permanentlyDeleteWorkspace}
-                  onDuplicateWorkspace={duplicateWorkspace}
-                  onSavePlanetaryWorld={savePlanetaryWorld}
-                  onSwitchWorkspace={switchWorkspace}
-                  onUpdateWorkspace={updateWorkspace}
-                />
-              }
-            />
-            <Route
-              path="/timeline"
-              element={
-                <TimelinePage
-                  codex={codex}
-                  onArchiveEntry={archiveEntry}
-                  onDeleteEntry={permanentlyDeleteEntry}
-                  onDeleteRelationship={removeRelationship}
-                  onSaveEntry={saveEntry}
-                  onSaveRelationship={saveRelationship}
-                  relationships={relationships}
-                  sections={sections}
-                  workspaceSchema={activeWorld.schema}
-                />
-              }
-            />
-            <Route
-              path="/knowledge"
-              element={
-                <KnowledgePage
-                  activeWorld={activeWorld}
-                  onAddEntryTypeFields={addEntryTypeFields}
-                  onClearHiddenEntryDetail={clearHiddenEntryDetail}
-                  onClearHiddenEntryDetails={clearHiddenEntryDetails}
-                  onCreateEntryType={createEntryType}
-                  onDeleteEntryType={permanentlyDeleteEntryType}
-                  onMoveEntryTypeField={moveEntryTypeField}
-                  onRenameEntryTypeField={renameEntryTypeField}
-                  onRemoveEntryTypeField={removeEntryTypeField}
-                  onAddVocabularyValue={addVocabularyValue}
-                  onUpdateVocabularyValue={updateVocabularyValue}
-                  onArchiveVocabularyValue={archiveVocabularyValue}
-                  onMoveVocabularyValue={moveVocabularyValue}
-                  onUpdateFieldOverride={updateFieldOverride}
-                />
-              }
-            />
-            <Route
-              path="/utilities"
-              element={<UtilitiesPage activeWorld={activeWorld} />}
-            />
-            <Route path="/help" element={<HelpPage />} />
-            <Route path="/privacy" element={<PrivacyPage />} />
-            <Route
-              path="/entries"
-              element={
-                <WorkbenchPage
-                  activeWorld={activeWorld}
-                  onArchiveEntry={archiveEntry}
-                  onDeleteEntry={permanentlyDeleteEntry}
-                  onDeleteRelationship={removeRelationship}
-                  onSaveEntry={saveEntry}
-                  onSaveRelationship={saveRelationship}
-                />
-              }
-            />
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
+          <Suspense
+            fallback={
+              <main className="vwb-main" id="main-content" tabIndex={-1}>
+                <section className="vwb-panel" role="status">
+                  Loading codex workspace…
+                </section>
+              </main>
+            }
+          >
+            <Routes>
+              <Route path="/" element={<Overview document={document} />} />
+              <Route
+                path="/relationships"
+                element={
+                  <RelationshipsPage
+                    codex={codex}
+                    onDeleteRelationship={unlinkRelationship}
+                    onSaveEntry={saveEntry}
+                    onSaveRelationship={saveRelationship}
+                    relationships={relationships}
+                    sections={sections}
+                  />
+                }
+              />
+              <Route
+                path="/data"
+                element={
+                  <DataPage
+                    activeWorld={activeWorld}
+                    document={document}
+                    loadStatus={loadStatus}
+                    onDeleteSnapshot={deleteSnapshot}
+                    onImportDocument={importDocument}
+                    onRequestReset={(afterReset) => {
+                      setAfterResetConfirm(
+                        afterReset ? () => afterReset : null
+                      );
+                      setIsResetPending(true);
+                    }}
+                    onRestoreSnapshot={restoreSnapshot}
+                    recoverySnapshots={recoverySnapshots}
+                    recoverySnapshotStatus={recoverySnapshotStatus}
+                    saveStatus={saveStatus}
+                  />
+                }
+              />
+              <Route
+                path="/workspaces"
+                element={
+                  <WorkspacesPage
+                    activeWorld={activeWorld}
+                    document={document}
+                    onArchivePlanetaryWorld={archivePlanetaryWorld}
+                    onArchiveWorkspace={archiveWorkspace}
+                    onCreateWorkspace={createWorkspace}
+                    onDeletePlanetaryWorld={permanentlyDeletePlanetaryWorld}
+                    onDeleteWorkspace={permanentlyDeleteWorkspace}
+                    onDuplicateWorkspace={duplicateWorkspace}
+                    onSavePlanetaryWorld={savePlanetaryWorld}
+                    onSwitchWorkspace={switchWorkspace}
+                    onUpdateWorkspace={updateWorkspace}
+                  />
+                }
+              />
+              <Route
+                path="/timeline"
+                element={
+                  <TimelinePage
+                    codex={codex}
+                    onArchiveEntry={archiveEntry}
+                    onDeleteEntry={permanentlyDeleteEntry}
+                    onDeleteRelationship={removeRelationship}
+                    onSaveEntry={saveEntry}
+                    onSaveRelationship={saveRelationship}
+                    relationships={relationships}
+                    sections={sections}
+                    workspaceSchema={activeWorld.schema}
+                  />
+                }
+              />
+              <Route
+                path="/knowledge"
+                element={
+                  <KnowledgePage
+                    activeWorld={activeWorld}
+                    onAddEntryTypeFields={addEntryTypeFields}
+                    onClearHiddenEntryDetail={clearHiddenEntryDetail}
+                    onClearHiddenEntryDetails={clearHiddenEntryDetails}
+                    onCreateEntryType={createEntryType}
+                    onDeleteEntryType={permanentlyDeleteEntryType}
+                    onMoveEntryTypeField={moveEntryTypeField}
+                    onRenameEntryTypeField={renameEntryTypeField}
+                    onRemoveEntryTypeField={removeEntryTypeField}
+                    onAddVocabularyValue={addVocabularyValue}
+                    onUpdateVocabularyValue={updateVocabularyValue}
+                    onArchiveVocabularyValue={archiveVocabularyValue}
+                    onMoveVocabularyValue={moveVocabularyValue}
+                    onUpdateFieldOverride={updateFieldOverride}
+                  />
+                }
+              />
+              <Route
+                path="/utilities"
+                element={<UtilitiesPage activeWorld={activeWorld} />}
+              />
+              <Route path="/help" element={<HelpPage />} />
+              <Route path="/privacy" element={<PrivacyPage />} />
+              <Route
+                path="/entries"
+                element={
+                  <WorkbenchPage
+                    activeWorld={activeWorld}
+                    onArchiveEntry={archiveEntry}
+                    onDeleteEntry={permanentlyDeleteEntry}
+                    onDeleteRelationship={removeRelationship}
+                    onSaveEntry={saveEntry}
+                    onSaveRelationship={saveRelationship}
+                  />
+                }
+              />
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </Suspense>
         </ErrorBoundary>
         {isResetPending ? (
           <ResetConfirmationDialog

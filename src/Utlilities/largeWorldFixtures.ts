@@ -59,6 +59,7 @@ function createEntry(
         `${field.label} value ${entryIndex + 1}-${fieldIndex + 1}`,
       ])
     ),
+    images: [],
   };
 }
 
@@ -154,6 +155,7 @@ export function createLargeWorldDocument(
     schemaVersion: CURRENT_WORLD_SCHEMA_VERSION,
     activeWorldId: workspace.id,
     worlds: [workspace],
+    assets: [],
     savedAt: timestamp,
   };
 }

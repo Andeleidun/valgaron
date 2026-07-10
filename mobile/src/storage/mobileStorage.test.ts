@@ -6,6 +6,7 @@ import {
 } from '@valgaron/platform';
 import {
   MOBILE_RECOVERY_SNAPSHOTS_STORAGE_KEY,
+  LEGACY_MOBILE_WORLD_DOCUMENT_STORAGE_KEY,
   MOBILE_WORLD_DOCUMENT_STORAGE_KEY,
   createMobileRecoverySnapshot,
   deleteMobileRecoverySnapshot,
@@ -25,7 +26,7 @@ describe('mobile storage', () => {
 
     await expect(loadMobileWorldDocument(storage)).resolves.toMatchObject({
       status: { source: 'seed' },
-      document: { schemaVersion: 3 },
+      document: { schemaVersion: 4 },
     });
   });
 
@@ -39,6 +40,23 @@ describe('mobile storage', () => {
     await expect(loadMobileWorldDocument(storage)).resolves.toMatchObject({
       status: { source: 'saved' },
       document,
+    });
+  });
+
+  it('migrates a schema 3 document from the legacy mobile key', async () => {
+    const current = createSeedWorldDocument();
+    const legacy = {
+      ...current,
+      schemaVersion: 3,
+      assets: undefined,
+    };
+    const storage = createMemoryStringStorage({
+      [LEGACY_MOBILE_WORLD_DOCUMENT_STORAGE_KEY]: JSON.stringify(legacy),
+    });
+
+    await expect(loadMobileWorldDocument(storage)).resolves.toMatchObject({
+      document: { schemaVersion: 4, assets: [] },
+      status: { source: 'saved' },
     });
   });
 
@@ -57,7 +75,7 @@ describe('mobile storage', () => {
       status: { source: 'seed' },
     });
     expect(storage.snapshot()[MOBILE_WORLD_DOCUMENT_STORAGE_KEY]).toContain(
-      '"schemaVersion":3'
+      '"schemaVersion":4'
     );
     expect(
       storage.snapshot()[MOBILE_RECOVERY_SNAPSHOTS_STORAGE_KEY]

@@ -250,12 +250,15 @@ describe('data feature model', () => {
       planetaryWorldCount: 1,
       entryCount: 10,
       relationshipCount: 5,
+      webImageCount: 0,
+      uploadedImageCount: 0,
+      uploadedImageByteTotal: 0,
       savedAt: '2026-06-01T09:00:00.000Z',
     });
 
     expect(previewText.title).toBe('Sample Atlas');
     expect(previewText.detail).toContain(
-      '1 workspace, 10 entries, 5 relationships.'
+      '1 workspace, 10 entries, 5 relationships, 0 uploaded images, 0 web images.'
     );
     expect(previewText.detail).toContain('Jun 1, 2026');
   });
@@ -289,6 +292,9 @@ describe('data feature model', () => {
           planetaryWorldCount: 1,
           entryCount: 10,
           relationshipCount: 5,
+          webImageCount: 0,
+          uploadedImageCount: 0,
+          uploadedImageByteTotal: 0,
           savedAt: '2026-06-01T09:00:00.000Z',
         },
       })
@@ -301,9 +307,9 @@ describe('data feature model', () => {
 
   it('centralizes import section labels and actions', () => {
     expect(dataImportCopy).toMatchObject({
-      title: 'Import JSON backup',
+      title: 'Import JSON or ZIP backup',
       kicker: 'Validated import',
-      fileLabel: 'Choose JSON file',
+      fileLabel: 'Choose JSON or ZIP file',
       textAreaLabel: 'Backup JSON',
       previewLabel: 'Preview Import',
       previewStatusLabel: 'Preview',
@@ -329,13 +335,13 @@ describe('data feature model', () => {
       kicker: 'Storage status',
       title: 'Manual local save',
       manualSaveGuidance:
-        'Edits stay in this session until you use the header Save button. Export JSON backups before clearing browser data, switching browsers, using private browsing, uninstalling the mobile app, or changing devices.',
+        'Edits stay in this session until you use the header Save button. Export ZIP backups when uploaded images must be recoverable; JSON preserves image links and metadata only.',
       mobileCurrentWorkspaceLabel: 'Current workspace',
       mobileSavedTimestampLabel: 'Saved timestamp',
       diagnosticsLabel: 'Diagnostics',
       noRecoveryIssueMessage: 'No local storage recovery issue was found.',
       recoveryGuidance:
-        'Recovery snapshots are saved before import, reset, permanent entry delete, relationship delete, and snapshot restore actions. Keep JSON exports as your device-independent backup.',
+        'Recovery snapshots are saved before destructive actions. Keep ZIP exports as the device-independent backup when the document has uploaded images.',
       storageLoadIssuesLabel: 'Storage load issues',
     });
     expect(dataHelpCopy).toMatchObject({

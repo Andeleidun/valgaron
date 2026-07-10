@@ -54,6 +54,21 @@ World document schema changes must include:
 
 The current schema version is documented in `docs/release/schema-migrations.md`.
 
+## Dashboard Preference Maintenance
+
+Dashboard preferences are presentation-only and must never be added to the
+world document schema or its exports. Browser layouts use
+`valgaron.dashboardLayout.v1`; native mobile section layouts use
+`valgaron.dashboardSections.v1`. The browser loader migrates the legacy
+`valgaron:workbench-layout:v1` key only after the versioned replacement has
+been written successfully. Registry changes must keep stable card IDs, ignore
+unknown stored cards, normalize unsupported regions and sizes, and leave Reset
+able to recover the current recommended defaults.
+
+When adding or removing dashboard cards, update the registry tests, focused
+render tests, user guide, and responsive browser matrix. A dashboard preference
+version change is independent of the durable world schema version.
+
 ## Dependency Maintenance
 
 Runtime dependency findings from `npm audit --omit=dev` are release blockers
@@ -87,9 +102,9 @@ Support starts with diagnostics, not world backups. Ask for:
 - app version;
 - browser and installed/PWA state;
 - route and action that failed;
-- whether full-document JSON export still works.
+- whether full-document JSON and ZIP export still works.
 
-Do not ask for JSON backups or Markdown exports unless the user intentionally
+Do not ask for JSON/ZIP backups or Markdown exports unless the user intentionally
 chooses to share private world content.
 
 ## Release Evidence

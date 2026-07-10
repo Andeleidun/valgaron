@@ -21,12 +21,14 @@ import {
   valgaronTypography,
 } from '@valgaron/ui-tokens';
 import { useMobileCodex } from '../state/MobileCodexContext';
+import { useMobileSectionPreferences } from '../state/useMobileSectionPreferences';
 import { getMobileRouteHref } from '../navigation/mobileRoutes';
 import {
   ActionButton,
   ButtonRow,
   Field,
   MutedText,
+  MobileSectionDashboard,
   ScreenHeader,
   ScreenScroll,
   SectionBlock,
@@ -65,6 +67,22 @@ export function OverviewScreen() {
     savedAt: controller.document.savedAt,
     saveMessage: controller.saveMessage,
   });
+  const sectionIds = useMemo(
+    () => [
+      'save-health',
+      'draft-state',
+      'search',
+      'quick-create',
+      ...(entryHighlights.pinned.length > 0 ? ['pinned'] : []),
+      'recent',
+      'incomplete',
+    ],
+    [entryHighlights.pinned.length]
+  );
+  const sectionPreferences = useMobileSectionPreferences({
+    screenId: 'overview',
+    sectionIds,
+  });
 
   function openEntry(entry: { id: string; name: string; sectionId: string }) {
     router.push({
@@ -98,181 +116,206 @@ export function OverviewScreen() {
         />
       </View>
 
-      <SectionBlock
-        collapsedSummary={saveStatus.label}
-        collapsible
-        title={saveStatus.title}
+      <MobileSectionDashboard
+        collapsed={sectionPreferences.collapsed}
+        isLoaded={sectionPreferences.isLoaded}
+        onMove={sectionPreferences.move}
+        onReset={sectionPreferences.reset}
+        onResetAll={sectionPreferences.resetAll}
+        onSetCollapsed={sectionPreferences.setCollapsed}
+        order={sectionPreferences.order}
       >
-        <StatusText tone={saveStatus.tone}>{saveStatus.label}</StatusText>
-        <MutedText>{saveStatus.detail}</MutedText>
-        <ButtonRow>
-          <ActionButton
-            label={overviewFeatureCopy.openDataLabel}
-            onPress={() => router.push('/data')}
-          />
-        </ButtonRow>
-      </SectionBlock>
-
-      <SectionBlock
-        collapsedSummary={getWorkspaceOverviewDraftingPromptCountLabel(
-          summary.incompleteEntryCount
-        )}
-        collapsible
-        title={overviewFeatureCopy.currentDraftStateTitle}
-      >
-        <MutedText>
-          {getWorkspaceOverviewDraftingPromptCountLabel(
-            summary.incompleteEntryCount
-          )}
-        </MutedText>
-        {recoverySnapshotText ? (
-          <MutedText>{recoverySnapshotText}</MutedText>
-        ) : null}
-      </SectionBlock>
-
-      <SectionBlock title={overviewFeatureCopy.globalSearchTitle}>
-        <Field
-          autoCapitalize="none"
-          autoCorrect={false}
-          label={overviewFeatureCopy.searchEntriesLabel}
-          value={globalQuery}
-          onChangeText={setGlobalQuery}
-          placeholder={overviewFeatureCopy.searchPlaceholder}
-        />
-        {globalQuery.trim() ? (
+        <SectionBlock
+          collapsedSummary={saveStatus.label}
+          collapsible
+          sectionId="save-health"
+          title={saveStatus.title}
+        >
+          <StatusText tone={saveStatus.tone}>{saveStatus.label}</StatusText>
+          <MutedText>{saveStatus.detail}</MutedText>
           <ButtonRow>
             <ActionButton
-              label={overviewFeatureCopy.clearSearchLabel}
-              onPress={() => setGlobalQuery('')}
+              label={overviewFeatureCopy.openDataLabel}
+              onPress={() => router.push('/data')}
             />
           </ButtonRow>
-        ) : null}
-        {globalQuery.trim() ? (
-          searchResults.length > 0 ? (
-            searchResults.map((entry) => (
+        </SectionBlock>
+
+        <SectionBlock
+          collapsedSummary={getWorkspaceOverviewDraftingPromptCountLabel(
+            summary.incompleteEntryCount
+          )}
+          collapsible
+          sectionId="draft-state"
+          title={overviewFeatureCopy.currentDraftStateTitle}
+        >
+          <MutedText>
+            {getWorkspaceOverviewDraftingPromptCountLabel(
+              summary.incompleteEntryCount
+            )}
+          </MutedText>
+          {recoverySnapshotText ? (
+            <MutedText>{recoverySnapshotText}</MutedText>
+          ) : null}
+        </SectionBlock>
+
+        <SectionBlock
+          sectionId="search"
+          title={overviewFeatureCopy.globalSearchTitle}
+        >
+          <Field
+            autoCapitalize="none"
+            autoCorrect={false}
+            label={overviewFeatureCopy.searchEntriesLabel}
+            value={globalQuery}
+            onChangeText={setGlobalQuery}
+            placeholder={overviewFeatureCopy.searchPlaceholder}
+          />
+          {globalQuery.trim() ? (
+            <ButtonRow>
+              <ActionButton
+                label={overviewFeatureCopy.clearSearchLabel}
+                onPress={() => setGlobalQuery('')}
+              />
+            </ButtonRow>
+          ) : null}
+          {globalQuery.trim() ? (
+            searchResults.length > 0 ? (
+              searchResults.map((entry) => (
+                <View key={entry.id} style={styles.queueItem}>
+                  <Text style={styles.itemTitle}>{entry.name}</Text>
+                  <MutedText>{entry.contextText}</MutedText>
+                  <MutedText>{entry.summaryText}</MutedText>
+                  <ButtonRow>
+                    <ActionButton
+                      accessibilityLabel={getWorkspaceOverviewOpenEntryAccessibilityLabel(
+                        entry
+                      )}
+                      label={overviewFeatureCopy.openLabel}
+                      onPress={() => openEntry(entry)}
+                    />
+                  </ButtonRow>
+                </View>
+              ))
+            ) : (
+              <MutedText>{overviewFeatureCopy.noSearchResultsTitle}</MutedText>
+            )
+          ) : (
+            <MutedText>{overviewFeatureCopy.searchHelpText}</MutedText>
+          )}
+        </SectionBlock>
+
+        <SectionBlock
+          sectionId="quick-create"
+          title={overviewFeatureCopy.quickCreateTitle}
+        >
+          <ButtonRow>
+            {quickCreateActions.map((action) => (
+              <ActionButton
+                key={action.id}
+                label={action.label}
+                onPress={() =>
+                  router.push({
+                    ...getMobileRouteHref(action.route),
+                  })
+                }
+              />
+            ))}
+          </ButtonRow>
+        </SectionBlock>
+
+        {entryHighlights.pinned.length > 0 ? (
+          <SectionBlock
+            collapsedSummary={`${entryHighlights.pinned.length} pinned ${
+              entryHighlights.pinned.length === 1 ? 'record' : 'records'
+            }`}
+            collapsible
+            sectionId="pinned"
+            title={overviewFeatureCopy.pinnedTitle}
+          >
+            {entryHighlights.pinned.map((entry) => (
               <View key={entry.id} style={styles.queueItem}>
                 <Text style={styles.itemTitle}>{entry.name}</Text>
                 <MutedText>{entry.contextText}</MutedText>
                 <MutedText>{entry.summaryText}</MutedText>
                 <ButtonRow>
                   <ActionButton
-                    accessibilityLabel={getWorkspaceOverviewOpenEntryAccessibilityLabel(
+                    accessibilityLabel={getWorkspaceOverviewEditEntryAccessibilityLabel(
                       entry
                     )}
-                    label={overviewFeatureCopy.openLabel}
+                    label={overviewFeatureCopy.editLabel}
+                    onPress={() => openEntry(entry)}
+                  />
+                </ButtonRow>
+              </View>
+            ))}
+          </SectionBlock>
+        ) : null}
+
+        <SectionBlock
+          sectionId="recent"
+          title={overviewFeatureCopy.recentTitle}
+        >
+          {entryHighlights.recent.length > 0 ? (
+            entryHighlights.recent.map((entry) => (
+              <View key={entry.id} style={styles.queueItem}>
+                <Text style={styles.itemTitle}>{entry.name}</Text>
+                <MutedText>{entry.contextText}</MutedText>
+                <MutedText>{entry.summaryText}</MutedText>
+                <ButtonRow>
+                  <ActionButton
+                    accessibilityLabel={getWorkspaceOverviewEditEntryAccessibilityLabel(
+                      entry
+                    )}
+                    label={overviewFeatureCopy.editLabel}
                     onPress={() => openEntry(entry)}
                   />
                 </ButtonRow>
               </View>
             ))
           ) : (
-            <MutedText>{overviewFeatureCopy.noSearchResultsTitle}</MutedText>
-          )
-        ) : (
-          <MutedText>{overviewFeatureCopy.searchHelpText}</MutedText>
-        )}
-      </SectionBlock>
-
-      <SectionBlock title={overviewFeatureCopy.quickCreateTitle}>
-        <ButtonRow>
-          {quickCreateActions.map((action) => (
-            <ActionButton
-              key={action.id}
-              label={action.label}
-              onPress={() =>
-                router.push({
-                  ...getMobileRouteHref(action.route),
-                })
-              }
-            />
-          ))}
-        </ButtonRow>
-      </SectionBlock>
-
-      {entryHighlights.pinned.length > 0 ? (
-        <SectionBlock
-          collapsedSummary={`${entryHighlights.pinned.length} pinned ${
-            entryHighlights.pinned.length === 1 ? 'record' : 'records'
-          }`}
-          collapsible
-          title={overviewFeatureCopy.pinnedTitle}
-        >
-          {entryHighlights.pinned.map((entry) => (
-            <View key={entry.id} style={styles.queueItem}>
-              <Text style={styles.itemTitle}>{entry.name}</Text>
-              <MutedText>{entry.contextText}</MutedText>
-              <MutedText>{entry.summaryText}</MutedText>
-              <ButtonRow>
-                <ActionButton
-                  accessibilityLabel={getWorkspaceOverviewEditEntryAccessibilityLabel(
-                    entry
-                  )}
-                  label={overviewFeatureCopy.editLabel}
-                  onPress={() => openEntry(entry)}
-                />
-              </ButtonRow>
-            </View>
-          ))}
+            <MutedText>{overviewFeatureCopy.noRecentRecordsTitle}</MutedText>
+          )}
         </SectionBlock>
-      ) : null}
 
-      <SectionBlock title={overviewFeatureCopy.recentTitle}>
-        {entryHighlights.recent.length > 0 ? (
-          entryHighlights.recent.map((entry) => (
-            <View key={entry.id} style={styles.queueItem}>
-              <Text style={styles.itemTitle}>{entry.name}</Text>
-              <MutedText>{entry.contextText}</MutedText>
-              <MutedText>{entry.summaryText}</MutedText>
-              <ButtonRow>
-                <ActionButton
-                  accessibilityLabel={getWorkspaceOverviewEditEntryAccessibilityLabel(
-                    entry
-                  )}
-                  label={overviewFeatureCopy.editLabel}
-                  onPress={() => openEntry(entry)}
-                />
-              </ButtonRow>
-            </View>
-          ))
-        ) : (
-          <MutedText>{overviewFeatureCopy.noRecentRecordsTitle}</MutedText>
-        )}
-      </SectionBlock>
-
-      <SectionBlock
-        collapsedSummary={getWorkspaceOverviewDraftingPromptCountLabel(
-          summary.incompleteEntryCount
-        )}
-        collapsible
-        title={overviewFeatureCopy.incompleteTitle}
-      >
-        {incompleteEntries.length > 0 ? (
-          incompleteEntries.map((item) => (
-            <View key={item.entry.id} style={styles.queueItem}>
-              <Text style={styles.itemTitle}>{item.entry.name}</Text>
-              <MutedText>{item.contextText}</MutedText>
-              <MutedText>{item.promptText}</MutedText>
-              <ButtonRow>
-                <ActionButton
-                  accessibilityLabel={getWorkspaceOverviewEditEntryAccessibilityLabel(
-                    item.entry
-                  )}
-                  label={overviewFeatureCopy.editLabel}
-                  onPress={() =>
-                    openEntry({
-                      id: item.entry.id,
-                      name: item.entry.name,
-                      sectionId: item.section.id,
-                    })
-                  }
-                />
-              </ButtonRow>
-            </View>
-          ))
-        ) : (
-          <MutedText>{overviewFeatureCopy.noVisibleDraftingPrompts}</MutedText>
-        )}
-      </SectionBlock>
+        <SectionBlock
+          collapsedSummary={getWorkspaceOverviewDraftingPromptCountLabel(
+            summary.incompleteEntryCount
+          )}
+          collapsible
+          sectionId="incomplete"
+          title={overviewFeatureCopy.incompleteTitle}
+        >
+          {incompleteEntries.length > 0 ? (
+            incompleteEntries.map((item) => (
+              <View key={item.entry.id} style={styles.queueItem}>
+                <Text style={styles.itemTitle}>{item.entry.name}</Text>
+                <MutedText>{item.contextText}</MutedText>
+                <MutedText>{item.promptText}</MutedText>
+                <ButtonRow>
+                  <ActionButton
+                    accessibilityLabel={getWorkspaceOverviewEditEntryAccessibilityLabel(
+                      item.entry
+                    )}
+                    label={overviewFeatureCopy.editLabel}
+                    onPress={() =>
+                      openEntry({
+                        id: item.entry.id,
+                        name: item.entry.name,
+                        sectionId: item.section.id,
+                      })
+                    }
+                  />
+                </ButtonRow>
+              </View>
+            ))
+          ) : (
+            <MutedText>
+              {overviewFeatureCopy.noVisibleDraftingPrompts}
+            </MutedText>
+          )}
+        </SectionBlock>
+      </MobileSectionDashboard>
     </ScreenScroll>
   );
 }

@@ -224,7 +224,7 @@ const codexHelpFocusTopicContent: readonly Omit<CodexHelpFocus, 'path'>[] = [
     id: 'data',
     title: 'Backups and recovery',
     detail:
-      'Use JSON export as the portable backup, import only validated backups, and treat recovery snapshots as local undo points.',
+      'Use ZIP when uploaded images must be portable, use JSON for URI/metadata copies, import only validated backups, and treat recovery snapshots as local undo points.',
   },
   {
     id: 'support',
@@ -271,16 +271,25 @@ export const codexWorkflowHelpTopics: readonly CodexHelpTopic[] = [
     title: 'Protect local work',
     items: [
       'On web, use the header Save button before relying on browser-local changes later; on mobile, confirm the latest device-save status before closing the app.',
-      'Export JSON backups regularly; active-workspace JSON is focused and full-document JSON includes every local workspace.',
+      'Export ZIP backups when uploads must be restored; active-workspace packages are focused and full-document packages include every local workspace.',
       'Recovery snapshots help undo destructive local actions in the same browser profile or mobile app storage area only.',
       'Export before clearing browser data, switching browsers, using private browsing, uninstalling the mobile app, or changing devices.',
+    ],
+  },
+  {
+    title: 'Arrange your drafting desk',
+    items: [
+      'On browser dashboards, choose Customize layout to move, resize, focus, collapse, restore, undo, or reset cards; keyboard controls provide the same results as pointer dragging.',
+      'Use Earlier and Later for ordered keyboard movement, the Region and Size selectors for placement, and Left or Right Arrow on a resize handle to snap between supported sizes.',
+      'On mobile, choose Customize Sections to move sections earlier or later and collapse secondary material without using desktop geometry.',
+      'Layout choices stay only in this browser profile or installed app storage and are not included in world exports or synchronized between devices.',
     ],
   },
 ];
 
 export const codexDataHelpTopics: readonly CodexHelpTopic[] = [
   {
-    title: 'JSON export',
+    title: 'JSON and ZIP export',
     items: [
       'Active-workspace JSON backs up the current project.',
       'Full-document JSON backs up every local workspace.',
@@ -303,11 +312,11 @@ export const codexDataHelpTopics: readonly CodexHelpTopic[] = [
 export const codexFirstUseHelp =
   'The starter workspace is neutral sample content. Rename it, create a new project/universe workspace, or duplicate it from Workspaces. Use Places for worlds, planets, realms, settlements, terrain, and other map-scale places inside a workspace.';
 
-export const codexDataHelpSummary = `On web, the header Save button writes current progress to ${localPersistenceCopy.browserSaveTarget}; on mobile, edits save to the installed app's local storage area through the Expo app. ${localPersistenceCopy.noAccountOrSync} JSON export is the backup you control.`;
+export const codexDataHelpSummary = `On web, the header Save button writes current progress to ${localPersistenceCopy.browserSaveTarget}; on mobile, edits save to the installed app's local storage area through the Expo app. ${localPersistenceCopy.noAccountOrSync} ZIP includes uploaded images; JSON preserves their URI and metadata only.`;
 
 export const codexDataHelpDetails: readonly CodexHelpDetail[] = [
   {
-    term: 'JSON export',
+    term: 'JSON and ZIP export',
     detail:
       'Active-workspace JSON backs up the current project. Full-document JSON backs up every local workspace.',
   },
@@ -342,7 +351,7 @@ export const codexPrivacyHelp =
   'Valgaron does not send analytics, usage events, backups, diagnostics, or world content to a server. Maintainers cannot recover local data unless you choose to share a backup or diagnostic report.';
 
 export const codexReleaseLimitsHelp =
-  'This release does not include accounts, cloud sync, collaboration, sharing, publishing, AI generation, payments, or localization. Keep downloaded JSON backups as the portable copy of work you cannot afford to lose.';
+  'This release does not include accounts, cloud sync, collaboration, publishing, AI generation, payments, or localization. Keep downloaded ZIP backups when uploaded images are part of work you cannot afford to lose.';
 
 export function isCodexHelpFocusId(
   value: string | null | undefined

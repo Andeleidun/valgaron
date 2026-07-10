@@ -242,9 +242,9 @@ export function getDataRouteFocusTargetId({
 }
 
 export const dataImportCopy = {
-  title: 'Import JSON backup',
+  title: 'Import JSON or ZIP backup',
   kicker: 'Validated import',
-  fileLabel: 'Choose JSON file',
+  fileLabel: 'Choose JSON or ZIP file',
   textAreaLabel: 'Backup JSON',
   placeholder: 'Paste a Valgaron World Codex JSON backup',
   previewLabel: 'Preview Import',
@@ -305,13 +305,13 @@ export const dataStorageCopy = {
   title: 'Manual local save',
   manualSaveLineLabel: 'Manual save',
   manualSaveGuidance:
-    'Edits stay in this session until you use the header Save button. Export JSON backups before clearing browser data, switching browsers, using private browsing, uninstalling the mobile app, or changing devices.',
+    'Edits stay in this session until you use the header Save button. Export ZIP backups when uploaded images must be recoverable; JSON preserves image links and metadata only.',
   mobileCurrentWorkspaceLabel: 'Current workspace',
   mobileSavedTimestampLabel: 'Saved timestamp',
   diagnosticsLabel: 'Diagnostics',
   noRecoveryIssueMessage: 'No local storage recovery issue was found.',
   recoveryGuidance:
-    'Recovery snapshots are saved before import, reset, permanent entry delete, relationship delete, and snapshot restore actions. Keep JSON exports as your device-independent backup.',
+    'Recovery snapshots are saved before destructive actions. Keep ZIP exports as the device-independent backup when the document has uploaded images.',
   storageLoadIssuesLabel: 'Storage load issues',
 } as const;
 

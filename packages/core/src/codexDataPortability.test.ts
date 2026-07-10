@@ -63,6 +63,9 @@ describe('codexDataPortability', () => {
       planetaryWorldCount: 0,
       entryCount: 10,
       relationshipCount: 5,
+      webImageCount: 0,
+      uploadedImageCount: 0,
+      uploadedImageByteTotal: 0,
       savedAt: '2026-06-01T09:00:00.000Z',
     });
     expect(parseWorldImport(JSON.stringify(serializedBackup))).toMatchObject({
@@ -93,12 +96,15 @@ describe('codexDataPortability', () => {
       planetaryWorldCount: 0,
       entryCount: 10,
       relationshipCount: 5,
+      webImageCount: 0,
+      uploadedImageCount: 0,
+      uploadedImageByteTotal: 0,
       savedAt: '2026-06-01T09:00:00.000Z',
     });
     expect(formatWorldImportPreviewText(preview)).toMatchObject({
       title: 'Sample Atlas',
       detail: expect.stringContaining(
-        '1 workspace, 10 entries, 5 relationships.'
+        '1 workspace, 10 entries, 5 relationships, 0 uploaded images, 0 web images.'
       ),
     });
     expect(
@@ -108,7 +114,9 @@ describe('codexDataPortability', () => {
         relationshipCount: 1,
         worldCount: 2,
       }).detail
-    ).toContain('2 workspaces, 1 entry, 1 relationship.');
+    ).toContain(
+      '2 workspaces, 1 entry, 1 relationship, 0 uploaded images, 0 web images.'
+    );
   });
 
   it('serializes the full document as a multi-workspace JSON backup', () => {

@@ -14,6 +14,32 @@ export type WorldEntryStatus =
 
 export type WorldWorkspaceStatus = 'active' | 'archived';
 
+export type WorldImageMediaType =
+  | 'image/jpeg'
+  | 'image/png'
+  | 'image/webp'
+  | 'image/gif';
+
+/** A display reference. Uploaded images use a generated images/... URI. */
+export type WorldImageReference = {
+  id: string;
+  uri: string;
+  altText: string;
+  caption: string;
+  decorative: boolean;
+};
+
+/** Metadata for immutable uploaded bytes stored outside the JSON document. */
+export type WorldImageAsset = {
+  id: string;
+  uri: string;
+  originalFilename: string;
+  mediaType: WorldImageMediaType;
+  byteSize: number;
+  sha256: string;
+  createdAt: string;
+};
+
 /** Shared fields every worldbuilding record needs for listing and editing. */
 export type WorldEntryBase = {
   id: string;
@@ -27,6 +53,7 @@ export type WorldEntryBase = {
   createdAt: string;
   updatedAt: string;
   fields: Record<string, string>;
+  images: WorldImageReference[];
 };
 
 /** A person, creature, or major named figure in a workspace. */
@@ -160,9 +187,10 @@ export type WorldWorkspace = {
 };
 
 export type WorldDocument = {
-  schemaVersion: 3;
+  schemaVersion: 4;
   activeWorldId: string;
   worlds: WorldWorkspace[];
+  assets: WorldImageAsset[];
   savedAt: string;
 };
 

@@ -1,6 +1,7 @@
 export type StringStorageAdapter = {
   read: (key: string) => string | null;
   readResult: (key: string) => StorageReadResult;
+  remove: (key: string) => boolean;
   write: (key: string, value: string) => boolean;
 };
 
@@ -39,6 +40,17 @@ export const browserLocalStorageAdapter: StringStorageAdapter = {
             ? error.message
             : 'Browser localStorage could not be read.',
       };
+    }
+  },
+  remove(key) {
+    if (typeof window === 'undefined') {
+      return false;
+    }
+    try {
+      window.localStorage.removeItem(key);
+      return true;
+    } catch {
+      return false;
     }
   },
   write(key, value) {

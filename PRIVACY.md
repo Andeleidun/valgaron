@@ -43,7 +43,7 @@ save in the app.
 
 On the web, Valgaron stores saved world documents in the current browser profile
 using browser `localStorage`. The current storage key is
-`valgaron.worldDocument.v3`.
+`valgaron.worldDocument.v4`; uploaded image bytes use browser IndexedDB.
 
 In the Expo mobile companion, Valgaron stores saved world documents in the
 installed app's local storage area.
@@ -132,7 +132,7 @@ Valgaron uses locally stored information to:
   cleanup workflows;
 - display timeline, relationship, diagnostics, review, Help, and Data workflows;
 - validate imports before replacing local data;
-- create JSON backups, Markdown reference exports, and local diagnostics;
+- create JSON or ZIP backups, Markdown reference exports, and local diagnostics;
 - create recovery snapshots before selected destructive or replacement actions;
 - recover from unsupported, unreadable, or invalid local storage where possible;
 - show save, import, export, offline, diagnostics, and release-limit guidance.
@@ -164,7 +164,19 @@ corruption can remove local data.
 
 ## 7. Imports, Exports, Backups, and Recovery Snapshots
 
-JSON exports are the portable backup path for Valgaron.
+JSON and ZIP exports are the user-controlled portability paths for Valgaron.
+
+JSON exports preserve image source URIs and uploaded-image metadata but do not
+contain uploaded image bytes. ZIP exports contain the same JSON plus locally
+uploaded image files. Remote web images remain links and are not copied into the
+ZIP. Keep ZIP files private unless you intend to share both world content and
+the original uploaded files; original files may retain EXIF or other embedded
+metadata.
+
+Displaying an HTTPS image source contacts that image's third-party host. The
+host can receive ordinary request information such as IP address, user agent,
+and referrer behavior. Valgaron does not fetch remote image bytes during save or
+backup creation.
 
 An active-workspace JSON export can include the current workspace's creative
 content. A full-document JSON export can include every local workspace,
@@ -274,7 +286,7 @@ reset, or share Valgaron data.
 You can:
 
 - avoid saving data by not using the Save action on web;
-- use Data workflows to export JSON backups;
+- use Data workflows to export JSON or ZIP backups;
 - use Data workflows to preview validated imports before replacement;
 - delete entries, relationships, workspaces, custom entry types, and other
   supported records through app controls;

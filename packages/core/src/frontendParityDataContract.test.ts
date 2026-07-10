@@ -46,6 +46,9 @@ describe('frontend parity data contract', () => {
       planetaryWorldCount: 3,
       entryCount: 11,
       relationshipCount: 5,
+      webImageCount: 0,
+      uploadedImageCount: 0,
+      uploadedImageByteTotal: 0,
       savedAt: '2026-06-20T18:30:00.000Z',
     });
   });

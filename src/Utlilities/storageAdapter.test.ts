@@ -21,6 +21,10 @@ class MemoryStorage {
     }
     this.entries.set(key, value);
   }
+
+  removeItem(key: string): void {
+    this.entries.delete(key);
+  }
 }
 
 function installWindow(storage: MemoryStorage): void {
@@ -51,6 +55,8 @@ describe('browser localStorage adapter', () => {
       ok: true,
       value: 'value',
     });
+    expect(browserLocalStorageAdapter.remove('key')).toBe(true);
+    expect(browserLocalStorageAdapter.read('key')).toBeNull();
   });
 
   it('uses safe fallbacks when browser storage is unavailable', () => {
@@ -62,6 +68,7 @@ describe('browser localStorage adapter', () => {
       errorMessage: 'Browser localStorage is unavailable.',
     });
     expect(browserLocalStorageAdapter.write('key', 'value')).toBe(false);
+    expect(browserLocalStorageAdapter.remove('key')).toBe(false);
   });
 
   it('uses safe fallbacks when storage throws', () => {

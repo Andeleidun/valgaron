@@ -55,10 +55,12 @@ import {
   type StagedRelationshipDraft,
   type WorldCodex,
   type WorldEntry,
+  type WorldImageAsset,
   type WorldRelationship,
   type WorldSectionConfig,
   type WorldWorkspaceSchema,
 } from '@valgaron/core';
+import { DashboardPage } from '../Components/Dashboard/DashboardPage';
 import { confirmDiscardUnsavedChanges } from '../Utlilities/unsavedChanges';
 import {
   ConfirmationDialog,
@@ -89,7 +91,7 @@ export function SectionPage({
   onArchiveEntry: (entry: WorldEntry, archived: boolean) => void;
   onDeleteEntry: (entry: WorldEntry) => void;
   onDeleteRelationship: (relationshipId: string) => void;
-  onSaveEntry: (entry: WorldEntry) => void;
+  onSaveEntry: (entry: WorldEntry, assets?: readonly WorldImageAsset[]) => void;
   onSaveRelationship: (relationship: WorldRelationship) => void;
 }) {
   const { sectionId } = useParams();
@@ -761,555 +763,573 @@ export function SectionPage({
         </NavLink>
       </section>
 
-      {section.id === 'timeline' ? (
-        <TimelineOverview
-          codex={codex}
-          events={filteredEntries}
-          onSaveEvents={(timelineEvents) => {
-            timelineEvents.forEach((event) => onSaveEntry(event));
-          }}
-          relationships={relationships}
-          sections={sections}
-        />
-      ) : null}
+      <DashboardPage
+        ariaLabel="Timeline dashboard cards"
+        forcedVisibleCardIds={[
+          ...(relationshipTextReviewItems.length > 0
+            ? ['timeline.review']
+            : []),
+          ...(isEntryFormDirty ? ['timeline.event-editor'] : []),
+        ]}
+        pageId="timeline"
+        summary="Arrange chronology, review, filters, and event editing tools."
+      >
+        {section.id === 'timeline' ? (
+          <div data-dashboard-card-id="timeline.overview">
+            <TimelineOverview
+              codex={codex}
+              events={filteredEntries}
+              onSaveEvents={(timelineEvents) => {
+                timelineEvents.forEach((event) => onSaveEntry(event));
+              }}
+              relationships={relationships}
+              sections={sections}
+            />
+          </div>
+        ) : null}
 
-      {relationshipTextReviewItems.length > 0 ? (
+        {relationshipTextReviewItems.length > 0 ? (
+          <section
+            className="vwb-panel vwb-linked-field-panel"
+            data-dashboard-card-id="timeline.review"
+            aria-label={relationshipTextReviewCopy.title}
+          >
+            <div className="vwb-section-heading">
+              <div>
+                <p className="vwb-kicker">
+                  {getRelationshipTextReviewCountLabel(
+                    relationshipTextReviewItems.length
+                  )}
+                </p>
+                <h2>{relationshipTextReviewCopy.title}</h2>
+              </div>
+            </div>
+            <p>
+              {getRelationshipTextReviewSummary(
+                relationshipTextReviewItems.length
+              )}
+            </p>
+            {isEntryFormDirty ? (
+              <p className="vwb-inline-status">
+                {relationshipTextReviewCopy.draftBlockedMessage}
+              </p>
+            ) : null}
+            {relationshipTextReviewExactItems.length > 0 ? (
+              <button
+                className="vwb-secondary-button"
+                disabled={isEntryFormDirty}
+                type="button"
+                onClick={migrateAllReviewExactMatches}
+              >
+                {relationshipTextReviewCopy.batchExactMatchLabel}
+              </button>
+            ) : null}
+            <div className="vwb-relationship-list">
+              {visibleRelationshipTextReviewItems.map((item) => (
+                <article
+                  className="vwb-relationship-row"
+                  key={`${item.entryId}-${item.fieldKey}`}
+                >
+                  <div>
+                    <span className="vwb-entry-kind">{item.fieldLabel}</span>
+                    <button
+                      className="vwb-link-button"
+                      type="button"
+                      onClick={() => selectEntry(item.entryId)}
+                    >
+                      {item.entryName}
+                    </button>
+                  </div>
+                  <p>
+                    {relationshipTextReviewCopy.unresolvedLabel}:{' '}
+                    {getRelationshipTextReviewUnresolvedLabel(item)}.{' '}
+                    {getRelationshipTextReviewExactMatchLabel(item)}
+                  </p>
+                  {item.suggestedTargets.length > 0 ? (
+                    <div>
+                      <p>
+                        {relationshipTextReviewCopy.suggestionsLabel}:{' '}
+                        {getRelationshipTextReviewSuggestionLabels(item).join(
+                          '; '
+                        )}
+                      </p>
+                      {item.suggestedTargets.map((suggestion) =>
+                        suggestion.targets.map((target) => (
+                          <button
+                            aria-label={target.accessibilityLabel}
+                            className="vwb-secondary-button"
+                            disabled={isEntryFormDirty}
+                            key={`${suggestion.fragment}-${target.id}`}
+                            type="button"
+                            onClick={() =>
+                              migrateReviewItemSuggestion(
+                                item,
+                                suggestion.fragment,
+                                target.id
+                              )
+                            }
+                          >
+                            {target.label}
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  ) : null}
+                  {item.exactMatchCount > 0 ? (
+                    <button
+                      className="vwb-secondary-button"
+                      disabled={isEntryFormDirty}
+                      type="button"
+                      onClick={() => migrateReviewItemExactMatches(item)}
+                    >
+                      {relationshipTextReviewCopy.exactMatchMigrationLabel}
+                    </button>
+                  ) : null}
+                </article>
+              ))}
+            </div>
+            {hiddenRelationshipTextReviewItemCount > 0 ? (
+              <span className="vwb-tag">
+                {formatHiddenCountText({
+                  hiddenCount: hiddenRelationshipTextReviewItemCount,
+                  singularItemLabel: 'legacy text item',
+                  pluralItemLabel: 'legacy text items',
+                })}
+              </span>
+            ) : null}
+            {relationshipTextReviewItems.length >
+            relationshipTextReviewDisplayLimits.sectionItems ? (
+              <div className="vwb-action-row">
+                <button
+                  className="vwb-secondary-button"
+                  type="button"
+                  aria-expanded={showAllRelationshipTextReviewItems}
+                  onClick={() =>
+                    setShowAllRelationshipTextReviewItems(
+                      (currentValue) => !currentValue
+                    )
+                  }
+                >
+                  {formatExpansionControlLabel({
+                    isExpanded: showAllRelationshipTextReviewItems,
+                    hiddenCount: hiddenRelationshipTextReviewItemCount,
+                    pluralItemLabel: 'Legacy Text Items',
+                    singularItemLabel: 'Legacy Text Item',
+                  })}
+                </button>
+              </div>
+            ) : null}
+          </section>
+        ) : null}
+
         <section
-          className="vwb-panel vwb-linked-field-panel"
-          aria-label={relationshipTextReviewCopy.title}
+          className="vwb-entry-column"
+          data-dashboard-card-id="timeline.chronology"
+          aria-label={formatEntrySectionEntriesLabel(section)}
         >
           <div className="vwb-section-heading">
             <div>
               <p className="vwb-kicker">
-                {getRelationshipTextReviewCountLabel(
-                  relationshipTextReviewItems.length
+                {formatEntryListShownCount(
+                  filteredEntries.length,
+                  entries.length
                 )}
               </p>
-              <h2>{relationshipTextReviewCopy.title}</h2>
+              <h2>{entryListCopy.entriesTitle}</h2>
             </div>
           </div>
-          <p>
-            {getRelationshipTextReviewSummary(
-              relationshipTextReviewItems.length
-            )}
-          </p>
-          {isEntryFormDirty ? (
-            <p className="vwb-inline-status">
-              {relationshipTextReviewCopy.draftBlockedMessage}
-            </p>
-          ) : null}
-          {relationshipTextReviewExactItems.length > 0 ? (
-            <button
-              className="vwb-secondary-button"
-              disabled={isEntryFormDirty}
-              type="button"
-              onClick={migrateAllReviewExactMatches}
-            >
-              {relationshipTextReviewCopy.batchExactMatchLabel}
-            </button>
-          ) : null}
-          <div className="vwb-relationship-list">
-            {visibleRelationshipTextReviewItems.map((item) => (
-              <article
-                className="vwb-relationship-row"
-                key={`${item.entryId}-${item.fieldKey}`}
+          <div
+            className="vwb-filter-panel vwb-entry-filter-panel"
+            aria-label={formatEntrySectionFiltersLabel(section)}
+          >
+            <label className="vwb-search-field">
+              {formatEntrySectionSearchLabel(section)}
+              <input
+                value={query}
+                onChange={(event) => {
+                  const nextQuery = event.target.value;
+                  setQuery(nextQuery);
+                  updateTimelineBrowseRoute({ query: nextQuery });
+                }}
+                placeholder={entryListCopy.searchSectionLabel}
+                type="search"
+              />
+            </label>
+            {tagFilterOptions.length > 0 ? (
+              <div
+                className="vwb-tag-filter-group"
+                aria-label={entryListCopy.filterByTagLabel}
               >
-                <div>
-                  <span className="vwb-entry-kind">{item.fieldLabel}</span>
+                {tagFilterOptions.map((option) => (
                   <button
-                    className="vwb-link-button"
+                    className={`vwb-tag-filter ${
+                      option.isActive ? 'is-active' : ''
+                    }`}
+                    key={option.value}
                     type="button"
-                    onClick={() => selectEntry(item.entryId)}
+                    onClick={() => {
+                      setActiveTag(option.nextValue);
+                      updateTimelineBrowseRoute({ tag: option.nextValue });
+                    }}
+                    aria-pressed={option.isActive}
                   >
-                    {item.entryName}
+                    {option.label}
                   </button>
-                </div>
-                <p>
-                  {relationshipTextReviewCopy.unresolvedLabel}:{' '}
-                  {getRelationshipTextReviewUnresolvedLabel(item)}.{' '}
-                  {getRelationshipTextReviewExactMatchLabel(item)}
-                </p>
-                {item.suggestedTargets.length > 0 ? (
-                  <div>
-                    <p>
-                      {relationshipTextReviewCopy.suggestionsLabel}:{' '}
-                      {getRelationshipTextReviewSuggestionLabels(item).join(
-                        '; '
-                      )}
-                    </p>
-                    {item.suggestedTargets.map((suggestion) =>
-                      suggestion.targets.map((target) => (
-                        <button
-                          aria-label={target.accessibilityLabel}
-                          className="vwb-secondary-button"
-                          disabled={isEntryFormDirty}
-                          key={`${suggestion.fragment}-${target.id}`}
-                          type="button"
-                          onClick={() =>
-                            migrateReviewItemSuggestion(
-                              item,
-                              suggestion.fragment,
-                              target.id
-                            )
-                          }
-                        >
-                          {target.label}
-                        </button>
-                      ))
-                    )}
-                  </div>
-                ) : null}
-                {item.exactMatchCount > 0 ? (
-                  <button
-                    className="vwb-secondary-button"
-                    disabled={isEntryFormDirty}
-                    type="button"
-                    onClick={() => migrateReviewItemExactMatches(item)}
-                  >
-                    {relationshipTextReviewCopy.exactMatchMigrationLabel}
-                  </button>
-                ) : null}
-              </article>
-            ))}
-          </div>
-          {hiddenRelationshipTextReviewItemCount > 0 ? (
-            <span className="vwb-tag">
-              {formatHiddenCountText({
-                hiddenCount: hiddenRelationshipTextReviewItemCount,
-                singularItemLabel: 'legacy text item',
-                pluralItemLabel: 'legacy text items',
-              })}
-            </span>
-          ) : null}
-          {relationshipTextReviewItems.length >
-          relationshipTextReviewDisplayLimits.sectionItems ? (
-            <div className="vwb-action-row">
+                ))}
+              </div>
+            ) : null}
+            {hasActiveFilters ? (
               <button
-                className="vwb-secondary-button"
+                className="vwb-secondary-button vwb-clear-filters-button"
                 type="button"
-                aria-expanded={showAllRelationshipTextReviewItems}
-                onClick={() =>
-                  setShowAllRelationshipTextReviewItems(
-                    (currentValue) => !currentValue
-                  )
-                }
+                onClick={clearFilters}
               >
-                {formatExpansionControlLabel({
-                  isExpanded: showAllRelationshipTextReviewItems,
-                  hiddenCount: hiddenRelationshipTextReviewItemCount,
-                  pluralItemLabel: 'Legacy Text Items',
-                  singularItemLabel: 'Legacy Text Item',
-                })}
+                {entryListCopy.clearFiltersLabel}
               </button>
-            </div>
-          ) : null}
-        </section>
-      ) : null}
-
-      <section
-        className="vwb-entry-column"
-        aria-label={formatEntrySectionEntriesLabel(section)}
-      >
-        <div className="vwb-section-heading">
-          <div>
-            <p className="vwb-kicker">
-              {formatEntryListShownCount(
-                filteredEntries.length,
-                entries.length
-              )}
-            </p>
-            <h2>{entryListCopy.entriesTitle}</h2>
-          </div>
-        </div>
-        <div
-          className="vwb-filter-panel vwb-entry-filter-panel"
-          aria-label={formatEntrySectionFiltersLabel(section)}
-        >
-          <label className="vwb-search-field">
-            {formatEntrySectionSearchLabel(section)}
-            <input
-              value={query}
-              onChange={(event) => {
-                const nextQuery = event.target.value;
-                setQuery(nextQuery);
-                updateTimelineBrowseRoute({ query: nextQuery });
-              }}
-              placeholder={entryListCopy.searchSectionLabel}
-              type="search"
-            />
-          </label>
-          {tagFilterOptions.length > 0 ? (
-            <div
-              className="vwb-tag-filter-group"
-              aria-label={entryListCopy.filterByTagLabel}
-            >
-              {tagFilterOptions.map((option) => (
-                <button
-                  className={`vwb-tag-filter ${
-                    option.isActive ? 'is-active' : ''
-                  }`}
-                  key={option.value}
-                  type="button"
-                  onClick={() => {
-                    setActiveTag(option.nextValue);
-                    updateTimelineBrowseRoute({ tag: option.nextValue });
-                  }}
-                  aria-pressed={option.isActive}
-                >
-                  {option.label}
-                </button>
-              ))}
-            </div>
-          ) : null}
-          {hasActiveFilters ? (
-            <button
-              className="vwb-secondary-button vwb-clear-filters-button"
-              type="button"
-              onClick={clearFilters}
-            >
-              {entryListCopy.clearFiltersLabel}
-            </button>
-          ) : null}
-          <div className="vwb-filter-row">
-            <label>
-              {entryStatusFilterControl.label}
-              <select
-                aria-label={entryStatusFilterControl.accessibilityLabel}
-                value={statusFilter}
-                onChange={(event) => {
-                  const nextStatus = event.target.value as typeof statusFilter;
-                  setStatusFilter(nextStatus);
-                  if (nextStatus === 'archived') {
-                    setShowArchived(true);
-                  }
-                  updateTimelineBrowseRoute({
-                    showArchived:
-                      nextStatus === 'archived' ? true : showArchived,
-                    status: nextStatus,
-                  });
-                }}
-              >
-                {entryStatusFilterControl.options.map((option) => (
-                  <option value={option.value} key={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label>
-              {entrySortControl.label}
-              <select
-                aria-label={entrySortControl.accessibilityLabel}
-                value={sortKey}
-                onChange={(event) => {
-                  const nextSortKey = event.target
-                    .value as EntrySortControlValue;
-                  setSortKey(nextSortKey);
-                  updateTimelineBrowseRoute({ sort: nextSortKey });
-                }}
-              >
-                {entrySortOptions.map((option) => (
-                  <option value={option.value} key={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label>
-              {entryUpdatedFilterControl.label}
-              <select
-                aria-label={entryUpdatedFilterControl.accessibilityLabel}
-                value={updatedWithinDays ?? ''}
-                onChange={(event) => {
-                  const nextUpdatedWithinDays = event.target.value
-                    ? Number(event.target.value)
-                    : null;
-                  setUpdatedWithinDays(nextUpdatedWithinDays);
-                  updateTimelineBrowseRoute({
-                    updatedWithinDays: nextUpdatedWithinDays,
-                  });
-                }}
-              >
-                {entryUpdatedFilterControl.options.map((option) => (
-                  <option value={option.value} key={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
-          {section.id === 'timeline' ? (
+            ) : null}
             <div className="vwb-filter-row">
               <label>
-                {timelineFeatureCopy.eraFilterLabel}
+                {entryStatusFilterControl.label}
                 <select
-                  value={eraFilter}
+                  aria-label={entryStatusFilterControl.accessibilityLabel}
+                  value={statusFilter}
                   onChange={(event) => {
-                    const nextEra = event.target.value;
-                    setEraFilter(nextEra);
-                    updateTimelineBrowseRoute({ era: nextEra });
-                  }}
-                >
-                  <option value="">{timelineFeatureCopy.anyEraLabel}</option>
-                  {timelineEras.map((era) => (
-                    <option value={era} key={era}>
-                      {era}
-                    </option>
-                  ))}
-                  {timelineEraManager?.unassignedCount ? (
-                    <option value={timelineUnassignedEraFilterValue}>
-                      {timelineFeatureCopy.unassignedEraLabel} (
-                      {timelineEraManager.unassignedCount})
-                    </option>
-                  ) : null}
-                </select>
-              </label>
-              <label>
-                {timelineFeatureCopy.involvedFilterLabel}
-                <select
-                  value={involvedEntryFilter}
-                  onChange={(event) => {
-                    const nextInvolvedEntryId = event.target.value;
-                    setInvolvedEntryFilter(nextInvolvedEntryId);
+                    const nextStatus = event.target
+                      .value as typeof statusFilter;
+                    setStatusFilter(nextStatus);
+                    if (nextStatus === 'archived') {
+                      setShowArchived(true);
+                    }
                     updateTimelineBrowseRoute({
-                      involvedEntryId: nextInvolvedEntryId,
+                      showArchived:
+                        nextStatus === 'archived' ? true : showArchived,
+                      status: nextStatus,
                     });
                   }}
                 >
-                  <option value="">
-                    {timelineFeatureCopy.anyInvolvedLabel}
-                  </option>
-                  {timelineInvolvedEntries.map((entry) => (
-                    <option value={entry.id} key={entry.id}>
-                      {entry.name} ({entry.sectionTitle})
+                  {entryStatusFilterControl.options.map((option) => (
+                    <option value={option.value} key={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                {entrySortControl.label}
+                <select
+                  aria-label={entrySortControl.accessibilityLabel}
+                  value={sortKey}
+                  onChange={(event) => {
+                    const nextSortKey = event.target
+                      .value as EntrySortControlValue;
+                    setSortKey(nextSortKey);
+                    updateTimelineBrowseRoute({ sort: nextSortKey });
+                  }}
+                >
+                  {entrySortOptions.map((option) => (
+                    <option value={option.value} key={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                {entryUpdatedFilterControl.label}
+                <select
+                  aria-label={entryUpdatedFilterControl.accessibilityLabel}
+                  value={updatedWithinDays ?? ''}
+                  onChange={(event) => {
+                    const nextUpdatedWithinDays = event.target.value
+                      ? Number(event.target.value)
+                      : null;
+                    setUpdatedWithinDays(nextUpdatedWithinDays);
+                    updateTimelineBrowseRoute({
+                      updatedWithinDays: nextUpdatedWithinDays,
+                    });
+                  }}
+                >
+                  {entryUpdatedFilterControl.options.map((option) => (
+                    <option value={option.value} key={option.value}>
+                      {option.label}
                     </option>
                   ))}
                 </select>
               </label>
             </div>
-          ) : null}
-          <label className="vwb-inline-toggle">
-            <input
-              aria-label={entryShowArchivedControl.accessibilityLabel}
-              checked={showArchived}
-              onChange={(event) => {
-                const nextShowArchived = event.target.checked;
-                setShowArchived(nextShowArchived);
-                updateTimelineBrowseRoute({ showArchived: nextShowArchived });
-              }}
-              type="checkbox"
-            />
-            {entryShowArchivedControl.label}
-          </label>
-        </div>
-        <div className="vwb-entry-list">
-          {filteredEntries.length > 0 ? (
-            filteredEntryRows.map(({ entry, entryItem }) => (
-              <EntryCard
-                entry={entry}
-                entryListItem={entryItem}
-                isSelected={entry.id === selectedEntryId}
-                key={entry.id}
-                onSelect={() => selectEntry(entry.id)}
-                section={section}
-                workspaceSchema={workspaceSchema}
+            {section.id === 'timeline' ? (
+              <div className="vwb-filter-row">
+                <label>
+                  {timelineFeatureCopy.eraFilterLabel}
+                  <select
+                    value={eraFilter}
+                    onChange={(event) => {
+                      const nextEra = event.target.value;
+                      setEraFilter(nextEra);
+                      updateTimelineBrowseRoute({ era: nextEra });
+                    }}
+                  >
+                    <option value="">{timelineFeatureCopy.anyEraLabel}</option>
+                    {timelineEras.map((era) => (
+                      <option value={era} key={era}>
+                        {era}
+                      </option>
+                    ))}
+                    {timelineEraManager?.unassignedCount ? (
+                      <option value={timelineUnassignedEraFilterValue}>
+                        {timelineFeatureCopy.unassignedEraLabel} (
+                        {timelineEraManager.unassignedCount})
+                      </option>
+                    ) : null}
+                  </select>
+                </label>
+                <label>
+                  {timelineFeatureCopy.involvedFilterLabel}
+                  <select
+                    value={involvedEntryFilter}
+                    onChange={(event) => {
+                      const nextInvolvedEntryId = event.target.value;
+                      setInvolvedEntryFilter(nextInvolvedEntryId);
+                      updateTimelineBrowseRoute({
+                        involvedEntryId: nextInvolvedEntryId,
+                      });
+                    }}
+                  >
+                    <option value="">
+                      {timelineFeatureCopy.anyInvolvedLabel}
+                    </option>
+                    {timelineInvolvedEntries.map((entry) => (
+                      <option value={entry.id} key={entry.id}>
+                        {entry.name} ({entry.sectionTitle})
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+            ) : null}
+            <label className="vwb-inline-toggle">
+              <input
+                aria-label={entryShowArchivedControl.accessibilityLabel}
+                checked={showArchived}
+                onChange={(event) => {
+                  const nextShowArchived = event.target.checked;
+                  setShowArchived(nextShowArchived);
+                  updateTimelineBrowseRoute({ showArchived: nextShowArchived });
+                }}
+                type="checkbox"
               />
-            ))
-          ) : (
-            <div className="vwb-empty-results" role="status">
-              <strong>{emptyState?.title}</strong>
-              <p>{emptyState?.detail}</p>
-              {emptyState?.showArchivedAction ? (
-                <button
-                  className="vwb-secondary-button"
-                  type="button"
-                  onClick={() => {
-                    setShowArchived(true);
-                    updateTimelineBrowseRoute({ showArchived: true });
-                  }}
-                >
-                  {emptyState.showArchivedActionLabel}
-                </button>
-              ) : null}
-              {hasActiveFilters ? (
-                <button
-                  className="vwb-secondary-button"
-                  type="button"
-                  onClick={clearFilters}
-                >
-                  {entryListCopy.clearFiltersLabel}
-                </button>
-              ) : null}
-            </div>
-          )}
-        </div>
-      </section>
+              {entryShowArchivedControl.label}
+            </label>
+          </div>
+          <div className="vwb-entry-list">
+            {filteredEntries.length > 0 ? (
+              filteredEntryRows.map(({ entry, entryItem }) => (
+                <EntryCard
+                  entry={entry}
+                  entryListItem={entryItem}
+                  isSelected={entry.id === selectedEntryId}
+                  key={entry.id}
+                  onSelect={() => selectEntry(entry.id)}
+                  section={section}
+                  workspaceSchema={workspaceSchema}
+                />
+              ))
+            ) : (
+              <div className="vwb-empty-results" role="status">
+                <strong>{emptyState?.title}</strong>
+                <p>{emptyState?.detail}</p>
+                {emptyState?.showArchivedAction ? (
+                  <button
+                    className="vwb-secondary-button"
+                    type="button"
+                    onClick={() => {
+                      setShowArchived(true);
+                      updateTimelineBrowseRoute({ showArchived: true });
+                    }}
+                  >
+                    {emptyState.showArchivedActionLabel}
+                  </button>
+                ) : null}
+                {hasActiveFilters ? (
+                  <button
+                    className="vwb-secondary-button"
+                    type="button"
+                    onClick={clearFilters}
+                  >
+                    {entryListCopy.clearFiltersLabel}
+                  </button>
+                ) : null}
+              </div>
+            )}
+          </div>
+        </section>
 
-      <section
-        className="vwb-panel"
-        aria-label={`${section.singularTitle} editor`}
-      >
-        {selectedEntry && section.id !== 'timeline' ? (
-          <EntryDetail
-            codex={codex}
-            entry={selectedEntry}
-            relationships={relationships}
-            section={section}
-            sections={sections}
-            workspaceSchema={workspaceSchema}
-          />
-        ) : null}
-        {section.id === 'timeline' ? (
-          <TimelineEventEditor
-            key={`${section.id}-${
-              selectedEntry?.id ?? templateDraft?.name ?? 'new'
-            }`}
-            onCancel={() => {
-              setSelectedEntryId(null);
-              setTemplateDraft(createContextEntryDraft(section));
-              setTemplateStagedRelationships(
-                createContextStagedRelationships(section)
-              );
-            }}
-            onArchive={(entry) => {
-              onArchiveEntry(entry, true);
-              setSelectedEntryId(null);
-              setTemplateDraft(null);
-              setTemplateStagedRelationships([]);
-            }}
-            onDelete={(entry) => setEntryPendingDelete(entry)}
-            onDuplicate={(entry) => {
-              const duplicatedEntry = duplicateEntry(section, entry);
-              onSaveEntry(duplicatedEntry);
-              setSelectedEntryId(duplicatedEntry.id);
-              setTemplateDraft(null);
-              setTemplateStagedRelationships([]);
-            }}
-            onRestore={(entry) => {
-              onArchiveEntry(entry, false);
-              setSelectedEntryId(entry.id);
-              setTemplateDraft(null);
-              setTemplateStagedRelationships([]);
-              setShowArchived(true);
-            }}
-            onSaveDraft={(draft, existingEntry, stagedRelationships = []) => {
-              const result = commitEntryDraftTransaction({
-                codex,
-                entryDraft: draft,
-                existingEntry,
-                relationships,
-                section,
-                stagedRelationships,
-              });
-              onSaveEntry(result.entry);
-              result.savedRelationships.forEach(onSaveRelationship);
-              setSelectedEntryId(result.entry.id);
-              setTemplateDraft(null);
-              setTemplateStagedRelationships([]);
-              return result.entry;
-            }}
-            onDeleteRelationship={onDeleteRelationship}
-            onSaveRelationship={onSaveRelationship}
-            onUseAsTemplate={(entry) => {
-              const nextTemplateDraft = draftFromEntry(entry, section);
-              setTemplateDraft({
-                ...nextTemplateDraft,
-                name: `${entry.name} Template`,
-                status: 'draft',
-              });
-              setSelectedEntryId(null);
-              setTemplateStagedRelationships([]);
-            }}
-            section={section}
-            selectedEntry={selectedEntry}
-            initialDraft={templateDraft ?? undefined}
-            initialStagedRelationships={initialStagedRelationships}
-            onDirtyChange={setIsEntryFormDirty}
-            codex={codex}
-            relationships={relationships}
-            sections={sections}
-            workspaceSchema={workspaceSchema}
-          />
-        ) : (
-          <EntryForm
-            key={`${section.id}-${
-              selectedEntry?.id ?? templateDraft?.name ?? 'new'
-            }`}
-            onCancel={() => {
-              setSelectedEntryId(null);
-              setTemplateDraft(createContextEntryDraft(section));
-              setTemplateStagedRelationships(
-                createContextStagedRelationships(section)
-              );
-            }}
-            onArchive={(entry) => {
-              onArchiveEntry(entry, true);
-              setSelectedEntryId(null);
-              setTemplateDraft(null);
-              setTemplateStagedRelationships([]);
-            }}
-            onDelete={(entry) => setEntryPendingDelete(entry)}
-            onDuplicate={(entry) => {
-              const duplicatedEntry = duplicateEntry(section, entry);
-              onSaveEntry(duplicatedEntry);
-              setSelectedEntryId(duplicatedEntry.id);
-              setTemplateDraft(null);
-              setTemplateStagedRelationships([]);
-            }}
-            onRestore={(entry) => {
-              onArchiveEntry(entry, false);
-              setSelectedEntryId(entry.id);
-              setTemplateDraft(null);
-              setTemplateStagedRelationships([]);
-              setShowArchived(true);
-            }}
-            onSave={(entry) => {
-              onSaveEntry(entry);
-              setSelectedEntryId(entry.id);
-              setTemplateDraft(null);
-              setTemplateStagedRelationships([]);
-            }}
-            onSaveDraft={(draft, existingEntry, stagedRelationships = []) => {
-              const result = commitEntryDraftTransaction({
-                codex,
-                entryDraft: draft,
-                existingEntry,
-                relationships,
-                section,
-                stagedRelationships,
-              });
-              onSaveEntry(result.entry);
-              result.savedRelationships.forEach(onSaveRelationship);
-              setSelectedEntryId(result.entry.id);
-              setTemplateDraft(null);
-              setTemplateStagedRelationships([]);
-              return result.entry;
-            }}
-            onDeleteRelationship={onDeleteRelationship}
-            onSaveRelationship={onSaveRelationship}
-            onUseAsTemplate={(entry) => {
-              const nextTemplateDraft = draftFromEntry(entry, section);
-              setTemplateDraft({
-                ...nextTemplateDraft,
-                name: `${entry.name} Template`,
-                status: 'draft',
-              });
-              setSelectedEntryId(null);
-              setTemplateStagedRelationships([]);
-            }}
-            section={section}
-            sectionEntries={entries}
-            selectedEntry={selectedEntry}
-            initialDraft={templateDraft ?? undefined}
-            initialStagedRelationships={initialStagedRelationships}
-            onDirtyChange={setIsEntryFormDirty}
-            codex={codex}
-            relationships={relationships}
-            sections={sections}
-            workspaceSchema={workspaceSchema}
-          />
-        )}
-      </section>
+        <section
+          className="vwb-panel"
+          data-dashboard-card-id="timeline.event-editor"
+          aria-label={`${section.singularTitle} editor`}
+        >
+          {selectedEntry && section.id !== 'timeline' ? (
+            <EntryDetail
+              codex={codex}
+              entry={selectedEntry}
+              relationships={relationships}
+              section={section}
+              sections={sections}
+              workspaceSchema={workspaceSchema}
+            />
+          ) : null}
+          {section.id === 'timeline' ? (
+            <TimelineEventEditor
+              key={`${section.id}-${
+                selectedEntry?.id ?? templateDraft?.name ?? 'new'
+              }`}
+              onCancel={() => {
+                setSelectedEntryId(null);
+                setTemplateDraft(createContextEntryDraft(section));
+                setTemplateStagedRelationships(
+                  createContextStagedRelationships(section)
+                );
+              }}
+              onArchive={(entry) => {
+                onArchiveEntry(entry, true);
+                setSelectedEntryId(null);
+                setTemplateDraft(null);
+                setTemplateStagedRelationships([]);
+              }}
+              onDelete={(entry) => setEntryPendingDelete(entry)}
+              onDuplicate={(entry) => {
+                const duplicatedEntry = duplicateEntry(section, entry);
+                onSaveEntry(duplicatedEntry);
+                setSelectedEntryId(duplicatedEntry.id);
+                setTemplateDraft(null);
+                setTemplateStagedRelationships([]);
+              }}
+              onRestore={(entry) => {
+                onArchiveEntry(entry, false);
+                setSelectedEntryId(entry.id);
+                setTemplateDraft(null);
+                setTemplateStagedRelationships([]);
+                setShowArchived(true);
+              }}
+              onSaveDraft={(draft, existingEntry, stagedRelationships = []) => {
+                const result = commitEntryDraftTransaction({
+                  codex,
+                  entryDraft: draft,
+                  existingEntry,
+                  relationships,
+                  section,
+                  stagedRelationships,
+                });
+                onSaveEntry(result.entry, draft.stagedAssets);
+                result.savedRelationships.forEach(onSaveRelationship);
+                setSelectedEntryId(result.entry.id);
+                setTemplateDraft(null);
+                setTemplateStagedRelationships([]);
+                return result.entry;
+              }}
+              onDeleteRelationship={onDeleteRelationship}
+              onSaveRelationship={onSaveRelationship}
+              onUseAsTemplate={(entry) => {
+                const nextTemplateDraft = draftFromEntry(entry, section);
+                setTemplateDraft({
+                  ...nextTemplateDraft,
+                  name: `${entry.name} Template`,
+                  status: 'draft',
+                });
+                setSelectedEntryId(null);
+                setTemplateStagedRelationships([]);
+              }}
+              section={section}
+              selectedEntry={selectedEntry}
+              initialDraft={templateDraft ?? undefined}
+              initialStagedRelationships={initialStagedRelationships}
+              onDirtyChange={setIsEntryFormDirty}
+              codex={codex}
+              relationships={relationships}
+              sections={sections}
+              workspaceSchema={workspaceSchema}
+            />
+          ) : (
+            <EntryForm
+              key={`${section.id}-${
+                selectedEntry?.id ?? templateDraft?.name ?? 'new'
+              }`}
+              onCancel={() => {
+                setSelectedEntryId(null);
+                setTemplateDraft(createContextEntryDraft(section));
+                setTemplateStagedRelationships(
+                  createContextStagedRelationships(section)
+                );
+              }}
+              onArchive={(entry) => {
+                onArchiveEntry(entry, true);
+                setSelectedEntryId(null);
+                setTemplateDraft(null);
+                setTemplateStagedRelationships([]);
+              }}
+              onDelete={(entry) => setEntryPendingDelete(entry)}
+              onDuplicate={(entry) => {
+                const duplicatedEntry = duplicateEntry(section, entry);
+                onSaveEntry(duplicatedEntry);
+                setSelectedEntryId(duplicatedEntry.id);
+                setTemplateDraft(null);
+                setTemplateStagedRelationships([]);
+              }}
+              onRestore={(entry) => {
+                onArchiveEntry(entry, false);
+                setSelectedEntryId(entry.id);
+                setTemplateDraft(null);
+                setTemplateStagedRelationships([]);
+                setShowArchived(true);
+              }}
+              onSave={(entry) => {
+                onSaveEntry(entry);
+                setSelectedEntryId(entry.id);
+                setTemplateDraft(null);
+                setTemplateStagedRelationships([]);
+              }}
+              onSaveDraft={(draft, existingEntry, stagedRelationships = []) => {
+                const result = commitEntryDraftTransaction({
+                  codex,
+                  entryDraft: draft,
+                  existingEntry,
+                  relationships,
+                  section,
+                  stagedRelationships,
+                });
+                onSaveEntry(result.entry, draft.stagedAssets);
+                result.savedRelationships.forEach(onSaveRelationship);
+                setSelectedEntryId(result.entry.id);
+                setTemplateDraft(null);
+                setTemplateStagedRelationships([]);
+                return result.entry;
+              }}
+              onDeleteRelationship={onDeleteRelationship}
+              onSaveRelationship={onSaveRelationship}
+              onUseAsTemplate={(entry) => {
+                const nextTemplateDraft = draftFromEntry(entry, section);
+                setTemplateDraft({
+                  ...nextTemplateDraft,
+                  name: `${entry.name} Template`,
+                  status: 'draft',
+                });
+                setSelectedEntryId(null);
+                setTemplateStagedRelationships([]);
+              }}
+              section={section}
+              sectionEntries={entries}
+              selectedEntry={selectedEntry}
+              initialDraft={templateDraft ?? undefined}
+              initialStagedRelationships={initialStagedRelationships}
+              onDirtyChange={setIsEntryFormDirty}
+              codex={codex}
+              relationships={relationships}
+              sections={sections}
+              workspaceSchema={workspaceSchema}
+            />
+          )}
+        </section>
+      </DashboardPage>
       {entryPendingDelete ? (
         <ConfirmationDialog
           entry={entryPendingDelete}

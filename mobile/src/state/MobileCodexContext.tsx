@@ -4,6 +4,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from 'react';
@@ -12,6 +13,7 @@ import type {
   TimelineOrderDirection,
   WorldDocument,
   WorldEntry,
+  WorldImageAsset,
   WorldRelationship,
   WorldSectionConfig,
 } from '@valgaron/core';
@@ -62,6 +64,7 @@ import {
   updateActiveWorld,
   updateVocabularyValue as updateCoreVocabularyValue,
   updateWorkspaceMetadata,
+  pruneUnreferencedAssetMetadata,
   validateEntryDraftTransaction,
   validateEntryTypeDraft,
   validatePlanetaryWorldDraft,
@@ -94,6 +97,7 @@ import {
   type MobileRecoverySnapshot,
   type MobileRecoverySnapshotReason,
 } from '../storage/mobileStorage';
+import { cleanupMobileImageAssets } from '../storage/mobileImageAssetStorage';
 import { isMobileE2EMode } from './mobileE2E';
 type MobileCodexState = {
   document: WorldDocument;
@@ -214,6 +218,8 @@ export function MobileCodexProvider({ children }: { children: ReactNode }) {
     lastRecoverySnapshot: null,
     recoverySnapshots: [],
   }));
+  const stateRef = useRef(state);
+  stateRef.current = state;
 
   useEffect(() => {
     let mounted = true;
@@ -225,6 +231,7 @@ export function MobileCodexProvider({ children }: { children: ReactNode }) {
       const recoverySnapshots = e2eMode
         ? []
         : await loadMobileRecoverySnapshots(asyncStorageAdapter);
+      void cleanupMobileImageAssets(loadResult.document, recoverySnapshots);
       if (!mounted) {
         return;
       }
@@ -287,6 +294,12 @@ export function MobileCodexProvider({ children }: { children: ReactNode }) {
         }
         void saveMobileWorldDocument(asyncStorageAdapter, nextDocument).then(
           (didSave) => {
+            if (didSave) {
+              void cleanupMobileImageAssets(nextDocument, [
+                ...(snapshot ? [snapshot] : []),
+                ...current.recoverySnapshots,
+              ]);
+            }
             setState((latest) =>
               latest.document === nextDocument
                 ? {
@@ -361,29 +374,42 @@ export function MobileCodexProvider({ children }: { children: ReactNode }) {
         }
         let savedEntry: WorldEntry | null = null;
         commitDocument(
-          (currentDocument) =>
-            updateActiveWorld(currentDocument, (world) => {
-              const currentSection =
-                world.entryTypes.find((item) => item.id === section.id) ??
-                section;
-              const transaction = commitEntryDraftTransaction({
-                codex: world.codex,
-                entryDraft: draft,
-                existingEntry,
-                relationships: world.relationships,
-                section: currentSection,
-                stagedRelationships,
-                workspaceSchema: world.schema,
-              });
-              savedEntry = transaction.entry;
+          (currentDocument) => {
+            const assetById = new Map<string, WorldImageAsset>(
+              [...currentDocument.assets, ...(draft.stagedAssets ?? [])].map(
+                (asset) => [asset.id, asset]
+              )
+            );
+            const updatedDocument = updateActiveWorld(
+              currentDocument,
+              (world) => {
+                const currentSection =
+                  world.entryTypes.find((item) => item.id === section.id) ??
+                  section;
+                const transaction = commitEntryDraftTransaction({
+                  codex: world.codex,
+                  entryDraft: draft,
+                  existingEntry,
+                  relationships: world.relationships,
+                  section: currentSection,
+                  stagedRelationships,
+                  workspaceSchema: world.schema,
+                });
+                savedEntry = transaction.entry;
 
-              return {
-                ...world,
-                codex: transaction.codex,
-                relationships: [...transaction.relationships],
-                updatedAt: new Date().toISOString(),
-              };
-            }),
+                return {
+                  ...world,
+                  codex: transaction.codex,
+                  relationships: [...transaction.relationships],
+                  updatedAt: new Date().toISOString(),
+                };
+              }
+            );
+            return pruneUnreferencedAssetMetadata({
+              ...updatedDocument,
+              assets: [...assetById.values()],
+            });
+          },
           undefined,
           existingEntry
             ? getDeviceCommitResultMessage('entry-updated')
@@ -438,10 +464,12 @@ export function MobileCodexProvider({ children }: { children: ReactNode }) {
       permanentlyDeleteEntry(entry) {
         commitDocument(
           (currentDocument) =>
-            deleteEntryFromActiveWorkspace({
-              document: currentDocument,
-              entry,
-            }),
+            pruneUnreferencedAssetMetadata(
+              deleteEntryFromActiveWorkspace({
+                document: currentDocument,
+                entry,
+              })
+            ),
           'permanent-delete'
         );
       },
@@ -534,7 +562,9 @@ export function MobileCodexProvider({ children }: { children: ReactNode }) {
       permanentlyDeleteWorkspace(workspaceId) {
         commitDocument(
           (currentDocument) =>
-            deleteCoreWorkspace(currentDocument, workspaceId),
+            pruneUnreferencedAssetMetadata(
+              deleteCoreWorkspace(currentDocument, workspaceId)
+            ),
           'workspace-delete'
         );
       },
@@ -739,10 +769,12 @@ export function MobileCodexProvider({ children }: { children: ReactNode }) {
       permanentlyDeleteEntryType(sectionId) {
         commitDocument(
           (currentDocument) =>
-            deleteEntryTypeFromActiveWorkspace({
-              document: currentDocument,
-              sectionId,
-            }),
+            pruneUnreferencedAssetMetadata(
+              deleteEntryTypeFromActiveWorkspace({
+                document: currentDocument,
+                sectionId,
+              })
+            ),
           'entry-type-delete'
         );
       },
@@ -786,6 +818,15 @@ export function MobileCodexProvider({ children }: { children: ReactNode }) {
           asyncStorageAdapter,
           snapshotId
         ).then((didDelete) => {
+          if (didDelete) {
+            const latest = stateRef.current;
+            void cleanupMobileImageAssets(
+              latest.document,
+              latest.recoverySnapshots.filter(
+                (snapshot) => snapshot.id !== snapshotId
+              )
+            );
+          }
           setState((current) => ({
             ...current,
             formMessage: didDelete

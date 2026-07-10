@@ -14,7 +14,8 @@ describe('world document helpers', () => {
     const activeWorld = getActiveWorld(document);
 
     expect(document.schemaVersion).toBe(CURRENT_WORLD_SCHEMA_VERSION);
-    expect(document.schemaVersion).toBe(3);
+    expect(document.schemaVersion).toBe(4);
+    expect(document.assets).toEqual([]);
     expect(document.worlds).toHaveLength(1);
     expect(activeWorld.entryTypes.map((entryType) => entryType.id)).toEqual([
       'characters',
@@ -78,13 +79,30 @@ describe('world document helpers', () => {
     });
   });
 
-  it('rejects legacy single-world codex and schema 2 document shapes', () => {
+  it('migrates schema 3 and rejects legacy single-world codex and schema 2 shapes', () => {
+    const schema3Document = JSON.parse(
+      JSON.stringify(createSeedWorldDocument())
+    ) as Record<string, unknown>;
+    schema3Document.schemaVersion = 3;
+    delete schema3Document.assets;
+    const schema3Worlds = schema3Document.worlds as Array<{
+      codex: Record<string, Array<Record<string, unknown>>>;
+    }>;
+    for (const world of schema3Worlds) {
+      for (const entries of Object.values(world.codex)) {
+        for (const entry of entries) delete entry.images;
+      }
+    }
     const schema2Document = {
       ...createSeedWorldDocument(),
       schemaVersion: 2,
     };
 
     expect(parseWorldDocument(createSeedCodex())).toBeNull();
+    expect(parseWorldDocument(schema3Document)).toMatchObject({
+      schemaVersion: 4,
+      assets: [],
+    });
     expect(parseWorldDocument(schema2Document)).toBeNull();
   });
 

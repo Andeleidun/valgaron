@@ -13,7 +13,7 @@ browser data cleanup, private browsing cleanup, browser profile removal, or
 storage failures. Mobile data is local to the installed app storage area and can
 be removed by app uninstall, device loss, or storage failures. This is
 acceptable for the first local-only release only because users are told to keep
-downloaded JSON backups.
+downloaded ZIP backups when uploaded images must be recoverable.
 
 ## Import Safety
 
@@ -50,7 +50,7 @@ If the app is later deployed on a host that supports custom headers, start from
 this policy and test the production build before publishing:
 
 ```text
-Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'; frame-ancestors 'none'; manifest-src 'self'; worker-src 'self'
+Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' blob: data: https:; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'; frame-ancestors 'none'; manifest-src 'self'; worker-src 'self'
 Referrer-Policy: no-referrer
 X-Content-Type-Options: nosniff
 Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=()
@@ -79,3 +79,27 @@ when it would downgrade Expo or replace the SDK line used by the mobile app.
 Track those findings as known release risks unless an Expo-compatible upgrade is
 available or the vulnerable package is reachable from published web runtime
 code.
+Uploaded image bytes are stored outside the JSON document in browser IndexedDB
+or app-managed mobile files. The document stores only generated URI references
+and verified metadata. Runtime `blob:`, picker/content, and temporary file URIs
+are never accepted as durable document sources.
+
+## Images And ZIP Packages
+
+- Remote image sources must be absolute HTTPS URIs. Saving a URI does not fetch
+  it; displaying it contacts the third-party host with ordinary network request
+  information.
+- Uploads accept signature-verified JPEG, PNG, WebP, and GIF content up to 10 MB.
+  SVG, MIME-spoofed, empty, unknown, and oversized files are rejected.
+- Original upload bytes are preserved and may retain EXIF metadata.
+- Storage keys and ZIP paths are generated from application asset ids, never
+  user filenames.
+- ZIP export verifies signature, MIME, byte size, and SHA-256 before claiming a
+  complete backup. Remote images are never fetched into a ZIP.
+- ZIP import is detected from its byte signature, limits compressed/expanded
+  size and entry count, and rejects split/encrypted/ZIP64 archives, symlinks,
+  unsupported compression, disagreeing headers, unsafe or duplicate paths,
+  unexpected entries, missing assets, and integrity mismatches before replacing
+  the document.
+- Imported filenames, captions, alt text, and URI strings are rendered only as
+  data, never executable HTML.

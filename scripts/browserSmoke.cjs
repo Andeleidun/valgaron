@@ -224,7 +224,7 @@ const routeChecks = [
       'Manual local save',
       'Active workspace JSON',
       'Full document JSON',
-      'Import JSON backup',
+      'Import JSON or ZIP backup',
     ],
   },
   {

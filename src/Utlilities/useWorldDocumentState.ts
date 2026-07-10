@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   addEntryTypeFieldsInActiveWorkspace,
   addVocabularyValue,
@@ -15,6 +15,7 @@ import {
   deleteWorkspace,
   duplicateWorkspace,
   getActiveWorld,
+  pruneUnreferencedAssetMetadata,
   localPersistenceCopy,
   moveEntryTypeFieldInActiveWorkspace,
   moveVocabularyValue,
@@ -41,6 +42,7 @@ import {
   type WorldCodex,
   type WorldDocument,
   type WorldEntry,
+  type WorldImageAsset,
   type WorldRelationship,
   type WorldSectionConfig,
   type WorldWorkspace,
@@ -60,6 +62,7 @@ import {
   saveWorldDocument,
   type WorldDocumentLoadStatus,
 } from './codexStorage';
+import { cleanupBrowserImageAssets } from './imageAssetGarbageCollection';
 
 export type WorldDocumentSaveStatus = {
   state: 'saved' | 'unsaved' | 'dirty' | 'failed' | 'paused';
@@ -84,7 +87,7 @@ export type WorldDocumentState = {
   recoverySnapshots: readonly RecoverySnapshotSummary[];
   recoverySnapshotStatus: RecoverySnapshotStatus;
   saveCurrentDocument: () => void;
-  saveEntry: (entry: WorldEntry) => void;
+  saveEntry: (entry: WorldEntry, assets?: readonly WorldImageAsset[]) => void;
   archiveEntry: (entry: WorldEntry, archived: boolean) => void;
   permanentlyDeleteEntry: (entry: WorldEntry) => void;
   saveRelationship: (relationship: WorldRelationship) => void;
@@ -185,6 +188,10 @@ export function useWorldDocumentState(): WorldDocumentState {
     [snapshots]
   );
 
+  useEffect(() => {
+    void cleanupBrowserImageAssets(initialLoadResult.document);
+  }, [initialLoadResult.document]);
+
   const markUnsaved = () => {
     setHasUnsavedDocumentChanges(true);
     setSaveStatus((currentStatus) => ({
@@ -209,6 +216,7 @@ export function useWorldDocumentState(): WorldDocumentState {
     if (didSave) {
       setDocument(savedDocument);
       setHasUnsavedDocumentChanges(false);
+      void cleanupBrowserImageAssets(savedDocument);
     }
     setSaveStatus({
       state: didSave ? 'saved' : 'failed',
@@ -231,10 +239,19 @@ export function useWorldDocumentState(): WorldDocumentState {
     });
   };
 
-  const saveEntry = (entry: WorldEntry) => {
-    setUnsavedDocument((currentDocument) =>
-      saveEntryInActiveWorkspace({ document: currentDocument, entry })
-    );
+  const saveEntry = (
+    entry: WorldEntry,
+    assets: readonly WorldImageAsset[] = []
+  ) => {
+    setUnsavedDocument((currentDocument) => {
+      const assetById = new Map(
+        [...currentDocument.assets, ...assets].map((asset) => [asset.id, asset])
+      );
+      return pruneUnreferencedAssetMetadata({
+        ...saveEntryInActiveWorkspace({ document: currentDocument, entry }),
+        assets: [...assetById.values()],
+      });
+    });
   };
 
   const archiveEntry = (entry: WorldEntry, archived: boolean) => {
@@ -250,7 +267,9 @@ export function useWorldDocumentState(): WorldDocumentState {
   const permanentlyDeleteEntry = (entry: WorldEntry) => {
     captureSnapshot(document, 'permanent-delete');
     setUnsavedDocument((currentDocument) =>
-      deleteEntryFromActiveWorkspace({ document: currentDocument, entry })
+      pruneUnreferencedAssetMetadata(
+        deleteEntryFromActiveWorkspace({ document: currentDocument, entry })
+      )
     );
   };
 
@@ -332,6 +351,7 @@ export function useWorldDocumentState(): WorldDocumentState {
   const deleteSnapshot = (snapshotId: string) => {
     const nextSnapshots = deleteRecoverySnapshot(snapshotId);
     setSnapshots(nextSnapshots);
+    void cleanupBrowserImageAssets(document);
     setRecoverySnapshotStatus({
       state: 'deleted',
       message: 'Recovery snapshot deleted.',
@@ -372,7 +392,9 @@ export function useWorldDocumentState(): WorldDocumentState {
   const permanentlyDeleteWorkspace = (workspaceId: string) => {
     captureSnapshot(document, 'workspace-delete');
     setUnsavedDocument((currentDocument) =>
-      deleteWorkspace(currentDocument, workspaceId)
+      pruneUnreferencedAssetMetadata(
+        deleteWorkspace(currentDocument, workspaceId)
+      )
     );
   };
 
@@ -555,10 +577,12 @@ export function useWorldDocumentState(): WorldDocumentState {
   const permanentlyDeleteEntryType = (sectionId: string) => {
     captureSnapshot(document, 'entry-type-delete');
     setUnsavedDocument((currentDocument) =>
-      deleteEntryTypeFromActiveWorkspace({
-        document: currentDocument,
-        sectionId,
-      })
+      pruneUnreferencedAssetMetadata(
+        deleteEntryTypeFromActiveWorkspace({
+          document: currentDocument,
+          sectionId,
+        })
+      )
     );
   };
 

@@ -1,6 +1,7 @@
 import type { WorldDocument, WorldWorkspace } from './types';
 import { getEntries } from './codexEntries';
 import { valgaronProduct } from './shell';
+import { getImageAssetCounts } from './imageAssets';
 import { CURRENT_WORLD_SCHEMA_VERSION, getActiveWorld } from './worldDocument';
 
 export type WorldDocumentDiagnostics = {
@@ -20,6 +21,10 @@ export type WorldDocumentDiagnostics = {
   archivedWorkspaceCount: number;
   archivedEntryCount: number;
   archivedInFictionWorldCount: number;
+  referencedWebImageCount: number;
+  referencedUploadedImageCount: number;
+  imageAssetMetadataCount: number;
+  reachableUploadedImageByteTotal: number;
 };
 
 export type WorldDocumentDiagnosticsReport = {
@@ -70,6 +75,12 @@ export const contentSafeDiagnosticOmittedFields = [
   'vocabulary labels',
   'vocabulary descriptions',
   'vocabulary aliases',
+  'image URIs',
+  'image filenames',
+  'image alternative text',
+  'image captions',
+  'image asset ids',
+  'image hashes',
 ] as const;
 
 export function sanitizeDiagnosticsRoute(route: string): string {
@@ -88,6 +99,7 @@ export function getWorldDocumentDiagnostics(
   document: WorldDocument,
   activeWorkspace: WorldWorkspace = getActiveWorld(document)
 ): WorldDocumentDiagnostics {
+  const imageCounts = getImageAssetCounts(document);
   return {
     schemaVersion: document.schemaVersion,
     savedAt: document.savedAt,
@@ -134,6 +146,10 @@ export function getWorldDocumentDiagnostics(
         ).length,
       0
     ),
+    referencedWebImageCount: imageCounts.remoteImageCount,
+    referencedUploadedImageCount: imageCounts.uploadedImageCount,
+    imageAssetMetadataCount: imageCounts.assetMetadataCount,
+    reachableUploadedImageByteTotal: imageCounts.reachableUploadedByteTotal,
   };
 }
 

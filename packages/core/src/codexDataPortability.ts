@@ -1,6 +1,7 @@
 import type { WorldDocument, WorldEntry, WorldWorkspace } from './types';
 import { formatUpdatedAt, getEntries } from './codexEntries';
 import { pluralizeCountLabel } from './featureDisplayLimits';
+import { getImageAssetCounts, getReachableImageAssets } from './imageAssets';
 import { valgaronProduct } from './shell';
 import {
   CURRENT_WORLD_SCHEMA_VERSION,
@@ -32,6 +33,9 @@ export type WorldImportPreview = {
   planetaryWorldCount: number;
   entryCount: number;
   relationshipCount: number;
+  webImageCount: number;
+  uploadedImageCount: number;
+  uploadedImageByteTotal: number;
   savedAt: string;
 };
 
@@ -262,6 +266,7 @@ export function createActiveWorldBackup(
     schemaVersion: CURRENT_WORLD_SCHEMA_VERSION,
     activeWorldId: activeWorld.id,
     worlds: [activeWorld],
+    assets: getReachableImageAssets(document, activeWorld),
     savedAt: document.savedAt,
   };
 }
@@ -288,6 +293,7 @@ export function summarizeWorldDocument(
   document: WorldDocument
 ): WorldImportPreview {
   const activeWorld = getActiveWorld(document);
+  const imageCounts = getImageAssetCounts(document);
   return {
     activeWorldName: activeWorld.name,
     worldCount: document.worlds.length,
@@ -309,6 +315,9 @@ export function summarizeWorldDocument(
       (total, world) => total + world.relationships.length,
       0
     ),
+    webImageCount: imageCounts.remoteImageCount,
+    uploadedImageCount: imageCounts.uploadedImageCount,
+    uploadedImageByteTotal: imageCounts.reachableUploadedByteTotal,
     savedAt: document.savedAt,
   };
 }
@@ -329,6 +338,12 @@ export function formatWorldImportPreviewText(
     )}, ${preview.relationshipCount} ${pluralizeCountLabel(
       preview.relationshipCount,
       'relationship'
+    )}, ${preview.uploadedImageCount} ${pluralizeCountLabel(
+      preview.uploadedImageCount,
+      'uploaded image'
+    )}, ${preview.webImageCount} ${pluralizeCountLabel(
+      preview.webImageCount,
+      'web image'
     )}. Saved ${formatUpdatedAt(preview.savedAt)}.`,
   };
 }
@@ -396,6 +411,14 @@ function entryToMarkdown(entry: WorldEntry): string {
     .filter(([, value]) => value.trim())
     .map(([key, value]) => `- ${key}: ${value}`)
     .join('\n');
+  const images = entry.images
+    .map(
+      (image, index) =>
+        `- ${index === 0 ? 'Cover' : `Image ${index + 1}`}: ${image.uri}${
+          image.caption ? ` — ${image.caption}` : ''
+        }${image.decorative ? ' (decorative)' : ` — Alt: ${image.altText}`}`
+    )
+    .join('\n');
   return [
     `### ${entry.name}`,
     '',
@@ -404,6 +427,7 @@ function entryToMarkdown(entry: WorldEntry): string {
     `- Status: ${entry.status}`,
     `- Tags: ${entry.tags.join(', ') || 'None'}`,
     details,
+    images ? `\n#### Images\n\n${images}` : '',
     entry.notes ? `\n#### Notes\n\n${entry.notes}` : '',
   ]
     .filter(Boolean)

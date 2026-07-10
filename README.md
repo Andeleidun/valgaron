@@ -7,6 +7,12 @@ Valgaron World Codex is a local-first tool for drafting and organizing fiction o
 - Workbench overview with section totals, recent records, pinned records,
   review prompts, selected-record review summaries, and selected-record
   context.
+- Adaptive browser dashboards across Overview, Workbench, Timeline,
+  Relationships, Knowledge, Data, Workspaces, Help, and Utilities. Cards use
+  recommended presets and can be reordered, moved between semantic regions,
+  resized, focused, collapsed, restored, undone, or reset without storing pixel
+  geometry. Native mobile screens provide a simpler reorder-and-collapse
+  section workflow.
 - Workbench-managed records for Characters, Places, Factions, Lore, and
   Timeline.
 - Create and edit entries with required names, optional summaries, comma-separated tags, and section-specific fields.
@@ -33,7 +39,12 @@ Valgaron World Codex is a local-first tool for drafting and organizing fiction o
   reassignment, involved-entry browsing filters, contextual event creation,
   relationship-backed involved-record editing, and earlier/later order controls
   for chronology work.
-- Web Data route and mobile Data tab for active-workspace JSON export, full-document JSON export, Markdown reference export, diagnostics, validated JSON import preview, and reset-to-seed confirmation.
+- Web Data route and mobile Data tab for active-workspace JSON/ZIP export,
+  full-document JSON/ZIP export, Markdown reference export, diagnostics,
+  validated JSON/ZIP import preview, and reset-to-seed confirmation.
+- Entry cover images and galleries from HTTPS sources or verified local JPEG,
+  PNG, WebP, and GIF uploads. Uploaded bytes stay in browser IndexedDB or
+  app-managed mobile files and travel with complete ZIP backups.
 - Header Save writes the current session state to browser localStorage on demand.
 - Expo mobile companion with installed-app local storage, shared codex schema,
   Workbench, Timeline, Links, More, data import/export, recovery snapshot
@@ -41,7 +52,8 @@ Valgaron World Codex is a local-first tool for drafting and organizing fiction o
 - Runtime recovery screens with retry and Data access when a web or mobile render failure is caught.
 - Local diagnostics export on the Data route or tab with app version, schema version, storage target, recovery state, platform runtime context, and document counts without world content by default.
 - Neutral starter sample data.
-- Manual browser `localStorage` persistence under `valgaron.worldDocument.v3`.
+- Manual browser `localStorage` persistence under `valgaron.worldDocument.v4`,
+  with uploaded image bytes stored separately in IndexedDB.
 - Versioned multi-workspace document storage with active project/universe workspace switching in the UI.
 - Separate in-fiction world/planet records inside each project/universe workspace.
 - Knowledge setup for custom entry type creation, field configuration for
@@ -115,11 +127,26 @@ Pages** will publish the site.
 
 ## Local Data
 
-The app loads neutral starter data when no saved world document exists or when saved data cannot be parsed as the current document shape. The runtime reads only the current `valgaron.worldDocument.v3` storage key; unreadable or invalid current data is reported in the Data route instead of silently hiding the fallback. Web edits remain in the current browser session until the header Save button writes them to localStorage; mobile edits save to the installed app's local storage area through the Expo app. Local data remains in the current browser profile or mobile app storage area unless exported by the user.
+The app loads neutral starter data when no saved world document exists or when
+saved data cannot be parsed as the current document shape. The runtime reads
+`valgaron.worldDocument.v4` first and can migrate a valid schema 3 value without
+removing the legacy value before schema 4 saves successfully. Unreadable or
+invalid current data is reported in the Data route instead of silently hiding
+the fallback. Web edits remain in the current browser session until the header
+Save button writes them to localStorage; uploaded bytes are written to browser
+IndexedDB. Mobile edits save to installed-app AsyncStorage while uploads are
+copied into app-managed files. Local data remains in the current browser profile
+or mobile app storage area unless exported by the user.
 
 Deleting an entry also removes relationships attached to that entry so local graph views do not keep broken links. Archiving an entry keeps it addressable by existing relationships. Active-workspace JSON export produces a focused backup for the current project/universe workspace. Full-document JSON export produces a backup containing every local workspace, in-fiction world/planet record, custom entry type, entry, and relationship. Both JSON backup shapes include export metadata and can be pasted back into the import preview.
 
-Local storage is not a cloud backup. Export JSON backups regularly, especially before clearing browser data, switching browsers, using private browsing, uninstalling the mobile app, or changing devices. The app also keeps local recovery snapshots before import, reset, permanent entry delete, relationship delete, workspace delete, in-fiction world/planet delete, custom entry type delete, and selected recovery snapshot restore actions; those snapshots stay in the same browser profile or mobile app storage area and are not a replacement for downloaded JSON backups.
+Local storage is not a cloud backup. Export ZIP backups when uploaded images
+must be recoverable; JSON backups preserve image URI strings and metadata but do
+not contain uploaded bytes. Export regularly, especially before clearing
+browser data, switching browsers, using private browsing, uninstalling the
+mobile app, or changing devices. The app also keeps local recovery snapshots
+before destructive actions; those snapshots stay in the same browser profile or
+mobile app storage area and are not a replacement for downloaded backups.
 
 Diagnostics are local-only JSON reports for debugging storage or rendering failures. They include counts, status messages, app/schema version, storage target, recovery state, and platform runtime context such as web route/browser or mobile device-save state where available. They intentionally exclude workspace names, entry names, summaries, notes, tags, relationship notes, and ids by default. Use `docs/qa/runtime-recovery.md` for manual corrupt-storage, failed-write, import-rejection, and render-recovery checks.
 

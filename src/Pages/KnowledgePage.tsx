@@ -35,6 +35,7 @@ import {
   type VocabularyValueMoveDirection,
   type WorldWorkspace,
 } from '@valgaron/core';
+import { DashboardPage } from '../Components/Dashboard/DashboardPage';
 import {
   confirmDiscardUnsavedChanges,
   hasUnsavedChanges,
@@ -722,1162 +723,1226 @@ export function KnowledgePage({
         <p>{intro.detail}</p>
       </section>
 
-      <section className="vwb-panel" aria-labelledby="knowledge-summary-title">
-        <div className="vwb-section-heading">
-          <div>
-            <p className="vwb-kicker">{schemaModel.title}</p>
-            <h2 id="knowledge-summary-title">{schemaModel.entryTypesTitle}</h2>
-          </div>
-        </div>
-        <div className="vwb-diagnostics-grid">
-          <article className="vwb-diagnostic-card">
-            <span className="vwb-entry-kind">
-              {schemaModel.overview.entryTypesLabel}
-            </span>
-            <strong>{schemaModel.totals.entryTypeCount}</strong>
-            <p>{schemaModel.overview.entryTypesDetail}</p>
-          </article>
-          <article className="vwb-diagnostic-card">
-            <span className="vwb-entry-kind">
-              {schemaModel.overview.fieldsLabel}
-            </span>
-            <strong>{schemaModel.totals.fieldCount}</strong>
-            <p>{schemaModel.overview.fieldsDetail}</p>
-          </article>
-          <article className="vwb-diagnostic-card">
-            <span className="vwb-entry-kind">
-              {schemaModel.overview.relationshipFieldsLabel}
-            </span>
-            <strong>{schemaModel.totals.relationshipFieldCount}</strong>
-            <p>{schemaModel.overview.relationshipFieldsDetail}</p>
-          </article>
-          <article className="vwb-diagnostic-card">
-            <span className="vwb-entry-kind">
-              {schemaModel.overview.hiddenDetailsLabel}
-            </span>
-            <strong>{schemaModel.totals.hiddenDetailCount}</strong>
-            <p>{schemaModel.overview.hiddenDetailsDetail}</p>
-            {schemaModel.totals.hiddenDetailCount > 0 ? (
-              <NavLink
-                aria-label={
-                  schemaModel.hiddenDetails.reviewActionAccessibilityLabel
-                }
-                className="vwb-secondary-button"
-                to={schemaModel.hiddenDetails.reviewActionRoute}
-              >
-                {schemaModel.hiddenDetails.reviewActionLabel}
-              </NavLink>
-            ) : null}
-          </article>
-        </div>
-      </section>
-
-      <section className="vwb-panel" aria-labelledby="knowledge-setup-title">
-        <div className="vwb-section-heading">
-          <div>
-            <p className="vwb-kicker">{schemaModel.typeSetup.kickerLabel}</p>
-            <h2 id="knowledge-setup-title">{schemaModel.typeSetup.title}</h2>
-          </div>
-        </div>
-        <p>{schemaModel.typeSetup.detail}</p>
-        <NavLink
-          aria-label={schemaModel.typeSetup.actionAccessibilityLabel}
-          className="vwb-secondary-button"
-          to={schemaModel.typeSetup.route}
+      <DashboardPage
+        ariaLabel="Knowledge dashboard cards"
+        pageId="knowledge"
+        summary="Arrange schema navigation, configuration, vocabulary, and audit tools."
+      >
+        <section
+          className="vwb-panel"
+          aria-labelledby="knowledge-summary-title"
+          data-dashboard-card-id="knowledge.schema-health"
         >
-          {schemaModel.typeSetup.actionLabel}
-        </NavLink>
-      </section>
-
-      <section
-        className="vwb-panel"
-        aria-labelledby="knowledge-field-configuration-title"
-      >
-        <div className="vwb-section-heading">
-          <div>
-            <p className="vwb-kicker">
-              {schemaModel.fieldConfiguration.kickerLabel}
-            </p>
-            <h2 id="knowledge-field-configuration-title">
-              {schemaModel.fieldConfiguration.title}
-            </h2>
+          <div className="vwb-section-heading">
+            <div>
+              <p className="vwb-kicker">{schemaModel.title}</p>
+              <h2 id="knowledge-summary-title">
+                {schemaModel.entryTypesTitle}
+              </h2>
+            </div>
           </div>
-        </div>
-        <p>{schemaModel.fieldConfiguration.detail}</p>
-        <label>
-          {schemaModel.fieldConfiguration.searchLabel}
-          <input
-            value={fieldConfigurationQuery}
-            onChange={(event) => setFieldConfigurationQuery(event.target.value)}
-            placeholder={schemaModel.fieldConfiguration.searchPlaceholder}
-          />
-        </label>
-        <div className="vwb-relationship-list">
-          {fieldConfigurationSections.map((section) => (
-            <article className="vwb-relationship-row" key={section.id}>
-              <div>
-                <span className="vwb-entry-kind">
-                  {section.kindLabel} - {section.entryCountLabel}
-                </span>
-                <strong>{section.title}</strong>
-                <p>{section.description}</p>
-              </div>
-              <div className="vwb-field-order-list">
-                <strong>{section.singularTitle} fields</strong>
-                {section.fields.map((field) => {
-                  const draft = getFieldOverrideDraft(section.id, field);
-                  const draftKey = getFieldOverrideDraftKey(
-                    section.id,
-                    field.key
-                  );
-                  const savedDraft = getSavedFieldOverrideDraft(
-                    section.id,
-                    field
-                  );
-                  const canUseVocabulary =
-                    field.mode !== 'single-link' && field.mode !== 'multi-link';
-                  const isDraftChanged = hasUnsavedChanges(savedDraft, draft);
-                  const hasSavedOverride =
-                    activeWorld.schema.fieldOverrides[section.id]?.[
-                      field.key
-                    ] !== undefined;
-                  const canResetOverride = hasSavedOverride || isDraftChanged;
-
-                  return (
-                    <div className="vwb-field-order-row" key={field.key}>
-                      <div>
-                        <span className="vwb-entry-kind">
-                          {field.key} - {field.modeLabel} -{' '}
-                          {hasSavedOverride
-                            ? schemaModel.fieldConfiguration
-                                .customSettingsStatusLabel
-                            : schemaModel.fieldConfiguration
-                                .defaultSettingsStatusLabel}
-                        </span>
-                        <strong>
-                          {field.label}
-                          {field.hidden ? ' (hidden)' : ''}
-                        </strong>
-                        <p>{field.detail}</p>
-                      </div>
-                      <label>
-                        {schemaModel.fieldConfiguration.fieldLabelFieldLabel}
-                        <input
-                          aria-label={field.settingsLabelFieldLabel}
-                          value={draft.label}
-                          onChange={(event) =>
-                            updateFieldOverrideDraft(section.id, field, {
-                              label: event.target.value,
-                            })
-                          }
-                        />
-                      </label>
-                      <label>
-                        {schemaModel.fieldConfiguration.fieldHelpTextFieldLabel}
-                        <input
-                          aria-label={field.settingsHelpFieldLabel}
-                          value={draft.helpText}
-                          onChange={(event) =>
-                            updateFieldOverrideDraft(section.id, field, {
-                              helpText: event.target.value,
-                            })
-                          }
-                        />
-                      </label>
-                      <div className="vwb-form-grid">
-                        <label>
-                          {schemaModel.fieldConfiguration.fieldOrderFieldLabel}
-                          <input
-                            aria-label={field.settingsOrderFieldLabel}
-                            inputMode="numeric"
-                            value={draft.order}
-                            onChange={(event) =>
-                              updateFieldOverrideDraft(section.id, field, {
-                                order: event.target.value,
-                              })
-                            }
-                            placeholder={
-                              schemaModel.fieldConfiguration
-                                .defaultOrderPlaceholder
-                            }
-                          />
-                        </label>
-                        <label className="vwb-inline-toggle">
-                          <input
-                            aria-label={field.settingsHiddenFieldLabel}
-                            checked={draft.hidden}
-                            type="checkbox"
-                            onChange={(event) =>
-                              updateFieldOverrideDraft(section.id, field, {
-                                hidden: event.target.checked,
-                              })
-                            }
-                          />
-                          {
-                            schemaModel.fieldConfiguration
-                              .fieldHiddenToggleLabel
-                          }
-                        </label>
-                      </div>
-                      {canUseVocabulary ? (
-                        <div className="vwb-form-grid">
-                          <label>
-                            {schemaModel.fieldConfiguration.vocabularyLabel}
-                            <select
-                              aria-label={field.settingsVocabularyFieldLabel}
-                              value={draft.vocabularyId}
-                              onChange={(event) =>
-                                updateFieldOverrideDraft(section.id, field, {
-                                  vocabularyId: event.target.value,
-                                })
-                              }
-                            >
-                              <option value="">
-                                {
-                                  schemaModel.fieldConfiguration
-                                    .noVocabularyOptionLabel
-                                }
-                              </option>
-                              {activeWorld.schema.vocabularies.map(
-                                (vocabulary) => (
-                                  <option
-                                    key={vocabulary.id}
-                                    value={vocabulary.id}
-                                  >
-                                    {vocabulary.name}
-                                  </option>
-                                )
-                              )}
-                            </select>
-                          </label>
-                          <label>
-                            {schemaModel.fieldConfiguration.vocabularyModeLabel}
-                            <select
-                              aria-label={
-                                field.settingsVocabularyModeFieldLabel
-                              }
-                              disabled={!draft.vocabularyId}
-                              value={draft.vocabularyMode}
-                              onChange={(event) =>
-                                updateFieldOverrideDraft(section.id, field, {
-                                  vocabularyMode: event.target
-                                    .value as FieldOverrideDraft['vocabularyMode'],
-                                })
-                              }
-                            >
-                              {schemaModel.fieldConfiguration.vocabularyModeOptions.map(
-                                (option) => (
-                                  <option
-                                    key={option.value}
-                                    value={option.value}
-                                  >
-                                    {option.label}
-                                  </option>
-                                )
-                              )}
-                            </select>
-                          </label>
-                        </div>
-                      ) : (
-                        <small className="vwb-field-help">
-                          {
-                            schemaModel.fieldConfiguration
-                              .relationshipBackedVocabularyHelpText
-                          }
-                        </small>
-                      )}
-                      {field.vocabularyName ? (
-                        <small className="vwb-field-help">
-                          {
-                            schemaModel.fieldConfiguration
-                              .currentVocabularyLabel
-                          }
-                          : {field.vocabularyName} ({field.vocabularyModeLabel}
-                          ).
-                        </small>
-                      ) : null}
-                      {fieldOverrideErrors[draftKey] ? (
-                        <p className="vwb-form-error">
-                          {fieldOverrideErrors[draftKey]}
-                        </p>
-                      ) : null}
-                      <div className="vwb-form-actions">
-                        <button
-                          aria-label={field.saveSettingsAccessibilityLabel}
-                          className="vwb-secondary-button"
-                          disabled={!isDraftChanged}
-                          type="button"
-                          onClick={() => submitFieldOverride(section.id, field)}
-                        >
-                          {field.saveSettingsLabel}
-                        </button>
-                        <button
-                          aria-label={field.resetSettingsAccessibilityLabel}
-                          className="vwb-secondary-button"
-                          disabled={!canResetOverride}
-                          type="button"
-                          onClick={() => resetFieldOverride(section.id, field)}
-                        >
-                          {field.resetSettingsLabel}
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+          <div className="vwb-diagnostics-grid">
+            <article className="vwb-diagnostic-card">
+              <span className="vwb-entry-kind">
+                {schemaModel.overview.entryTypesLabel}
+              </span>
+              <strong>{schemaModel.totals.entryTypeCount}</strong>
+              <p>{schemaModel.overview.entryTypesDetail}</p>
             </article>
-          ))}
-          {fieldConfigurationSections.length === 0 ? (
-            <p className="vwb-muted-note">
-              {schemaModel.fieldConfiguration.noSearchResultsText}
-            </p>
-          ) : null}
-        </div>
-      </section>
-
-      <section
-        className="vwb-panel"
-        id={knowledgeRouteFocusTargetIds.customEntryTypes}
-        aria-labelledby="knowledge-custom-title"
-        tabIndex={-1}
-      >
-        <div className="vwb-section-heading">
-          <div>
-            <p className="vwb-kicker">
-              {schemaModel.typeSetup.customTypeCountLabel}
-            </p>
-            <h2 id="knowledge-custom-title">
-              {workspaceFeatureCopy.sections.customEntryTypes}
-            </h2>
-          </div>
-        </div>
-        <div className="vwb-management-grid">
-          <div className="vwb-entry-list">
-            {customTypes.length > 0 ? (
-              customTypes.map((section) => (
-                <article className="vwb-entry-card" key={section.id}>
-                  <div className="vwb-entry-card-header">
-                    <div>
-                      <p className="vwb-entry-kind">{section.kindLabel}</p>
-                      <h3>{section.title}</h3>
-                    </div>
-                    <span className="vwb-status-pill">
-                      {section.entryCountLabel}
-                    </span>
-                  </div>
-                  <p>{section.description}</p>
-                  <small>
-                    {section.fieldCount} custom{' '}
-                    {section.fieldCount === 1 ? 'field' : 'fields'}.
-                  </small>
-                  {section.fields.length > 0 ? (
-                    <div
-                      className="vwb-field-order-list"
-                      aria-label={section.fieldOrderAccessibilityLabel}
-                    >
-                      <strong>{section.fieldOrderTitle}</strong>
-                      {section.fields.map((field, fieldIndex) => (
-                        <div className="vwb-field-order-row" key={field.key}>
-                          <label>
-                            Rename {field.label}
-                            <input
-                              aria-label={field.renameFieldLabel}
-                              value={
-                                fieldLabelDrafts[
-                                  getFieldLabelDraftKey(section.id, field.key)
-                                ] ?? field.label
-                              }
-                              onChange={(event) =>
-                                updateFieldLabelDraft(
-                                  section.id,
-                                  field.key,
-                                  event.target.value
-                                )
-                              }
-                            />
-                            <small className="vwb-field-help">
-                              {field.retainedValueSummary}
-                            </small>
-                          </label>
-                          <div className="vwb-form-actions">
-                            <button
-                              aria-label={
-                                field.saveFieldLabelAccessibilityLabel
-                              }
-                              className="vwb-secondary-button"
-                              type="button"
-                              disabled={
-                                !(
-                                  fieldLabelDrafts[
-                                    getFieldLabelDraftKey(section.id, field.key)
-                                  ] ?? field.label
-                                ).trim() ||
-                                (
-                                  fieldLabelDrafts[
-                                    getFieldLabelDraftKey(section.id, field.key)
-                                  ] ?? field.label
-                                ).trim() === field.label
-                              }
-                              onClick={() =>
-                                submitFieldLabel(
-                                  section.id,
-                                  field.key,
-                                  field.label
-                                )
-                              }
-                            >
-                              {workspaceFeatureActions.saveFieldLabel}
-                            </button>
-                            <button
-                              className="vwb-secondary-button"
-                              type="button"
-                              aria-label={field.moveFieldUpAccessibilityLabel}
-                              disabled={fieldIndex === 0}
-                              onClick={() =>
-                                onMoveEntryTypeField(
-                                  section.id,
-                                  field.key,
-                                  'up'
-                                )
-                              }
-                            >
-                              {workspaceFeatureActions.moveFieldUp}
-                            </button>
-                            <button
-                              className="vwb-secondary-button"
-                              type="button"
-                              aria-label={field.moveFieldDownAccessibilityLabel}
-                              disabled={
-                                fieldIndex === section.fields.length - 1
-                              }
-                              onClick={() =>
-                                onMoveEntryTypeField(
-                                  section.id,
-                                  field.key,
-                                  'down'
-                                )
-                              }
-                            >
-                              {workspaceFeatureActions.moveFieldDown}
-                            </button>
-                            <button
-                              className="vwb-secondary-button vwb-danger-button"
-                              type="button"
-                              aria-label={field.removeFieldAccessibilityLabel}
-                              onClick={() =>
-                                requestRemoveEntryTypeField(
-                                  section.id,
-                                  field.key,
-                                  field.removeFieldConfirmationSubject
-                                )
-                              }
-                            >
-                              {workspaceFeatureActions.removeField}
-                            </button>
-                          </div>
-                          {fieldLabelErrors[
-                            getFieldLabelDraftKey(section.id, field.key)
-                          ] ? (
-                            <p className="vwb-form-error">
-                              {
-                                fieldLabelErrors[
-                                  getFieldLabelDraftKey(section.id, field.key)
-                                ]
-                              }
-                            </p>
-                          ) : null}
-                        </div>
-                      ))}
-                    </div>
-                  ) : null}
-                  <form
-                    className="vwb-form vwb-field-group"
-                    onSubmit={(event) =>
-                      submitEntryTypeFields(event, section.id)
-                    }
-                  >
-                    <label>
-                      {schemaModel.typeSetup.addFieldsLabel}
-                      <input
-                        aria-label={section.addFieldsFieldLabel}
-                        value={entryTypeFieldDrafts[section.id] ?? ''}
-                        onChange={(event) =>
-                          updateEntryTypeFieldDraft(
-                            section.id,
-                            event.target.value
-                          )
-                        }
-                        placeholder={customFieldDraftDescriptor?.placeholder}
-                      />
-                      {customFieldDraftDescriptor?.helperText ? (
-                        <small className="vwb-field-help">
-                          {customFieldDraftDescriptor.helperText}
-                        </small>
-                      ) : null}
-                    </label>
-                    {(entryTypeFieldDraftPreviews[section.id] ?? []).length >
-                    0 ? (
-                      <div
-                        className="vwb-tag-row"
-                        aria-label={section.addFieldsPreviewLabel}
-                      >
-                        {(entryTypeFieldDraftPreviews[section.id] ?? []).map(
-                          (field) => (
-                            <span className="vwb-tag" key={field.key}>
-                              {field.label}: {field.modeLabel}
-                            </span>
-                          )
-                        )}
-                      </div>
-                    ) : null}
-                    {entryTypeFieldErrors[section.id] ? (
-                      <p className="vwb-form-error">
-                        {entryTypeFieldErrors[section.id]}
-                      </p>
-                    ) : null}
-                    <div className="vwb-form-actions">
-                      <button
-                        aria-label={section.addFieldsAccessibilityLabel}
-                        className="vwb-secondary-button"
-                        type="submit"
-                        disabled={
-                          (entryTypeFieldDraftPreviews[section.id] ?? [])
-                            .length === 0
-                        }
-                      >
-                        {workspaceFeatureActions.addFields}
-                      </button>
-                    </div>
-                  </form>
-                  <div className="vwb-form-actions">
-                    <NavLink
-                      aria-label={section.openAccessibilityLabel}
-                      className="vwb-secondary-button"
-                      to={section.route}
-                    >
-                      {section.openLabel}
-                    </NavLink>
-                    <button
-                      className="vwb-secondary-button vwb-danger-button"
-                      type="button"
-                      aria-label={section.deleteTypeAccessibilityLabel}
-                      onClick={() =>
-                        requestDeleteEntryType(
-                          section.id,
-                          section.deleteTypeConfirmationSubject
-                        )
-                      }
-                    >
-                      {workspaceFeatureActions.deleteType}
-                    </button>
-                  </div>
-                </article>
-              ))
-            ) : (
-              <div className="vwb-empty-results" role="status">
-                <strong>{schemaModel.typeSetup.emptyCustomTypesText}</strong>
-              </div>
-            )}
-          </div>
-          <form className="vwb-form" onSubmit={submitEntryType}>
-            <div className="vwb-section-heading">
-              <div>
-                <p className="vwb-kicker">
-                  {workspaceFeatureCopy.forms.newCustomSection}
-                </p>
-                <h3>{workspaceFeatureCopy.forms.createEntryType}</h3>
-              </div>
-              {isEntryTypeDraftDirty ? (
-                <span className="vwb-status-pill">
-                  {workspaceFeatureCopy.status.unsaved}
-                </span>
+            <article className="vwb-diagnostic-card">
+              <span className="vwb-entry-kind">
+                {schemaModel.overview.fieldsLabel}
+              </span>
+              <strong>{schemaModel.totals.fieldCount}</strong>
+              <p>{schemaModel.overview.fieldsDetail}</p>
+            </article>
+            <article className="vwb-diagnostic-card">
+              <span className="vwb-entry-kind">
+                {schemaModel.overview.relationshipFieldsLabel}
+              </span>
+              <strong>{schemaModel.totals.relationshipFieldCount}</strong>
+              <p>{schemaModel.overview.relationshipFieldsDetail}</p>
+            </article>
+            <article className="vwb-diagnostic-card">
+              <span className="vwb-entry-kind">
+                {schemaModel.overview.hiddenDetailsLabel}
+              </span>
+              <strong>{schemaModel.totals.hiddenDetailCount}</strong>
+              <p>{schemaModel.overview.hiddenDetailsDetail}</p>
+              {schemaModel.totals.hiddenDetailCount > 0 ? (
+                <NavLink
+                  aria-label={
+                    schemaModel.hiddenDetails.reviewActionAccessibilityLabel
+                  }
+                  className="vwb-secondary-button"
+                  to={schemaModel.hiddenDetails.reviewActionRoute}
+                >
+                  {schemaModel.hiddenDetails.reviewActionLabel}
+                </NavLink>
               ) : null}
-            </div>
-            <div className="vwb-form-grid">
-              {entryTypeDraftFieldLayout.leadingFields.map((field) => (
-                <label key={field.key}>
-                  {field.label}
-                  <input
-                    value={entryTypeDraft[field.key]}
-                    onChange={(event) =>
-                      updateEntryTypeDraft(field.key, event.target.value)
-                    }
-                    placeholder={field.placeholder}
-                  />
-                  {field.helperText ? (
-                    <small className="vwb-field-help">{field.helperText}</small>
-                  ) : null}
-                </label>
-              ))}
-            </div>
-            {entryTypeDraftFieldLayout.trailingFields.map((field) => (
-              <label key={field.key}>
-                {field.label}
-                {field.multiline ? (
-                  <textarea
-                    rows={3}
-                    value={entryTypeDraft[field.key]}
-                    onChange={(event) =>
-                      updateEntryTypeDraft(field.key, event.target.value)
-                    }
-                    placeholder={field.placeholder}
-                  />
-                ) : (
-                  <input
-                    value={entryTypeDraft[field.key]}
-                    onChange={(event) =>
-                      updateEntryTypeDraft(field.key, event.target.value)
-                    }
-                    placeholder={field.placeholder}
-                  />
-                )}
-                {field.helperText ? (
-                  <small className="vwb-field-help">{field.helperText}</small>
-                ) : null}
-              </label>
-            ))}
-            {entryTypeFieldPreview.length > 0 ? (
-              <div
-                className="vwb-empty-results"
-                aria-label={
-                  schemaModel.typeSetup.customFieldPreviewAccessibilityLabel
-                }
-              >
-                <strong>{schemaModel.typeSetup.customFieldPreviewTitle}</strong>
-                <div className="vwb-tag-row">
-                  {entryTypeFieldPreview.map((field) => (
-                    <span className="vwb-tag" key={field.key}>
-                      {field.label}: {field.modeLabel}
-                    </span>
-                  ))}
-                </div>
-                {entryTypeFieldPreview.map((field) => (
-                  <small key={`${field.key}-detail`}>
-                    {field.label}: {field.detail}
-                  </small>
-                ))}
-              </div>
-            ) : null}
-            {entryTypeError ? (
-              <p className="vwb-form-error">{entryTypeError}</p>
-            ) : null}
-            <div className="vwb-form-actions">
-              <button className="vwb-primary-button" type="submit">
-                {workspaceFeatureActions.createEntryType}
-              </button>
-            </div>
-          </form>
-        </div>
-      </section>
-
-      <section
-        className="vwb-panel"
-        aria-labelledby="knowledge-vocabulary-title"
-      >
-        <div className="vwb-section-heading">
-          <div>
-            <p className="vwb-kicker">{schemaModel.vocabulary.kickerLabel}</p>
-            <h2 id="knowledge-vocabulary-title">
-              {schemaModel.vocabulary.title}
-            </h2>
+            </article>
           </div>
-        </div>
-        <p>{schemaModel.vocabulary.detail}</p>
-        <div className="vwb-relationship-list">
-          {schemaModel.vocabulary.rows.map((row) => {
-            const isExpanded = Boolean(expandedVocabularyValueRows[row.id]);
-            const valueQuery = vocabularyValueQueries[row.id] ?? '';
-            const matchingValues = filterKnowledgeVocabularyValueRows(
-              row.values,
-              valueQuery
-            );
-            const valueDisplayModel = getLimitedResultModel(
-              matchingValues,
-              isExpanded
-                ? matchingValues.length
-                : knowledgeDisplayLimits.vocabularyValues
-            );
-            const visibleValues = valueDisplayModel.visibleItems;
-            const hiddenValueCount = valueDisplayModel.hiddenCount;
-            const valueDraft =
-              vocabularyValueDrafts[row.id] ?? emptyVocabularyValueDraft();
+        </section>
 
-            return (
-              <article className="vwb-relationship-row" key={row.id}>
+        <section
+          className="vwb-panel"
+          aria-labelledby="knowledge-setup-title"
+          data-dashboard-card-id="knowledge.navigator"
+        >
+          <div className="vwb-section-heading">
+            <div>
+              <p className="vwb-kicker">{schemaModel.typeSetup.kickerLabel}</p>
+              <h2 id="knowledge-setup-title">{schemaModel.typeSetup.title}</h2>
+            </div>
+          </div>
+          <p>{schemaModel.typeSetup.detail}</p>
+          <NavLink
+            aria-label={schemaModel.typeSetup.actionAccessibilityLabel}
+            className="vwb-secondary-button"
+            to={schemaModel.typeSetup.route}
+          >
+            {schemaModel.typeSetup.actionLabel}
+          </NavLink>
+        </section>
+
+        <section
+          className="vwb-panel"
+          data-dashboard-card-id="knowledge.field-order"
+          aria-labelledby="knowledge-field-configuration-title"
+        >
+          <div className="vwb-section-heading">
+            <div>
+              <p className="vwb-kicker">
+                {schemaModel.fieldConfiguration.kickerLabel}
+              </p>
+              <h2 id="knowledge-field-configuration-title">
+                {schemaModel.fieldConfiguration.title}
+              </h2>
+            </div>
+          </div>
+          <p>{schemaModel.fieldConfiguration.detail}</p>
+          <label>
+            {schemaModel.fieldConfiguration.searchLabel}
+            <input
+              value={fieldConfigurationQuery}
+              onChange={(event) =>
+                setFieldConfigurationQuery(event.target.value)
+              }
+              placeholder={schemaModel.fieldConfiguration.searchPlaceholder}
+            />
+          </label>
+          <div className="vwb-relationship-list">
+            {fieldConfigurationSections.map((section) => (
+              <article className="vwb-relationship-row" key={section.id}>
                 <div>
-                  <span className="vwb-entry-kind">{row.statusSummary}</span>
-                  <strong>{row.name}</strong>
-                  {row.description ? <p>{row.description}</p> : null}
-                  <p>{row.summary}</p>
+                  <span className="vwb-entry-kind">
+                    {section.kindLabel} - {section.entryCountLabel}
+                  </span>
+                  <strong>{section.title}</strong>
+                  <p>{section.description}</p>
                 </div>
-                {row.fieldUsages.length > 0 ? (
-                  <div className="vwb-tag-row" aria-label={row.fieldUsageLabel}>
-                    {row.fieldUsages.map((usage) => (
-                      <span className="vwb-tag" key={usage.id}>
-                        {usage.summaryText}
-                      </span>
-                    ))}
-                  </div>
-                ) : null}
                 <div className="vwb-field-order-list">
-                  <strong>{schemaModel.vocabulary.activeValuesTitle}</strong>
-                  <label>
-                    {schemaModel.vocabulary.searchValuesLabel}
-                    <input
-                      aria-label={row.searchValuesFieldLabel}
-                      value={valueQuery}
-                      onChange={(event) =>
-                        updateVocabularyValueQuery(row.id, event.target.value)
-                      }
-                      placeholder={row.searchValuesPlaceholder}
-                    />
-                  </label>
-                  {visibleValues.map((value) => {
-                    const draftKey = getVocabularyValueDraftKey(
-                      row.id,
-                      value.id
+                  <strong>{section.singularTitle} fields</strong>
+                  {section.fields.map((field) => {
+                    const draft = getFieldOverrideDraft(section.id, field);
+                    const draftKey = getFieldOverrideDraftKey(
+                      section.id,
+                      field.key
                     );
-                    const activeValueIndex = row.values.findIndex(
-                      (candidate) => candidate.id === value.id
+                    const savedDraft = getSavedFieldOverrideDraft(
+                      section.id,
+                      field
                     );
-                    const draft =
-                      vocabularyValueEditDrafts[draftKey] ??
-                      vocabularyValueDraftFrom(value);
-                    const isDraftChanged =
-                      draft.label !== value.label ||
-                      draft.description !== value.description ||
-                      draft.aliases !== value.aliases.join(', ');
+                    const canUseVocabulary =
+                      field.mode !== 'single-link' &&
+                      field.mode !== 'multi-link';
+                    const isDraftChanged = hasUnsavedChanges(savedDraft, draft);
+                    const hasSavedOverride =
+                      activeWorld.schema.fieldOverrides[section.id]?.[
+                        field.key
+                      ] !== undefined;
+                    const canResetOverride = hasSavedOverride || isDraftChanged;
 
                     return (
-                      <div className="vwb-field-order-row" key={value.id}>
+                      <div className="vwb-field-order-row" key={field.key}>
+                        <div>
+                          <span className="vwb-entry-kind">
+                            {field.key} - {field.modeLabel} -{' '}
+                            {hasSavedOverride
+                              ? schemaModel.fieldConfiguration
+                                  .customSettingsStatusLabel
+                              : schemaModel.fieldConfiguration
+                                  .defaultSettingsStatusLabel}
+                          </span>
+                          <strong>
+                            {field.label}
+                            {field.hidden ? ' (hidden)' : ''}
+                          </strong>
+                          <p>{field.detail}</p>
+                        </div>
                         <label>
-                          {schemaModel.vocabulary.valueLabelFieldLabel}
+                          {schemaModel.fieldConfiguration.fieldLabelFieldLabel}
                           <input
-                            aria-label={value.labelFieldLabel}
+                            aria-label={field.settingsLabelFieldLabel}
                             value={draft.label}
                             onChange={(event) =>
-                              updateVocabularyValueEditDraft(
-                                row.id,
-                                value.id,
-                                'label',
-                                event.target.value
-                              )
+                              updateFieldOverrideDraft(section.id, field, {
+                                label: event.target.value,
+                              })
                             }
                           />
                         </label>
                         <label>
-                          {schemaModel.vocabulary.valueDescriptionFieldLabel}
+                          {
+                            schemaModel.fieldConfiguration
+                              .fieldHelpTextFieldLabel
+                          }
                           <input
-                            aria-label={value.descriptionFieldLabel}
-                            value={draft.description}
+                            aria-label={field.settingsHelpFieldLabel}
+                            value={draft.helpText}
                             onChange={(event) =>
-                              updateVocabularyValueEditDraft(
-                                row.id,
-                                value.id,
-                                'description',
-                                event.target.value
-                              )
+                              updateFieldOverrideDraft(section.id, field, {
+                                helpText: event.target.value,
+                              })
                             }
                           />
                         </label>
-                        <label>
-                          {schemaModel.vocabulary.valueAliasesFieldLabel}
-                          <input
-                            aria-label={value.aliasesFieldLabel}
-                            value={draft.aliases}
-                            onChange={(event) =>
-                              updateVocabularyValueEditDraft(
-                                row.id,
-                                value.id,
-                                'aliases',
-                                event.target.value
-                              )
+                        <div className="vwb-form-grid">
+                          <label>
+                            {
+                              schemaModel.fieldConfiguration
+                                .fieldOrderFieldLabel
                             }
-                          />
+                            <input
+                              aria-label={field.settingsOrderFieldLabel}
+                              inputMode="numeric"
+                              value={draft.order}
+                              onChange={(event) =>
+                                updateFieldOverrideDraft(section.id, field, {
+                                  order: event.target.value,
+                                })
+                              }
+                              placeholder={
+                                schemaModel.fieldConfiguration
+                                  .defaultOrderPlaceholder
+                              }
+                            />
+                          </label>
+                          <label className="vwb-inline-toggle">
+                            <input
+                              aria-label={field.settingsHiddenFieldLabel}
+                              checked={draft.hidden}
+                              type="checkbox"
+                              onChange={(event) =>
+                                updateFieldOverrideDraft(section.id, field, {
+                                  hidden: event.target.checked,
+                                })
+                              }
+                            />
+                            {
+                              schemaModel.fieldConfiguration
+                                .fieldHiddenToggleLabel
+                            }
+                          </label>
+                        </div>
+                        {canUseVocabulary ? (
+                          <div className="vwb-form-grid">
+                            <label>
+                              {schemaModel.fieldConfiguration.vocabularyLabel}
+                              <select
+                                aria-label={field.settingsVocabularyFieldLabel}
+                                value={draft.vocabularyId}
+                                onChange={(event) =>
+                                  updateFieldOverrideDraft(section.id, field, {
+                                    vocabularyId: event.target.value,
+                                  })
+                                }
+                              >
+                                <option value="">
+                                  {
+                                    schemaModel.fieldConfiguration
+                                      .noVocabularyOptionLabel
+                                  }
+                                </option>
+                                {activeWorld.schema.vocabularies.map(
+                                  (vocabulary) => (
+                                    <option
+                                      key={vocabulary.id}
+                                      value={vocabulary.id}
+                                    >
+                                      {vocabulary.name}
+                                    </option>
+                                  )
+                                )}
+                              </select>
+                            </label>
+                            <label>
+                              {
+                                schemaModel.fieldConfiguration
+                                  .vocabularyModeLabel
+                              }
+                              <select
+                                aria-label={
+                                  field.settingsVocabularyModeFieldLabel
+                                }
+                                disabled={!draft.vocabularyId}
+                                value={draft.vocabularyMode}
+                                onChange={(event) =>
+                                  updateFieldOverrideDraft(section.id, field, {
+                                    vocabularyMode: event.target
+                                      .value as FieldOverrideDraft['vocabularyMode'],
+                                  })
+                                }
+                              >
+                                {schemaModel.fieldConfiguration.vocabularyModeOptions.map(
+                                  (option) => (
+                                    <option
+                                      key={option.value}
+                                      value={option.value}
+                                    >
+                                      {option.label}
+                                    </option>
+                                  )
+                                )}
+                              </select>
+                            </label>
+                          </div>
+                        ) : (
                           <small className="vwb-field-help">
-                            {schemaModel.vocabulary.aliasesHelpText}
+                            {
+                              schemaModel.fieldConfiguration
+                                .relationshipBackedVocabularyHelpText
+                            }
                           </small>
-                        </label>
-                        {vocabularyValueErrors[draftKey] ? (
+                        )}
+                        {field.vocabularyName ? (
+                          <small className="vwb-field-help">
+                            {
+                              schemaModel.fieldConfiguration
+                                .currentVocabularyLabel
+                            }
+                            : {field.vocabularyName} (
+                            {field.vocabularyModeLabel}
+                            ).
+                          </small>
+                        ) : null}
+                        {fieldOverrideErrors[draftKey] ? (
                           <p className="vwb-form-error">
-                            {vocabularyValueErrors[draftKey]}
+                            {fieldOverrideErrors[draftKey]}
                           </p>
                         ) : null}
                         <div className="vwb-form-actions">
                           <button
-                            aria-label={value.saveAccessibilityLabel}
+                            aria-label={field.saveSettingsAccessibilityLabel}
                             className="vwb-secondary-button"
-                            type="button"
                             disabled={!isDraftChanged}
+                            type="button"
                             onClick={() =>
-                              submitVocabularyValueEdit(row.id, value)
+                              submitFieldOverride(section.id, field)
                             }
                           >
-                            {value.saveLabel}
+                            {field.saveSettingsLabel}
                           </button>
                           <button
+                            aria-label={field.resetSettingsAccessibilityLabel}
                             className="vwb-secondary-button"
-                            type="button"
-                            aria-label={value.moveUpAccessibilityLabel}
-                            disabled={activeValueIndex === 0}
-                            onClick={() =>
-                              onMoveVocabularyValue(row.id, value.id, 'up')
-                            }
-                          >
-                            {value.moveUpLabel}
-                          </button>
-                          <button
-                            className="vwb-secondary-button"
-                            type="button"
-                            aria-label={value.moveDownAccessibilityLabel}
-                            disabled={
-                              activeValueIndex === row.values.length - 1
-                            }
-                            onClick={() =>
-                              onMoveVocabularyValue(row.id, value.id, 'down')
-                            }
-                          >
-                            {value.moveDownLabel}
-                          </button>
-                          <button
-                            aria-label={value.archiveAccessibilityLabel}
-                            className="vwb-secondary-button vwb-danger-button"
+                            disabled={!canResetOverride}
                             type="button"
                             onClick={() =>
-                              onArchiveVocabularyValue(row.id, value.id, true)
+                              resetFieldOverride(section.id, field)
                             }
                           >
-                            {value.archiveLabel}
+                            {field.resetSettingsLabel}
                           </button>
                         </div>
                       </div>
                     );
                   })}
-                  {row.values.length === 0 ? (
-                    <p className="vwb-muted-note">{row.noActiveValuesText}</p>
-                  ) : null}
-                  {row.values.length > 0 && visibleValues.length === 0 ? (
-                    <p className="vwb-muted-note">{row.noMatchingValuesText}</p>
-                  ) : null}
-                  {hiddenValueCount > 0 ? (
-                    <span className="vwb-tag">
-                      {formatKnowledgeVocabularyHiddenValueCount(
-                        row.name,
-                        hiddenValueCount
-                      )}
-                    </span>
-                  ) : null}
-                </div>
-                <div className="vwb-action-row">
-                  {row.fieldUsages[0] ? (
-                    <NavLink
-                      aria-label={row.fieldUsages[0].openAccessibilityLabel}
-                      className="vwb-secondary-button"
-                      to={row.fieldUsages[0].route}
-                    >
-                      {row.fieldUsages[0].openLabel}
-                    </NavLink>
-                  ) : null}
-                  {matchingValues.length >
-                  knowledgeDisplayLimits.vocabularyValues ? (
-                    <button
-                      className="vwb-secondary-button"
-                      type="button"
-                      aria-expanded={isExpanded}
-                      onClick={() =>
-                        setExpandedVocabularyValueRows((currentRows) => ({
-                          ...currentRows,
-                          [row.id]: !currentRows[row.id],
-                        }))
-                      }
-                    >
-                      {isExpanded
-                        ? row.showFewerValuesLabel
-                        : row.showAllValuesLabel}
-                    </button>
-                  ) : null}
-                </div>
-                {row.archivedValues.length > 0 ? (
-                  <div
-                    className="vwb-tag-row"
-                    aria-label={row.archivedValuesLabel}
-                  >
-                    {row.archivedValues.map((value) => (
-                      <button
-                        aria-label={value.restoreAccessibilityLabel}
-                        className="vwb-secondary-button"
-                        key={value.id}
-                        type="button"
-                        onClick={() =>
-                          onArchiveVocabularyValue(row.id, value.id, false)
-                        }
-                      >
-                        {value.restoreLabel}
-                      </button>
-                    ))}
-                  </div>
-                ) : null}
-                <form
-                  className="vwb-form vwb-field-group"
-                  onSubmit={(event) => submitVocabularyValue(event, row.id)}
-                >
-                  <label>
-                    {schemaModel.vocabulary.newValueLabelFieldLabel}
-                    <input
-                      aria-label={row.newValueLabelFieldLabel}
-                      value={valueDraft.label}
-                      onChange={(event) =>
-                        updateVocabularyValueDraft(
-                          row.id,
-                          'label',
-                          event.target.value
-                        )
-                      }
-                    />
-                  </label>
-                  <label>
-                    {schemaModel.vocabulary.newValueDescriptionFieldLabel}
-                    <input
-                      aria-label={row.newValueDescriptionFieldLabel}
-                      value={valueDraft.description}
-                      onChange={(event) =>
-                        updateVocabularyValueDraft(
-                          row.id,
-                          'description',
-                          event.target.value
-                        )
-                      }
-                    />
-                  </label>
-                  <label>
-                    {schemaModel.vocabulary.newValueAliasesFieldLabel}
-                    <input
-                      aria-label={row.newValueAliasesFieldLabel}
-                      value={valueDraft.aliases}
-                      onChange={(event) =>
-                        updateVocabularyValueDraft(
-                          row.id,
-                          'aliases',
-                          event.target.value
-                        )
-                      }
-                    />
-                    <small className="vwb-field-help">
-                      {schemaModel.vocabulary.archivedRestoreHelpText}
-                    </small>
-                  </label>
-                  {vocabularyValueErrors[row.id] ? (
-                    <p className="vwb-form-error">
-                      {vocabularyValueErrors[row.id]}
-                    </p>
-                  ) : null}
-                  <div className="vwb-form-actions">
-                    <button
-                      aria-label={row.addValueAccessibilityLabel}
-                      className="vwb-secondary-button"
-                      type="submit"
-                    >
-                      {row.addValueLabel}
-                    </button>
-                  </div>
-                </form>
-              </article>
-            );
-          })}
-        </div>
-      </section>
-
-      <section
-        className="vwb-panel"
-        id={knowledgeRouteFocusTargetIds.hiddenDetails}
-        aria-labelledby="knowledge-hidden-title"
-        tabIndex={-1}
-      >
-        <div className="vwb-section-heading">
-          <div>
-            <p className="vwb-kicker">
-              {schemaModel.hiddenDetails.kickerLabel}
-            </p>
-            <h2 id="knowledge-hidden-title">
-              {schemaModel.hiddenDetails.title}
-            </h2>
-          </div>
-          {schemaModel.hiddenDetails.rows.length > 0 ? (
-            <button
-              className="vwb-secondary-button"
-              type="button"
-              onClick={requestClearHiddenEntryDetails}
-            >
-              {schemaModel.hiddenDetails.clearAllActionLabel}
-            </button>
-          ) : null}
-        </div>
-        <p>{schemaModel.hiddenDetails.detail}</p>
-        {schemaModel.hiddenDetails.rows.length > 0 ? (
-          <label className="vwb-search-field">
-            {schemaModel.hiddenDetails.searchLabel}
-            <input
-              value={hiddenDetailQuery}
-              onChange={(event) => setHiddenDetailQuery(event.target.value)}
-              placeholder={schemaModel.hiddenDetails.searchPlaceholder}
-              type="search"
-            />
-          </label>
-        ) : null}
-        {schemaModel.hiddenDetails.rows.length > 0 ? (
-          <div className="vwb-relationship-list">
-            {hiddenDetailRows.map((row) => (
-              <article className="vwb-relationship-row" key={row.id}>
-                <div>
-                  <span className="vwb-entry-kind">
-                    {row.sectionTitle} - {row.fieldLabel}
-                  </span>
-                  <strong>{row.entryName}</strong>
-                  <p>{row.value}</p>
-                </div>
-                <div className="vwb-form-actions">
-                  <NavLink
-                    aria-label={row.reviewAccessibilityLabel}
-                    className="vwb-secondary-button"
-                    to={row.route}
-                  >
-                    {row.reviewLabel}
-                  </NavLink>
-                  <button
-                    aria-label={row.clearAccessibilityLabel}
-                    className="vwb-secondary-button vwb-danger-button"
-                    type="button"
-                    onClick={() => requestClearHiddenEntryDetail(row)}
-                  >
-                    {row.clearLabel}
-                  </button>
                 </div>
               </article>
             ))}
-            {hiddenDetailRows.length === 0 ? (
+            {fieldConfigurationSections.length === 0 ? (
               <p className="vwb-muted-note">
-                {schemaModel.hiddenDetails.noSearchResultsText}
+                {schemaModel.fieldConfiguration.noSearchResultsText}
               </p>
             ) : null}
           </div>
-        ) : (
-          <p className="vwb-muted-note">
-            {schemaModel.hiddenDetails.emptyText}
-          </p>
-        )}
-      </section>
+        </section>
 
-      <section className="vwb-panel" aria-labelledby="knowledge-types-title">
-        <div className="vwb-section-heading">
-          <div>
-            <p className="vwb-kicker">{schemaModel.entryTypesKickerLabel}</p>
-            <h2 id="knowledge-types-title">{schemaModel.entryTypesTitle}</h2>
+        <section
+          className="vwb-panel"
+          data-dashboard-card-id="knowledge.editor"
+          id={knowledgeRouteFocusTargetIds.customEntryTypes}
+          aria-labelledby="knowledge-custom-title"
+          tabIndex={-1}
+        >
+          <div className="vwb-section-heading">
+            <div>
+              <p className="vwb-kicker">
+                {schemaModel.typeSetup.customTypeCountLabel}
+              </p>
+              <h2 id="knowledge-custom-title">
+                {workspaceFeatureCopy.sections.customEntryTypes}
+              </h2>
+            </div>
           </div>
-        </div>
-        <div className="vwb-relationship-list">
-          {schemaModel.sections.map((section) => (
-            <article className="vwb-relationship-row" key={section.id}>
-              <div>
-                <span className="vwb-entry-kind">
-                  {section.kindLabel} - {section.entryCountLabel}
-                </span>
-                <strong>{section.title}</strong>
-                <p>{section.description}</p>
-              </div>
-              <div
-                className="vwb-tag-row"
-                aria-label={`${section.title} fields`}
-              >
-                {section.fields.map((field) => (
-                  <span className="vwb-tag" key={field.key}>
-                    {field.label}: {field.backingLabel}
+          <div className="vwb-management-grid">
+            <div className="vwb-entry-list">
+              {customTypes.length > 0 ? (
+                customTypes.map((section) => (
+                  <article className="vwb-entry-card" key={section.id}>
+                    <div className="vwb-entry-card-header">
+                      <div>
+                        <p className="vwb-entry-kind">{section.kindLabel}</p>
+                        <h3>{section.title}</h3>
+                      </div>
+                      <span className="vwb-status-pill">
+                        {section.entryCountLabel}
+                      </span>
+                    </div>
+                    <p>{section.description}</p>
+                    <small>
+                      {section.fieldCount} custom{' '}
+                      {section.fieldCount === 1 ? 'field' : 'fields'}.
+                    </small>
+                    {section.fields.length > 0 ? (
+                      <div
+                        className="vwb-field-order-list"
+                        aria-label={section.fieldOrderAccessibilityLabel}
+                      >
+                        <strong>{section.fieldOrderTitle}</strong>
+                        {section.fields.map((field, fieldIndex) => (
+                          <div className="vwb-field-order-row" key={field.key}>
+                            <label>
+                              Rename {field.label}
+                              <input
+                                aria-label={field.renameFieldLabel}
+                                value={
+                                  fieldLabelDrafts[
+                                    getFieldLabelDraftKey(section.id, field.key)
+                                  ] ?? field.label
+                                }
+                                onChange={(event) =>
+                                  updateFieldLabelDraft(
+                                    section.id,
+                                    field.key,
+                                    event.target.value
+                                  )
+                                }
+                              />
+                              <small className="vwb-field-help">
+                                {field.retainedValueSummary}
+                              </small>
+                            </label>
+                            <div className="vwb-form-actions">
+                              <button
+                                aria-label={
+                                  field.saveFieldLabelAccessibilityLabel
+                                }
+                                className="vwb-secondary-button"
+                                type="button"
+                                disabled={
+                                  !(
+                                    fieldLabelDrafts[
+                                      getFieldLabelDraftKey(
+                                        section.id,
+                                        field.key
+                                      )
+                                    ] ?? field.label
+                                  ).trim() ||
+                                  (
+                                    fieldLabelDrafts[
+                                      getFieldLabelDraftKey(
+                                        section.id,
+                                        field.key
+                                      )
+                                    ] ?? field.label
+                                  ).trim() === field.label
+                                }
+                                onClick={() =>
+                                  submitFieldLabel(
+                                    section.id,
+                                    field.key,
+                                    field.label
+                                  )
+                                }
+                              >
+                                {workspaceFeatureActions.saveFieldLabel}
+                              </button>
+                              <button
+                                className="vwb-secondary-button"
+                                type="button"
+                                aria-label={field.moveFieldUpAccessibilityLabel}
+                                disabled={fieldIndex === 0}
+                                onClick={() =>
+                                  onMoveEntryTypeField(
+                                    section.id,
+                                    field.key,
+                                    'up'
+                                  )
+                                }
+                              >
+                                {workspaceFeatureActions.moveFieldUp}
+                              </button>
+                              <button
+                                className="vwb-secondary-button"
+                                type="button"
+                                aria-label={
+                                  field.moveFieldDownAccessibilityLabel
+                                }
+                                disabled={
+                                  fieldIndex === section.fields.length - 1
+                                }
+                                onClick={() =>
+                                  onMoveEntryTypeField(
+                                    section.id,
+                                    field.key,
+                                    'down'
+                                  )
+                                }
+                              >
+                                {workspaceFeatureActions.moveFieldDown}
+                              </button>
+                              <button
+                                className="vwb-secondary-button vwb-danger-button"
+                                type="button"
+                                aria-label={field.removeFieldAccessibilityLabel}
+                                onClick={() =>
+                                  requestRemoveEntryTypeField(
+                                    section.id,
+                                    field.key,
+                                    field.removeFieldConfirmationSubject
+                                  )
+                                }
+                              >
+                                {workspaceFeatureActions.removeField}
+                              </button>
+                            </div>
+                            {fieldLabelErrors[
+                              getFieldLabelDraftKey(section.id, field.key)
+                            ] ? (
+                              <p className="vwb-form-error">
+                                {
+                                  fieldLabelErrors[
+                                    getFieldLabelDraftKey(section.id, field.key)
+                                  ]
+                                }
+                              </p>
+                            ) : null}
+                          </div>
+                        ))}
+                      </div>
+                    ) : null}
+                    <form
+                      className="vwb-form vwb-field-group"
+                      onSubmit={(event) =>
+                        submitEntryTypeFields(event, section.id)
+                      }
+                    >
+                      <label>
+                        {schemaModel.typeSetup.addFieldsLabel}
+                        <input
+                          aria-label={section.addFieldsFieldLabel}
+                          value={entryTypeFieldDrafts[section.id] ?? ''}
+                          onChange={(event) =>
+                            updateEntryTypeFieldDraft(
+                              section.id,
+                              event.target.value
+                            )
+                          }
+                          placeholder={customFieldDraftDescriptor?.placeholder}
+                        />
+                        {customFieldDraftDescriptor?.helperText ? (
+                          <small className="vwb-field-help">
+                            {customFieldDraftDescriptor.helperText}
+                          </small>
+                        ) : null}
+                      </label>
+                      {(entryTypeFieldDraftPreviews[section.id] ?? []).length >
+                      0 ? (
+                        <div
+                          className="vwb-tag-row"
+                          aria-label={section.addFieldsPreviewLabel}
+                        >
+                          {(entryTypeFieldDraftPreviews[section.id] ?? []).map(
+                            (field) => (
+                              <span className="vwb-tag" key={field.key}>
+                                {field.label}: {field.modeLabel}
+                              </span>
+                            )
+                          )}
+                        </div>
+                      ) : null}
+                      {entryTypeFieldErrors[section.id] ? (
+                        <p className="vwb-form-error">
+                          {entryTypeFieldErrors[section.id]}
+                        </p>
+                      ) : null}
+                      <div className="vwb-form-actions">
+                        <button
+                          aria-label={section.addFieldsAccessibilityLabel}
+                          className="vwb-secondary-button"
+                          type="submit"
+                          disabled={
+                            (entryTypeFieldDraftPreviews[section.id] ?? [])
+                              .length === 0
+                          }
+                        >
+                          {workspaceFeatureActions.addFields}
+                        </button>
+                      </div>
+                    </form>
+                    <div className="vwb-form-actions">
+                      <NavLink
+                        aria-label={section.openAccessibilityLabel}
+                        className="vwb-secondary-button"
+                        to={section.route}
+                      >
+                        {section.openLabel}
+                      </NavLink>
+                      <button
+                        className="vwb-secondary-button vwb-danger-button"
+                        type="button"
+                        aria-label={section.deleteTypeAccessibilityLabel}
+                        onClick={() =>
+                          requestDeleteEntryType(
+                            section.id,
+                            section.deleteTypeConfirmationSubject
+                          )
+                        }
+                      >
+                        {workspaceFeatureActions.deleteType}
+                      </button>
+                    </div>
+                  </article>
+                ))
+              ) : (
+                <div className="vwb-empty-results" role="status">
+                  <strong>{schemaModel.typeSetup.emptyCustomTypesText}</strong>
+                </div>
+              )}
+            </div>
+            <form className="vwb-form" onSubmit={submitEntryType}>
+              <div className="vwb-section-heading">
+                <div>
+                  <p className="vwb-kicker">
+                    {workspaceFeatureCopy.forms.newCustomSection}
+                  </p>
+                  <h3>{workspaceFeatureCopy.forms.createEntryType}</h3>
+                </div>
+                {isEntryTypeDraftDirty ? (
+                  <span className="vwb-status-pill">
+                    {workspaceFeatureCopy.status.unsaved}
                   </span>
+                ) : null}
+              </div>
+              <div className="vwb-form-grid">
+                {entryTypeDraftFieldLayout.leadingFields.map((field) => (
+                  <label key={field.key}>
+                    {field.label}
+                    <input
+                      value={entryTypeDraft[field.key]}
+                      onChange={(event) =>
+                        updateEntryTypeDraft(field.key, event.target.value)
+                      }
+                      placeholder={field.placeholder}
+                    />
+                    {field.helperText ? (
+                      <small className="vwb-field-help">
+                        {field.helperText}
+                      </small>
+                    ) : null}
+                  </label>
                 ))}
               </div>
-              {section.fields.some(
-                (field) => field.targetSectionTitles.length > 0
-              ) ? (
-                <dl className="vwb-detail-list">
-                  {section.fields
-                    .filter((field) => field.targetSectionTitles.length > 0)
-                    .map((field) => (
-                      <div key={`${field.key}-targets`}>
-                        <dt>{field.label}</dt>
-                        <dd>
-                          {field.relationshipType} to{' '}
-                          {field.targetSectionTitles.join(', ')}
-                        </dd>
-                      </div>
+              {entryTypeDraftFieldLayout.trailingFields.map((field) => (
+                <label key={field.key}>
+                  {field.label}
+                  {field.multiline ? (
+                    <textarea
+                      rows={3}
+                      value={entryTypeDraft[field.key]}
+                      onChange={(event) =>
+                        updateEntryTypeDraft(field.key, event.target.value)
+                      }
+                      placeholder={field.placeholder}
+                    />
+                  ) : (
+                    <input
+                      value={entryTypeDraft[field.key]}
+                      onChange={(event) =>
+                        updateEntryTypeDraft(field.key, event.target.value)
+                      }
+                      placeholder={field.placeholder}
+                    />
+                  )}
+                  {field.helperText ? (
+                    <small className="vwb-field-help">{field.helperText}</small>
+                  ) : null}
+                </label>
+              ))}
+              {entryTypeFieldPreview.length > 0 ? (
+                <div
+                  className="vwb-empty-results"
+                  aria-label={
+                    schemaModel.typeSetup.customFieldPreviewAccessibilityLabel
+                  }
+                >
+                  <strong>
+                    {schemaModel.typeSetup.customFieldPreviewTitle}
+                  </strong>
+                  <div className="vwb-tag-row">
+                    {entryTypeFieldPreview.map((field) => (
+                      <span className="vwb-tag" key={field.key}>
+                        {field.label}: {field.modeLabel}
+                      </span>
                     ))}
-                </dl>
+                  </div>
+                  {entryTypeFieldPreview.map((field) => (
+                    <small key={`${field.key}-detail`}>
+                      {field.label}: {field.detail}
+                    </small>
+                  ))}
+                </div>
               ) : null}
-              {section.relationshipFieldCount > 0 ? (
-                <small>{section.relationshipFieldCountLabel}.</small>
-              ) : (
-                <small>{schemaModel.relationshipFieldsTitle}: none.</small>
-              )}
-              <NavLink
-                aria-label={section.openAccessibilityLabel}
-                className="vwb-secondary-button"
-                to={section.route}
-              >
-                {section.openLabel}
-              </NavLink>
-            </article>
-          ))}
-        </div>
-      </section>
-
-      <section className="vwb-panel" aria-labelledby="knowledge-reusable-title">
-        <div className="vwb-section-heading">
-          <div>
-            <p className="vwb-kicker">
-              {schemaModel.reusableKnowledge.kickerLabel}
-            </p>
-            <h2 id="knowledge-reusable-title">
-              {schemaModel.reusableKnowledge.title}
-            </h2>
+              {entryTypeError ? (
+                <p className="vwb-form-error">{entryTypeError}</p>
+              ) : null}
+              <div className="vwb-form-actions">
+                <button className="vwb-primary-button" type="submit">
+                  {workspaceFeatureActions.createEntryType}
+                </button>
+              </div>
+            </form>
           </div>
-        </div>
-        <p>{schemaModel.reusableKnowledge.detail}</p>
-        <div className="vwb-form-actions">
-          {schemaModel.reusableKnowledge.destinations.map((destination) => (
-            <NavLink
-              aria-label={destination.openAccessibilityLabel}
-              className="vwb-secondary-button"
-              key={destination.id}
-              to={destination.route}
-            >
-              {destination.openLabel}
-            </NavLink>
-          ))}
-        </div>
-        {schemaModel.reusableKnowledge.loreDefinitions.length > 0 ? (
-          <div className="vwb-relationship-list">
+        </section>
+
+        <section
+          className="vwb-panel"
+          data-dashboard-card-id="knowledge.vocabulary"
+          aria-labelledby="knowledge-vocabulary-title"
+        >
+          <div className="vwb-section-heading">
             <div>
-              <h3>{schemaModel.reusableKnowledge.loreDefinitionsTitle}</h3>
-              <p>{schemaModel.reusableKnowledge.loreDefinitionsDetail}</p>
+              <p className="vwb-kicker">{schemaModel.vocabulary.kickerLabel}</p>
+              <h2 id="knowledge-vocabulary-title">
+                {schemaModel.vocabulary.title}
+              </h2>
             </div>
-            {schemaModel.reusableKnowledge.loreDefinitions.map((definition) => (
-              <article className="vwb-relationship-row" key={definition.id}>
+          </div>
+          <p>{schemaModel.vocabulary.detail}</p>
+          <div className="vwb-relationship-list">
+            {schemaModel.vocabulary.rows.map((row) => {
+              const isExpanded = Boolean(expandedVocabularyValueRows[row.id]);
+              const valueQuery = vocabularyValueQueries[row.id] ?? '';
+              const matchingValues = filterKnowledgeVocabularyValueRows(
+                row.values,
+                valueQuery
+              );
+              const valueDisplayModel = getLimitedResultModel(
+                matchingValues,
+                isExpanded
+                  ? matchingValues.length
+                  : knowledgeDisplayLimits.vocabularyValues
+              );
+              const visibleValues = valueDisplayModel.visibleItems;
+              const hiddenValueCount = valueDisplayModel.hiddenCount;
+              const valueDraft =
+                vocabularyValueDrafts[row.id] ?? emptyVocabularyValueDraft();
+
+              return (
+                <article className="vwb-relationship-row" key={row.id}>
+                  <div>
+                    <span className="vwb-entry-kind">{row.statusSummary}</span>
+                    <strong>{row.name}</strong>
+                    {row.description ? <p>{row.description}</p> : null}
+                    <p>{row.summary}</p>
+                  </div>
+                  {row.fieldUsages.length > 0 ? (
+                    <div
+                      className="vwb-tag-row"
+                      aria-label={row.fieldUsageLabel}
+                    >
+                      {row.fieldUsages.map((usage) => (
+                        <span className="vwb-tag" key={usage.id}>
+                          {usage.summaryText}
+                        </span>
+                      ))}
+                    </div>
+                  ) : null}
+                  <div className="vwb-field-order-list">
+                    <strong>{schemaModel.vocabulary.activeValuesTitle}</strong>
+                    <label>
+                      {schemaModel.vocabulary.searchValuesLabel}
+                      <input
+                        aria-label={row.searchValuesFieldLabel}
+                        value={valueQuery}
+                        onChange={(event) =>
+                          updateVocabularyValueQuery(row.id, event.target.value)
+                        }
+                        placeholder={row.searchValuesPlaceholder}
+                      />
+                    </label>
+                    {visibleValues.map((value) => {
+                      const draftKey = getVocabularyValueDraftKey(
+                        row.id,
+                        value.id
+                      );
+                      const activeValueIndex = row.values.findIndex(
+                        (candidate) => candidate.id === value.id
+                      );
+                      const draft =
+                        vocabularyValueEditDrafts[draftKey] ??
+                        vocabularyValueDraftFrom(value);
+                      const isDraftChanged =
+                        draft.label !== value.label ||
+                        draft.description !== value.description ||
+                        draft.aliases !== value.aliases.join(', ');
+
+                      return (
+                        <div className="vwb-field-order-row" key={value.id}>
+                          <label>
+                            {schemaModel.vocabulary.valueLabelFieldLabel}
+                            <input
+                              aria-label={value.labelFieldLabel}
+                              value={draft.label}
+                              onChange={(event) =>
+                                updateVocabularyValueEditDraft(
+                                  row.id,
+                                  value.id,
+                                  'label',
+                                  event.target.value
+                                )
+                              }
+                            />
+                          </label>
+                          <label>
+                            {schemaModel.vocabulary.valueDescriptionFieldLabel}
+                            <input
+                              aria-label={value.descriptionFieldLabel}
+                              value={draft.description}
+                              onChange={(event) =>
+                                updateVocabularyValueEditDraft(
+                                  row.id,
+                                  value.id,
+                                  'description',
+                                  event.target.value
+                                )
+                              }
+                            />
+                          </label>
+                          <label>
+                            {schemaModel.vocabulary.valueAliasesFieldLabel}
+                            <input
+                              aria-label={value.aliasesFieldLabel}
+                              value={draft.aliases}
+                              onChange={(event) =>
+                                updateVocabularyValueEditDraft(
+                                  row.id,
+                                  value.id,
+                                  'aliases',
+                                  event.target.value
+                                )
+                              }
+                            />
+                            <small className="vwb-field-help">
+                              {schemaModel.vocabulary.aliasesHelpText}
+                            </small>
+                          </label>
+                          {vocabularyValueErrors[draftKey] ? (
+                            <p className="vwb-form-error">
+                              {vocabularyValueErrors[draftKey]}
+                            </p>
+                          ) : null}
+                          <div className="vwb-form-actions">
+                            <button
+                              aria-label={value.saveAccessibilityLabel}
+                              className="vwb-secondary-button"
+                              type="button"
+                              disabled={!isDraftChanged}
+                              onClick={() =>
+                                submitVocabularyValueEdit(row.id, value)
+                              }
+                            >
+                              {value.saveLabel}
+                            </button>
+                            <button
+                              className="vwb-secondary-button"
+                              type="button"
+                              aria-label={value.moveUpAccessibilityLabel}
+                              disabled={activeValueIndex === 0}
+                              onClick={() =>
+                                onMoveVocabularyValue(row.id, value.id, 'up')
+                              }
+                            >
+                              {value.moveUpLabel}
+                            </button>
+                            <button
+                              className="vwb-secondary-button"
+                              type="button"
+                              aria-label={value.moveDownAccessibilityLabel}
+                              disabled={
+                                activeValueIndex === row.values.length - 1
+                              }
+                              onClick={() =>
+                                onMoveVocabularyValue(row.id, value.id, 'down')
+                              }
+                            >
+                              {value.moveDownLabel}
+                            </button>
+                            <button
+                              aria-label={value.archiveAccessibilityLabel}
+                              className="vwb-secondary-button vwb-danger-button"
+                              type="button"
+                              onClick={() =>
+                                onArchiveVocabularyValue(row.id, value.id, true)
+                              }
+                            >
+                              {value.archiveLabel}
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                    {row.values.length === 0 ? (
+                      <p className="vwb-muted-note">{row.noActiveValuesText}</p>
+                    ) : null}
+                    {row.values.length > 0 && visibleValues.length === 0 ? (
+                      <p className="vwb-muted-note">
+                        {row.noMatchingValuesText}
+                      </p>
+                    ) : null}
+                    {hiddenValueCount > 0 ? (
+                      <span className="vwb-tag">
+                        {formatKnowledgeVocabularyHiddenValueCount(
+                          row.name,
+                          hiddenValueCount
+                        )}
+                      </span>
+                    ) : null}
+                  </div>
+                  <div className="vwb-action-row">
+                    {row.fieldUsages[0] ? (
+                      <NavLink
+                        aria-label={row.fieldUsages[0].openAccessibilityLabel}
+                        className="vwb-secondary-button"
+                        to={row.fieldUsages[0].route}
+                      >
+                        {row.fieldUsages[0].openLabel}
+                      </NavLink>
+                    ) : null}
+                    {matchingValues.length >
+                    knowledgeDisplayLimits.vocabularyValues ? (
+                      <button
+                        className="vwb-secondary-button"
+                        type="button"
+                        aria-expanded={isExpanded}
+                        onClick={() =>
+                          setExpandedVocabularyValueRows((currentRows) => ({
+                            ...currentRows,
+                            [row.id]: !currentRows[row.id],
+                          }))
+                        }
+                      >
+                        {isExpanded
+                          ? row.showFewerValuesLabel
+                          : row.showAllValuesLabel}
+                      </button>
+                    ) : null}
+                  </div>
+                  {row.archivedValues.length > 0 ? (
+                    <div
+                      className="vwb-tag-row"
+                      aria-label={row.archivedValuesLabel}
+                    >
+                      {row.archivedValues.map((value) => (
+                        <button
+                          aria-label={value.restoreAccessibilityLabel}
+                          className="vwb-secondary-button"
+                          key={value.id}
+                          type="button"
+                          onClick={() =>
+                            onArchiveVocabularyValue(row.id, value.id, false)
+                          }
+                        >
+                          {value.restoreLabel}
+                        </button>
+                      ))}
+                    </div>
+                  ) : null}
+                  <form
+                    className="vwb-form vwb-field-group"
+                    onSubmit={(event) => submitVocabularyValue(event, row.id)}
+                  >
+                    <label>
+                      {schemaModel.vocabulary.newValueLabelFieldLabel}
+                      <input
+                        aria-label={row.newValueLabelFieldLabel}
+                        value={valueDraft.label}
+                        onChange={(event) =>
+                          updateVocabularyValueDraft(
+                            row.id,
+                            'label',
+                            event.target.value
+                          )
+                        }
+                      />
+                    </label>
+                    <label>
+                      {schemaModel.vocabulary.newValueDescriptionFieldLabel}
+                      <input
+                        aria-label={row.newValueDescriptionFieldLabel}
+                        value={valueDraft.description}
+                        onChange={(event) =>
+                          updateVocabularyValueDraft(
+                            row.id,
+                            'description',
+                            event.target.value
+                          )
+                        }
+                      />
+                    </label>
+                    <label>
+                      {schemaModel.vocabulary.newValueAliasesFieldLabel}
+                      <input
+                        aria-label={row.newValueAliasesFieldLabel}
+                        value={valueDraft.aliases}
+                        onChange={(event) =>
+                          updateVocabularyValueDraft(
+                            row.id,
+                            'aliases',
+                            event.target.value
+                          )
+                        }
+                      />
+                      <small className="vwb-field-help">
+                        {schemaModel.vocabulary.archivedRestoreHelpText}
+                      </small>
+                    </label>
+                    {vocabularyValueErrors[row.id] ? (
+                      <p className="vwb-form-error">
+                        {vocabularyValueErrors[row.id]}
+                      </p>
+                    ) : null}
+                    <div className="vwb-form-actions">
+                      <button
+                        aria-label={row.addValueAccessibilityLabel}
+                        className="vwb-secondary-button"
+                        type="submit"
+                      >
+                        {row.addValueLabel}
+                      </button>
+                    </div>
+                  </form>
+                </article>
+              );
+            })}
+          </div>
+        </section>
+
+        <section
+          className="vwb-panel"
+          data-dashboard-card-id="knowledge.hidden-detail-review"
+          id={knowledgeRouteFocusTargetIds.hiddenDetails}
+          aria-labelledby="knowledge-hidden-title"
+          tabIndex={-1}
+        >
+          <div className="vwb-section-heading">
+            <div>
+              <p className="vwb-kicker">
+                {schemaModel.hiddenDetails.kickerLabel}
+              </p>
+              <h2 id="knowledge-hidden-title">
+                {schemaModel.hiddenDetails.title}
+              </h2>
+            </div>
+            {schemaModel.hiddenDetails.rows.length > 0 ? (
+              <button
+                className="vwb-secondary-button"
+                type="button"
+                onClick={requestClearHiddenEntryDetails}
+              >
+                {schemaModel.hiddenDetails.clearAllActionLabel}
+              </button>
+            ) : null}
+          </div>
+          <p>{schemaModel.hiddenDetails.detail}</p>
+          {schemaModel.hiddenDetails.rows.length > 0 ? (
+            <label className="vwb-search-field">
+              {schemaModel.hiddenDetails.searchLabel}
+              <input
+                value={hiddenDetailQuery}
+                onChange={(event) => setHiddenDetailQuery(event.target.value)}
+                placeholder={schemaModel.hiddenDetails.searchPlaceholder}
+                type="search"
+              />
+            </label>
+          ) : null}
+          {schemaModel.hiddenDetails.rows.length > 0 ? (
+            <div className="vwb-relationship-list">
+              {hiddenDetailRows.map((row) => (
+                <article className="vwb-relationship-row" key={row.id}>
+                  <div>
+                    <span className="vwb-entry-kind">
+                      {row.sectionTitle} - {row.fieldLabel}
+                    </span>
+                    <strong>{row.entryName}</strong>
+                    <p>{row.value}</p>
+                  </div>
+                  <div className="vwb-form-actions">
+                    <NavLink
+                      aria-label={row.reviewAccessibilityLabel}
+                      className="vwb-secondary-button"
+                      to={row.route}
+                    >
+                      {row.reviewLabel}
+                    </NavLink>
+                    <button
+                      aria-label={row.clearAccessibilityLabel}
+                      className="vwb-secondary-button vwb-danger-button"
+                      type="button"
+                      onClick={() => requestClearHiddenEntryDetail(row)}
+                    >
+                      {row.clearLabel}
+                    </button>
+                  </div>
+                </article>
+              ))}
+              {hiddenDetailRows.length === 0 ? (
+                <p className="vwb-muted-note">
+                  {schemaModel.hiddenDetails.noSearchResultsText}
+                </p>
+              ) : null}
+            </div>
+          ) : (
+            <p className="vwb-muted-note">
+              {schemaModel.hiddenDetails.emptyText}
+            </p>
+          )}
+        </section>
+
+        <section
+          className="vwb-panel"
+          aria-labelledby="knowledge-types-title"
+          data-dashboard-card-id="knowledge.types"
+        >
+          <div className="vwb-section-heading">
+            <div>
+              <p className="vwb-kicker">{schemaModel.entryTypesKickerLabel}</p>
+              <h2 id="knowledge-types-title">{schemaModel.entryTypesTitle}</h2>
+            </div>
+          </div>
+          <div className="vwb-relationship-list">
+            {schemaModel.sections.map((section) => (
+              <article className="vwb-relationship-row" key={section.id}>
                 <div>
                   <span className="vwb-entry-kind">
-                    {definition.countLabel}
+                    {section.kindLabel} - {section.entryCountLabel}
                   </span>
-                  <strong>{definition.label}</strong>
+                  <strong>{section.title}</strong>
+                  <p>{section.description}</p>
                 </div>
-                <NavLink
-                  aria-label={definition.openAccessibilityLabel}
-                  className="vwb-secondary-button"
-                  to={definition.route}
+                <div
+                  className="vwb-tag-row"
+                  aria-label={`${section.title} fields`}
                 >
-                  {definition.openLabel}
+                  {section.fields.map((field) => (
+                    <span className="vwb-tag" key={field.key}>
+                      {field.label}: {field.backingLabel}
+                    </span>
+                  ))}
+                </div>
+                {section.fields.some(
+                  (field) => field.targetSectionTitles.length > 0
+                ) ? (
+                  <dl className="vwb-detail-list">
+                    {section.fields
+                      .filter((field) => field.targetSectionTitles.length > 0)
+                      .map((field) => (
+                        <div key={`${field.key}-targets`}>
+                          <dt>{field.label}</dt>
+                          <dd>
+                            {field.relationshipType} to{' '}
+                            {field.targetSectionTitles.join(', ')}
+                          </dd>
+                        </div>
+                      ))}
+                  </dl>
+                ) : null}
+                {section.relationshipFieldCount > 0 ? (
+                  <small>{section.relationshipFieldCountLabel}.</small>
+                ) : (
+                  <small>{schemaModel.relationshipFieldsTitle}: none.</small>
+                )}
+                <NavLink
+                  aria-label={section.openAccessibilityLabel}
+                  className="vwb-secondary-button"
+                  to={section.route}
+                >
+                  {section.openLabel}
                 </NavLink>
               </article>
             ))}
           </div>
-        ) : null}
-      </section>
+        </section>
+
+        <section
+          className="vwb-panel"
+          aria-labelledby="knowledge-reusable-title"
+          data-dashboard-card-id="knowledge.reusable-definitions"
+        >
+          <div className="vwb-section-heading">
+            <div>
+              <p className="vwb-kicker">
+                {schemaModel.reusableKnowledge.kickerLabel}
+              </p>
+              <h2 id="knowledge-reusable-title">
+                {schemaModel.reusableKnowledge.title}
+              </h2>
+            </div>
+          </div>
+          <p>{schemaModel.reusableKnowledge.detail}</p>
+          <div className="vwb-form-actions">
+            {schemaModel.reusableKnowledge.destinations.map((destination) => (
+              <NavLink
+                aria-label={destination.openAccessibilityLabel}
+                className="vwb-secondary-button"
+                key={destination.id}
+                to={destination.route}
+              >
+                {destination.openLabel}
+              </NavLink>
+            ))}
+          </div>
+          {schemaModel.reusableKnowledge.loreDefinitions.length > 0 ? (
+            <div className="vwb-relationship-list">
+              <div>
+                <h3>{schemaModel.reusableKnowledge.loreDefinitionsTitle}</h3>
+                <p>{schemaModel.reusableKnowledge.loreDefinitionsDetail}</p>
+              </div>
+              {schemaModel.reusableKnowledge.loreDefinitions.map(
+                (definition) => (
+                  <article className="vwb-relationship-row" key={definition.id}>
+                    <div>
+                      <span className="vwb-entry-kind">
+                        {definition.countLabel}
+                      </span>
+                      <strong>{definition.label}</strong>
+                    </div>
+                    <NavLink
+                      aria-label={definition.openAccessibilityLabel}
+                      className="vwb-secondary-button"
+                      to={definition.route}
+                    >
+                      {definition.openLabel}
+                    </NavLink>
+                  </article>
+                )
+              )}
+            </div>
+          ) : null}
+        </section>
+      </DashboardPage>
 
       {pendingDestructiveAction ? (
         <KnowledgeDestructiveActionDialog

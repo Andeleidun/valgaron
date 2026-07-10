@@ -13,17 +13,15 @@ Valgaron World Codex uses semantic versioning once public releases begin.
 
 ## Saved Document Schema
 
-The current world document schema version is `3`.
+The current world document schema version is `4`.
 
 Schema details and migration expectations are tracked in
 `docs/release/schema-migrations.md`.
 
-Do not advance the saved document schema for review-only Knowledge behavior.
-Schema `3` or later should be reserved for product decisions that require new
-durable document data, such as workspace-owned editable vocabularies or built-in
-field definitions that no longer fit the current field metadata.
-
-Schema `3` is the current durable schema/vocabulary editing baseline.
+Schema `4` adds entry image references and document-owned uploaded-image
+metadata while keeping binary bytes outside JSON. Valid schema 3 documents are
+migrated in memory. Do not advance to schema 5 for UI-only behavior; reserve a
+new schema for durable data that cannot be represented safely in schema 4.
 
 Schema changes must include:
 

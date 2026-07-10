@@ -18,9 +18,20 @@ import {
   type WorkbenchRecordIndexItem,
   type WorkbenchRecordViewId,
   type WorldEntry,
+  type WorldImageAsset,
   type WorldRelationship,
   type WorldWorkspace,
 } from '@valgaron/core';
+import {
+  DashboardCardControls,
+  DashboardShelf,
+  DashboardToolbar,
+} from '../Components/Dashboard/DashboardControls';
+import {
+  DashboardGrid,
+  DashboardGridItem,
+} from '../Components/Dashboard/DashboardGrid';
+import { useDashboardWorkspace } from '../Components/Dashboard/useDashboardWorkspace';
 import {
   ConfirmationDialog,
   EntryDetail,
@@ -30,37 +41,6 @@ import {
   confirmDiscardUnsavedChanges,
   useUnsavedChangesWarning,
 } from '../Utlilities/unsavedChanges';
-
-const workbenchLayoutStorageKey = 'valgaron:workbench-layout:v1';
-
-type WorkbenchLayoutPreferences = {
-  isContextCollapsed: boolean;
-  isIndexCollapsed: boolean;
-};
-
-function readWorkbenchLayoutPreferences(): WorkbenchLayoutPreferences {
-  if (typeof window === 'undefined') {
-    return { isContextCollapsed: false, isIndexCollapsed: false };
-  }
-
-  try {
-    const storedValue = window.localStorage.getItem(workbenchLayoutStorageKey);
-    if (!storedValue) {
-      return { isContextCollapsed: false, isIndexCollapsed: false };
-    }
-    const parsedValue: unknown = JSON.parse(storedValue);
-    if (!parsedValue || typeof parsedValue !== 'object') {
-      return { isContextCollapsed: false, isIndexCollapsed: false };
-    }
-    const preferences = parsedValue as Partial<WorkbenchLayoutPreferences>;
-    return {
-      isContextCollapsed: preferences.isContextCollapsed === true,
-      isIndexCollapsed: preferences.isIndexCollapsed === true,
-    };
-  } catch {
-    return { isContextCollapsed: false, isIndexCollapsed: false };
-  }
-}
 
 function RecordCard({
   isSelected,
@@ -118,7 +98,7 @@ export function WorkbenchPage({
   onArchiveEntry: (entry: WorldEntry, archived: boolean) => void;
   onDeleteEntry: (entry: WorldEntry) => void;
   onDeleteRelationship: (relationshipId: string) => void;
-  onSaveEntry: (entry: WorldEntry) => void;
+  onSaveEntry: (entry: WorldEntry, assets?: readonly WorldImageAsset[]) => void;
   onSaveRelationship: (relationship: WorldRelationship) => void;
 }) {
   const intro = getCodexScreenIntro('entries');
@@ -156,8 +136,6 @@ export function WorkbenchPage({
   );
   const [entryPendingDelete, setEntryPendingDelete] =
     useState<WorldEntry | null>(null);
-  const [layoutPreferences, setLayoutPreferences] =
-    useState<WorkbenchLayoutPreferences>(readWorkbenchLayoutPreferences);
   const model = useMemo(
     () =>
       getWorkbenchRecordIndexModel(activeWorld, {
@@ -203,25 +181,37 @@ export function WorkbenchPage({
   const editorSectionEntries = editorSection
     ? getEntries(activeWorld.codex, editorSection.id)
     : [];
-  const hasCollapsedDashboardCards =
-    layoutPreferences.isIndexCollapsed || layoutPreferences.isContextCollapsed;
+  const activeDashboardCardIds = [
+    'workbench.records',
+    ...(editorSection ? ['workbench.editor'] : []),
+    'workbench.record-context',
+  ];
+  const dashboard = useDashboardWorkspace({
+    pageId: 'workbench',
+    activeCardIds: activeDashboardCardIds,
+    forcedVisibleCardIds: [
+      ...(isEntryFormDirty ? ['workbench.editor'] : []),
+      ...(selected.reviewSummary.hasIssues ? ['workbench.record-context'] : []),
+    ],
+  });
+  const recordsCard = dashboard.cardsById.get('workbench.records');
+  const editorCard = dashboard.cardsById.get('workbench.editor');
+  const contextCard = dashboard.cardsById.get('workbench.record-context');
+  const recordsDefinition = dashboard.definitions.find(
+    (definition) => definition.id === 'workbench.records'
+  )!;
+  const editorDefinition = dashboard.definitions.find(
+    (definition) => definition.id === 'workbench.editor'
+  )!;
+  const contextDefinition = dashboard.definitions.find(
+    (definition) => definition.id === 'workbench.record-context'
+  )!;
 
   useUnsavedChangesWarning(isEntryFormDirty);
 
   useEffect(() => {
     setShowAllDraftingPrompts(false);
   }, [selected.record?.id]);
-
-  useEffect(() => {
-    try {
-      window.localStorage.setItem(
-        workbenchLayoutStorageKey,
-        JSON.stringify(layoutPreferences)
-      );
-    } catch {
-      // Layout preferences are optional when browser storage is unavailable.
-    }
-  }, [layoutPreferences]);
 
   const resetInlineEditor = () => {
     setTemplateDraft(null);
@@ -353,10 +343,9 @@ export function WorkbenchPage({
   };
 
   const restoreDashboardCard = (card: 'context' | 'index') => {
-    setLayoutPreferences((current) => ({
-      ...current,
-      [card === 'context' ? 'isContextCollapsed' : 'isIndexCollapsed']: false,
-    }));
+    dashboard.restore(
+      card === 'context' ? 'workbench.record-context' : 'workbench.records'
+    );
     window.requestAnimationFrame(() => {
       (card === 'context'
         ? contextHeadingRef.current
@@ -365,510 +354,536 @@ export function WorkbenchPage({
     });
   };
 
+  const moveDashboardCard = (cardId: string, direction: -1 | 1) => {
+    dashboard.moveRelative(cardId, direction);
+  };
+
   return (
-    <main className="vwb-main" id="main-content" tabIndex={-1}>
+    <main
+      className="vwb-main"
+      id="main-content"
+      ref={dashboard.containerRef}
+      tabIndex={-1}
+    >
       <section className="vwb-panel vwb-section-intro">
         <p className="vwb-kicker">{intro.kicker}</p>
         <h1>{intro.title}</h1>
         <p>{intro.detail}</p>
       </section>
 
-      <div
-        className="vwb-dashboard-toolbar"
-        aria-label="Workbench layout controls"
-        role="group"
-      >
-        <div className="vwb-dashboard-toolbar-summary">
-          <strong>Workspace view</strong>
-          <span>
-            {editorSection
-              ? `Editing ${editorSection.title}`
-              : 'Browse and select a record to begin drafting.'}
-          </span>
-        </div>
-        <div className="vwb-dashboard-toolbar-actions">
-          <button
-            className="vwb-secondary-button"
-            type="button"
-            onClick={() =>
-              setLayoutPreferences({
-                isContextCollapsed: true,
-                isIndexCollapsed: true,
-              })
-            }
-            disabled={!editorSection}
-          >
-            Focus editor
-          </button>
-          <button
-            className="vwb-secondary-button"
-            type="button"
-            onClick={() =>
-              setLayoutPreferences({
-                isContextCollapsed: false,
-                isIndexCollapsed: false,
-              })
-            }
-            disabled={!hasCollapsedDashboardCards}
-          >
-            Expand all
-          </button>
-        </div>
-      </div>
+      <DashboardToolbar
+        activePresetId={dashboard.history.present.presetId}
+        canRedo={dashboard.canRedo}
+        canUndo={dashboard.canUndo}
+        isCustomizing={dashboard.isCustomizing}
+        isPresetCustomized={dashboard.isPresetCustomized}
+        onApplyPreset={dashboard.applyPreset}
+        onCancel={dashboard.cancelCustomizing}
+        onCustomize={
+          dashboard.isCustomizing
+            ? dashboard.finishCustomizing
+            : dashboard.startCustomizing
+        }
+        onFocusPrimary={
+          editorSection ? () => dashboard.focus('workbench.editor') : undefined
+        }
+        onRedo={() => dashboard.dispatch({ type: 'redo' })}
+        onReset={dashboard.reset}
+        onResetAll={dashboard.resetAll}
+        onUndo={() => dashboard.dispatch({ type: 'undo' })}
+        presets={dashboard.presets}
+        summary={
+          editorSection
+            ? `Editing ${editorSection.title}`
+            : 'Browse and select a record to begin drafting.'
+        }
+      />
+      <DashboardShelf
+        cards={dashboard.layout.cards.filter((card) => card.region === 'shelf')}
+        getSummary={(card) =>
+          card.id === 'workbench.records'
+            ? ` · ${model.activeView.count}`
+            : selected.reviewSummary.hasIssues
+            ? ` · ${selected.reviewSummary.totalIssueCount} issues`
+            : ''
+        }
+        onRestore={(cardId) =>
+          restoreDashboardCard(
+            cardId === 'workbench.records' ? 'index' : 'context'
+          )
+        }
+      />
+      <span className="vwb-screen-reader-only" aria-live="polite">
+        {dashboard.announcement}
+      </span>
 
-      {hasCollapsedDashboardCards ? (
-        <div className="vwb-dashboard-shelf" aria-label="Collapsed cards">
-          <span className="vwb-dashboard-shelf-label">Collapsed</span>
-          {layoutPreferences.isIndexCollapsed ? (
-            <button
-              className="vwb-dashboard-shelf-item"
-              type="button"
-              onClick={() => restoreDashboardCard('index')}
-            >
-              Records · {model.activeView.count}
-            </button>
-          ) : null}
-          {layoutPreferences.isContextCollapsed ? (
-            <button
-              className="vwb-dashboard-shelf-item"
-              type="button"
-              onClick={() => restoreDashboardCard('context')}
-            >
-              Record context
-              {selected.reviewSummary.hasIssues
-                ? ` · ${selected.reviewSummary.totalIssueCount} issues`
-                : ''}
-            </button>
-          ) : null}
-        </div>
-      ) : null}
-
-      <section
+      <DashboardGrid
         className={[
           'vwb-workbench-layout',
           isWorkbenchEmptyEditor ? 'is-empty-editor' : '',
-          layoutPreferences.isIndexCollapsed ? 'is-index-collapsed' : '',
+          recordsCard?.region === 'shelf' ? 'is-index-collapsed' : '',
         ]
           .filter(Boolean)
           .join(' ')}
-        aria-label={model.copy.layoutAriaLabel}
+        ariaLabel={model.copy.layoutAriaLabel}
+        cards={dashboard.layout.cards}
+        isCustomizing={dashboard.isCustomizing}
+        onMoveCard={(cardId, targetCardId) => {
+          dashboard.moveBefore(cardId, targetCardId);
+        }}
       >
-        <div
-          className="vwb-panel vwb-workbench-index-panel"
-          hidden={layoutPreferences.isIndexCollapsed}
-        >
-          <div className="vwb-section-heading">
-            <div>
-              <p className="vwb-kicker">{model.copy.recordIndexKicker}</p>
-              <h2 ref={indexHeadingRef} tabIndex={-1}>
-                {model.copy.recordIndexTitle}
-              </h2>
+        <DashboardGridItem cardId="workbench.records">
+          <div className="vwb-panel vwb-workbench-index-panel">
+            <div className="vwb-section-heading">
+              <div>
+                <p className="vwb-kicker">{model.copy.recordIndexKicker}</p>
+                <h2 ref={indexHeadingRef} tabIndex={-1}>
+                  {model.copy.recordIndexTitle}
+                </h2>
+              </div>
+              {recordsCard ? (
+                <DashboardCardControls
+                  card={recordsCard}
+                  definition={recordsDefinition}
+                  isCustomizing={dashboard.isCustomizing}
+                  onCollapse={() => dashboard.collapse(recordsCard.id)}
+                  onFocus={() => dashboard.focus(recordsCard.id)}
+                  onMove={(direction) =>
+                    moveDashboardCard(recordsCard.id, direction)
+                  }
+                  onMoveToRegion={(region) =>
+                    dashboard.moveToRegion(recordsCard.id, region)
+                  }
+                  onReset={() => dashboard.resetCard(recordsCard.id)}
+                  onResize={(size) => dashboard.resize(recordsCard.id, size)}
+                />
+              ) : null}
             </div>
-            <button
-              className="vwb-secondary-button"
-              type="button"
-              onClick={() =>
-                setLayoutPreferences((current) => ({
-                  ...current,
-                  isIndexCollapsed: true,
-                }))
-              }
-            >
-              Collapse records
-            </button>
-          </div>
 
-          <label className="vwb-search-field">
-            {model.copy.searchRecordsLabel}
-            <input
-              value={query}
-              onChange={(event) => {
-                const nextQuery = event.target.value;
-                setQuery(nextQuery);
-                updateWorkbenchRoute({ query: nextQuery });
-              }}
-              placeholder={model.copy.searchRecordsPlaceholder}
-              type="search"
-            />
-          </label>
+            <label className="vwb-search-field">
+              {model.copy.searchRecordsLabel}
+              <input
+                value={query}
+                onChange={(event) => {
+                  const nextQuery = event.target.value;
+                  setQuery(nextQuery);
+                  updateWorkbenchRoute({ query: nextQuery });
+                }}
+                placeholder={model.copy.searchRecordsPlaceholder}
+                type="search"
+              />
+            </label>
 
-          <div
-            className="vwb-tag-filter-group vwb-workbench-section-list"
-            aria-label={model.copy.sectionFilterAccessibilityLabel}
-          >
-            <button
-              className={`vwb-tag-filter ${
-                model.activeSectionId ? '' : 'is-active'
-              }`}
-              type="button"
-              aria-pressed={!model.activeSectionId}
-              onClick={() => chooseSection('')}
+            <div
+              className="vwb-tag-filter-group vwb-workbench-section-list"
+              aria-label={model.copy.sectionFilterAccessibilityLabel}
             >
-              All records ({totalRecordCount})
-            </button>
-            {model.sectionActions.map((action) => (
               <button
                 className={`vwb-tag-filter ${
-                  action.isActive ? 'is-active' : ''
+                  model.activeSectionId ? '' : 'is-active'
                 }`}
-                key={action.sectionId}
                 type="button"
-                aria-pressed={action.isActive}
-                onClick={() => chooseSection(action.sectionId)}
+                aria-pressed={!model.activeSectionId}
+                onClick={() => chooseSection('')}
               >
-                {action.label} ({action.recordCount})
+                All records ({totalRecordCount})
               </button>
-            ))}
-          </div>
-
-          <div
-            className="vwb-workbench-create-row"
-            aria-label={model.copy.createRecordsAccessibilityLabel}
-          >
-            {(activeSection ? [activeSection] : model.sectionActions).map(
-              (action) => (
+              {model.sectionActions.map((action) => (
                 <button
-                  className="vwb-secondary-button"
+                  className={`vwb-tag-filter ${
+                    action.isActive ? 'is-active' : ''
+                  }`}
                   key={action.sectionId}
                   type="button"
-                  onClick={() => startInlineCreate(action.sectionId)}
+                  aria-pressed={action.isActive}
+                  onClick={() => chooseSection(action.sectionId)}
                 >
-                  {action.createLabel}
+                  {action.label} ({action.recordCount})
                 </button>
-              )
-            )}
-          </div>
+              ))}
+            </div>
 
-          <div
-            className="vwb-tag-filter-group vwb-workbench-view-list"
-            aria-label={model.copy.viewsAccessibilityLabel}
-          >
-            {model.views.map((view) => (
-              <button
-                className={`vwb-tag-filter ${
-                  view.id === model.activeView.id ? 'is-active' : ''
-                }`}
-                key={view.id}
-                type="button"
-                aria-pressed={view.id === model.activeView.id}
-                onClick={() => {
-                  setActiveViewId(view.id);
-                  updateWorkbenchRoute({ viewId: view.id });
-                }}
-              >
-                {view.label} ({view.count})
-              </button>
-            ))}
-          </div>
+            <div
+              className="vwb-workbench-create-row"
+              aria-label={model.copy.createRecordsAccessibilityLabel}
+            >
+              {(activeSection ? [activeSection] : model.sectionActions).map(
+                (action) => (
+                  <button
+                    className="vwb-secondary-button"
+                    key={action.sectionId}
+                    type="button"
+                    onClick={() => startInlineCreate(action.sectionId)}
+                  >
+                    {action.createLabel}
+                  </button>
+                )
+              )}
+            </div>
 
-          <div className="vwb-entry-list">
-            {model.activeView.records.length > 0 ? (
-              model.activeView.records.map((record) => (
-                <RecordCard
-                  isSelected={record.id === selected.record?.id}
-                  key={record.id}
-                  record={record}
-                  onSelect={() => chooseRecord(record)}
-                />
-              ))
-            ) : (
-              <div className="vwb-empty-results" role="status">
-                <strong>{model.activeView.emptyTitle}</strong>
-                <p>{model.activeView.emptyDetail}</p>
-              </div>
-            )}
+            <div
+              className="vwb-tag-filter-group vwb-workbench-view-list"
+              aria-label={model.copy.viewsAccessibilityLabel}
+            >
+              {model.views.map((view) => (
+                <button
+                  className={`vwb-tag-filter ${
+                    view.id === model.activeView.id ? 'is-active' : ''
+                  }`}
+                  key={view.id}
+                  type="button"
+                  aria-pressed={view.id === model.activeView.id}
+                  onClick={() => {
+                    setActiveViewId(view.id);
+                    updateWorkbenchRoute({ viewId: view.id });
+                  }}
+                >
+                  {view.label} ({view.count})
+                </button>
+              ))}
+            </div>
+
+            <div className="vwb-entry-list">
+              {model.activeView.records.length > 0 ? (
+                model.activeView.records.map((record) => (
+                  <RecordCard
+                    isSelected={record.id === selected.record?.id}
+                    key={record.id}
+                    record={record}
+                    onSelect={() => chooseRecord(record)}
+                  />
+                ))
+              ) : (
+                <div className="vwb-empty-results" role="status">
+                  <strong>{model.activeView.emptyTitle}</strong>
+                  <p>{model.activeView.emptyDetail}</p>
+                </div>
+              )}
+            </div>
           </div>
-        </div>
+        </DashboardGridItem>
 
         {editorSection ? (
-          <section
-            className="vwb-panel vwb-workbench-editor-panel"
-            aria-label={formatWorkbenchEditorAccessibilityLabel(editorSection)}
-          >
-            <>
-              <div className="vwb-section-heading">
-                <div>
-                  <p className="vwb-kicker">{model.copy.inlineEditorKicker}</p>
-                  <h2>
-                    {getEntryEditorTitle({
-                      section: editorSection,
-                      selectedEntry: editorEntry,
-                    })}
-                  </h2>
+          <DashboardGridItem cardId="workbench.editor">
+            <section
+              className="vwb-panel vwb-workbench-editor-panel"
+              aria-label={formatWorkbenchEditorAccessibilityLabel(
+                editorSection
+              )}
+            >
+              <>
+                <div className="vwb-section-heading">
+                  <div>
+                    <p className="vwb-kicker">
+                      {model.copy.inlineEditorKicker}
+                    </p>
+                    <h2>
+                      {getEntryEditorTitle({
+                        section: editorSection,
+                        selectedEntry: editorEntry,
+                      })}
+                    </h2>
+                  </div>
+                  {editorCard ? (
+                    <DashboardCardControls
+                      card={editorCard}
+                      definition={editorDefinition}
+                      isCustomizing={dashboard.isCustomizing}
+                      onCollapse={() => undefined}
+                      onFocus={() => dashboard.focus(editorCard.id)}
+                      onMove={(direction) =>
+                        moveDashboardCard(editorCard.id, direction)
+                      }
+                      onMoveToRegion={(region) =>
+                        dashboard.moveToRegion(editorCard.id, region)
+                      }
+                      onReset={() => dashboard.resetCard(editorCard.id)}
+                      onResize={(size) => dashboard.resize(editorCard.id, size)}
+                    />
+                  ) : null}
                 </div>
-              </div>
-              {editorEntry ? (
-                <EntryDetail
+                {editorEntry ? (
+                  <EntryDetail
+                    codex={activeWorld.codex}
+                    entry={editorEntry}
+                    relationships={activeWorld.relationships}
+                    section={editorSection}
+                    sections={activeWorld.entryTypes}
+                    workspaceSchema={activeWorld.schema}
+                  />
+                ) : null}
+                <EntryForm
+                  key={`${editorSection.id}-${
+                    editorEntry?.id ?? templateDraft?.name ?? 'new'
+                  }`}
                   codex={activeWorld.codex}
-                  entry={editorEntry}
+                  initialDraft={templateDraft ?? undefined}
+                  onArchive={(entry) => {
+                    onArchiveEntry(entry, true);
+                    setSelectedEntryId('');
+                    resetInlineEditor();
+                    updateWorkbenchRoute({ entryId: '' });
+                  }}
+                  onCancel={() => {
+                    setSelectedEntryId('');
+                    resetInlineEditor();
+                    updateWorkbenchRoute({ entryId: '' });
+                  }}
+                  onDelete={(entry) => setEntryPendingDelete(entry)}
+                  onDeleteRelationship={onDeleteRelationship}
+                  onDirtyChange={setIsEntryFormDirty}
+                  onDuplicate={(entry) => {
+                    const duplicatedEntry = duplicateEntry(
+                      editorSection,
+                      entry
+                    );
+                    onSaveEntry(duplicatedEntry);
+                    setActiveSectionId(editorSection.id);
+                    setSelectedEntryId(duplicatedEntry.id);
+                    resetInlineEditor();
+                    updateWorkbenchRoute({
+                      entryId: duplicatedEntry.id,
+                      sectionId: editorSection.id,
+                    });
+                  }}
+                  onRestore={(entry) => {
+                    onArchiveEntry(entry, false);
+                    setActiveSectionId(editorSection.id);
+                    setSelectedEntryId(entry.id);
+                    resetInlineEditor();
+                    updateWorkbenchRoute({
+                      entryId: entry.id,
+                      sectionId: editorSection.id,
+                    });
+                  }}
+                  onSave={(entry) => {
+                    onSaveEntry(entry);
+                    setActiveSectionId(editorSection.id);
+                    setSelectedEntryId(entry.id);
+                    resetInlineEditor();
+                    updateWorkbenchRoute({
+                      entryId: entry.id,
+                      sectionId: editorSection.id,
+                    });
+                  }}
+                  onSaveDraft={(
+                    draft,
+                    existingEntry,
+                    stagedRelationships = []
+                  ) => {
+                    const result = commitEntryDraftTransaction({
+                      codex: activeWorld.codex,
+                      entryDraft: draft,
+                      existingEntry,
+                      relationships: activeWorld.relationships,
+                      section: editorSection,
+                      stagedRelationships,
+                    });
+                    onSaveEntry(result.entry, draft.stagedAssets);
+                    result.savedRelationships.forEach(onSaveRelationship);
+                    setActiveSectionId(editorSection.id);
+                    setSelectedEntryId(result.entry.id);
+                    resetInlineEditor();
+                    updateWorkbenchRoute({
+                      entryId: result.entry.id,
+                      sectionId: editorSection.id,
+                    });
+                    return result.entry;
+                  }}
+                  onSaveRelationship={onSaveRelationship}
+                  onUseAsTemplate={(entry) => {
+                    const nextTemplateDraft = draftFromEntry(
+                      entry,
+                      editorSection
+                    );
+                    setTemplateDraft({
+                      ...nextTemplateDraft,
+                      name: `${entry.name} Template`,
+                      status: 'draft',
+                    });
+                    setTemplateSectionId(editorSection.id);
+                    setSelectedEntryId('');
+                    updateWorkbenchRoute({
+                      entryId: '',
+                      sectionId: editorSection.id,
+                    });
+                  }}
                   relationships={activeWorld.relationships}
                   section={editorSection}
+                  sectionEntries={editorSectionEntries}
                   sections={activeWorld.entryTypes}
+                  selectedEntry={editorEntry ?? undefined}
                   workspaceSchema={activeWorld.schema}
                 />
-              ) : null}
-              <EntryForm
-                key={`${editorSection.id}-${
-                  editorEntry?.id ?? templateDraft?.name ?? 'new'
-                }`}
-                codex={activeWorld.codex}
-                initialDraft={templateDraft ?? undefined}
-                onArchive={(entry) => {
-                  onArchiveEntry(entry, true);
-                  setSelectedEntryId('');
-                  resetInlineEditor();
-                  updateWorkbenchRoute({ entryId: '' });
-                }}
-                onCancel={() => {
-                  setSelectedEntryId('');
-                  resetInlineEditor();
-                  updateWorkbenchRoute({ entryId: '' });
-                }}
-                onDelete={(entry) => setEntryPendingDelete(entry)}
-                onDeleteRelationship={onDeleteRelationship}
-                onDirtyChange={setIsEntryFormDirty}
-                onDuplicate={(entry) => {
-                  const duplicatedEntry = duplicateEntry(editorSection, entry);
-                  onSaveEntry(duplicatedEntry);
-                  setActiveSectionId(editorSection.id);
-                  setSelectedEntryId(duplicatedEntry.id);
-                  resetInlineEditor();
-                  updateWorkbenchRoute({
-                    entryId: duplicatedEntry.id,
-                    sectionId: editorSection.id,
-                  });
-                }}
-                onRestore={(entry) => {
-                  onArchiveEntry(entry, false);
-                  setActiveSectionId(editorSection.id);
-                  setSelectedEntryId(entry.id);
-                  resetInlineEditor();
-                  updateWorkbenchRoute({
-                    entryId: entry.id,
-                    sectionId: editorSection.id,
-                  });
-                }}
-                onSave={(entry) => {
-                  onSaveEntry(entry);
-                  setActiveSectionId(editorSection.id);
-                  setSelectedEntryId(entry.id);
-                  resetInlineEditor();
-                  updateWorkbenchRoute({
-                    entryId: entry.id,
-                    sectionId: editorSection.id,
-                  });
-                }}
-                onSaveDraft={(
-                  draft,
-                  existingEntry,
-                  stagedRelationships = []
-                ) => {
-                  const result = commitEntryDraftTransaction({
-                    codex: activeWorld.codex,
-                    entryDraft: draft,
-                    existingEntry,
-                    relationships: activeWorld.relationships,
-                    section: editorSection,
-                    stagedRelationships,
-                  });
-                  onSaveEntry(result.entry);
-                  result.savedRelationships.forEach(onSaveRelationship);
-                  setActiveSectionId(editorSection.id);
-                  setSelectedEntryId(result.entry.id);
-                  resetInlineEditor();
-                  updateWorkbenchRoute({
-                    entryId: result.entry.id,
-                    sectionId: editorSection.id,
-                  });
-                  return result.entry;
-                }}
-                onSaveRelationship={onSaveRelationship}
-                onUseAsTemplate={(entry) => {
-                  const nextTemplateDraft = draftFromEntry(
-                    entry,
-                    editorSection
-                  );
-                  setTemplateDraft({
-                    ...nextTemplateDraft,
-                    name: `${entry.name} Template`,
-                    status: 'draft',
-                  });
-                  setTemplateSectionId(editorSection.id);
-                  setSelectedEntryId('');
-                  updateWorkbenchRoute({
-                    entryId: '',
-                    sectionId: editorSection.id,
-                  });
-                }}
-                relationships={activeWorld.relationships}
-                section={editorSection}
-                sectionEntries={editorSectionEntries}
-                sections={activeWorld.entryTypes}
-                selectedEntry={editorEntry ?? undefined}
-                workspaceSchema={activeWorld.schema}
-              />
-            </>
-          </section>
+              </>
+            </section>
+          </DashboardGridItem>
         ) : null}
 
-        <aside
-          className="vwb-panel vwb-workbench-context-panel"
-          aria-labelledby="workbench-context-title"
-          hidden={layoutPreferences.isContextCollapsed}
-        >
-          <div className="vwb-section-heading">
-            <div>
-              <p className="vwb-kicker">{selected.kicker}</p>
-              <h2
-                id="workbench-context-title"
-                ref={contextHeadingRef}
-                tabIndex={-1}
-              >
-                {selected.record?.name ?? selected.emptyTitle}
-              </h2>
-            </div>
-            <button
-              className="vwb-secondary-button"
-              type="button"
-              onClick={() =>
-                setLayoutPreferences((current) => ({
-                  ...current,
-                  isContextCollapsed: true,
-                }))
-              }
-            >
-              Collapse context
-            </button>
-          </div>
-
-          {selected.record ? (
-            <div className="vwb-workbench-context">
-              <p>{selected.record.summaryText || selected.noSummaryText}</p>
-              <dl>
-                <div>
-                  <dt>{selected.sectionLabel}</dt>
-                  <dd>
-                    {selected.section?.title ?? selected.record.sectionTitle}
-                  </dd>
-                </div>
-                <div>
-                  <dt>{selected.statusLabel}</dt>
-                  <dd>{selected.record.status}</dd>
-                </div>
-                <div>
-                  <dt>{selected.relationshipsLabel}</dt>
-                  <dd>{selected.relationshipCount}</dd>
-                </div>
-                <div>
-                  <dt>{selected.completenessLabel}</dt>
-                  <dd>
-                    {selected.completionPercent === null
-                      ? selected.completeLabel
-                      : `${selected.completionPercent}%`}
-                  </dd>
-                </div>
-              </dl>
-              {selected.reviewSummary.hasIssues ? (
-                <div>
-                  <h3>{selected.reviewSummaryTitle}</h3>
-                  <div className="vwb-diagnostics-grid">
-                    {selected.reviewSummary.items
-                      .filter((item) => item.hasIssues)
-                      .map((item) => (
-                        <article
-                          className={`vwb-diagnostic-card vwb-review-${item.severity}`}
-                          key={item.id}
-                        >
-                          <span className="vwb-entry-kind">{item.title}</span>
-                          <strong>{item.countLabel}</strong>
-                          <p>{item.detail}</p>
-                        </article>
-                      ))}
-                  </div>
-                </div>
-              ) : null}
-              {selected.incompletePrompts.length > 0 ? (
-                <div>
-                  <h3>{selected.draftingPromptsTitle}</h3>
-                  <ul className="vwb-compact-list">
-                    {visibleDraftingPrompts.map((prompt) => (
-                      <li key={prompt}>{prompt}</li>
-                    ))}
-                  </ul>
-                  {hiddenDraftingPromptCount > 0 ? (
-                    <span className="vwb-tag">
-                      {formatHiddenCountText({
-                        hiddenCount: hiddenDraftingPromptCount,
-                        singularItemLabel: 'drafting prompt',
-                        pluralItemLabel: 'drafting prompts',
-                      })}
-                    </span>
-                  ) : null}
-                  {selected.incompletePrompts.length >
-                  workbenchDisplayLimits.selectedDraftingPrompts ? (
-                    <div className="vwb-action-row">
-                      <button
-                        className="vwb-secondary-button"
-                        type="button"
-                        aria-expanded={showAllDraftingPrompts}
-                        onClick={() =>
-                          setShowAllDraftingPrompts(
-                            (currentValue) => !currentValue
-                          )
-                        }
-                      >
-                        {formatExpansionControlLabel({
-                          isExpanded: showAllDraftingPrompts,
-                          hiddenCount: hiddenDraftingPromptCount,
-                          pluralItemLabel: 'Drafting Prompts',
-                          singularItemLabel: 'Drafting Prompt',
-                        })}
-                      </button>
-                    </div>
-                  ) : null}
-                </div>
-              ) : null}
-              {selected.relatedRecordChips.length > 0 ? (
-                <div>
-                  <h3>{selected.linkedRecordsTitle}</h3>
-                  <div className="vwb-entity-chip-list">
-                    {selected.relatedRecordChips.map((chip) => (
-                      <Link
-                        className="vwb-entity-chip"
-                        key={`${chip.relationshipId ?? 'record'}-${chip.id}`}
-                        to={chip.route}
-                      >
-                        <span>{chip.label}</span>
-                        <small>{chip.detailText}</small>
-                      </Link>
-                    ))}
-                  </div>
-                </div>
-              ) : null}
-              <Link
-                aria-label={selected.editRecordAccessibilityLabel}
-                className="vwb-secondary-button"
-                to={selected.record.editorRoute}
-              >
-                {selected.editRecordLabel}
-              </Link>
-              {selected.relationshipStudioRoute ? (
-                <Link
-                  aria-label={
-                    selected.relationshipStudioAccessibilityLabel ?? undefined
-                  }
-                  className="vwb-secondary-button"
-                  to={selected.relationshipStudioRoute}
+        <DashboardGridItem cardId="workbench.record-context">
+          <aside
+            className="vwb-panel vwb-workbench-context-panel"
+            aria-labelledby="workbench-context-title"
+          >
+            <div className="vwb-section-heading">
+              <div>
+                <p className="vwb-kicker">{selected.kicker}</p>
+                <h2
+                  id="workbench-context-title"
+                  ref={contextHeadingRef}
+                  tabIndex={-1}
                 >
-                  {selected.relationshipStudioLabel}
-                </Link>
+                  {selected.record?.name ?? selected.emptyTitle}
+                </h2>
+              </div>
+              {contextCard ? (
+                <DashboardCardControls
+                  card={contextCard}
+                  definition={contextDefinition}
+                  isCustomizing={dashboard.isCustomizing}
+                  onCollapse={() => dashboard.collapse(contextCard.id)}
+                  onFocus={() => dashboard.focus(contextCard.id)}
+                  onMove={(direction) =>
+                    moveDashboardCard(contextCard.id, direction)
+                  }
+                  onMoveToRegion={(region) =>
+                    dashboard.moveToRegion(contextCard.id, region)
+                  }
+                  onReset={() => dashboard.resetCard(contextCard.id)}
+                  onResize={(size) => dashboard.resize(contextCard.id, size)}
+                />
               ) : null}
             </div>
-          ) : (
-            <p>{selected.emptyDetail}</p>
-          )}
-        </aside>
-      </section>
+
+            {selected.record ? (
+              <div className="vwb-workbench-context">
+                <p>{selected.record.summaryText || selected.noSummaryText}</p>
+                <dl>
+                  <div>
+                    <dt>{selected.sectionLabel}</dt>
+                    <dd>
+                      {selected.section?.title ?? selected.record.sectionTitle}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>{selected.statusLabel}</dt>
+                    <dd>{selected.record.status}</dd>
+                  </div>
+                  <div>
+                    <dt>{selected.relationshipsLabel}</dt>
+                    <dd>{selected.relationshipCount}</dd>
+                  </div>
+                  <div>
+                    <dt>{selected.completenessLabel}</dt>
+                    <dd>
+                      {selected.completionPercent === null
+                        ? selected.completeLabel
+                        : `${selected.completionPercent}%`}
+                    </dd>
+                  </div>
+                </dl>
+                {selected.reviewSummary.hasIssues ? (
+                  <div>
+                    <h3>{selected.reviewSummaryTitle}</h3>
+                    <div className="vwb-diagnostics-grid">
+                      {selected.reviewSummary.items
+                        .filter((item) => item.hasIssues)
+                        .map((item) => (
+                          <article
+                            className={`vwb-diagnostic-card vwb-review-${item.severity}`}
+                            key={item.id}
+                          >
+                            <span className="vwb-entry-kind">{item.title}</span>
+                            <strong>{item.countLabel}</strong>
+                            <p>{item.detail}</p>
+                          </article>
+                        ))}
+                    </div>
+                  </div>
+                ) : null}
+                {selected.incompletePrompts.length > 0 ? (
+                  <div>
+                    <h3>{selected.draftingPromptsTitle}</h3>
+                    <ul className="vwb-compact-list">
+                      {visibleDraftingPrompts.map((prompt) => (
+                        <li key={prompt}>{prompt}</li>
+                      ))}
+                    </ul>
+                    {hiddenDraftingPromptCount > 0 ? (
+                      <span className="vwb-tag">
+                        {formatHiddenCountText({
+                          hiddenCount: hiddenDraftingPromptCount,
+                          singularItemLabel: 'drafting prompt',
+                          pluralItemLabel: 'drafting prompts',
+                        })}
+                      </span>
+                    ) : null}
+                    {selected.incompletePrompts.length >
+                    workbenchDisplayLimits.selectedDraftingPrompts ? (
+                      <div className="vwb-action-row">
+                        <button
+                          className="vwb-secondary-button"
+                          type="button"
+                          aria-expanded={showAllDraftingPrompts}
+                          onClick={() =>
+                            setShowAllDraftingPrompts(
+                              (currentValue) => !currentValue
+                            )
+                          }
+                        >
+                          {formatExpansionControlLabel({
+                            isExpanded: showAllDraftingPrompts,
+                            hiddenCount: hiddenDraftingPromptCount,
+                            pluralItemLabel: 'Drafting Prompts',
+                            singularItemLabel: 'Drafting Prompt',
+                          })}
+                        </button>
+                      </div>
+                    ) : null}
+                  </div>
+                ) : null}
+                {selected.relatedRecordChips.length > 0 ? (
+                  <div>
+                    <h3>{selected.linkedRecordsTitle}</h3>
+                    <div className="vwb-entity-chip-list">
+                      {selected.relatedRecordChips.map((chip) => (
+                        <Link
+                          className="vwb-entity-chip"
+                          key={`${chip.relationshipId ?? 'record'}-${chip.id}`}
+                          to={chip.route}
+                        >
+                          <span>{chip.label}</span>
+                          <small>{chip.detailText}</small>
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+                <Link
+                  aria-label={selected.editRecordAccessibilityLabel}
+                  className="vwb-secondary-button"
+                  to={selected.record.editorRoute}
+                >
+                  {selected.editRecordLabel}
+                </Link>
+                {selected.relationshipStudioRoute ? (
+                  <Link
+                    aria-label={
+                      selected.relationshipStudioAccessibilityLabel ?? undefined
+                    }
+                    className="vwb-secondary-button"
+                    to={selected.relationshipStudioRoute}
+                  >
+                    {selected.relationshipStudioLabel}
+                  </Link>
+                ) : null}
+              </div>
+            ) : (
+              <p>{selected.emptyDetail}</p>
+            )}
+          </aside>
+        </DashboardGridItem>
+      </DashboardGrid>
       {entryPendingDelete ? (
         <ConfirmationDialog
           entry={entryPendingDelete}

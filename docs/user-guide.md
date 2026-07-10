@@ -45,6 +45,33 @@ Utilities, workspace, and data workflows when you need focused guidance. Help
 also includes a topic picker on browser and mobile so you can switch focused
 topics and see which topic is currently active.
 
+## Customizing Dashboards And Sections
+
+Browser dashboard pages start with a recommended one- or two-column layout.
+Choose a **View** preset for a task-oriented recommendation, or choose
+**Customize layout** to reveal card controls. In customization mode you can
+move a card earlier or later, move it to the primary, supporting, or full-width
+region, select a semantic size, focus it, collapse it to the shelf, reset that
+card, or undo and redo changes. Drag handles support pointer reordering; resize
+handles snap to the same semantic sizes and support Left/Right Arrow keys. Use
+**Cancel** to restore the arrangement from before customization, **Reset
+layout** to restore the selected preset, or **Reset all dashboards** to clear
+all saved browser layouts.
+
+Collapsed cards remain available on the shelf. Important warnings and unsafe
+operations can be forced visible or anchored even when an older preference
+would hide or move them. On narrow screens, the same card order becomes a
+single readable column automatically; saved sizes are preferences rather than
+pixel coordinates.
+
+On native mobile screens, choose **Customize Sections** to move sections
+earlier or later or collapse them. **Reset Section Layout** affects the current
+screen and **Reset All Section Layouts** clears every saved mobile section
+arrangement. Web dashboard preferences and native mobile section preferences
+are intentionally separate and remain only in the current browser profile or
+installed app storage. They are not included in world exports and are not
+synchronized between devices.
+
 ## Timeline
 
 Use Timeline to browse events by explicit order, era, involved records, status,
@@ -119,6 +146,33 @@ customs, abilities, or ancestry and profession notes.
 
 ## Local Data And Backups
 
+### Entry images
+
+Every codex entry can keep up to six ordered images. The first image is the
+cover. Use `Add web image` for a complete HTTPS URI or `Upload image` for a JPEG,
+PNG, WebP, or GIF up to 10 MB. Informative images need alternative text; select
+`Decorative image` only when empty alternative text is intentional. Captions are
+optional, and images can be moved earlier/later or removed.
+
+Web images remain third-party links. Showing one contacts its host, and the
+image can change, disappear, or fail offline. Uploads are copied into local
+browser or installed-app storage and remain available offline while that local
+storage remains intact.
+
+### JSON versus ZIP
+
+- JSON preserves the world document exactly, including every image URI and
+  uploaded asset metadata, but it does not contain uploaded bytes.
+- ZIP contains that same generated JSON plus every reachable uploaded image.
+  Remote web images stay links and are never downloaded during export.
+- Use active ZIP for the current workspace or full ZIP for every workspace.
+- Import JSON or ZIP from Data. The app validates and previews the package before
+  replacement. A ZIP must contain exactly its expected JSON and uploaded image
+  files.
+
+Use ZIP when uploaded images must be restorable on another browser profile or
+device. Neither local storage nor recovery snapshots are cloud backups.
+
 The browser app saves in the current browser profile with `localStorage`. The
 mobile companion saves in the installed app's local storage area. There is no
 account, hosted database, telemetry, cloud sync, collaboration, or remote
@@ -157,7 +211,9 @@ restore or delete the intended snapshot. They are useful for undoing local
 mistakes in the same browser profile or mobile app storage area, but they are
 not portable and can be lost with local storage data.
 
-Keep downloaded JSON backups for work that cannot be lost.
+Keep downloaded full-document ZIP backups for work that cannot be lost when it
+includes uploads. JSON remains useful for documents that use only remote image
+links or no images.
 
 ## Offline Use
 
@@ -180,7 +236,8 @@ diagnostics, support, and release limits. Focused Help links open the relevant
 topic for entries, timelines, relationships, Knowledge, Utilities, workspaces,
 or data.
 
-Do not share JSON backups unless you intentionally want to share world content.
+Do not share JSON or ZIP backups unless you intentionally want to share world
+content. ZIP backups can also contain original uploaded image files.
 
 ## Release Limits
 

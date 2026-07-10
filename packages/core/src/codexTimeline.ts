@@ -380,6 +380,7 @@ function getTimelineEditorCurrentEntry({
     createdAt: '',
     updatedAt: '',
     fields: draft.details,
+    images: (draft.images ?? []).map((image) => ({ ...image })),
   };
 }
 

@@ -40,8 +40,15 @@ platform capability difference, or removed from supported scope.
 | Duplicate derivation helpers      | Resolved with shared feature models     | Shared feature layer    | Retired duplicate wrappers                                            | Retired `mobileCodexViewModels`                               | Closed   | Boundary test plus deletion checklist                                                   |
 | Mobile web stacked workflow       | Resolved with responsive shell contract | Native mobile flow      | Desktop Workbench at wide widths, stacked mobile web at narrow widths | Native stacked screens                                        | Closed   | Browser smoke asserts Workbench, Timeline, Links, More visible order at 375px and 320px |
 | Mobile web route smoke coverage   | Resolved with browser smoke artifacts   | Shared route intents    | Browser mobile viewport screenshots                                   | Native route model tests                                      | Closed   | Workbench, Timeline, Links, More, Knowledge, Data, Workspaces, and Help smoke artifacts |
+| Dashboard customization geometry  | Intentional platform capability split   | Shared dashboard intent | Semantic card regions/sizes, pointer and keyboard controls            | Ordered and collapsible full-width sections                   | Closed   | Reset, reorder, collapse, restore, and local persistence work on each platform          |
 
 ## Feature Change Checklist
+
+- [ ] Web and mobile preserve schema 4 image references and asset metadata.
+- [ ] HTTPS image, uploaded image, alt/decorative, caption, cover, reorder, and
+      remove behavior match.
+- [ ] Active/full ZIP packages restore the same uploaded bytes on both clients.
+- [ ] Android content URIs and iOS temporary picker paths never appear in JSON.
 
 Before merging a frontend feature change, confirm:
 

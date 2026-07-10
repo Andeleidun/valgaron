@@ -124,15 +124,37 @@ codex area.
 
 ## Data And Recovery
 
-1. Export active-workspace JSON and import it into a clean browser profile.
-2. Export full-document JSON and confirm all workspaces import into a clean
-   browser profile.
-3. Export Markdown and confirm it is readable.
-4. Confirm invalid import JSON is rejected without changing data.
-5. Confirm recovery snapshots appear before destructive actions.
-6. Restore a recovery snapshot.
-7. Follow `docs/qa/runtime-recovery.md` for corrupt storage, failed storage
-   writes, import rejection, and runtime render recovery.
+### Images And ZIP Backups
+
+1. Add an HTTPS image with alternative text and confirm it survives Save/reload.
+2. Upload JPEG, PNG, WebP, and GIF samples; reject SVG, spoofed, empty, and
+   greater-than-10-MB files.
+3. Confirm six images are allowed, the seventh is blocked, and reorder changes
+   the cover.
+4. Confirm uploads work offline and web images show a stable unavailable state
+   without deleting their URI.
+5. Export active and full ZIP files. Confirm their JSON exactly matches the
+   corresponding JSON export and each reachable upload exists at its URI.
+6. Confirm ZIP export makes no remote-image request.
+7. Import valid JSON and ZIP backups, review counts, confirm replacement, and
+   reload every uploaded image.
+8. Reject traversal, duplicate/unexpected paths, missing images, integrity
+   mismatches, excessive entries, and excessive expanded bytes without
+   replacing current data.
+9. Delete an image-bearing entry, restore its snapshot, and confirm the bytes
+   remain available. Remove the final owner/snapshot and confirm safe cleanup.
+10. Repeat picker, share-sheet, cancellation, low-storage, and round-trip checks
+    on Android and iOS where available.
+
+11. Export active-workspace JSON and import it into a clean browser profile.
+12. Export full-document JSON and confirm all workspaces import into a clean
+    browser profile.
+13. Export Markdown and confirm it is readable.
+14. Confirm invalid import JSON is rejected without changing data.
+15. Confirm recovery snapshots appear before destructive actions.
+16. Restore a recovery snapshot.
+17. Follow `docs/qa/runtime-recovery.md` for corrupt storage, failed storage
+    writes, import rejection, and runtime render recovery.
 
 ## Security And Privacy
 

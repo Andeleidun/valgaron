@@ -1,6 +1,9 @@
 # Static Hosting And PWA Deployment
 
-Valgaron World Codex is published as a static GitHub Pages app. It has no backend, no telemetry, no account system, and no cloud data storage. User worlds remain in the current browser profile through `localStorage`, so downloaded JSON exports remain the portable backup path.
+Valgaron World Codex is published as a static GitHub Pages app. It has no
+backend, telemetry, account system, or cloud data storage. World JSON remains in
+the browser profile through `localStorage`; uploaded image bytes use IndexedDB.
+Downloaded ZIP exports are the complete portability path when uploads exist.
 
 ## GitHub Pages
 

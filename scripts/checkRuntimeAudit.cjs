@@ -8,6 +8,7 @@ const knownExpoCliAuditFinding = new Set([
   '@expo/metro-config',
   '@expo/prebuild-config',
   'expo',
+  'expo-sharing',
   'uuid',
   'xcode',
 ]);
@@ -31,6 +32,14 @@ function isKnownExpoCliFinding([name, vulnerability]) {
   if (fixAvailable === true) {
     return name === '@expo/prebuild-config';
   }
+  if (
+    fixAvailable &&
+    fixAvailable.name === 'expo-sharing' &&
+    fixAvailable.version === '14.0.8' &&
+    fixAvailable.isSemVerMajor === true
+  ) {
+    return true;
+  }
   return (
     fixAvailable &&
     fixAvailable.name === 'expo' &&
@@ -40,12 +49,13 @@ function isKnownExpoCliFinding([name, vulnerability]) {
 }
 
 const npmAuditArgs = ['audit', '--omit=dev', '--json'];
-const auditCommand =
-  process.platform === 'win32' ? process.env.ComSpec || 'cmd.exe' : 'npm';
-const auditArgs =
-  process.platform === 'win32'
-    ? ['/d', '/s', '/c', `npm ${npmAuditArgs.join(' ')}`]
-    : npmAuditArgs;
+const npmCliPath = process.env.npm_execpath;
+if (!npmCliPath) {
+  writeError('npm_execpath is unavailable; run this check through npm.');
+  process.exit(1);
+}
+const auditCommand = process.execPath;
+const auditArgs = [npmCliPath, ...npmAuditArgs];
 const result = spawnSync(auditCommand, auditArgs, {
   encoding: 'utf8',
 });

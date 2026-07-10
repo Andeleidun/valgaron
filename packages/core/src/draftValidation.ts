@@ -10,6 +10,7 @@ import type {
   PlanetaryWorldDraft,
   WorkspaceDraft,
 } from './workspaceManagement';
+import { MAX_IMAGES_PER_ENTRY, validateImageReference } from './imageAssets';
 
 export type DraftValidationResult =
   | {
@@ -34,10 +35,18 @@ export function validateEntryDraft(
     section,
     workspaceSchema: options.workspaceSchema,
   });
+  const images = draft.images ?? [];
+  const imageErrors = [
+    images.length > MAX_IMAGES_PER_ENTRY
+      ? `Entries can contain up to ${MAX_IMAGES_PER_ENTRY} images.`
+      : '',
+    ...images.map((image) => validateImageReference(image) ?? ''),
+  ].filter(Boolean);
   return validationResult(
     [
       draft.name.trim() ? '' : `${section.singularTitle} name is required.`,
       ...schemaErrors,
+      ...imageErrors,
     ].filter(Boolean)
   );
 }

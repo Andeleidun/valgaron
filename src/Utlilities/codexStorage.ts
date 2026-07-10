@@ -5,9 +5,10 @@ import {
 } from '@valgaron/core';
 import { browserLocalStorageAdapter } from './storageAdapter';
 
-export const CODEX_STORAGE_KEY = 'valgaron.worldDocument.v3';
+export const CODEX_STORAGE_KEY = 'valgaron.worldDocument.v4';
+export const LEGACY_CODEX_STORAGE_KEY = 'valgaron.worldDocument.v3';
 
-type StoredDocumentSource = 'current' | 'seed';
+type StoredDocumentSource = 'current' | 'legacy-v3' | 'seed';
 
 type StoredValueResult =
   | {
@@ -46,6 +47,11 @@ const storedDocumentKeys: readonly {
     source: 'current',
     label: 'current saved document',
   },
+  {
+    key: LEGACY_CODEX_STORAGE_KEY,
+    source: 'legacy-v3',
+    label: 'legacy schema 3 saved document',
+  },
 ];
 
 function readStoredValues(): StoredValueResult[] {
@@ -78,6 +84,9 @@ export function loadWorldDocumentWithStatus(): WorldDocumentLoadResult {
   for (const storedResult of readStoredValues()) {
     if (!storedResult.ok) {
       issues.push(storedResult.issue);
+      if (storedResult.source === 'current') {
+        break;
+      }
       continue;
     }
     if (storedResult.value === null) {
@@ -89,12 +98,15 @@ export function loadWorldDocumentWithStatus(): WorldDocumentLoadResult {
       const document = parseWorldDocument(parsedValue);
       if (document) {
         const recovered = issues.length > 0;
+        const migrated = storedResult.source === 'legacy-v3';
         return {
           document,
           status: {
             state: recovered ? 'recovered' : 'loaded',
             source: storedResult.source,
-            message: recovered
+            message: migrated
+              ? 'Loaded and migrated the schema 3 local world document. Save to persist schema 4; the schema 3 value remains available until then.'
+              : recovered
               ? 'Loaded a recoverable saved document after another local storage source failed.'
               : 'Loaded the saved local world document.',
             issues,

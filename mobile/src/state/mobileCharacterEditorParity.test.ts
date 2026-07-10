@@ -140,6 +140,7 @@ describe('mobile character editor parity', () => {
       (_, index) => ({
         createdAt: '2026-01-01T00:00:00.000Z',
         fields: { origin: `Origin ${index + 1}` },
+        images: [],
         id: `artifact-${index + 1}`,
         kind: 'artifact',
         name: `Artifact ${index + 1}`,

@@ -6,7 +6,7 @@ routing, or recovery UI.
 ## Corrupt Saved Document
 
 1. Open the app in a local dev or production build.
-2. In browser devtools, set `localStorage["valgaron.worldDocument.v3"]` to
+2. In browser devtools, set `localStorage["valgaron.worldDocument.v4"]` to
    invalid JSON such as `{not valid json`.
 3. Refresh the app.
 4. Confirm the app loads starter data instead of a blank screen.
@@ -50,7 +50,7 @@ routing, or recovery UI.
    testing.
 2. Open that tab in the Expo app.
 3. Confirm the recovery screen appears with Retry View and Open Data.
-4. Confirm Open Data switches to the Data tab, where JSON export, diagnostics,
+4. Confirm Open Data switches to the Data tab, where JSON/ZIP export, diagnostics,
    import, reset, and selected recovery snapshot restore remain available.
 5. Confirm the recovery screen does not show raw error details or world content.
 6. Remove the temporary throw and confirm Retry View restores normal app

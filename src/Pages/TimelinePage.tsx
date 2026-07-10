@@ -1,6 +1,7 @@
 import type {
   WorldCodex,
   WorldEntry,
+  WorldImageAsset,
   WorldRelationship,
   WorldSectionConfig,
   WorldWorkspaceSchema,
@@ -25,7 +26,7 @@ export function TimelinePage({
   onArchiveEntry: (entry: WorldEntry, archived: boolean) => void;
   onDeleteEntry: (entry: WorldEntry) => void;
   onDeleteRelationship: (relationshipId: string) => void;
-  onSaveEntry: (entry: WorldEntry) => void;
+  onSaveEntry: (entry: WorldEntry, assets?: readonly WorldImageAsset[]) => void;
   onSaveRelationship: (relationship: WorldRelationship) => void;
 }) {
   return (

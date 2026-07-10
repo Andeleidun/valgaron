@@ -1,4 +1,12 @@
-import { useState, type ReactNode, type Ref } from 'react';
+import {
+  Children,
+  cloneElement,
+  isValidElement,
+  useState,
+  type ReactElement,
+  type ReactNode,
+  type Ref,
+} from 'react';
 import {
   KeyboardAvoidingView,
   Modal,
@@ -41,7 +49,9 @@ export function SectionBlock({
   title,
   children,
   collapsedSummary,
+  collapsed,
   collapsible = false,
+  onCollapsedChange,
   onLayout,
   testID,
   titleTestID,
@@ -49,12 +59,20 @@ export function SectionBlock({
   title: string;
   children: ReactNode;
   collapsedSummary?: string;
+  collapsed?: boolean;
   collapsible?: boolean;
+  onCollapsedChange?: (collapsed: boolean) => void;
   onLayout?: ViewProps['onLayout'];
   testID?: string;
+  sectionId?: string;
   titleTestID?: string;
 }) {
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [internalCollapsed, setInternalCollapsed] = useState(false);
+  const isCollapsed = collapsed ?? internalCollapsed;
+  const setIsCollapsed = (next: boolean) => {
+    if (onCollapsedChange) onCollapsedChange(next);
+    else setInternalCollapsed(next);
+  };
 
   return (
     <View style={styles.section} onLayout={onLayout} testID={testID}>
@@ -72,7 +90,7 @@ export function SectionBlock({
             accessibilityRole="button"
             accessibilityState={{ expanded: !isCollapsed }}
             hitSlop={8}
-            onPress={() => setIsCollapsed((current) => !current)}
+            onPress={() => setIsCollapsed(!isCollapsed)}
             style={({ pressed }) => [
               styles.collapseButton,
               pressed ? styles.pressed : null,
@@ -92,10 +110,135 @@ export function SectionBlock({
   );
 }
 
+type MobileSectionChildProps = {
+  sectionId: string;
+  title: string;
+  collapsed?: boolean;
+  onCollapsedChange?: (collapsed: boolean) => void;
+};
+
+export function MobileSectionDashboard({
+  children,
+  collapsed,
+  isLoaded = true,
+  onMove,
+  onReset,
+  onResetAll,
+  onSetCollapsed,
+  order,
+}: {
+  children: ReactNode;
+  collapsed: ReadonlySet<string>;
+  isLoaded?: boolean;
+  onMove: (sectionId: string, offset: number) => void;
+  onReset: () => void;
+  onResetAll?: () => void;
+  onSetCollapsed: (sectionId: string, value: boolean) => void;
+  order: readonly string[];
+}) {
+  const [isCustomizing, setIsCustomizing] = useState(false);
+  const sections = new Map<string, ReactElement<MobileSectionChildProps>>();
+  Children.forEach(children, (child) => {
+    if (isValidElement<MobileSectionChildProps>(child)) {
+      sections.set(child.props.sectionId, child);
+    }
+  });
+  const visibleSectionIds = order.filter((sectionId) =>
+    sections.has(sectionId)
+  );
+  return (
+    <View style={styles.mobileDashboard}>
+      <ButtonRow>
+        <ActionButton
+          disabled={!isLoaded}
+          label={
+            !isLoaded
+              ? 'Loading Section Layout'
+              : isCustomizing
+              ? 'Done Customizing'
+              : 'Customize Sections'
+          }
+          onPress={() => setIsCustomizing((current) => !current)}
+        />
+        {isCustomizing ? (
+          <>
+            <ActionButton label="Reset Section Layout" onPress={onReset} />
+            {onResetAll ? (
+              <ActionButton
+                label="Reset All Section Layouts"
+                onPress={onResetAll}
+              />
+            ) : null}
+          </>
+        ) : null}
+      </ButtonRow>
+      {isCustomizing ? (
+        <View
+          accessibilityLabel="Section layout controls"
+          style={styles.customizeList}
+        >
+          {visibleSectionIds.map((sectionId, index) => {
+            const section = sections.get(sectionId);
+            if (!section) return null;
+            return (
+              <View key={sectionId} style={styles.customizeRow}>
+                <Text style={styles.customizeTitle}>{section.props.title}</Text>
+                <ButtonRow>
+                  <ActionButton
+                    disabled={index === 0}
+                    label="Earlier"
+                    onPress={() => {
+                      const targetId = visibleSectionIds[index - 1];
+                      if (!targetId) return;
+                      onMove(
+                        sectionId,
+                        order.indexOf(targetId) - order.indexOf(sectionId)
+                      );
+                    }}
+                  />
+                  <ActionButton
+                    disabled={index === visibleSectionIds.length - 1}
+                    label="Later"
+                    onPress={() => {
+                      const targetId = visibleSectionIds[index + 1];
+                      if (!targetId) return;
+                      onMove(
+                        sectionId,
+                        order.indexOf(targetId) - order.indexOf(sectionId)
+                      );
+                    }}
+                  />
+                  <ActionButton
+                    label={collapsed.has(sectionId) ? 'Expand' : 'Collapse'}
+                    onPress={() =>
+                      onSetCollapsed(sectionId, !collapsed.has(sectionId))
+                    }
+                  />
+                </ButtonRow>
+              </View>
+            );
+          })}
+        </View>
+      ) : null}
+      {visibleSectionIds.map((sectionId) => {
+        const section = sections.get(sectionId);
+        return section
+          ? cloneElement(section, {
+              collapsed: collapsed.has(sectionId),
+              onCollapsedChange: (value) => onSetCollapsed(sectionId, value),
+              key: sectionId,
+            })
+          : null;
+      })}
+    </View>
+  );
+}
+
 export function Field({
   accessibilityLabel,
   autoCapitalize,
   autoCorrect,
+  editable = true,
   label,
   value,
   onChangeText,
@@ -106,6 +249,7 @@ export function Field({
   accessibilityLabel?: string;
   autoCapitalize?: TextInputProps['autoCapitalize'];
   autoCorrect?: boolean;
+  editable?: boolean;
   label: string;
   value: string;
   onChangeText: (value: string) => void;
@@ -124,9 +268,14 @@ export function Field({
         accessibilityLabel={accessibilityLabel ?? label}
         autoCapitalize={autoCapitalize}
         autoCorrect={autoCorrect}
+        editable={editable}
         placeholder={placeholder}
         placeholderTextColor={valgaronColors.muted}
-        style={[styles.input, multiline ? styles.multilineInput : null]}
+        style={[
+          styles.input,
+          multiline ? styles.multilineInput : null,
+          !editable ? styles.disabledInput : null,
+        ]}
         testID={testID}
         value={value}
         onChangeText={onChangeText}
@@ -493,6 +642,27 @@ const styles = StyleSheet.create({
     fontSize: valgaronTypography.sizes.sm,
     lineHeight: 20,
   },
+  mobileDashboard: {
+    gap: valgaronSpacing.lg,
+  },
+  customizeList: {
+    borderColor: valgaronColors.accent,
+    borderRadius: valgaronRadius.lg,
+    borderWidth: 1,
+    gap: valgaronSpacing.sm,
+    padding: valgaronSpacing.md,
+  },
+  customizeRow: {
+    borderBottomColor: valgaronColors.border,
+    borderBottomWidth: 1,
+    gap: valgaronSpacing.sm,
+    paddingBottom: valgaronSpacing.sm,
+  },
+  customizeTitle: {
+    color: valgaronColors.heading,
+    fontSize: valgaronTypography.sizes.sm,
+    fontWeight: '700',
+  },
   fieldGroup: {
     gap: valgaronSpacing.xs,
   },
@@ -635,6 +805,9 @@ const styles = StyleSheet.create({
   },
   disabledButton: {
     opacity: 0.46,
+  },
+  disabledInput: {
+    opacity: 0.6,
   },
   pressed: {
     opacity: 0.72,

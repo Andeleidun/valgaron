@@ -5,6 +5,8 @@ import type {
   WorldEntry,
   WorldEntryStatus,
   WorldFieldOverride,
+  WorldImageAsset,
+  WorldImageReference,
   WorldRelationship,
   WorldSectionConfig,
   WorldVocabulary,
@@ -15,9 +17,13 @@ import type {
   WorldWorkspace,
   WorldWorkspaceStatus,
 } from './types';
+import {
+  isSupportedImageMediaType,
+  validateDocumentImageAssets,
+} from './imageAssets';
 import { createSeedWorldDocument, worldSections } from './seedCodex';
 
-export const CURRENT_WORLD_SCHEMA_VERSION = 3;
+export const CURRENT_WORLD_SCHEMA_VERSION = 4;
 
 const VALID_ENTRY_STATUSES: readonly WorldEntryStatus[] = [
   'draft',
@@ -255,6 +261,80 @@ function legacyFieldsFromEntry(
   return fields;
 }
 
+function parseImageReference(value: unknown): WorldImageReference | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+  const id = readString(value, 'id');
+  const uri = readString(value, 'uri');
+  const altText = readString(value, 'altText');
+  const caption = readString(value, 'caption');
+  const decorative = readBoolean(value, 'decorative');
+  if (
+    !id ||
+    !uri ||
+    altText === null ||
+    caption === null ||
+    decorative === null
+  ) {
+    return null;
+  }
+  return { id, uri, altText, caption, decorative };
+}
+
+function parseImageReferences(value: unknown): WorldImageReference[] | null {
+  if (!Array.isArray(value)) {
+    return null;
+  }
+  const images = value.map(parseImageReference);
+  return images.some((image) => image === null)
+    ? null
+    : images.filter((image): image is WorldImageReference => image !== null);
+}
+
+function parseImageAsset(value: unknown): WorldImageAsset | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+  const id = readString(value, 'id');
+  const uri = readString(value, 'uri');
+  const originalFilename = readString(value, 'originalFilename');
+  const mediaType = value.mediaType;
+  const byteSize = value.byteSize;
+  const sha256 = readString(value, 'sha256');
+  const createdAt = readDateString(value, 'createdAt');
+  if (
+    !id ||
+    !uri ||
+    originalFilename === null ||
+    !isSupportedImageMediaType(mediaType) ||
+    typeof byteSize !== 'number' ||
+    !sha256 ||
+    !createdAt
+  ) {
+    return null;
+  }
+  return {
+    id,
+    uri,
+    originalFilename,
+    mediaType,
+    byteSize,
+    sha256,
+    createdAt,
+  };
+}
+
+function parseImageAssets(value: unknown): WorldImageAsset[] | null {
+  if (!Array.isArray(value)) {
+    return null;
+  }
+  const assets = value.map(parseImageAsset);
+  return assets.some((asset) => asset === null)
+    ? null
+    : assets.filter((asset): asset is WorldImageAsset => asset !== null);
+}
+
 function parseEntry(value: unknown): WorldEntry | null {
   if (!isRecord(value)) {
     return null;
@@ -270,6 +350,7 @@ function parseEntry(value: unknown): WorldEntry | null {
   const updatedAt = readDateString(value, 'updatedAt');
   const createdAt = readDateString(value, 'createdAt') ?? updatedAt;
   const fields = readStringMap(value, 'fields') ?? legacyFieldsFromEntry(value);
+  const images = parseImageReferences(value.images);
   if (
     !id ||
     !kind ||
@@ -277,7 +358,8 @@ function parseEntry(value: unknown): WorldEntry | null {
     summary === null ||
     !tags ||
     !updatedAt ||
-    !createdAt
+    !createdAt ||
+    !images
   ) {
     return null;
   }
@@ -293,6 +375,7 @@ function parseEntry(value: unknown): WorldEntry | null {
     createdAt,
     updatedAt,
     fields,
+    images,
   };
 }
 
@@ -696,17 +779,49 @@ function parseWorld(value: unknown): WorldWorkspace | null {
   };
 }
 
+function migrateSchema3DocumentValue(value: unknown): unknown {
+  if (!isRecord(value) || value.schemaVersion !== 3) {
+    return value;
+  }
+  const worlds = Array.isArray(value.worlds)
+    ? value.worlds.map((world) => {
+        if (!isRecord(world) || !isRecord(world.codex)) {
+          return world;
+        }
+        const codex = Object.fromEntries(
+          Object.entries(world.codex).map(([sectionId, entries]) => [
+            sectionId,
+            Array.isArray(entries)
+              ? entries.map((entry) =>
+                  isRecord(entry) ? { ...entry, images: [] } : entry
+                )
+              : entries,
+          ])
+        );
+        return { ...world, codex };
+      })
+    : value.worlds;
+  return {
+    ...value,
+    schemaVersion: CURRENT_WORLD_SCHEMA_VERSION,
+    worlds,
+    assets: [],
+  };
+}
+
 export function parseWorldDocument(value: unknown): WorldDocument | null {
+  const migratedValue = migrateSchema3DocumentValue(value);
   if (
-    !isRecord(value) ||
-    value.schemaVersion !== CURRENT_WORLD_SCHEMA_VERSION
+    !isRecord(migratedValue) ||
+    migratedValue.schemaVersion !== CURRENT_WORLD_SCHEMA_VERSION
   ) {
     return null;
   }
-  const activeWorldId = readString(value, 'activeWorldId');
-  const savedAt = readDateString(value, 'savedAt');
-  const worldsValue = value.worlds;
-  if (!activeWorldId || !savedAt || !Array.isArray(worldsValue)) {
+  const activeWorldId = readString(migratedValue, 'activeWorldId');
+  const savedAt = readDateString(migratedValue, 'savedAt');
+  const worldsValue = migratedValue.worlds;
+  const assets = parseImageAssets(migratedValue.assets);
+  if (!activeWorldId || !savedAt || !Array.isArray(worldsValue) || !assets) {
     return null;
   }
   const worlds = worldsValue.map(parseWorld);
@@ -717,12 +832,14 @@ export function parseWorldDocument(value: unknown): WorldDocument | null {
   ) {
     return null;
   }
-  return {
+  const document: WorldDocument = {
     schemaVersion: CURRENT_WORLD_SCHEMA_VERSION,
     activeWorldId,
     worlds: worlds.filter((world): world is WorldWorkspace => world !== null),
+    assets,
     savedAt,
   };
+  return validateDocumentImageAssets(document) ? null : document;
 }
 
 export function createFallbackWorldDocument(): WorldDocument {

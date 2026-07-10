@@ -22,6 +22,7 @@ describe('help topics', () => {
       'Build the codex',
       'Connect records',
       'Protect local work',
+      'Arrange your drafting desk',
     ]);
     expect(codexWorkflowHelpTopics[0]?.items.join(' ')).toContain(
       'Use Knowledge or mobile More to create custom entry types'
@@ -70,7 +71,7 @@ describe('help topics', () => {
 
   it('covers import and export guidance for compact mobile help', () => {
     expect(codexDataHelpTopics.map((topic) => topic.title)).toEqual([
-      'JSON export',
+      'JSON and ZIP export',
       'Markdown export',
       'Import and reset',
     ]);
@@ -83,9 +84,11 @@ describe('help topics', () => {
     expect(codexDataHelpSummary).toContain(
       "installed app's local storage area"
     );
-    expect(codexWorkflowHelpTopics[2]?.items.join(' ')).toContain(
-      'mobile app storage area'
-    );
+    expect(
+      codexWorkflowHelpTopics
+        .find((topic) => topic.title === 'Protect local work')
+        ?.items.join(' ')
+    ).toContain('mobile app storage area');
     expect(codexDataHelpSummary).toContain('does not add account');
     expect(codexWorkflowHelpTopics[2]?.items[0]).toContain(
       'on mobile, confirm the latest device-save status'
@@ -94,7 +97,7 @@ describe('help topics', () => {
       'uninstalling the mobile app'
     );
     expect(codexDataHelpDetails.map((detail) => detail.term)).toEqual([
-      'JSON export',
+      'JSON and ZIP export',
       'Markdown export',
       'Import',
       'Reset',

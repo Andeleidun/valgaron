@@ -16,6 +16,10 @@ const config = {
     '^@valgaron/core/(.*)$': '<rootDir>/packages/core/src/$1.ts',
     '^@valgaron/platform$': '<rootDir>/packages/platform/src/index.ts',
     '^@valgaron/ui-tokens$': '<rootDir>/packages/ui-tokens/src/index.ts',
+    '^expo-crypto$': '<rootDir>/mobile/src/testing/expoCryptoMock.ts',
+    '^expo-file-system$': '<rootDir>/mobile/src/testing/expoFileSystemMock.ts',
+    '^expo-image-picker$':
+      '<rootDir>/mobile/src/testing/expoImagePickerMock.ts',
   },
   transform: {
     '^.+\\.tsx?$': [
