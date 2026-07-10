@@ -98,7 +98,11 @@ export function OverviewScreen() {
         />
       </View>
 
-      <SectionBlock title={saveStatus.title}>
+      <SectionBlock
+        collapsedSummary={saveStatus.label}
+        collapsible
+        title={saveStatus.title}
+      >
         <StatusText tone={saveStatus.tone}>{saveStatus.label}</StatusText>
         <MutedText>{saveStatus.detail}</MutedText>
         <ButtonRow>
@@ -109,7 +113,13 @@ export function OverviewScreen() {
         </ButtonRow>
       </SectionBlock>
 
-      <SectionBlock title={overviewFeatureCopy.currentDraftStateTitle}>
+      <SectionBlock
+        collapsedSummary={getWorkspaceOverviewDraftingPromptCountLabel(
+          summary.incompleteEntryCount
+        )}
+        collapsible
+        title={overviewFeatureCopy.currentDraftStateTitle}
+      >
         <MutedText>
           {getWorkspaceOverviewDraftingPromptCountLabel(
             summary.incompleteEntryCount
@@ -180,7 +190,13 @@ export function OverviewScreen() {
       </SectionBlock>
 
       {entryHighlights.pinned.length > 0 ? (
-        <SectionBlock title={overviewFeatureCopy.pinnedTitle}>
+        <SectionBlock
+          collapsedSummary={`${entryHighlights.pinned.length} pinned ${
+            entryHighlights.pinned.length === 1 ? 'record' : 'records'
+          }`}
+          collapsible
+          title={overviewFeatureCopy.pinnedTitle}
+        >
           {entryHighlights.pinned.map((entry) => (
             <View key={entry.id} style={styles.queueItem}>
               <Text style={styles.itemTitle}>{entry.name}</Text>
@@ -223,7 +239,13 @@ export function OverviewScreen() {
         )}
       </SectionBlock>
 
-      <SectionBlock title={overviewFeatureCopy.incompleteTitle}>
+      <SectionBlock
+        collapsedSummary={getWorkspaceOverviewDraftingPromptCountLabel(
+          summary.incompleteEntryCount
+        )}
+        collapsible
+        title={overviewFeatureCopy.incompleteTitle}
+      >
         {incompleteEntries.length > 0 ? (
           incompleteEntries.map((item) => (
             <View key={item.entry.id} style={styles.queueItem}>

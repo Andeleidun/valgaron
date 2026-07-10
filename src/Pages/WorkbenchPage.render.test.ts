@@ -27,6 +27,13 @@ describe('WorkbenchPage browser rendering', () => {
     expect(markup).toContain('Edit');
     expect(markup).toContain('class="vwb-secondary-button"');
     expect(markup).toContain('class="vwb-workbench-layout is-empty-editor"');
+    expect(markup).toContain('aria-label="Workbench layout controls"');
+    expect(markup).toContain('role="group"');
+    expect(markup).toContain('Focus editor');
+    expect(markup).toContain('Expand all');
+    expect(markup).toContain('Collapse records');
+    expect(markup).toContain('Collapse context');
+    expect(markup).not.toContain('<nav class="vwb-dashboard-toolbar"');
     expect(markup).toContain('class="vwb-entry-card-meta"');
     expect(markup).not.toContain('No editor target selected.');
     expect(markup).not.toContain('aria-current="page"');

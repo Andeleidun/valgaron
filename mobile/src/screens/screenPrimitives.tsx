@@ -40,26 +40,54 @@ export function ScreenHeader({
 export function SectionBlock({
   title,
   children,
+  collapsedSummary,
+  collapsible = false,
   onLayout,
   testID,
   titleTestID,
 }: {
   title: string;
   children: ReactNode;
+  collapsedSummary?: string;
+  collapsible?: boolean;
   onLayout?: ViewProps['onLayout'];
   testID?: string;
   titleTestID?: string;
 }) {
+  const [isCollapsed, setIsCollapsed] = useState(false);
+
   return (
     <View style={styles.section} onLayout={onLayout} testID={testID}>
-      <Text
-        accessibilityRole="header"
-        style={styles.sectionTitle}
-        testID={titleTestID}
-      >
-        {title}
-      </Text>
-      {children}
+      <View style={styles.sectionHeader}>
+        <Text
+          accessibilityRole="header"
+          style={styles.sectionTitle}
+          testID={titleTestID}
+        >
+          {title}
+        </Text>
+        {collapsible ? (
+          <Pressable
+            accessibilityLabel={`${isCollapsed ? 'Show' : 'Hide'} ${title}`}
+            accessibilityRole="button"
+            accessibilityState={{ expanded: !isCollapsed }}
+            hitSlop={8}
+            onPress={() => setIsCollapsed((current) => !current)}
+            style={({ pressed }) => [
+              styles.collapseButton,
+              pressed ? styles.pressed : null,
+            ]}
+          >
+            <Text style={styles.collapseButtonText}>
+              {isCollapsed ? 'Show' : 'Hide'}
+            </Text>
+          </Pressable>
+        ) : null}
+      </View>
+      {isCollapsed && collapsedSummary ? (
+        <Text style={styles.collapsedSummary}>{collapsedSummary}</Text>
+      ) : null}
+      {!isCollapsed ? children : null}
     </View>
   );
 }
@@ -427,14 +455,43 @@ const styles = StyleSheet.create({
   },
   section: {
     borderColor: valgaronColors.border,
-    borderTopWidth: 1,
-    paddingTop: valgaronSpacing.md,
+    borderRadius: valgaronRadius.lg,
+    borderWidth: 1,
+    backgroundColor: valgaronColors.surface,
+    padding: valgaronSpacing.md,
+    gap: valgaronSpacing.md,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     gap: valgaronSpacing.md,
   },
   sectionTitle: {
+    flex: 1,
     color: valgaronColors.heading,
     fontSize: valgaronTypography.sizes.lg,
     fontWeight: '700',
+  },
+  collapseButton: {
+    minHeight: 44,
+    minWidth: 64,
+    borderColor: valgaronColors.border,
+    borderRadius: valgaronRadius.md,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: valgaronSpacing.sm,
+  },
+  collapseButtonText: {
+    color: valgaronColors.text,
+    fontSize: valgaronTypography.sizes.sm,
+    fontWeight: '700',
+  },
+  collapsedSummary: {
+    color: valgaronColors.muted,
+    fontSize: valgaronTypography.sizes.sm,
+    lineHeight: 20,
   },
   fieldGroup: {
     gap: valgaronSpacing.xs,

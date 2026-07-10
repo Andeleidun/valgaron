@@ -31,6 +31,37 @@ import {
   useUnsavedChangesWarning,
 } from '../Utlilities/unsavedChanges';
 
+const workbenchLayoutStorageKey = 'valgaron:workbench-layout:v1';
+
+type WorkbenchLayoutPreferences = {
+  isContextCollapsed: boolean;
+  isIndexCollapsed: boolean;
+};
+
+function readWorkbenchLayoutPreferences(): WorkbenchLayoutPreferences {
+  if (typeof window === 'undefined') {
+    return { isContextCollapsed: false, isIndexCollapsed: false };
+  }
+
+  try {
+    const storedValue = window.localStorage.getItem(workbenchLayoutStorageKey);
+    if (!storedValue) {
+      return { isContextCollapsed: false, isIndexCollapsed: false };
+    }
+    const parsedValue: unknown = JSON.parse(storedValue);
+    if (!parsedValue || typeof parsedValue !== 'object') {
+      return { isContextCollapsed: false, isIndexCollapsed: false };
+    }
+    const preferences = parsedValue as Partial<WorkbenchLayoutPreferences>;
+    return {
+      isContextCollapsed: preferences.isContextCollapsed === true,
+      isIndexCollapsed: preferences.isIndexCollapsed === true,
+    };
+  } catch {
+    return { isContextCollapsed: false, isIndexCollapsed: false };
+  }
+}
+
 function RecordCard({
   isSelected,
   record,
@@ -105,6 +136,8 @@ export function WorkbenchPage({
     routeViewId,
   ].join('|');
   const appliedRouteStateKeyRef = useRef(routeStateKey);
+  const contextHeadingRef = useRef<HTMLHeadingElement>(null);
+  const indexHeadingRef = useRef<HTMLHeadingElement>(null);
   const [query, setQuery] = useState(() => searchParams.get('query') ?? '');
   const [selectedEntryId, setSelectedEntryId] = useState(
     () => searchParams.get('entryId') ?? ''
@@ -123,6 +156,8 @@ export function WorkbenchPage({
   );
   const [entryPendingDelete, setEntryPendingDelete] =
     useState<WorldEntry | null>(null);
+  const [layoutPreferences, setLayoutPreferences] =
+    useState<WorkbenchLayoutPreferences>(readWorkbenchLayoutPreferences);
   const model = useMemo(
     () =>
       getWorkbenchRecordIndexModel(activeWorld, {
@@ -168,12 +203,25 @@ export function WorkbenchPage({
   const editorSectionEntries = editorSection
     ? getEntries(activeWorld.codex, editorSection.id)
     : [];
+  const hasCollapsedDashboardCards =
+    layoutPreferences.isIndexCollapsed || layoutPreferences.isContextCollapsed;
 
   useUnsavedChangesWarning(isEntryFormDirty);
 
   useEffect(() => {
     setShowAllDraftingPrompts(false);
   }, [selected.record?.id]);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(
+        workbenchLayoutStorageKey,
+        JSON.stringify(layoutPreferences)
+      );
+    } catch {
+      // Layout preferences are optional when browser storage is unavailable.
+    }
+  }, [layoutPreferences]);
 
   const resetInlineEditor = () => {
     setTemplateDraft(null);
@@ -304,6 +352,19 @@ export function WorkbenchPage({
     });
   };
 
+  const restoreDashboardCard = (card: 'context' | 'index') => {
+    setLayoutPreferences((current) => ({
+      ...current,
+      [card === 'context' ? 'isContextCollapsed' : 'isIndexCollapsed']: false,
+    }));
+    window.requestAnimationFrame(() => {
+      (card === 'context'
+        ? contextHeadingRef.current
+        : indexHeadingRef.current
+      )?.focus();
+    });
+  };
+
   return (
     <main className="vwb-main" id="main-content" tabIndex={-1}>
       <section className="vwb-panel vwb-section-intro">
@@ -312,18 +373,109 @@ export function WorkbenchPage({
         <p>{intro.detail}</p>
       </section>
 
+      <div
+        className="vwb-dashboard-toolbar"
+        aria-label="Workbench layout controls"
+        role="group"
+      >
+        <div className="vwb-dashboard-toolbar-summary">
+          <strong>Workspace view</strong>
+          <span>
+            {editorSection
+              ? `Editing ${editorSection.title}`
+              : 'Browse and select a record to begin drafting.'}
+          </span>
+        </div>
+        <div className="vwb-dashboard-toolbar-actions">
+          <button
+            className="vwb-secondary-button"
+            type="button"
+            onClick={() =>
+              setLayoutPreferences({
+                isContextCollapsed: true,
+                isIndexCollapsed: true,
+              })
+            }
+            disabled={!editorSection}
+          >
+            Focus editor
+          </button>
+          <button
+            className="vwb-secondary-button"
+            type="button"
+            onClick={() =>
+              setLayoutPreferences({
+                isContextCollapsed: false,
+                isIndexCollapsed: false,
+              })
+            }
+            disabled={!hasCollapsedDashboardCards}
+          >
+            Expand all
+          </button>
+        </div>
+      </div>
+
+      {hasCollapsedDashboardCards ? (
+        <div className="vwb-dashboard-shelf" aria-label="Collapsed cards">
+          <span className="vwb-dashboard-shelf-label">Collapsed</span>
+          {layoutPreferences.isIndexCollapsed ? (
+            <button
+              className="vwb-dashboard-shelf-item"
+              type="button"
+              onClick={() => restoreDashboardCard('index')}
+            >
+              Records · {model.activeView.count}
+            </button>
+          ) : null}
+          {layoutPreferences.isContextCollapsed ? (
+            <button
+              className="vwb-dashboard-shelf-item"
+              type="button"
+              onClick={() => restoreDashboardCard('context')}
+            >
+              Record context
+              {selected.reviewSummary.hasIssues
+                ? ` · ${selected.reviewSummary.totalIssueCount} issues`
+                : ''}
+            </button>
+          ) : null}
+        </div>
+      ) : null}
+
       <section
-        className={`vwb-workbench-layout ${
-          isWorkbenchEmptyEditor ? 'is-empty-editor' : ''
-        }`}
+        className={[
+          'vwb-workbench-layout',
+          isWorkbenchEmptyEditor ? 'is-empty-editor' : '',
+          layoutPreferences.isIndexCollapsed ? 'is-index-collapsed' : '',
+        ]
+          .filter(Boolean)
+          .join(' ')}
         aria-label={model.copy.layoutAriaLabel}
       >
-        <div className="vwb-panel vwb-workbench-index-panel">
+        <div
+          className="vwb-panel vwb-workbench-index-panel"
+          hidden={layoutPreferences.isIndexCollapsed}
+        >
           <div className="vwb-section-heading">
             <div>
               <p className="vwb-kicker">{model.copy.recordIndexKicker}</p>
-              <h2>{model.copy.recordIndexTitle}</h2>
+              <h2 ref={indexHeadingRef} tabIndex={-1}>
+                {model.copy.recordIndexTitle}
+              </h2>
             </div>
+            <button
+              className="vwb-secondary-button"
+              type="button"
+              onClick={() =>
+                setLayoutPreferences((current) => ({
+                  ...current,
+                  isIndexCollapsed: true,
+                }))
+              }
+            >
+              Collapse records
+            </button>
           </div>
 
           <label className="vwb-search-field">
@@ -562,14 +714,31 @@ export function WorkbenchPage({
         <aside
           className="vwb-panel vwb-workbench-context-panel"
           aria-labelledby="workbench-context-title"
+          hidden={layoutPreferences.isContextCollapsed}
         >
           <div className="vwb-section-heading">
             <div>
               <p className="vwb-kicker">{selected.kicker}</p>
-              <h2 id="workbench-context-title">
+              <h2
+                id="workbench-context-title"
+                ref={contextHeadingRef}
+                tabIndex={-1}
+              >
                 {selected.record?.name ?? selected.emptyTitle}
               </h2>
             </div>
+            <button
+              className="vwb-secondary-button"
+              type="button"
+              onClick={() =>
+                setLayoutPreferences((current) => ({
+                  ...current,
+                  isContextCollapsed: true,
+                }))
+              }
+            >
+              Collapse context
+            </button>
           </div>
 
           {selected.record ? (

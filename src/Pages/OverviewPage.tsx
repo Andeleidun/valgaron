@@ -76,7 +76,10 @@ export function Overview({ document }: { document: WorldDocument }) {
         ))}
       </section>
 
-      <section className="vwb-panel" aria-labelledby="quick-create-title">
+      <section
+        className="vwb-panel vwb-overview-quick-create"
+        aria-labelledby="quick-create-title"
+      >
         <div className="vwb-section-heading">
           <div>
             <p className="vwb-kicker">
@@ -100,7 +103,10 @@ export function Overview({ document }: { document: WorldDocument }) {
         </div>
       </section>
 
-      <section className="vwb-panel" aria-labelledby="global-search-title">
+      <section
+        className="vwb-panel vwb-overview-search"
+        aria-labelledby="global-search-title"
+      >
         <div className="vwb-section-heading">
           <div>
             <p className="vwb-kicker">
@@ -160,7 +166,10 @@ export function Overview({ document }: { document: WorldDocument }) {
         ) : null}
       </section>
 
-      <section className="vwb-panel" aria-labelledby="recent-title">
+      <section
+        className="vwb-panel vwb-overview-recent"
+        aria-labelledby="recent-title"
+      >
         <div className="vwb-section-heading">
           <div>
             <p className="vwb-kicker">{overviewFeatureCopy.recentKicker}</p>
@@ -194,7 +203,10 @@ export function Overview({ document }: { document: WorldDocument }) {
       </section>
 
       {entryHighlights.pinned.length > 0 ? (
-        <section className="vwb-panel" aria-labelledby="pinned-title">
+        <section
+          className="vwb-panel vwb-overview-pinned"
+          aria-labelledby="pinned-title"
+        >
           <div className="vwb-section-heading">
             <div>
               <p className="vwb-kicker">{overviewFeatureCopy.pinnedKicker}</p>
@@ -222,7 +234,10 @@ export function Overview({ document }: { document: WorldDocument }) {
       ) : null}
 
       {incompleteEntries.length > 0 ? (
-        <section className="vwb-panel" aria-labelledby="incomplete-title">
+        <section
+          className="vwb-panel vwb-overview-incomplete"
+          aria-labelledby="incomplete-title"
+        >
           <div className="vwb-section-heading">
             <div>
               <p className="vwb-kicker">
