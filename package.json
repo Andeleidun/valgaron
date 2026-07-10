@@ -35,6 +35,7 @@
     "check:browser": "node scripts/browserSmoke.cjs",
     "mobile:e2e": "npm run mobile:e2e:android",
     "mobile:e2e:android": "node scripts/runMobileMaestro.cjs android",
+    "android:apk:debug": "npm run android:apk:debug --workspace @valgaron/mobile",
     "check": "npm run format:check && npm run lint && npm run typecheck && npm run typecheck:mobile && npm run check:metadata && npm run check:taxonomies && npm test && npm run build",
     "check:release": "npm run check && npm run check:audit && npm run mobile:doctor && npm run check:pwa && npm run check:browser",
     "preview": "vite preview"

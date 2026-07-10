@@ -7,6 +7,7 @@
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
     "platforms": ["android", "ios", "web"],
+    "plugins": ["./plugins/withEmbeddedDebugBundle.cjs"],
     "android": {
       "package": "com.valgaron.mobile"
     },

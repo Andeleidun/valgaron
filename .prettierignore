@@ -17,6 +17,10 @@ dist-ssr
 apps/home/dist
 functions/lib
 
+# Expo generated native projects
+mobile/android
+mobile/ios
+
 # vendored upstream package files
 vendor/expo-metro-config/**
 !vendor/expo-metro-config/package.json

@@ -6,6 +6,7 @@
   "main": "expo-router/entry",
   "scripts": {
     "android": "expo run:android",
+    "android:apk:debug": "expo prebuild --platform android --no-install && cd android && gradlew.bat assembleDebug",
     "start": "expo start",
     "test": "jest --runInBand src",
     "typecheck": "tsc --noEmit -p tsconfig.json"

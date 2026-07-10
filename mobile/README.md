@@ -47,6 +47,18 @@ npm run typecheck:mobile
 npm run mobile:doctor
 ```
 
+To create a debug APK with its JavaScript bundle embedded (so it does not need
+the Expo or Metro development server), run this Windows command from the
+repository root:
+
+```powershell
+npm run android:apk:debug
+```
+
+The APK is written to
+`mobile/android/app/build/outputs/apk/debug/app-debug.apk`. The generated
+Android project and build artifacts are intentionally ignored by Git.
+
 Native device interaction coverage starts with the Android Maestro harness. See
 [`docs/qa/mobile-maestro.md`](../docs/qa/mobile-maestro.md) for Maestro
 installation, E2E reset, build/install, and run instructions.
