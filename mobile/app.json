@@ -17,7 +17,8 @@
           "microphonePermission": false
         }
       ],
-      "expo-sharing"
+      "expo-sharing",
+      "expo-router"
     ],
     "android": {
       "package": "com.valgaron.mobile"
