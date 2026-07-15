@@ -248,7 +248,8 @@ function clampCardPreference({
 
 function normalizeForViewport(
   card: DashboardCardPreference,
-  viewport: DashboardViewportClass
+  viewport: DashboardViewportClass,
+  pageId: DashboardPageId
 ): DashboardCardPreference {
   if (viewport === 'compact') {
     return {
@@ -260,7 +261,13 @@ function normalizeForViewport(
   if (viewport === 'standard') {
     return {
       ...card,
-      size: card.size === 'wide' ? 'full' : card.size,
+      size:
+        pageId === 'timeline' ||
+        pageId === 'knowledge' ||
+        pageId === 'utilities' ||
+        card.size === 'wide'
+          ? 'full'
+          : card.size,
     };
   }
   return card;
@@ -312,7 +319,7 @@ export function normalizeDashboardLayout({
     const visible = isForcedVisible
       ? { ...clamped, collapsed: false }
       : clamped;
-    const responsive = normalizeForViewport(visible, viewport);
+    const responsive = normalizeForViewport(visible, viewport, pageId);
     return {
       ...responsive,
       region: responsive.collapsed ? 'shelf' : responsive.region,
@@ -636,12 +643,9 @@ export const dashboardCardDefinitions = [
     'timeline.filters',
     'Timeline filters',
     'supporting',
-    'standard'
+    'compact'
   ),
   card('timeline', 'timeline.chronology', 'Chronology', 'primary', 'wide', {
-    allowedSizes: ['wide', 'full'],
-  }),
-  card('timeline', 'timeline.event-editor', 'Event editor', 'primary', 'wide', {
     allowedSizes: ['wide', 'full'],
   }),
   card(
@@ -649,8 +653,11 @@ export const dashboardCardDefinitions = [
     'timeline.review',
     'Timeline review',
     'supporting',
-    'standard'
+    'compact'
   ),
+  card('timeline', 'timeline.event-editor', 'Event editor', 'primary', 'wide', {
+    allowedSizes: ['wide', 'full'],
+  }),
   card(
     'timeline',
     'timeline.era-manager',
@@ -671,16 +678,6 @@ export const dashboardCardDefinitions = [
   card('links', 'links.bulk-review', 'Bulk review', 'full', 'full'),
   card(
     'knowledge',
-    'knowledge.navigator',
-    'Knowledge navigator',
-    'supporting',
-    'standard'
-  ),
-  card('knowledge', 'knowledge.editor', 'Schema editor', 'primary', 'wide', {
-    allowedSizes: ['wide', 'full'],
-  }),
-  card(
-    'knowledge',
     'knowledge.schema-health',
     'Schema health',
     'supporting',
@@ -688,12 +685,22 @@ export const dashboardCardDefinitions = [
   ),
   card(
     'knowledge',
-    'knowledge.field-order',
-    'Field configuration',
-    'primary',
+    'knowledge.navigator',
+    'Knowledge navigator',
+    'supporting',
     'wide'
   ),
-  card('knowledge', 'knowledge.vocabulary', 'Vocabulary', 'primary', 'wide'),
+  card(
+    'knowledge',
+    'knowledge.field-order',
+    'Field configuration',
+    'full',
+    'full'
+  ),
+  card('knowledge', 'knowledge.editor', 'Schema editor', 'full', 'full', {
+    allowedSizes: ['wide', 'full'],
+  }),
+  card('knowledge', 'knowledge.vocabulary', 'Vocabulary', 'full', 'full'),
   card(
     'knowledge',
     'knowledge.hidden-detail-review',
@@ -712,8 +719,8 @@ export const dashboardCardDefinitions = [
     'knowledge',
     'knowledge.reusable-definitions',
     'Reusable definitions',
-    'primary',
-    'wide'
+    'full',
+    'full'
   ),
   card('data', 'data.save-health', 'Save health', 'supporting', 'compact'),
   card('data', 'data.export', 'Export', 'primary', 'standard'),
@@ -762,14 +769,8 @@ export const dashboardCardDefinitions = [
   card('help', 'help.support', 'Support', 'supporting', 'compact'),
   card('help', 'help.privacy', 'Privacy', 'supporting', 'compact'),
   card('help', 'help.limits', 'Release limits', 'full', 'full'),
-  card('utilities', 'utilities.review', 'Review hotspots', 'primary', 'wide'),
-  card(
-    'utilities',
-    'utilities.tools',
-    'Project tools',
-    'supporting',
-    'standard'
-  ),
+  card('utilities', 'utilities.review', 'Review hotspots', 'full', 'full'),
+  card('utilities', 'utilities.tools', 'Project tools', 'full', 'full'),
 ] as const satisfies readonly DashboardCardDefinition[];
 
 function createSharedPresets(

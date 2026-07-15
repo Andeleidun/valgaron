@@ -923,23 +923,20 @@ export function SectionPage({
         ) : null}
 
         <section
-          className="vwb-entry-column"
-          data-dashboard-card-id="timeline.chronology"
-          aria-label={formatEntrySectionEntriesLabel(section)}
+          className="vwb-panel"
+          data-dashboard-card-id="timeline.filters"
+          aria-labelledby="timeline-filters-title"
         >
           <div className="vwb-section-heading">
             <div>
-              <p className="vwb-kicker">
-                {formatEntryListShownCount(
-                  filteredEntries.length,
-                  entries.length
-                )}
-              </p>
-              <h2>{entryListCopy.entriesTitle}</h2>
+              <p className="vwb-kicker">Browse the chronology</p>
+              <h2 id="timeline-filters-title">
+                {formatEntrySectionFiltersLabel(section)}
+              </h2>
             </div>
           </div>
           <div
-            className="vwb-filter-panel vwb-entry-filter-panel"
+            className="vwb-filter-panel"
             aria-label={formatEntrySectionFiltersLabel(section)}
           >
             <label className="vwb-search-field">
@@ -1119,6 +1116,24 @@ export function SectionPage({
               />
               {entryShowArchivedControl.label}
             </label>
+          </div>
+        </section>
+
+        <section
+          className="vwb-entry-column"
+          data-dashboard-card-id="timeline.chronology"
+          aria-label={formatEntrySectionEntriesLabel(section)}
+        >
+          <div className="vwb-section-heading">
+            <div>
+              <p className="vwb-kicker">
+                {formatEntryListShownCount(
+                  filteredEntries.length,
+                  entries.length
+                )}
+              </p>
+              <h2>{entryListCopy.entriesTitle}</h2>
+            </div>
           </div>
           <div className="vwb-entry-list">
             {filteredEntries.length > 0 ? (

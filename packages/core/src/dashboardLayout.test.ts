@@ -44,6 +44,150 @@ describe('adaptive dashboard layout', () => {
     ).toBe(true);
   });
 
+  it('uses the revised wide defaults for Timeline, Knowledge, and Utilities', () => {
+    const expectedDefaults = {
+      timeline: {
+        'timeline.overview': ['full', 'full'],
+        'timeline.filters': ['supporting', 'compact'],
+        'timeline.chronology': ['primary', 'wide'],
+        'timeline.review': ['supporting', 'compact'],
+        'timeline.event-editor': ['primary', 'wide'],
+        'timeline.era-manager': ['supporting', 'standard'],
+      },
+      knowledge: {
+        'knowledge.schema-health': ['supporting', 'compact'],
+        'knowledge.navigator': ['supporting', 'wide'],
+        'knowledge.field-order': ['full', 'full'],
+        'knowledge.editor': ['full', 'full'],
+        'knowledge.vocabulary': ['full', 'full'],
+        'knowledge.hidden-detail-review': ['supporting', 'standard'],
+        'knowledge.types': ['supporting', 'standard'],
+        'knowledge.reusable-definitions': ['full', 'full'],
+      },
+      utilities: {
+        'utilities.review': ['full', 'full'],
+        'utilities.tools': ['full', 'full'],
+      },
+    } as const;
+
+    for (const [pageId, expectedCards] of Object.entries(expectedDefaults)) {
+      const page = pageId as keyof typeof expectedDefaults;
+      const pagePreset = getDashboardPreset(page, 'default');
+      const layout = normalizeDashboardLayout({
+        pageId: page,
+        definitions: dashboardCardDefinitions,
+        preset: pagePreset,
+        viewport: 'wide',
+      });
+      const cardsById = new Map(layout.cards.map((card) => [card.id, card]));
+      for (const [cardId, [region, size]] of Object.entries(expectedCards)) {
+        expect(cardsById.get(cardId)).toMatchObject({ region, size });
+      }
+      expect(layout.cards.map((card) => card.id)).toEqual(
+        Object.keys(expectedCards)
+      );
+    }
+  });
+
+  it('normalizes the requested dashboards to full rows at laptop widths', () => {
+    for (const pageId of ['timeline', 'knowledge', 'utilities'] as const) {
+      const pagePreset = getDashboardPreset(pageId, 'default');
+      const pagePreference = createDashboardPagePreference({
+        pageId,
+        preset: pagePreset,
+        definitions: dashboardCardDefinitions,
+      });
+      const layout = normalizeDashboardLayout({
+        pageId,
+        definitions: dashboardCardDefinitions,
+        preset: pagePreset,
+        preference: pagePreference,
+        viewport: 'standard',
+      });
+      expect(layout.cards.every((card) => card.size === 'full')).toBe(true);
+    }
+  });
+
+  it('keeps standard-width behavior unchanged for other dashboards', () => {
+    const layout = normalizeDashboardLayout({
+      pageId: 'workbench',
+      definitions: dashboardCardDefinitions,
+      preset,
+      preference,
+      viewport: 'standard',
+    });
+    const cardsById = new Map(layout.cards.map((card) => [card.id, card]));
+    expect(cardsById.get('workbench.records')?.size).toBe('standard');
+    expect(cardsById.get('workbench.editor')?.size).toBe('full');
+    expect(cardsById.get('workbench.record-context')?.size).toBe('standard');
+  });
+
+  it('preserves stored wide-layout customizations and uses new defaults only for missing cards', () => {
+    const knowledgePreset = getDashboardPreset('knowledge', 'default');
+    const stored = createDashboardPagePreference({
+      pageId: 'knowledge',
+      preset: knowledgePreset,
+      definitions: dashboardCardDefinitions,
+    });
+    stored.cards['knowledge.navigator'] = {
+      region: 'primary',
+      size: 'standard',
+      order: 99,
+      collapsed: false,
+    };
+    stored.cards['knowledge.schema-health'] = {
+      region: 'full',
+      size: 'standard',
+      order: 98,
+      collapsed: true,
+    };
+    const stale = {
+      ...stored,
+      cards: {
+        'knowledge.navigator': stored.cards['knowledge.navigator']!,
+        'knowledge.schema-health': stored.cards['knowledge.schema-health']!,
+      },
+    };
+    const merged = mergeDashboardPagePreference({
+      preference: stale,
+      preset: knowledgePreset,
+      definitions: dashboardCardDefinitions,
+    });
+    const layout = normalizeDashboardLayout({
+      pageId: 'knowledge',
+      definitions: dashboardCardDefinitions,
+      preset: knowledgePreset,
+      preference: merged,
+      viewport: 'wide',
+    });
+    const cardsById = new Map(layout.cards.map((card) => [card.id, card]));
+
+    expect(cardsById.get('knowledge.navigator')).toMatchObject({
+      region: 'primary',
+      size: 'standard',
+      collapsed: false,
+    });
+    expect(cardsById.get('knowledge.schema-health')).toMatchObject({
+      region: 'shelf',
+      size: 'standard',
+      collapsed: true,
+    });
+    expect(merged.cards['knowledge.navigator']).toEqual(
+      stored.cards['knowledge.navigator']
+    );
+    expect(merged.cards['knowledge.schema-health']).toEqual(
+      stored.cards['knowledge.schema-health']
+    );
+    expect(layout.cards.slice(-2).map((card) => card.id)).toEqual([
+      'knowledge.schema-health',
+      'knowledge.navigator',
+    ]);
+    expect(merged.cards['knowledge.field-order']).toMatchObject({
+      region: 'full',
+      size: 'full',
+    });
+  });
+
   it('enforces card constraints and forced visibility', () => {
     const changed = {
       ...preference,

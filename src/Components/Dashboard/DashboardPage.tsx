@@ -55,7 +55,18 @@ export function DashboardPage({
   });
 
   return (
-    <div className="vwb-dashboard-page" ref={dashboard.containerRef}>
+    <div
+      className="vwb-dashboard-page"
+      data-dashboard-layout-state={
+        dashboard.isCustomizing
+          ? 'customizing'
+          : dashboard.isPresetCustomized
+          ? 'customized'
+          : 'recommended'
+      }
+      data-dashboard-page-id={pageId}
+      ref={dashboard.containerRef}
+    >
       <DashboardToolbar
         activePresetId={dashboard.history.present.presetId}
         canRedo={dashboard.canRedo}
