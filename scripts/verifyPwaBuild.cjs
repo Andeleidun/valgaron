@@ -1,3 +1,4 @@
+const { createHash } = require('node:crypto');
 const { existsSync, readFileSync, statSync } = require('node:fs');
 const { join } = require('node:path');
 
@@ -7,6 +8,7 @@ const requiredFiles = [
   '404.html',
   'manifest.webmanifest',
   'sw.js',
+  'deployment.json',
   'favicon.svg',
   'pwa-icon-192.png',
   'pwa-icon-512.png',
@@ -31,6 +33,9 @@ const manifest = JSON.parse(
   readFileSync(join(distDir, 'manifest.webmanifest'), 'utf8')
 );
 const serviceWorker = readFileSync(join(distDir, 'sw.js'), 'utf8');
+const deployment = JSON.parse(
+  readFileSync(join(distDir, 'deployment.json'), 'utf8')
+);
 const expectedThemeColor = '#111312';
 
 assert(
@@ -68,6 +73,31 @@ assert(
   serviceWorker.includes('networkFirst') &&
     serviceWorker.includes('VALGARON_CACHE_VERSION'),
   'Service worker cache strategy markers are missing.'
+);
+assert(
+  typeof deployment.version === 'string' && deployment.version.length > 0,
+  'deployment.json version is missing.'
+);
+assert(
+  deployment.indexSha256 ===
+    createHash('sha256').update(indexHtml).digest('hex'),
+  'deployment.json index hash does not match index.html.'
+);
+assert(
+  serviceWorker.includes(
+    `const VALGARON_DEPLOY_VERSION = '${deployment.version}';`
+  ),
+  'Service worker deploy version does not match deployment.json.'
+);
+assert(
+  !process.env.VALGARON_DEPLOY_COMMIT ||
+    deployment.commit === process.env.VALGARON_DEPLOY_COMMIT,
+  'deployment.json commit does not match VALGARON_DEPLOY_COMMIT.'
+);
+assert(
+  !process.env.VALGARON_DEPLOY_COMMIT ||
+    deployment.version === process.env.VALGARON_DEPLOY_COMMIT,
+  'deployment.json version does not match VALGARON_DEPLOY_COMMIT.'
 );
 
 process.stdout.write('PWA build verification passed.\n');

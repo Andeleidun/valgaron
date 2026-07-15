@@ -27,6 +27,12 @@ VITE_BASE_PATH=/${{ github.event.repository.name }}/ npm run build:pages
 
 `build:pages` runs the normal production build and then copies `dist/index.html` to `dist/404.html`. The copied fallback lets GitHub Pages serve the React app shell for direct route refreshes such as `/valgaron/entries?sectionId=characters`.
 
+The workflow also stamps the service worker and `deployment.json` with the
+current commit. After the Pages action completes, it polls the live URL and
+fails unless the published deployment metadata and service worker match that
+commit and the user-facing Pages root matches the built app shell. A green Pages
+workflow therefore verifies the live site, not only the uploaded artifact.
+
 For a custom domain or user/organization root site, set `VITE_BASE_PATH=/` in the Pages workflow.
 
 ## PWA Cache Strategy
@@ -34,7 +40,10 @@ For a custom domain or user/organization root site, set `VITE_BASE_PATH=/` in th
 The service worker is intentionally conservative:
 
 - Navigation requests use network-first caching so updated `index.html` is preferred when the user is online.
-- Versioned cache names are deleted on activation to avoid keeping stale app shells after schema or data-shape changes.
+- Every production build receives a unique cache version, and old cache names
+  are deleted on activation.
+- Service-worker registration bypasses the browser's HTTP cache and reloads an
+  already-controlled page once after a new worker takes control.
 - Same-origin scripts, styles, images, and the manifest use stale-while-revalidate for offline repeat visits.
 - The app registers the service worker only in production builds.
 

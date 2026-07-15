@@ -119,7 +119,9 @@ https://andeleidun.github.io/valgaron/
 The deployment workflow is `.github/workflows/pages.yml`. It runs on pushes to
 `main` and manual workflow dispatch, builds with `VITE_BASE_PATH=/valgaron/`,
 prepares the `404.html` fallback for React Router routes, verifies the PWA
-artifact, and deploys the `dist` directory with GitHub's Pages Actions.
+artifact, deploys the `dist` directory with GitHub's Pages Actions, and verifies
+that the live app shell, deployment metadata, and service worker match the
+pushed commit.
 
 In GitHub repository settings, set **Pages > Build and deployment > Source** to
 **GitHub Actions**. The next push to `main` or manual run of **Deploy GitHub

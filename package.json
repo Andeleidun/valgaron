@@ -20,7 +20,7 @@
     "test:mobile": "jest --runInBand mobile/src",
     "typecheck": "tsc -b --noEmit",
     "typecheck:mobile": "npm run typecheck --workspace @valgaron/mobile",
-    "build": "tsc -b && vite build",
+    "build": "tsc -b && vite build && node scripts/prepareServiceWorker.cjs",
     "build:pages": "npm run build && node scripts/preparePagesArtifact.cjs",
     "lint": "eslint .",
     "check:metadata": "node scripts/checkAppMetadata.cjs",

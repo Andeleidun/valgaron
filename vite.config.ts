@@ -5,4 +5,15 @@ import react from '@vitejs/plugin-react';
 export default defineConfig({
   base: process.env.VITE_BASE_PATH ?? '/',
   plugins: [react()],
+  server: {
+    watch: {
+      ignored: [
+        '**/.tmp/**',
+        '**/dist/**',
+        '**/mobile/.expo/**',
+        '**/mobile/android/**',
+        '**/mobile/ios/**',
+      ],
+    },
+  },
 });

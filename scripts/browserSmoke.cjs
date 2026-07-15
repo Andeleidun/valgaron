@@ -6,6 +6,8 @@ const {
   writeFileSync,
 } = require('node:fs');
 const { get } = require('node:http');
+const { createServer } = require('node:net');
+const { tmpdir } = require('node:os');
 const { basename, join } = require('node:path');
 const { spawn, spawnSync } = require('node:child_process');
 const WebSocket = require('ws');
@@ -16,11 +18,11 @@ const baseUrl = `http://${host}:${port}`;
 const rootDir = process.cwd();
 const artifactDir = join(rootDir, '.tmp', 'browser-smoke');
 const runId = `run-${process.pid}-${Date.now()}`;
-const profileRoot = join(artifactDir, 'profiles', runId);
+const profileRoot = join(tmpdir(), 'valgaron-browser-smoke', runId);
 const screenshotDir = join(artifactDir, 'screenshots', runId);
 const serverReadyTimeoutMs = 15000;
 const browserTimeoutMs = Number(process.env.VWB_BROWSER_TIMEOUT_MS ?? 90000);
-const cdpTimeoutMs = 20000;
+const cdpTimeoutMs = Number(process.env.VWB_CDP_TIMEOUT_MS ?? 60000);
 
 function removePathIfPossible(path) {
   try {
@@ -472,6 +474,29 @@ function startServer() {
   return { child, getOutput: () => output };
 }
 
+function findAvailablePort() {
+  return new Promise((resolve, reject) => {
+    const server = createServer();
+    server.unref();
+    server.once('error', reject);
+    server.listen(0, host, () => {
+      const address = server.address();
+      if (!address || typeof address === 'string') {
+        server.close();
+        reject(new Error('Unable to allocate a browser debugging port.'));
+        return;
+      }
+      server.close((error) => {
+        if (error) {
+          reject(error);
+          return;
+        }
+        resolve(address.port);
+      });
+    });
+  });
+}
+
 function browserBaseArgs(profilePrefix, profileName, size) {
   return [
     '--headless=new',
@@ -572,7 +597,7 @@ function assertRouteText(browserPath, profilePrefix, routeCheck) {
 }
 
 async function assertRelationshipGraphNodeActions(browserPath, profilePrefix) {
-  const debugPort = 60000 + (process.pid % 1000);
+  const debugPort = await findAvailablePort();
   const url = `${baseUrl}/relationships`;
   const child = spawn(
     browserPath,
@@ -697,7 +722,7 @@ async function assertTimelineContextCreateRouteReseeds(
   browserPath,
   profilePrefix
 ) {
-  const debugPort = 61000 + (process.pid % 1000);
+  const debugPort = await findAvailablePort();
   const initialPath =
     '/timeline?intent=new&era=Charter%20Era&involvedEntryId=faction-cartographers-guild';
   const nextPath =
@@ -797,7 +822,7 @@ async function assertTimelineContextCreateRouteReseeds(
 }
 
 async function assertWorkbenchDirtyRouteGuard(browserPath, profilePrefix) {
-  const debugPort = 61500 + (process.pid % 1000);
+  const debugPort = await findAvailablePort();
   const initialPath =
     '/entries?sectionId=characters&entryId=character-mira-rowan&intent=context&query=Mira%20Rowan';
   const nextPath =
@@ -929,7 +954,7 @@ async function assertWorkbenchDirtyRouteGuard(browserPath, profilePrefix) {
 }
 
 async function assertWorkbenchReviewQueueRoute(browserPath, profilePrefix) {
-  const debugPort = 61750 + (process.pid % 1000);
+  const debugPort = await findAvailablePort();
   const path = '/entries?view=unlinked';
   const url = `${baseUrl}${path}`;
   const child = spawn(
@@ -1013,7 +1038,7 @@ async function assertWorkbenchReviewQueueRoute(browserPath, profilePrefix) {
 }
 
 async function assertKnowledgeDestructiveDialog(browserPath, profilePrefix) {
-  const debugPort = 62000 + (process.pid % 1000);
+  const debugPort = await findAvailablePort();
   const url = `${baseUrl}/knowledge#custom-entry-types`;
   const child = spawn(
     browserPath,
@@ -1329,7 +1354,7 @@ async function evaluateRuntime(cdp, expression) {
 }
 
 async function assertMobileHeaderLayout(browserPath, profilePrefix, check) {
-  const debugPort = 59000 + (process.pid % 1000);
+  const debugPort = await findAvailablePort();
   const url = `${baseUrl}${check.path}`;
   const child = spawn(
     browserPath,
@@ -1720,7 +1745,7 @@ async function assertMobileHeaderLayout(browserPath, profilePrefix, check) {
 }
 
 async function assertCharacterEditorLayout(browserPath, profilePrefix, check) {
-  const debugPort = 60000 + (process.pid % 1000);
+  const debugPort = await findAvailablePort();
   const url = `${baseUrl}${check.path}`;
   const child = spawn(
     browserPath,
@@ -2093,6 +2118,7 @@ async function run() {
     if (server.child.exitCode && server.child.exitCode !== 0) {
       writeError(server.getOutput());
     }
+    removePathIfPossible(profileRoot);
   }
 }
 
