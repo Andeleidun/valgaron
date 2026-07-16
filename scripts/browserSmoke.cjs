@@ -824,7 +824,15 @@ async function assertTimelineContextCreateRouteReseeds(
     cdp = await createCdpClient(webSocketUrl);
     await waitForRuntimeCondition(
       cdp,
-      "document.body.textContent.includes('The Cartographers Guild')"
+      `(() => {
+        const selectedInvolvedText =
+          document.querySelector('[aria-label="Selected involved records"]')
+            ?.textContent || '';
+        const hasExpectedEra = Array.from(document.querySelectorAll('input'))
+          .some((input) => input.value === 'Charter Era');
+        return hasExpectedEra &&
+          selectedInvolvedText.includes('The Cartographers Guild');
+      })()`
     );
     await evaluateRuntime(
       cdp,
@@ -836,7 +844,16 @@ async function assertTimelineContextCreateRouteReseeds(
     );
     await waitForRuntimeCondition(
       cdp,
-      "document.body.textContent.includes('Northwatch Harbor')"
+      `(() => {
+        const selectedInvolvedText =
+          document.querySelector('[aria-label="Selected involved records"]')
+            ?.textContent || '';
+        const hasExpectedEra = Array.from(document.querySelectorAll('input'))
+          .some((input) => input.value === 'Northwatch Era');
+        return hasExpectedEra &&
+          selectedInvolvedText.includes('Northwatch Harbor') &&
+          !selectedInvolvedText.includes('The Cartographers Guild');
+      })()`
     );
     const reseedResult = await evaluateRuntime(
       cdp,
