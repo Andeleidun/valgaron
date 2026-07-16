@@ -22,15 +22,19 @@ describe('codex route intents', () => {
         sectionId: 'characters',
       },
     });
-    expect(parseCodexRouteIntent('/data#import-json-backup')).toEqual({
+    expect(parseCodexRouteIntent('/utilities/data#import-json-backup')).toEqual(
+      {
+        routeId: 'data',
+        pathname: '/utilities/data',
+        params: {},
+        focusId: 'import-json-backup',
+      }
+    );
+    expect(
+      parseCodexRouteIntent('/utilities/data?mode=full-json#export-panel')
+    ).toEqual({
       routeId: 'data',
-      pathname: '/data',
-      params: {},
-      focusId: 'import-json-backup',
-    });
-    expect(parseCodexRouteIntent('/data?mode=full-json#export-panel')).toEqual({
-      routeId: 'data',
-      pathname: '/data',
+      pathname: '/utilities/data',
       params: {
         mode: 'full-json',
       },
@@ -55,13 +59,13 @@ describe('codex route intents', () => {
     expect(
       formatCodexRouteIntent({
         routeId: 'data',
-        pathname: '/data',
+        pathname: '/utilities/data',
         params: {
           mode: 'full-json',
         },
         focusId: 'import-json-backup',
       })
-    ).toBe('/data?mode=full-json#import-json-backup');
+    ).toBe('/utilities/data?mode=full-json#import-json-backup');
   });
 
   it('round trips source-of-truth workflow routes without dropping focus', () => {
@@ -76,7 +80,7 @@ describe('codex route intents', () => {
 
   it('classifies shared routes into typed workflow intents', () => {
     expect(getCodexWorkflowIntent('/')).toEqual({ kind: 'overview' });
-    expect(getCodexWorkflowIntent('/workspaces')).toEqual({
+    expect(getCodexWorkflowIntent('/utilities/workspaces')).toEqual({
       kind: 'workspaces',
     });
     expect(
@@ -193,25 +197,29 @@ describe('codex route intents', () => {
       focusId: '',
       kind: 'utilities',
     });
-    expect(getCodexWorkflowIntent('/data?mode=full-json#export')).toEqual({
+    expect(
+      getCodexWorkflowIntent('/utilities/data?mode=full-json#export')
+    ).toEqual({
       focusId: 'export',
       kind: 'data',
       mode: 'full-json',
     });
-    expect(getCodexWorkflowIntent('/data?mode=not-real#export')).toEqual({
+    expect(
+      getCodexWorkflowIntent('/utilities/data?mode=not-real#export')
+    ).toEqual({
       focusId: 'export',
       kind: 'data',
       mode: '',
     });
-    expect(getCodexWorkflowIntent('/help?topic=timeline')).toEqual({
+    expect(getCodexWorkflowIntent('/utilities/help?topic=timeline')).toEqual({
       kind: 'help',
       topic: 'timeline',
     });
-    expect(getCodexWorkflowIntent('/help?topic=utilities')).toEqual({
+    expect(getCodexWorkflowIntent('/utilities/help?topic=utilities')).toEqual({
       kind: 'help',
       topic: 'utilities',
     });
-    expect(getCodexWorkflowIntent('/help?topic=missing')).toEqual({
+    expect(getCodexWorkflowIntent('/utilities/help?topic=missing')).toEqual({
       kind: 'help',
       topic: '',
     });
@@ -219,7 +227,9 @@ describe('codex route intents', () => {
 
   it('classifies parsed route intents without reparsing', () => {
     expect(
-      getCodexWorkflowIntent(parseCodexRouteIntent('/data#import-json-backup'))
+      getCodexWorkflowIntent(
+        parseCodexRouteIntent('/utilities/data#import-json-backup')
+      )
     ).toEqual({
       focusId: 'import-json-backup',
       kind: 'data',

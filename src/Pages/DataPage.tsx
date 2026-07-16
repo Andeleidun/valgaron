@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type ChangeEvent } from 'react';
 import { NavLink } from 'react-router-dom';
 import {
   type DestructiveActionId,
+  codexShellRoutes,
   codexDataHelpSummary,
   codexDataHelpTopics,
   destructiveActionDialogCopy,
@@ -224,7 +225,7 @@ export function DataPage({
       diagnosticsRuntime: {
         route: sanitizeDiagnosticsRoute(
           typeof window === 'undefined'
-            ? '/data'
+            ? codexShellRoutes.data.path
             : `${window.location.pathname}${window.location.search}`
         ),
         userAgent:

@@ -1194,12 +1194,15 @@
 }
 
 .vwb-privacy-page {
-  max-width: 960px;
+  display: grid;
+  gap: 24px;
 }
 
 .vwb-policy-document {
   display: grid;
+  grid-template-columns: minmax(0, 960px);
   gap: 14px;
+  justify-content: center;
   padding: clamp(20px, 4vw, 36px);
 }
 

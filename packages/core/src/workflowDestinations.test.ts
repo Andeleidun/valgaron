@@ -77,9 +77,9 @@ describe('workflow destinations', () => {
       utilityWorkflowDestinations.map((destination) => destination.path)
     ).toEqual([
       '/knowledge#custom-entry-types',
-      '/data',
-      '/workspaces',
-      '/help?topic=utilities',
+      '/utilities/data',
+      '/utilities/workspaces',
+      '/utilities/help?topic=utilities',
     ]);
     expect(
       utilityWorkflowDestinations.map((destination) => destination.actionLabel)
@@ -115,9 +115,12 @@ describe('workflow destinations', () => {
     expect(overview.shortcutSummary).toMatchObject({
       title: 'Tool shortcuts',
       actions: [
-        { actionLabel: 'Open Data', path: '/data' },
-        { actionLabel: 'Open Workspaces', path: '/workspaces' },
-        { actionLabel: 'Open Help', path: '/help?topic=utilities' },
+        { actionLabel: 'Open Data', path: '/utilities/data' },
+        { actionLabel: 'Open Workspaces', path: '/utilities/workspaces' },
+        {
+          actionLabel: 'Open Help',
+          path: '/utilities/help?topic=utilities',
+        },
       ],
     });
     expect(overview.reviewSummary).toMatchObject({

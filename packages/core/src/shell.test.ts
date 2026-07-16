@@ -6,9 +6,11 @@ import {
   getCodexScreenIntro,
   getCodexEntriesRoute,
   getCodexRelationshipsRoute,
+  getCodexShellChildRoutePath,
   getCodexShellRouteTitle,
   getCodexShellRoutes,
   getCodexMobileWebShellRouteLabel,
+  getRelativeChildRoutePath,
   localPersistenceCopy,
   mobilePrimaryRouteOrder,
   mobileWebPrimaryRouteOrder,
@@ -22,8 +24,8 @@ describe('shell contracts', () => {
     expect(valgaronProduct.fullTitle).toBe('Valgaron World Codex');
     expect(valgaronPrivacyPolicy).toEqual({
       title: 'Valgaron World Codex Privacy Policy',
-      webPath: '/privacy',
-      webUrl: 'https://andeleidun.github.io/valgaron/privacy',
+      webPath: '/utilities/help/privacy',
+      webUrl: 'https://andeleidun.github.io/valgaron/utilities/help/privacy',
       actionLabel: 'Read Privacy Policy',
     });
   });
@@ -58,6 +60,33 @@ describe('shell contracts', () => {
     expect(getCodexScreenIntro('timeline').title).toBe('Timeline');
     expect(getCodexScreenIntro('utilities').title).toBe('Utilities');
     expect(codexScreenIntros.data.detail).toContain('Export JSON backups');
+    expect(codexShellRoutes.data).toMatchObject({
+      parentId: 'utilities',
+      path: '/utilities/data',
+    });
+    expect(codexShellRoutes.workspaces).toMatchObject({
+      parentId: 'utilities',
+      path: '/utilities/workspaces',
+    });
+    expect(codexShellRoutes.help).toMatchObject({
+      parentId: 'utilities',
+      path: '/utilities/help',
+    });
+    expect(getCodexShellChildRoutePath('data')).toBe('data');
+    expect(getCodexShellChildRoutePath('workspaces')).toBe('workspaces');
+    expect(getCodexShellChildRoutePath('help')).toBe('help');
+    expect(
+      getRelativeChildRoutePath(
+        codexShellRoutes.help.path,
+        valgaronPrivacyPolicy.webPath
+      )
+    ).toBe('privacy');
+    expect(() => getCodexShellChildRoutePath('utilities')).toThrow(
+      'Codex shell route utilities does not have a parent route.'
+    );
+    expect(() => getRelativeChildRoutePath('/utilities', '/entries')).toThrow(
+      'Route path /entries is not a child of parent path /utilities.'
+    );
   });
 
   it('keeps local-only wording explicit without remote workflow promises', () => {

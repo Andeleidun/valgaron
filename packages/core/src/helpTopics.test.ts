@@ -132,7 +132,9 @@ describe('help topics', () => {
       'limits',
     ]);
     expect(getCodexHelpFocus('timeline')?.title).toBe('Timeline');
-    expect(getCodexHelpFocus('timeline')?.path).toBe('/help?topic=timeline');
+    expect(getCodexHelpFocus('timeline')?.path).toBe(
+      '/utilities/help?topic=timeline'
+    );
     expect(getCodexHelpFocus('timeline')?.detail).toContain(
       'Era Manager reassignment'
     );
@@ -164,9 +166,9 @@ describe('help topics', () => {
     expect(isCodexHelpFocusId('timeline')).toBe(true);
     expect(isCodexHelpFocusId('unknown')).toBe(false);
     expect(getCodexHelpFocus('unknown')).toBeNull();
-    expect(getCodexHelpRoute()).toBe('/help');
+    expect(getCodexHelpRoute()).toBe('/utilities/help');
     expect(getCodexHelpRoute('relationships')).toBe(
-      '/help?topic=relationships'
+      '/utilities/help?topic=relationships'
     );
   });
 
@@ -198,7 +200,7 @@ describe('help topics', () => {
     });
     expect(model.sections).toBe(codexHelpScreenSections);
     expect(model.focusedTopic?.title).toBe('Backups and recovery');
-    expect(model.focusedTopic?.path).toBe('/help?topic=data');
+    expect(model.focusedTopic?.path).toBe('/utilities/help?topic=data');
     expect(model.focusTopics).toBe(codexHelpFocusTopics);
     expect(model.quickActions).toBe(codexHelpQuickActions);
     expect(model.workflowTopics).toBe(codexWorkflowHelpTopics);

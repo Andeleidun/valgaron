@@ -120,7 +120,7 @@ describe('document diagnostics', () => {
   });
 
   it('redacts diagnostics route query values in the shared diagnostics model', () => {
-    expect(sanitizeDiagnosticsRoute('/data')).toBe('/data');
+    expect(sanitizeDiagnosticsRoute('/utilities/data')).toBe('/utilities/data');
     expect(
       sanitizeDiagnosticsRoute(
         '/relationships?entryQuery=Secret%20Name&entryId=secret-entry-id'

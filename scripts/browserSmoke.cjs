@@ -220,7 +220,7 @@ const routeChecks = [
     expectedText: ['Utilities', 'Help', 'Open Help'],
   },
   {
-    path: '/data',
+    path: '/utilities/data',
     expectedText: [
       'Data',
       'Manual local save',
@@ -228,18 +228,32 @@ const routeChecks = [
       'Full document JSON',
       'Import JSON or ZIP backup',
     ],
+    expectedLinks: [
+      {
+        current: true,
+        href: '/utilities',
+        label: 'Utilities',
+      },
+    ],
   },
   {
-    path: '/workspaces',
+    path: '/utilities/workspaces',
     expectedText: [
       'Workspaces',
       'Project/universe workspaces',
       'In-fiction worlds and planets',
       'New world',
     ],
+    expectedLinks: [
+      {
+        current: true,
+        href: '/utilities',
+        label: 'Utilities',
+      },
+    ],
   },
   {
-    path: '/help',
+    path: '/utilities/help',
     expectedText: [
       'Help',
       'Help topics',
@@ -252,21 +266,26 @@ const routeChecks = [
     ],
     expectedLinks: [
       {
+        current: true,
+        href: '/utilities',
+        label: 'Utilities',
+      },
+      {
         href: '/utilities#project-tools',
         label: 'Open Utilities',
       },
       {
-        href: '/help?topic=timeline',
+        href: '/utilities/help?topic=timeline',
         label: 'Timeline',
       },
       {
-        href: '/privacy',
+        href: '/utilities/help/privacy',
         label: 'Read Privacy Policy',
       },
     ],
   },
   {
-    path: '/privacy',
+    path: '/utilities/help/privacy',
     expectedText: [
       'Valgaron World Codex Privacy Policy',
       'Effective date: July 9, 2026',
@@ -274,17 +293,31 @@ const routeChecks = [
       'What Valgaron Does Not Collect',
       'We do not sell user data.',
     ],
+    expectedLinks: [
+      {
+        current: true,
+        href: '/utilities',
+        label: 'Utilities',
+      },
+    ],
   },
   {
-    path: '/help?topic=timeline',
+    path: '/utilities/help?topic=timeline',
     expectedText: [
       'Focused help',
       'Timeline',
       'Use explicit order, grouped event editing, Era Manager reassignment',
     ],
+    expectedLinks: [
+      {
+        current: true,
+        href: '/utilities',
+        label: 'Utilities',
+      },
+    ],
   },
   {
-    path: '/help?topic=utilities',
+    path: '/utilities/help?topic=utilities',
     expectedText: [
       'Focused help',
       'Utilities',
@@ -296,7 +329,12 @@ const routeChecks = [
     expectedLinks: [
       {
         current: true,
-        href: '/help?topic=utilities',
+        href: '/utilities',
+        label: 'Utilities',
+      },
+      {
+        current: true,
+        href: '/utilities/help?topic=utilities',
         label: 'Utilities',
       },
       {
@@ -320,10 +358,18 @@ const screenshotChecks = [
   { name: 'links-mobile', path: '/relationships', size: '375,900' },
   { name: 'knowledge-mobile', path: '/knowledge', size: '375,900' },
   { name: 'more-mobile', path: '/utilities', size: '375,900' },
-  { name: 'data-mobile', path: '/data', size: '375,900' },
-  { name: 'worlds-mobile', path: '/workspaces', size: '375,900' },
-  { name: 'workspaces-tablet', path: '/workspaces', size: '768,900' },
-  { name: 'help-mobile', path: '/help', size: '375,900' },
+  { name: 'data-mobile', path: '/utilities/data', size: '375,900' },
+  {
+    name: 'worlds-mobile',
+    path: '/utilities/workspaces',
+    size: '375,900',
+  },
+  {
+    name: 'workspaces-tablet',
+    path: '/utilities/workspaces',
+    size: '768,900',
+  },
+  { name: 'help-mobile', path: '/utilities/help', size: '375,900' },
 ];
 
 const layoutChecks = [
@@ -339,6 +385,26 @@ const layoutChecks = [
     size: '320,900',
     expectedVisibleNavLabels: ['Workbench', 'Timeline', 'Links', 'More'],
   },
+  ...[
+    ['data-child-wide-layout', '/utilities/data', '.vwb-data-layout'],
+    [
+      'workspaces-child-wide-layout',
+      '/utilities/workspaces',
+      '.vwb-workspace-layout',
+    ],
+    ['help-child-wide-layout', '/utilities/help', '.vwb-help-layout'],
+    [
+      'privacy-child-wide-layout',
+      '/utilities/help/privacy',
+      '.vwb-privacy-page',
+    ],
+  ].map(([name, path, mainSelector]) => ({
+    name,
+    path,
+    size: '1280,900',
+    mainSelector,
+    minimumMainWidthRatio: 0.9,
+  })),
 ];
 
 const characterEditorLayoutChecks = [
@@ -1353,7 +1419,7 @@ async function evaluateRuntime(cdp, expression) {
   return result.result.value;
 }
 
-async function assertMobileHeaderLayout(browserPath, profilePrefix, check) {
+async function assertShellLayout(browserPath, profilePrefix, check) {
   const debugPort = await findAvailablePort();
   const url = `${baseUrl}${check.path}`;
   const child = spawn(
@@ -1380,9 +1446,12 @@ async function assertMobileHeaderLayout(browserPath, profilePrefix, check) {
   try {
     const webSocketUrl = await waitForDebugPage(debugPort, url);
     cdp = await createCdpClient(webSocketUrl);
+    const mainSelector = check.mainSelector ?? '.vwb-main';
     await waitForRuntimeCondition(
       cdp,
-      "document.readyState !== 'loading' && Boolean(document.querySelector('.vwb-save-status'))"
+      `document.readyState !== 'loading' && Boolean(document.querySelector('.vwb-save-status')) && Boolean(document.querySelector(${JSON.stringify(
+        mainSelector
+      )}))`
     );
     const headerResult = await evaluateRuntime(
       cdp,
@@ -1390,6 +1459,10 @@ async function assertMobileHeaderLayout(browserPath, profilePrefix, check) {
         const expectedNavLabels = ${JSON.stringify(
           check.expectedVisibleNavLabels ?? []
         )};
+        const minimumMainWidthRatio = ${JSON.stringify(
+          check.minimumMainWidthRatio ?? 0
+        )};
+        const mainSelector = ${JSON.stringify(mainSelector)};
         const selectors = {
           brand: '.vwb-brand',
           save: '.vwb-save-status',
@@ -1399,6 +1472,28 @@ async function assertMobileHeaderLayout(browserPath, profilePrefix, check) {
         const viewportHeight = window.innerHeight;
         const issues = [];
         const rects = {};
+        const main = document.querySelector(mainSelector);
+        if (!main) {
+          issues.push('main is missing');
+        } else {
+          const rect = main.getBoundingClientRect();
+          rects.main = {
+            left: Math.round(rect.left),
+            right: Math.round(rect.right),
+            width: Math.round(rect.width)
+          };
+          if (
+            minimumMainWidthRatio > 0 &&
+            rect.width / viewportWidth < minimumMainWidthRatio
+          ) {
+            issues.push(
+              'main width ratio is ' +
+                (rect.width / viewportWidth).toFixed(3) +
+                ', expected at least ' +
+                minimumMainWidthRatio
+            );
+          }
+        }
         const visibleNav = Array.from(document.querySelectorAll('.vwb-top-nav'))
           .find((element) => {
             const style = window.getComputedStyle(element);
@@ -2080,11 +2175,7 @@ async function run() {
           writeLine(`screenshot ok: ${screenshotCheck.name}`);
         }
         for (const layoutCheck of layoutChecks) {
-          await assertMobileHeaderLayout(
-            browserPath,
-            profilePrefix,
-            layoutCheck
-          );
+          await assertShellLayout(browserPath, profilePrefix, layoutCheck);
           writeLine(`layout ok: ${layoutCheck.name}`);
         }
         for (const characterEditorLayoutCheck of characterEditorLayoutChecks) {

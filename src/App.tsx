@@ -6,6 +6,7 @@ import {
   NavLink,
   Route,
   Routes,
+  useLocation,
 } from 'react-router-dom';
 import './App.css';
 import { ResetConfirmationDialog } from './Components/Codex/ResetConfirmationDialog';
@@ -19,16 +20,20 @@ import {
   formatDataShellDownloadResultMessage,
   getCodexExportFilename,
   getCodexMobileWebShellRouteLabel,
+  getCodexShellChildRoutePath,
   getCodexShellRoutes,
   getLocalSaveButtonModel,
+  getRelativeChildRoutePath,
   mobileWebPrimaryRouteOrder,
   serializeActiveWorldBackup,
   serializeWorldDocumentBackup,
+  valgaronPrivacyPolicy,
   valgaronProduct,
   webPrimaryRouteOrder,
   type DataShellExportAction,
 } from '@valgaron/core';
 import { downloadTextFile, slugFilename } from './Utlilities/fileDownloads';
+import { formatRouteRedirectDestination } from './Utlilities/navigationRoutes';
 import { useBeforeUnloadWarning } from './Utlilities/unsavedChanges';
 import { useWorldDocumentState } from './Utlilities/useWorldDocumentState';
 const DataPage = lazy(() =>
@@ -88,6 +93,20 @@ const webOverviewRoute = codexShellRoutes.overview;
 const webSecondaryRoutes = webPrimaryRoutes.filter(
   (route) => route.id !== 'overview'
 );
+
+function LegacyRouteRedirect({ destination }: { destination: string }) {
+  const location = useLocation();
+  return (
+    <Navigate
+      replace
+      to={formatRouteRedirectDestination({
+        destination,
+        hash: location.hash,
+        search: location.search,
+      })}
+    />
+  );
+}
 
 function AppShell() {
   const [isResetPending, setIsResetPending] = useState(false);
@@ -398,7 +417,7 @@ function AppShell() {
                 })}
                 <Link
                   role="menuitem"
-                  to="/data#import-json-backup"
+                  to={`${codexShellRoutes.data.path}#import-json-backup`}
                   onClick={() => setIsDataMenuOpen(false)}
                 >
                   {dataShellMenuCopy.importJsonBackupLabel}
@@ -457,46 +476,6 @@ function AppShell() {
                 }
               />
               <Route
-                path="/data"
-                element={
-                  <DataPage
-                    activeWorld={activeWorld}
-                    document={document}
-                    loadStatus={loadStatus}
-                    onDeleteSnapshot={deleteSnapshot}
-                    onImportDocument={importDocument}
-                    onRequestReset={(afterReset) => {
-                      setAfterResetConfirm(
-                        afterReset ? () => afterReset : null
-                      );
-                      setIsResetPending(true);
-                    }}
-                    onRestoreSnapshot={restoreSnapshot}
-                    recoverySnapshots={recoverySnapshots}
-                    recoverySnapshotStatus={recoverySnapshotStatus}
-                    saveStatus={saveStatus}
-                  />
-                }
-              />
-              <Route
-                path="/workspaces"
-                element={
-                  <WorkspacesPage
-                    activeWorld={activeWorld}
-                    document={document}
-                    onArchivePlanetaryWorld={archivePlanetaryWorld}
-                    onArchiveWorkspace={archiveWorkspace}
-                    onCreateWorkspace={createWorkspace}
-                    onDeletePlanetaryWorld={permanentlyDeletePlanetaryWorld}
-                    onDeleteWorkspace={permanentlyDeleteWorkspace}
-                    onDuplicateWorkspace={duplicateWorkspace}
-                    onSavePlanetaryWorld={savePlanetaryWorld}
-                    onSwitchWorkspace={switchWorkspace}
-                    onUpdateWorkspace={updateWorkspace}
-                  />
-                }
-              />
-              <Route
                 path="/timeline"
                 element={
                   <TimelinePage
@@ -533,12 +512,94 @@ function AppShell() {
                   />
                 }
               />
+              <Route path={codexShellRoutes.utilities.path}>
+                <Route
+                  index
+                  element={<UtilitiesPage activeWorld={activeWorld} />}
+                />
+                <Route
+                  path={getCodexShellChildRoutePath('data')}
+                  element={
+                    <DataPage
+                      activeWorld={activeWorld}
+                      document={document}
+                      loadStatus={loadStatus}
+                      onDeleteSnapshot={deleteSnapshot}
+                      onImportDocument={importDocument}
+                      onRequestReset={(afterReset) => {
+                        setAfterResetConfirm(
+                          afterReset ? () => afterReset : null
+                        );
+                        setIsResetPending(true);
+                      }}
+                      onRestoreSnapshot={restoreSnapshot}
+                      recoverySnapshots={recoverySnapshots}
+                      recoverySnapshotStatus={recoverySnapshotStatus}
+                      saveStatus={saveStatus}
+                    />
+                  }
+                />
+                <Route
+                  path={getCodexShellChildRoutePath('workspaces')}
+                  element={
+                    <WorkspacesPage
+                      activeWorld={activeWorld}
+                      document={document}
+                      onArchivePlanetaryWorld={archivePlanetaryWorld}
+                      onArchiveWorkspace={archiveWorkspace}
+                      onCreateWorkspace={createWorkspace}
+                      onDeletePlanetaryWorld={permanentlyDeletePlanetaryWorld}
+                      onDeleteWorkspace={permanentlyDeleteWorkspace}
+                      onDuplicateWorkspace={duplicateWorkspace}
+                      onSavePlanetaryWorld={savePlanetaryWorld}
+                      onSwitchWorkspace={switchWorkspace}
+                      onUpdateWorkspace={updateWorkspace}
+                    />
+                  }
+                />
+                <Route path={getCodexShellChildRoutePath('help')}>
+                  <Route index element={<HelpPage />} />
+                  <Route
+                    path={getRelativeChildRoutePath(
+                      codexShellRoutes.help.path,
+                      valgaronPrivacyPolicy.webPath
+                    )}
+                    element={<PrivacyPage />}
+                  />
+                </Route>
+              </Route>
               <Route
-                path="/utilities"
-                element={<UtilitiesPage activeWorld={activeWorld} />}
+                path="/data"
+                element={
+                  <LegacyRouteRedirect
+                    destination={codexShellRoutes.data.path}
+                  />
+                }
               />
-              <Route path="/help" element={<HelpPage />} />
-              <Route path="/privacy" element={<PrivacyPage />} />
+              <Route
+                path="/workspaces"
+                element={
+                  <LegacyRouteRedirect
+                    destination={codexShellRoutes.workspaces.path}
+                  />
+                }
+              />
+              <Route
+                path="/help"
+                element={
+                  <LegacyRouteRedirect
+                    destination={codexShellRoutes.help.path}
+                  />
+                }
+              />
+              <Route
+                path="/privacy"
+                element={
+                  <LegacyRouteRedirect
+                    destination={valgaronPrivacyPolicy.webPath}
+                  />
+                }
+              />
               <Route
                 path="/entries"
                 element={

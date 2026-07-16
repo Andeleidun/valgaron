@@ -93,19 +93,21 @@ describe('mobile route model', () => {
         view: 'unlinked',
       },
     });
-    expect(getMobileRouteHref('/data#import-json-backup')).toEqual({
+    expect(getMobileRouteHref('/utilities/data#import-json-backup')).toEqual({
       pathname: '/data',
       params: {
         [mobileRouteFocusParam]: 'import-json-backup',
       },
     });
-    expect(getMobileRouteHref('/data?mode=full-json#export')).toEqual({
-      pathname: '/data',
-      params: {
-        mode: 'full-json',
-        [mobileRouteFocusParam]: 'export',
-      },
-    });
+    expect(getMobileRouteHref('/utilities/data?mode=full-json#export')).toEqual(
+      {
+        pathname: '/data',
+        params: {
+          mode: 'full-json',
+          [mobileRouteFocusParam]: 'export',
+        },
+      }
+    );
     expect(getMobileRouteHref('/timeline')).toEqual({
       pathname: '/timeline',
       params: {},
@@ -188,6 +190,10 @@ describe('mobile route model', () => {
       params: {
         [mobileRouteFocusParam]: 'hidden-detail-cleanup',
       },
+    });
+    expect(getMobileRouteHref('/utilities/workspaces')).toEqual({
+      pathname: '/workspaces',
+      params: {},
     });
     expect(
       getMobileRouteHref(

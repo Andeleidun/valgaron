@@ -1,7 +1,7 @@
 import { Component, type ReactNode } from 'react';
 import { router } from 'expo-router';
 import { StyleSheet, Text, View } from 'react-native';
-import { getRuntimeRecoveryCopy } from '@valgaron/core';
+import { codexShellRoutes, getRuntimeRecoveryCopy } from '@valgaron/core';
 import {
   valgaronColors,
   valgaronRadius,
@@ -37,7 +37,7 @@ export class MobileRuntimeErrorBoundary extends Component<
 
   openData = () => {
     this.setState({ hasError: false }, () => {
-      router.replace(getMobileRouteHref('/data'));
+      router.replace(getMobileRouteHref(codexShellRoutes.data.path));
     });
   };
 

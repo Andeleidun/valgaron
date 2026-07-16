@@ -13,6 +13,7 @@ export type CodexShellRoute = {
   id: CodexShellRouteId;
   title: string;
   path: string;
+  parentId?: CodexShellRouteId;
 };
 
 export type CodexScreenIntro = {
@@ -46,13 +47,6 @@ export const valgaronProduct = {
   version: '0.0.0',
 } as const;
 
-export const valgaronPrivacyPolicy = {
-  title: 'Valgaron World Codex Privacy Policy',
-  webPath: '/privacy',
-  webUrl: 'https://andeleidun.github.io/valgaron/privacy',
-  actionLabel: 'Read Privacy Policy',
-} as const;
-
 export const codexShellRoutes = {
   overview: { id: 'overview', title: 'Overview', path: '/' },
   entries: { id: 'entries', title: 'Workbench', path: '/entries' },
@@ -64,10 +58,58 @@ export const codexShellRoutes = {
   },
   knowledge: { id: 'knowledge', title: 'Knowledge', path: '/knowledge' },
   utilities: { id: 'utilities', title: 'Utilities', path: '/utilities' },
-  workspaces: { id: 'workspaces', title: 'Workspaces', path: '/workspaces' },
-  data: { id: 'data', title: 'Data', path: '/data' },
-  help: { id: 'help', title: 'Help', path: '/help' },
+  workspaces: {
+    id: 'workspaces',
+    title: 'Workspaces',
+    path: '/utilities/workspaces',
+    parentId: 'utilities',
+  },
+  data: {
+    id: 'data',
+    title: 'Data',
+    path: '/utilities/data',
+    parentId: 'utilities',
+  },
+  help: {
+    id: 'help',
+    title: 'Help',
+    path: '/utilities/help',
+    parentId: 'utilities',
+  },
 } as const satisfies Record<CodexShellRouteId, CodexShellRoute>;
+
+const valgaronPrivacyPolicyWebPath = `${codexShellRoutes.help.path}/privacy`;
+
+export const valgaronPrivacyPolicy = {
+  title: 'Valgaron World Codex Privacy Policy',
+  webPath: valgaronPrivacyPolicyWebPath,
+  webUrl: `https://andeleidun.github.io/valgaron${valgaronPrivacyPolicyWebPath}`,
+  actionLabel: 'Read Privacy Policy',
+} as const;
+
+export function getRelativeChildRoutePath(
+  parentPath: string,
+  childPath: string
+): string {
+  const childPathPrefix = `${parentPath.replace(/\/$/, '')}/`;
+  if (!childPath.startsWith(childPathPrefix)) {
+    throw new Error(
+      `Route path ${childPath} is not a child of parent path ${parentPath}.`
+    );
+  }
+  return childPath.slice(childPathPrefix.length);
+}
+
+export function getCodexShellChildRoutePath(id: CodexShellRouteId): string {
+  const route: CodexShellRoute = codexShellRoutes[id];
+  if (!route.parentId) {
+    throw new Error(`Codex shell route ${id} does not have a parent route.`);
+  }
+  return getRelativeChildRoutePath(
+    codexShellRoutes[route.parentId].path,
+    route.path
+  );
+}
 
 export const codexScreenIntros = {
   overview: {

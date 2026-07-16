@@ -121,8 +121,8 @@ export const codexWorkflowRouteSamples = [
   '/utilities#data-tools',
   '/utilities#workspaces',
   '/utilities#help',
-  '/data#import-json-backup',
-  '/data?mode=full-json#export',
+  `${codexShellRoutes.data.path}#import-json-backup`,
+  `${codexShellRoutes.data.path}?mode=full-json#export`,
   getCodexHelpRoute('timeline'),
   getCodexHelpRoute('utilities'),
 ] as const;

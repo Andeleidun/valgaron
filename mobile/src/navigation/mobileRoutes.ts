@@ -80,8 +80,11 @@ export function getMobileRouteHref(route: string): {
 } {
   const intent = parseCodexRouteIntent(route);
   const pathnameByRouteId: Partial<Record<CodexShellRouteId, string>> = {
+    data: '/data',
+    help: '/help',
     knowledge: '/more',
     utilities: '/more',
+    workspaces: '/workspaces',
   };
   return {
     pathname: pathnameByRouteId[intent.routeId] ?? intent.pathname,
