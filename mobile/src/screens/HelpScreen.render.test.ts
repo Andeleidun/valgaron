@@ -114,7 +114,7 @@ describe('HelpScreen render smoke', () => {
     expect(markup).toContain(
       'Use Knowledge or mobile More to create custom entry types'
     );
-    expect(markup).toContain('durable vocabulary rows');
+    expect(markup).toContain('reusable vocabulary rows');
     expect(markup).toContain(
       'Use character category to shape which character fields appear'
     );

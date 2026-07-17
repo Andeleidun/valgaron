@@ -200,13 +200,13 @@ const codexHelpFocusTopicContent: readonly Omit<CodexHelpFocus, 'path'>[] = [
     id: 'timeline',
     title: 'Timeline',
     detail:
-      'Use explicit order, grouped event editing, Era Manager reassignment, unassigned-era filters, involved-record filters, contextual new-event drafts, and saved relationship summaries to browse and extend chronology without forcing exact dates.',
+      'Use explicit order, grouped event editing, Era Manager reassignment, unassigned-era filters, involved-record filters, contextual new-event drafts, and current relationship summaries to browse and extend chronology without forcing exact dates.',
   },
   {
     id: 'knowledge',
     title: 'Knowledge',
     detail:
-      'Use Knowledge to review schema, create custom entry types, configure entry fields, search field settings, manage durable vocabulary values, and understand relationship-backed field rules.',
+      'Use Knowledge to review schema, create custom entry types, configure entry fields, search field settings, manage workspace-owned vocabulary values, and understand relationship-backed field rules.',
   },
   {
     id: 'utilities',
@@ -252,7 +252,7 @@ export const codexWorkflowHelpTopics: readonly CodexHelpTopic[] = [
     items: [
       'Use Workbench to scan recent, pinned, incomplete, and review-needed records, then check selected-record review summaries before editing or managing links.',
       'Use Workbench and section routes to create and edit characters, places, factions, lore, and timeline events.',
-      'Use Knowledge or mobile More to create custom entry types, configure field labels/help/visibility/order/vocabularies, search field settings, inspect durable vocabulary rows, and review field usage before adding more structure.',
+      'Use Knowledge or mobile More to create custom entry types, configure field labels/help/visibility/order/vocabularies, search field settings, inspect reusable vocabulary rows, and review field usage before adding more structure.',
       'Use Project Tools shortcuts and Review Hotspots in Utilities or mobile More when you need backups, Workspaces, focused Help, or a jump to existing cleanup surfaces from the secondary tools hub.',
       'Use character category to shape which character fields appear; ancestry and profession use workspace-owned vocabulary suggestions that can be maintained, searched, restricted, and alias-matched from Knowledge or mobile More.',
       'Use Places for worlds, planets, moons, settlements, terrain, realms, and other map-scale places inside a project.',
@@ -263,7 +263,7 @@ export const codexWorkflowHelpTopics: readonly CodexHelpTopic[] = [
     items: [
       'Use Relationships to link entries and inspect graph-style connections.',
       'Use relationship-backed character fields for facts that should be visible from both sides, such as homes, affiliations, mentors, origins, related lore, and notable events.',
-      'Use Timeline order controls, grouped event editing, Era Manager reassignment, saved relationship summaries, and filtered new-event drafts to arrange events while keeping flexible prose dates, eras, and involved-record links.',
+      'Use Timeline order controls, grouped event editing, Era Manager reassignment, current relationship summaries, and filtered new-event drafts to arrange events while keeping flexible prose dates, eras, and involved-record links.',
       'Use tags, status, pinned records, and completeness prompts to keep unfinished work visible.',
     ],
   },

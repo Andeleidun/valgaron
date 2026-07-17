@@ -18,7 +18,7 @@ describe('RelationshipsPage browser rendering', () => {
           relationships: activeWorld.relationships,
           sections: activeWorld.entryTypes,
           onDeleteRelationship: jest.fn(),
-          onSaveEntry: jest.fn(),
+          onCommitEntryRelationshipTransaction: jest.fn(),
           onSaveRelationship: jest.fn(),
         })
       )

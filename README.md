@@ -45,7 +45,13 @@ Valgaron World Codex is a local-first tool for drafting and organizing fiction o
 - Entry cover images and galleries from HTTPS sources or verified local JPEG,
   PNG, WebP, and GIF uploads. Uploaded bytes stay in browser IndexedDB or
   app-managed mobile files and travel with complete ZIP backups.
-- Header Save writes the current session state to browser localStorage on demand.
+- Browser editors use Create or Update to apply a draft to the current
+  `WorldDocument`; only the header Save action writes that document to browser
+  `localStorage`.
+- Browser-only document Undo/Redo retains the 20 most recent committed actions
+  for the current tab session. Save preserves that history, but reload clears
+  it. Native mobile keeps the shared Create/Update labels and does not yet
+  expose document Undo/Redo.
 - Expo mobile companion with installed-app local storage, shared codex schema,
   Workbench, Timeline, Links, More, data import/export, recovery snapshot
   history, and Help guidance.
@@ -58,7 +64,7 @@ Valgaron World Codex is a local-first tool for drafting and organizing fiction o
 - Separate in-fiction world/planet records inside each project/universe workspace.
 - Knowledge setup for custom entry type creation, field configuration for
   labels, help text, visibility, order, vocabulary attachment, and
-  suggested/restricted vocabulary behavior, searchable field settings, durable
+  suggested/restricted vocabulary behavior, searchable field settings, reusable
   vocabulary value editing/search with aliases, lore definition types,
   relationship-backed field rules, hidden detail cleanup review, and
   recovery-snapshotted hidden detail clearing.

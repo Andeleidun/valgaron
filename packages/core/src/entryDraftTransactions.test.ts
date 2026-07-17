@@ -198,11 +198,11 @@ describe('entry draft transactions', () => {
     );
 
     expect(stagedRelationshipDraftCopy).toMatchObject({
-      duplicateMessage: 'That staged link is already in the save list.',
+      duplicateMessage: 'That staged link is already in the pending link list.',
       missingTargetOrTypeMessage:
         'Choose a target record and relationship type before staging.',
       stageLabel: 'Stage Link',
-      title: 'Links to create on save',
+      title: 'Links to create with this entry',
     });
     expect(
       getStagedRelationshipDraftRowModel({

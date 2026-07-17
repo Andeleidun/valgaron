@@ -131,7 +131,7 @@ describe('codex timeline helpers', () => {
     });
 
     expect(model.title).toBe(`Edit ${event.name}`);
-    expect(model.submitLabel).toBe('Save Changes');
+    expect(model.submitLabel).toBe('Update Timeline Event');
     expect(model.chronology.fields.map((field) => field.key)).toEqual([
       'order',
       'dateLabel',
@@ -151,10 +151,10 @@ describe('codex timeline helpers', () => {
       emptySearchLabel: 'No involved records match this search.',
       selectedRecordsLabel: 'Selected involved records',
       selectedRecordsSummaryLabel: 'Selected: The Cartographers Guild',
-      savedEntryMessage:
+      currentEntryMessage:
         'Use the relationship-backed controls below to update involved records.',
-      saveBeforeEditMessage:
-        'Save this timeline event before editing involved records.',
+      applyBeforeEditMessage:
+        'Create or update this timeline event before editing involved records.',
     });
     expect(model.involvedRecords.legacyText).toBeNull();
   });

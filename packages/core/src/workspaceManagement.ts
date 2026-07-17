@@ -628,8 +628,17 @@ export function updateWorkspaceMetadata(
   workspaceId: string,
   draft: WorkspaceDraft
 ): WorldDocument {
-  const updatedAt = nowIso();
   const normalizedDraft = normalizeWorkspaceDraft(draft);
+  const workspace = document.worlds.find((world) => world.id === workspaceId);
+  if (
+    !workspace ||
+    (workspace.name === normalizedDraft.name &&
+      workspace.summary === normalizedDraft.summary &&
+      workspace.defaultEra === normalizedDraft.defaultEra)
+  ) {
+    return document;
+  }
+  const updatedAt = nowIso();
   return {
     ...document,
     worlds: document.worlds.map((world) =>
@@ -654,7 +663,7 @@ export function setActiveWorkspace(
   const workspace = document.worlds.find(
     (world) => world.id === workspaceId && world.status !== 'archived'
   );
-  return workspace
+  return workspace && document.activeWorldId !== workspace.id
     ? { ...document, activeWorldId: workspace.id, savedAt: nowIso() }
     : document;
 }
@@ -664,6 +673,11 @@ export function setWorkspaceArchived(
   workspaceId: string,
   archived: boolean
 ): WorldDocument {
+  const workspace = document.worlds.find((world) => world.id === workspaceId);
+  const nextStatus: WorldWorkspace['status'] = archived ? 'archived' : 'active';
+  if (!workspace || workspace.status === nextStatus) {
+    return document;
+  }
   if (
     archived &&
     document.worlds.filter((world) => world.status !== 'archived').length <=
@@ -679,7 +693,7 @@ export function setWorkspaceArchived(
     world.id === workspaceId
       ? {
           ...world,
-          status: archived ? ('archived' as const) : ('active' as const),
+          status: nextStatus,
           updatedAt,
         }
       : world
@@ -769,8 +783,23 @@ export function upsertPlanetaryWorld(
   draft: PlanetaryWorldDraft,
   existingPlanetaryWorld?: InFictionWorld
 ): WorldWorkspace {
-  const updatedAt = nowIso();
   const normalizedDraft = normalizePlanetaryWorldDraft(draft);
+  const tags = parseTags(normalizedDraft.tags);
+  if (
+    existingPlanetaryWorld &&
+    existingPlanetaryWorld.name === normalizedDraft.name &&
+    existingPlanetaryWorld.summary === normalizedDraft.summary &&
+    existingPlanetaryWorld.classification === normalizedDraft.classification &&
+    existingPlanetaryWorld.climate === normalizedDraft.climate &&
+    existingPlanetaryWorld.dominantTerrain ===
+      normalizedDraft.dominantTerrain &&
+    existingPlanetaryWorld.notes === normalizedDraft.notes &&
+    existingPlanetaryWorld.tags.length === tags.length &&
+    existingPlanetaryWorld.tags.every((tag, index) => tag === tags[index])
+  ) {
+    return workspace;
+  }
+  const updatedAt = nowIso();
   const planetaryWorld: InFictionWorld = {
     id:
       existingPlanetaryWorld?.id ??
@@ -784,7 +813,7 @@ export function upsertPlanetaryWorld(
     climate: normalizedDraft.climate,
     dominantTerrain: normalizedDraft.dominantTerrain,
     notes: normalizedDraft.notes,
-    tags: parseTags(normalizedDraft.tags),
+    tags,
     status: existingPlanetaryWorld?.status ?? 'draft',
     createdAt: existingPlanetaryWorld?.createdAt ?? updatedAt,
     updatedAt,
@@ -805,6 +834,13 @@ export function setPlanetaryWorldArchived(
   planetaryWorldId: string,
   archived: boolean
 ): WorldWorkspace {
+  const planetaryWorld = workspace.planetaryWorlds.find(
+    (candidate) => candidate.id === planetaryWorldId
+  );
+  const nextStatus = archived ? 'archived' : 'draft';
+  if (!planetaryWorld || planetaryWorld.status === nextStatus) {
+    return workspace;
+  }
   const updatedAt = nowIso();
   return {
     ...workspace,
@@ -812,7 +848,7 @@ export function setPlanetaryWorldArchived(
       planetaryWorld.id === planetaryWorldId
         ? {
             ...planetaryWorld,
-            status: archived ? 'archived' : 'draft',
+            status: nextStatus,
             updatedAt,
           }
         : planetaryWorld
@@ -825,6 +861,13 @@ export function deletePlanetaryWorld(
   workspace: WorldWorkspace,
   planetaryWorldId: string
 ): WorldWorkspace {
+  if (
+    !workspace.planetaryWorlds.some(
+      (planetaryWorld) => planetaryWorld.id === planetaryWorldId
+    )
+  ) {
+    return workspace;
+  }
   const updatedAt = nowIso();
   return {
     ...workspace,

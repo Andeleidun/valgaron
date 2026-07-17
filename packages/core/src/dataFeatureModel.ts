@@ -251,7 +251,7 @@ export const dataImportCopy = {
   previewStatusLabel: 'Preview',
   importLabel: 'Import Backup',
   clearLabel: 'Clear',
-  unsavedLabel: 'Unsaved',
+  unappliedLabel: 'Unapplied',
   lastImportLabel: 'Last import',
   clearEditedTitle: 'Clear import text?',
   clearEditedMessage:

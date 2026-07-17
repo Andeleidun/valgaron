@@ -19,6 +19,7 @@ import {
   formatEntrySectionFiltersLabel,
   formatEntrySectionSearchLabel,
   formatHiddenCountText,
+  formatWorldDocumentActionLabel,
   entryListCopy,
   entryShowArchivedControl,
   entrySortControl,
@@ -62,6 +63,7 @@ import {
 } from '@valgaron/core';
 import { DashboardPage } from '../Components/Dashboard/DashboardPage';
 import { confirmDiscardUnsavedChanges } from '../Utlilities/unsavedChanges';
+import type { EntryRelationshipDocumentTransaction } from '../Utlilities/useWorldDocumentState';
 import {
   ConfirmationDialog,
   EntryCard,
@@ -80,6 +82,7 @@ export function SectionPage({
   onArchiveEntry,
   onDeleteEntry,
   onDeleteRelationship,
+  onCommitEntryRelationshipTransaction,
   onSaveEntry,
   onSaveRelationship,
 }: {
@@ -91,6 +94,9 @@ export function SectionPage({
   onArchiveEntry: (entry: WorldEntry, archived: boolean) => void;
   onDeleteEntry: (entry: WorldEntry) => void;
   onDeleteRelationship: (relationshipId: string) => void;
+  onCommitEntryRelationshipTransaction: (
+    transaction: EntryRelationshipDocumentTransaction
+  ) => void;
   onSaveEntry: (entry: WorldEntry, assets?: readonly WorldImageAsset[]) => void;
   onSaveRelationship: (relationship: WorldRelationship) => void;
 }) {
@@ -650,14 +656,19 @@ export function SectionPage({
       item,
       relationships,
     });
-    migration.relationshipIdsToDelete.forEach(onDeleteRelationship);
-    migration.relationshipsToSave.forEach(({ relationship }) =>
-      onSaveRelationship(relationship)
-    );
-    onSaveEntry({
-      ...entry,
-      fields: migration.fields,
-      updatedAt: new Date().toISOString(),
+    onCommitEntryRelationshipTransaction({
+      actionLabel: 'Migrate Relationship Text',
+      entries: [
+        {
+          ...entry,
+          fields: migration.fields,
+          updatedAt: new Date().toISOString(),
+        },
+      ],
+      relationships: migration.relationshipsToSave.map(
+        ({ relationship }) => relationship
+      ),
+      relationshipIdsToDelete: migration.relationshipIdsToDelete,
     });
   };
 
@@ -692,14 +703,19 @@ export function SectionPage({
       return;
     }
 
-    migration.relationshipIdsToDelete.forEach(onDeleteRelationship);
-    migration.relationshipsToSave.forEach(({ relationship }) =>
-      onSaveRelationship(relationship)
-    );
-    onSaveEntry({
-      ...entry,
-      fields: migration.fields,
-      updatedAt: new Date().toISOString(),
+    onCommitEntryRelationshipTransaction({
+      actionLabel: 'Migrate Relationship Text Suggestion',
+      entries: [
+        {
+          ...entry,
+          fields: migration.fields,
+          updatedAt: new Date().toISOString(),
+        },
+      ],
+      relationships: migration.relationshipsToSave.map(
+        ({ relationship }) => relationship
+      ),
+      relationshipIdsToDelete: migration.relationshipIdsToDelete,
     });
   };
 
@@ -713,22 +729,28 @@ export function SectionPage({
       relationships,
       sections,
     });
-    migration.relationshipIdsToDelete.forEach(onDeleteRelationship);
-    migration.relationshipsToSave.forEach(({ relationship }) =>
-      onSaveRelationship(relationship)
-    );
+    const updatedAt = new Date().toISOString();
+    const updatedEntries: WorldEntry[] = [];
     for (const update of migration.entryFieldUpdates) {
       const entry = entries.find(
         (candidate) => candidate.id === update.entryId
       );
       if (entry) {
-        onSaveEntry({
+        updatedEntries.push({
           ...entry,
           fields: update.fields,
-          updatedAt: new Date().toISOString(),
+          updatedAt,
         });
       }
     }
+    onCommitEntryRelationshipTransaction({
+      actionLabel: 'Migrate All Exact Relationship Text',
+      entries: updatedEntries,
+      relationships: migration.relationshipsToSave.map(
+        ({ relationship }) => relationship
+      ),
+      relationshipIdsToDelete: migration.relationshipIdsToDelete,
+    });
   };
 
   return (
@@ -779,9 +801,12 @@ export function SectionPage({
             <TimelineOverview
               codex={codex}
               events={filteredEntries}
-              onSaveEvents={(timelineEvents) => {
-                timelineEvents.forEach((event) => onSaveEntry(event));
-              }}
+              onSaveEvents={(timelineEvents) =>
+                onCommitEntryRelationshipTransaction({
+                  actionLabel: 'Update Timeline Event Order',
+                  entries: timelineEvents,
+                })
+              }
               relationships={relationships}
               sections={sections}
             />
@@ -1226,7 +1251,12 @@ export function SectionPage({
                 setTemplateStagedRelationships([]);
                 setShowArchived(true);
               }}
-              onSaveDraft={(draft, existingEntry, stagedRelationships = []) => {
+              onSaveDraft={(
+                draft,
+                existingEntry,
+                stagedRelationships = [],
+                relationshipChanges
+              ) => {
                 const result = commitEntryDraftTransaction({
                   codex,
                   entryDraft: draft,
@@ -1235,8 +1265,21 @@ export function SectionPage({
                   section,
                   stagedRelationships,
                 });
-                onSaveEntry(result.entry, draft.stagedAssets);
-                result.savedRelationships.forEach(onSaveRelationship);
+                onCommitEntryRelationshipTransaction({
+                  actionLabel: formatWorldDocumentActionLabel({
+                    action: existingEntry ? 'Update' : 'Create',
+                    recordType: section.singularTitle,
+                    subject: result.entry.name,
+                  }),
+                  assets: draft.stagedAssets,
+                  entries: [result.entry],
+                  relationships: [
+                    ...result.savedRelationships,
+                    ...(relationshipChanges?.relationships ?? []),
+                  ],
+                  relationshipIdsToDelete:
+                    relationshipChanges?.relationshipIdsToDelete,
+                });
                 setSelectedEntryId(result.entry.id);
                 setTemplateDraft(null);
                 setTemplateStagedRelationships([]);
@@ -1303,7 +1346,12 @@ export function SectionPage({
                 setTemplateDraft(null);
                 setTemplateStagedRelationships([]);
               }}
-              onSaveDraft={(draft, existingEntry, stagedRelationships = []) => {
+              onSaveDraft={(
+                draft,
+                existingEntry,
+                stagedRelationships = [],
+                relationshipChanges
+              ) => {
                 const result = commitEntryDraftTransaction({
                   codex,
                   entryDraft: draft,
@@ -1312,8 +1360,21 @@ export function SectionPage({
                   section,
                   stagedRelationships,
                 });
-                onSaveEntry(result.entry, draft.stagedAssets);
-                result.savedRelationships.forEach(onSaveRelationship);
+                onCommitEntryRelationshipTransaction({
+                  actionLabel: formatWorldDocumentActionLabel({
+                    action: existingEntry ? 'Update' : 'Create',
+                    recordType: section.singularTitle,
+                    subject: result.entry.name,
+                  }),
+                  assets: draft.stagedAssets,
+                  entries: [result.entry],
+                  relationships: [
+                    ...result.savedRelationships,
+                    ...(relationshipChanges?.relationships ?? []),
+                  ],
+                  relationshipIdsToDelete:
+                    relationshipChanges?.relationshipIdsToDelete,
+                });
                 setSelectedEntryId(result.entry.id);
                 setTemplateDraft(null);
                 setTemplateStagedRelationships([]);

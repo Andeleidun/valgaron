@@ -2579,7 +2579,7 @@ export function EntriesScreen({
             ) : null}
             {isDraftDirty ? (
               <StatusText tone="warning">
-                {entryEditorCopy.unsavedDraftMessage}
+                {entryEditorCopy.unappliedDraftMessage}
               </StatusText>
             ) : null}
             {leadingBaseFields.map((field) => (
@@ -2673,7 +2673,7 @@ export function EntriesScreen({
                   </MutedText>
                   {selectedEntry ? (
                     <MutedText>
-                      {timelineEditorModel.involvedRecords.savedEntryMessage}
+                      {timelineEditorModel.involvedRecords.currentEntryMessage}
                     </MutedText>
                   ) : (
                     <>
@@ -2876,8 +2876,8 @@ export function EntriesScreen({
                 </MutedText>
                 {isDraftDirty ? (
                   <MutedText>
-                    Save this {section.singularTitle.toLowerCase()} before
-                    editing relationship links.
+                    Create or update this {section.singularTitle.toLowerCase()}{' '}
+                    before editing relationship links.
                   </MutedText>
                 ) : (
                   linkedFieldDisplayModels.map((fieldModel) => {
@@ -3079,7 +3079,7 @@ export function EntriesScreen({
                 {legacyRelationshipTextValues.length > 0 ? (
                   <View style={styles.linkedField}>
                     <Text style={styles.relationshipGroupTitle}>
-                      {relationshipTextReviewCopy.savedTextLinkNotesTitle}
+                      {relationshipTextReviewCopy.currentTextLinkNotesTitle}
                     </Text>
                     {legacyRelationshipTextValues.map((field) => {
                       const migration = !isDraftDirty

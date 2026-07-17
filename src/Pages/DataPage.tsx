@@ -51,7 +51,7 @@ import {
 } from '../Utlilities/fileDownloads';
 import {
   createWorldZipBackup,
-  installWorldZipAssets,
+  installWorldZipAssetsWithRollback,
   parseWorldZipBackup,
   type ParsedWorldZipBackup,
 } from '../Utlilities/zipBackups';
@@ -60,6 +60,7 @@ import {
   useUnsavedChangesWarning,
 } from '../Utlilities/unsavedChanges';
 import { useDialogFocus } from '../Utlilities/dialogFocus';
+import { useDocumentDraftRegistration } from '../Utlilities/documentDraftState';
 import type { WorldDocumentLoadStatus } from '../Utlilities/codexStorage';
 import type {
   RecoverySnapshotStatus,
@@ -154,7 +155,7 @@ export function DataPage({
   document: WorldDocument;
   loadStatus: WorldDocumentLoadStatus;
   onDeleteSnapshot: (snapshotId: string) => void;
-  onImportDocument: (document: WorldDocument) => void;
+  onImportDocument: (document: WorldDocument) => boolean;
   onRequestReset: (afterReset?: () => void) => void;
   onRestoreSnapshot: (snapshotId: string) => void;
   recoverySnapshots: readonly RecoverySnapshotSummary[];
@@ -266,6 +267,7 @@ export function DataPage({
     [importResult, importText]
   );
   const saveStatusModel = getLocalSaveStatusModel({
+    attemptedAt: saveStatus.attemptedAt,
     savedAt: saveStatus.savedAt,
     state: saveStatus.state,
     targetLabel: localPersistenceCopy.browserSaveTarget,
@@ -351,6 +353,11 @@ export function DataPage({
     setIsImportConfirmationOpen(false);
   };
 
+  useDocumentDraftRegistration({
+    isDirty: isImportDirty,
+    onDiscard: clearImportDraft,
+  });
+
   const discardImportIfAllowed = (action: () => void) => {
     if (confirmDiscardUnsavedChanges(isImportDirty)) {
       action();
@@ -418,14 +425,45 @@ export function DataPage({
 
   const confirmImport = async () => {
     if (importResult?.ok) {
-      if (zipImportResult && !(await installWorldZipAssets(zipImportResult))) {
+      const installation = zipImportResult
+        ? await installWorldZipAssetsWithRollback(zipImportResult)
+        : null;
+      if (installation && !installation.ok) {
         setImportFileMessage(
-          'Uploaded images could not be stored. The current document was left unchanged.'
+          installation.rollbackComplete
+            ? 'Uploaded images could not be stored. Partial image writes were rolled back, and the current document was left unchanged.'
+            : 'Uploaded images could not be stored, and some partial image bytes could not be rolled back. The current document was left unchanged; save or export current work before reloading so safe cleanup can run.'
         );
         setIsImportConfirmationOpen(false);
         return;
       }
-      onImportDocument(importResult.document);
+      let didImport: boolean;
+      try {
+        didImport = onImportDocument(importResult.document);
+      } catch {
+        const didRollback = installation?.ok
+          ? await installation.rollback()
+          : true;
+        setImportFileMessage(
+          didRollback
+            ? 'The backup could not be applied. Newly installed image bytes were rolled back.'
+            : 'The backup could not be applied, and some newly installed image bytes could not be rolled back. Save or export current work before reloading; safe cleanup runs on next load.'
+        );
+        setIsImportConfirmationOpen(false);
+        return;
+      }
+      if (!didImport) {
+        const didRollback = installation?.ok
+          ? await installation.rollback()
+          : true;
+        setImportFileMessage(
+          didRollback
+            ? 'The imported backup did not change the current document.'
+            : 'The imported backup did not change the current document, and some newly installed image bytes could not be rolled back. Save or export current work before reloading; safe cleanup runs on next load.'
+        );
+        setIsImportConfirmationOpen(false);
+        return;
+      }
       clearImportDraft();
     }
   };
@@ -731,7 +769,7 @@ export function DataPage({
             </div>
             {isImportDirty ? (
               <span className="vwb-status-pill">
-                {dataImportCopy.unsavedLabel}
+                {dataImportCopy.unappliedLabel}
               </span>
             ) : null}
           </div>

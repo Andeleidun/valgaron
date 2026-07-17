@@ -865,19 +865,19 @@ describe('relationship-backed field helpers', () => {
       hiddenEntryDetailsTitle: 'Hidden entry details',
       linkedFieldsTitle: 'Linked relationship fields',
       reviewEntryLabel: 'Review Entry',
-      savedTextLinkNotesTitle: 'Saved text link notes',
+      currentTextLinkNotesTitle: 'Current text link notes',
       suggestionsLabel: 'Suggestions',
       unresolvedLabel: 'Unresolved',
       draftBlockedMessage:
-        'Save or discard the current entry draft before migrating exact matches.',
+        'Apply or discard the current entry draft before migrating exact matches.',
       linkedFieldsBlockedMessage:
-        'Save this entry before editing relationship links.',
+        'Create or update this entry before editing relationship links.',
     });
     expect(getRelationshipTextReviewSummary(1)).toBe(
-      '1 relationship-backed field contains saved text that can be reviewed or migrated to relationships.'
+      '1 relationship-backed field contains current text that can be reviewed or migrated to relationships.'
     );
     expect(getRelationshipTextReviewSummary(2)).toBe(
-      '2 relationship-backed fields contain saved text that can be reviewed or migrated to relationships.'
+      '2 relationship-backed fields contain current text that can be reviewed or migrated to relationships.'
     );
     expect(getRelationshipTextReviewCountLabel(1)).toBe('1 field to review');
     expect(getRelationshipTextReviewCountLabel(2)).toBe('2 fields to review');

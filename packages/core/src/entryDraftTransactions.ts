@@ -23,8 +23,8 @@ export const draftTransactionEntryId = '__draft-entry__';
 export const stagedRelationshipDraftCopy = {
   accessibilityLabel: 'Staged relationship links',
   detail:
-    'Stage relationship links while drafting this entry. They will be saved together when the entry is saved.',
-  duplicateMessage: 'That staged link is already in the save list.',
+    'Stage relationship links while drafting this entry. They will be created or updated together when the entry is created or updated.',
+  duplicateMessage: 'That staged link is already in the pending link list.',
   missingTargetOrTypeMessage:
     'Choose a target record and relationship type before staging.',
   noteLabel: 'Note',
@@ -35,7 +35,7 @@ export const stagedRelationshipDraftCopy = {
   targetEmptyLabel: 'Choose record',
   targetLabel: 'Target record',
   targetSearchPlaceholder: 'Search records',
-  title: 'Links to create on save',
+  title: 'Links to create with this entry',
   typeLabel: 'Relationship type',
   typePlaceholder: 'references, member of, located in',
 } as const;

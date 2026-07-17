@@ -49,9 +49,10 @@ Check these routes at phone, tablet, and desktop widths:
 
 Confirm navigation wraps or scrolls without covering controls, form labels stay
 readable, dialogs remain usable, and no primary content overlaps.
-Confirm the phone-width web header keeps Save and Data Menu visible, and the
-native mobile tab shell shows recognizable icons and labels for each primary
-codex area.
+Confirm the phone-width web header uses separate brand/Data Menu,
+Undo/Redo/Save, and navigation rows at 768, 520, 320 CSS pixels and 200% zoom,
+without horizontal overflow. Confirm the native mobile tab shell shows
+recognizable icons and labels for each primary codex area.
 
 ## Keyboard And Focus
 
@@ -61,6 +62,32 @@ codex area.
 3. Confirm Escape closes confirmation dialogs.
 4. Confirm focus returns to the initiating control after dialogs close.
 5. Confirm the skip link reaches main content.
+6. Confirm the header control group tabs in Undo, Redo, Save order, exposes
+   contextual accessible names, announces each result once, and retains visible
+   focus after activation.
+
+## Browser Document History
+
+1. Start from a saved document and confirm Undo and Redo are disabled.
+2. Create a Character, Undo it, and Redo it. Confirm the whole committed action,
+   including any links applied with it, moves as one step.
+3. Save, update the Character, Undo, and Redo. Confirm Save preserves both
+   history directions and Saved/dirty state follows the saved revision.
+4. Save an older revision after Undo, then Redo. Confirm the redone revision is
+   dirty and its images still load.
+5. Reload. Confirm only the explicitly saved document returns and session
+   history starts empty.
+6. Start an unapplied editor draft. Cancel an Undo confirmation and confirm
+   nothing changes; repeat and confirm discard, then verify the draft resets
+   before history moves. Confirm header Save excludes and retains the draft.
+7. Check import, reset, archive, delete, schema cleanup, recovery restore, and
+   workspace switch as single document-history actions. Confirm deleting a
+   recovery snapshot and dashboard-layout Undo do not affect document history.
+8. Simulate a failed `localStorage` write. Confirm Retry Save appears without
+   moving the saved baseline, Undo/Redo stay usable, and no reachable image is
+   removed.
+9. Perform more than 20 actions and confirm the oldest actions are evicted while
+   the remaining history traverses correctly.
 
 ## Core Workflows
 
@@ -112,6 +139,9 @@ codex area.
 3. Create and edit an entry, link it with a relationship, expand Links Review
    cleanup lists and Graph records when available, run duplicate relationship
    cleanup from Links, switch workspaces, and return to the edited entry.
+   Confirm new and existing actions say Create and Update respectively; native
+   mobile intentionally has no global document Undo/Redo controls in this
+   release.
 4. Export JSON from Data and confirm the text matches the selected export mode.
 5. Import valid JSON, reject invalid JSON, reset starter data, and restore a
    selected recovery snapshot.

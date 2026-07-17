@@ -20,6 +20,7 @@ import {
   getRelationshipPickerItemActionModel,
   getRelationshipStudioModeModel,
   getRelationshipStudioReviewModel,
+  getRelationshipSubmitLabel,
   getRelationshipTextReviewExactMatchLabel,
   getRelationshipTextReviewSummary,
   getRelationshipTextReviewUnresolvedLabel,
@@ -1102,7 +1103,7 @@ export function RelationshipsScreen() {
             ) : null}
             {isDraftDirty ? (
               <StatusText tone="warning">
-                {relationshipFormHeaderModel.unsavedDraftLabel}
+                {relationshipFormHeaderModel.unappliedDraftLabel}
               </StatusText>
             ) : null}
             {relationshipEntries.length < 2 ? (
@@ -1222,7 +1223,7 @@ export function RelationshipsScreen() {
                 />
                 <ButtonRow>
                   <ActionButton
-                    label={relationshipFeatureCopy.saveRelationshipLabel}
+                    label={getRelationshipSubmitLabel(editingRelationship)}
                     tone="accent"
                     onPress={() => {
                       const didSave = controller.saveRelationshipDraft(
@@ -1247,7 +1248,7 @@ export function RelationshipsScreen() {
         {showLinksMode ? (
           <SectionBlock
             sectionId="links.saved"
-            title={relationshipFeatureCopy.savedSectionTitle}
+            title={relationshipFeatureCopy.currentSectionTitle}
           >
             <Field
               autoCapitalize="none"

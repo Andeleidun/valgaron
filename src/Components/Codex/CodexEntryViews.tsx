@@ -88,6 +88,7 @@ import {
   useUnsavedChangesWarning,
 } from '../../Utlilities/unsavedChanges';
 import { useDialogFocus } from '../../Utlilities/dialogFocus';
+import { useDocumentDraftRegistration } from '../../Utlilities/documentDraftState';
 import { discardBrowserStagedImageAssets } from '../../Utlilities/imageAssetGarbageCollection';
 import { EntryImageGallery, EntryImagesEditor } from './EntryImages';
 
@@ -848,7 +849,7 @@ function getLinkedFieldPanelLabel(section: WorldSectionConfig): string {
 }
 
 function getLinkedFieldBlockedMessage(section: WorldSectionConfig): string {
-  return `Save this ${getSectionNoun(
+  return `Create or update this ${getSectionNoun(
     section
   )} before editing relationship links.`;
 }
@@ -976,7 +977,7 @@ function RelationshipFieldControl({
       <div>
         <h4>{config.label}</h4>
         <p>
-          Saved as {config.relationshipType} relationship
+          Linked as {config.relationshipType} relationship
           {config.cardinality === 'many' ? 's' : ''}.
         </p>
       </div>
@@ -1113,7 +1114,11 @@ export function TimelineEventEditor({
   onSaveDraft: (
     draft: EntryDraft,
     existingEntry?: WorldEntry,
-    stagedRelationships?: readonly StagedRelationshipDraft[]
+    stagedRelationships?: readonly StagedRelationshipDraft[],
+    relationshipChanges?: {
+      relationships: readonly WorldRelationship[];
+      relationshipIdsToDelete: readonly string[];
+    }
   ) => WorldEntry | null;
   onCancel: () => void;
   onDelete: (entry: WorldEntry) => void;
@@ -1186,6 +1191,19 @@ export function TimelineEventEditor({
   });
 
   useUnsavedChangesWarning(reportedIsDirty);
+  useDocumentDraftRegistration({
+    isDirty: reportedIsDirty,
+    onDiscard: () => {
+      void discardBrowserStagedImageAssets(draft.stagedAssets);
+      setDraft(baselineDraft);
+      setStagedRelationships([...initialStagedRelationshipDrafts]);
+      setInvolvedRecordQuery('');
+      setExpandedInvolvedRecords(false);
+      setError('');
+      setCopyStatus('');
+    },
+    stagedAssetIds: draft.stagedAssets?.map((asset) => asset.id),
+  });
 
   useEffect(() => {
     reportedBaselineDraftRef.current = baselineDraft;
@@ -1217,12 +1235,17 @@ export function TimelineEventEditor({
 
   const saveDraft = (
     nextDraft: EntryDraft,
-    existingEntry?: WorldEntry
+    existingEntry?: WorldEntry,
+    relationshipChanges?: {
+      relationships: readonly WorldRelationship[];
+      relationshipIdsToDelete: readonly string[];
+    }
   ): WorldEntry | null => {
     const savedEntry = onSaveDraft(
       nextDraft,
       existingEntry,
-      stagedRelationships
+      stagedRelationships,
+      relationshipChanges
     );
     if (!savedEntry) {
       return null;
@@ -1294,10 +1317,6 @@ export function TimelineEventEditor({
       migration,
       relationships,
     });
-    operation.relationshipIdsToDelete.forEach(onDeleteRelationship);
-    operation.relationshipsToSave.forEach(({ relationship }) =>
-      onSaveRelationship(relationship)
-    );
     const nextDraft = {
       ...draft,
       details: {
@@ -1306,7 +1325,12 @@ export function TimelineEventEditor({
       },
     };
     setDraft(nextDraft);
-    saveDraft(nextDraft, selectedEntry);
+    saveDraft(nextDraft, selectedEntry, {
+      relationships: operation.relationshipsToSave.map(
+        ({ relationship }) => relationship
+      ),
+      relationshipIdsToDelete: operation.relationshipIdsToDelete,
+    });
   };
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
@@ -1408,7 +1432,7 @@ export function TimelineEventEditor({
         </div>
         {reportedIsDirty ? (
           <span className="vwb-status-pill">
-            {entryEditorCopy.unsavedLabel}
+            {entryEditorCopy.unappliedLabel}
           </span>
         ) : null}
         {selectedEntry ? (
@@ -1514,7 +1538,7 @@ export function TimelineEventEditor({
             />
           ) : (
             <p className="vwb-inline-status">
-              {model.involvedRecords.saveBeforeEditMessage}
+              {model.involvedRecords.applyBeforeEditMessage}
             </p>
           )
         ) : (
@@ -1810,7 +1834,11 @@ export function EntryForm({
   onSaveDraft?: (
     draft: EntryDraft,
     existingEntry?: WorldEntry,
-    stagedRelationships?: readonly StagedRelationshipDraft[]
+    stagedRelationships?: readonly StagedRelationshipDraft[],
+    relationshipChanges?: {
+      relationships: readonly WorldRelationship[];
+      relationshipIdsToDelete: readonly string[];
+    }
   ) => WorldEntry | null;
   onCancel: () => void;
   onDelete: (entry: WorldEntry) => void;
@@ -1947,6 +1975,20 @@ export function EntryForm({
   );
 
   useUnsavedChangesWarning(reportedIsDirty);
+  useDocumentDraftRegistration({
+    isDirty: reportedIsDirty,
+    onDiscard: () => {
+      void discardBrowserStagedImageAssets(draft.stagedAssets);
+      setDraft(baselineDraft);
+      setStagedRelationships([...initialStagedRelationshipDrafts]);
+      setStagedTargetEntryId('');
+      setStagedRelationshipType('references');
+      setStagedRelationshipNote('');
+      setError('');
+      setCopyStatus('');
+    },
+    stagedAssetIds: draft.stagedAssets?.map((asset) => asset.id),
+  });
 
   useEffect(() => {
     reportedBaselineDraftRef.current = baselineDraft;
@@ -2006,10 +2048,19 @@ export function EntryForm({
 
   const saveDraft = (
     nextDraft: EntryDraft,
-    existingEntry?: WorldEntry
+    existingEntry?: WorldEntry,
+    relationshipChanges?: {
+      relationships: readonly WorldRelationship[];
+      relationshipIdsToDelete: readonly string[];
+    }
   ): WorldEntry | null => {
     const savedEntry = onSaveDraft
-      ? onSaveDraft(nextDraft, existingEntry, stagedRelationships)
+      ? onSaveDraft(
+          nextDraft,
+          existingEntry,
+          stagedRelationships,
+          relationshipChanges
+        )
       : entryFromDraft(section, nextDraft, existingEntry);
     if (!savedEntry) {
       return null;
@@ -2117,10 +2168,6 @@ export function EntryForm({
       migration,
       relationships,
     });
-    operation.relationshipIdsToDelete.forEach(onDeleteRelationship);
-    operation.relationshipsToSave.forEach(({ relationship }) =>
-      onSaveRelationship(relationship)
-    );
     const nextDraft = {
       ...draft,
       details: {
@@ -2129,7 +2176,12 @@ export function EntryForm({
       },
     };
     setDraft(nextDraft);
-    saveDraft(nextDraft, selectedEntry);
+    saveDraft(nextDraft, selectedEntry, {
+      relationships: operation.relationshipsToSave.map(
+        ({ relationship }) => relationship
+      ),
+      relationshipIdsToDelete: operation.relationshipIdsToDelete,
+    });
   };
 
   return (
@@ -2149,7 +2201,7 @@ export function EntryForm({
         </div>
         {reportedIsDirty ? (
           <span className="vwb-status-pill">
-            {entryEditorCopy.unsavedLabel}
+            {entryEditorCopy.unappliedLabel}
           </span>
         ) : null}
         {selectedEntry ? (
@@ -2497,9 +2549,9 @@ export function EntryForm({
           {legacyRelationshipTextValues.length > 0 ? (
             <section
               className="vwb-hidden-detail-panel"
-              aria-label={relationshipTextReviewCopy.savedTextLinkNotesTitle}
+              aria-label={relationshipTextReviewCopy.currentTextLinkNotesTitle}
             >
-              <h4>{relationshipTextReviewCopy.savedTextLinkNotesTitle}</h4>
+              <h4>{relationshipTextReviewCopy.currentTextLinkNotesTitle}</h4>
               <dl className="vwb-detail-list">
                 {legacyRelationshipTextValues.map((field) => {
                   const migration = canEditRelationshipFields

@@ -36,6 +36,7 @@ platform capability difference, or removed from supported scope.
 | Diagnostics schema                | Resolved with shared diagnostics report | Core diagnostics        | Shared diagnostics export                                             | Shared diagnostics export                                     | Closed   | Shared fixture tests, no content leakage                                                |
 | Runtime recovery                  | Resolved with shared recovery copy      | Core recovery model     | Retry/Data/diagnostics                                                | Retry/Data recovery path                                      | Closed   | Same recovery copy and recovery actions                                                 |
 | Save status affordance            | Resolved with shared save model         | Web save button/status  | Header Save button                                                    | Overview Save Status section                                  | Closed   | Shared save status model                                                                |
+| Document Undo/Redo                | Intentional web-first capability split  | Document history model  | Header controls, 20 session actions, manual Save baseline             | Not exposed; mutations retain device persistence              | Open     | Shared Create/Update copy; web history and reload smoke; mobile copy tests              |
 | Large-world mobile behavior       | Resolved with shared mobile budgets     | Shared feature model    | Performance smoke exists                                              | Shared limits with reachability tests                         | Closed   | Records remain findable/editable                                                        |
 | Duplicate derivation helpers      | Resolved with shared feature models     | Shared feature layer    | Retired duplicate wrappers                                            | Retired `mobileCodexViewModels`                               | Closed   | Boundary test plus deletion checklist                                                   |
 | Mobile web stacked workflow       | Resolved with responsive shell contract | Native mobile flow      | Desktop Workbench at wide widths, stacked mobile web at narrow widths | Native stacked screens                                        | Closed   | Browser smoke asserts Workbench, Timeline, Links, More visible order at 375px and 320px |
@@ -139,7 +140,7 @@ Before release, confirm:
 - Shared control descriptor tests cover entry and relationship control kinds,
   accessible labels, and canonical options.
 - Timeline editor checks cover chronology field grouping, contextual event
-  creation from era and involved-record filters, and saved relationship
+  creation from era and involved-record filters, and current relationship
   summaries on both browser and mobile.
 - Schema/vocabulary changes preserve schema `2` unless a durable v3 product
   decision is documented in the UX plan and schema migration docs.

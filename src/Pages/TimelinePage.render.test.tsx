@@ -14,6 +14,7 @@ describe('TimelinePage browser rendering', () => {
           onArchiveEntry={jest.fn()}
           onDeleteEntry={jest.fn()}
           onDeleteRelationship={jest.fn()}
+          onCommitEntryRelationshipTransaction={jest.fn()}
           onSaveEntry={jest.fn()}
           onSaveRelationship={jest.fn()}
           relationships={activeWorld.relationships}

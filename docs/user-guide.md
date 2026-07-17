@@ -22,13 +22,13 @@ companion.
    totals.
 2. Create or edit records in Workbench or the mobile Workbench tab.
 3. Use Relationships or the mobile Links tab to connect entries, expand Review
-   cleanup lists, repair broken links, clean up duplicate saved relationships,
+   cleanup lists, repair broken links, clean up duplicate current relationships,
    review legacy relationship text, and inspect graph-style context.
 4. Use Timeline to review chronology, eras, involved records, event order, and
    dense era groups.
 5. Use Knowledge, or the Project Tools area inside mobile More, to create
    custom entry types, configure field labels/help/visibility/order and
-   vocabulary behavior, search schema settings, review durable vocabulary rows,
+   vocabulary behavior, search schema settings, review reusable vocabulary rows,
    lore definition types, and relationship-backed field rules.
 6. Use Project Tools shortcuts and Review Hotspots in Utilities or More to
    reach Data, Workspaces, focused Help, and existing cleanup surfaces without
@@ -82,7 +82,7 @@ the Unassigned Era filter when you need to review unassigned events before
 assigning them. Creating a new event while an era or involved-record filter is
 active starts the draft with that context. Editing an event groups chronology,
 linked records, and outcomes so order, date, era, involved records, and
-consequences stay together. Saved events also summarize existing relationships
+consequences stay together. Current events also summarize existing relationships
 that connect other records to the event, while newly selected involved records
 use the relationship-backed linked-field editor. On mobile, compact era groups
 can expand in place when an era has more events than the default scan view
@@ -105,7 +105,7 @@ or custom settings and can be reset to defaults after experimentation. Search
 field settings by section, field name, key, vocabulary, mode, relationship type,
 or target section when a schema gets large.
 
-Knowledge on the web also manages durable workspace vocabulary values for
+Knowledge on the web also manages workspace-owned vocabulary values for
 fields such as character category, ancestry, profession, place category, faction
 influence, lore category, and timeline era. Vocabulary values can be added,
 edited, archived, restored, reordered, and searched from Knowledge on the web or
@@ -193,6 +193,32 @@ stored in the local document. Export JSON before:
 
 Markdown export is a drafting reference for the active workspace. It is not a
 restore format.
+
+## Create, Update, Save, And Browser History
+
+**Create** and **Update** apply a form draft to the browser's current world
+document. They do not write `localStorage`. The header **Save** button is the
+durable browser action and writes only changes already applied to that document.
+If a form still shows unapplied draft changes, header Save leaves that draft in
+the form and excludes it from the saved document.
+
+The browser header's **Undo** and **Redo** buttons navigate committed document
+actions, not individual keystrokes. A record update and all relationships
+applied with the same submit action form one history step. The history includes
+at most 20 actions and exists only in the current page session; reloading starts
+with the last explicitly saved document and empty Undo/Redo history. Save does
+not clear either history direction.
+
+Undo or Redo asks for confirmation when the active page has unapplied draft
+changes. Cancel keeps both the draft and document history unchanged. Confirming
+discards the draft before moving through history. Use the input's normal text
+editing shortcuts to undo typing inside a field.
+
+This browser history is separate from dashboard-layout Undo and from recovery
+snapshots. Dashboard history changes presentation preferences. Recovery
+snapshots are longer-lived local checkpoints made before selected destructive
+actions. None of these is a downloaded backup, and document Undo/Redo is not
+currently available in the native mobile companion.
 
 ## Imports
 

@@ -49,12 +49,12 @@ export function saveEntryInActiveWorkspace({
   entry: WorldEntry;
   updatedAt?: string;
 }): WorldDocument {
-  const timestamp = mutationTimestamp(updatedAt);
-  return updateActiveWorld(document, (world) => ({
-    ...world,
-    codex: applyEntry(world.codex, entry, world.entryTypes),
-    updatedAt: timestamp,
-  }));
+  return updateActiveWorld(document, (world) => {
+    const codex = applyEntry(world.codex, entry, world.entryTypes);
+    return codex === world.codex
+      ? world
+      : { ...world, codex, updatedAt: mutationTimestamp(updatedAt) };
+  });
 }
 
 export function archiveEntryInActiveWorkspace({
@@ -68,12 +68,17 @@ export function archiveEntryInActiveWorkspace({
   entry: WorldEntry;
   updatedAt?: string;
 }): WorldDocument {
-  const timestamp = mutationTimestamp(updatedAt);
-  return updateActiveWorld(document, (world) => ({
-    ...world,
-    codex: setEntryArchived(world.codex, entry, archived, world.entryTypes),
-    updatedAt: timestamp,
-  }));
+  return updateActiveWorld(document, (world) => {
+    const codex = setEntryArchived(
+      world.codex,
+      entry,
+      archived,
+      world.entryTypes
+    );
+    return codex === world.codex
+      ? world
+      : { ...world, codex, updatedAt: mutationTimestamp(updatedAt) };
+  });
 }
 
 export function deleteEntryFromActiveWorkspace({
@@ -85,13 +90,18 @@ export function deleteEntryFromActiveWorkspace({
   entry: WorldEntry;
   updatedAt?: string;
 }): WorldDocument {
-  const timestamp = mutationTimestamp(updatedAt);
-  return updateActiveWorld(document, (world) => ({
-    ...world,
-    codex: deleteEntry(world.codex, entry, world.entryTypes),
-    relationships: deleteRelationshipsForEntry(world.relationships, entry.id),
-    updatedAt: timestamp,
-  }));
+  return updateActiveWorld(document, (world) => {
+    const codex = deleteEntry(world.codex, entry, world.entryTypes);
+    if (codex === world.codex) {
+      return world;
+    }
+    return {
+      ...world,
+      codex,
+      relationships: deleteRelationshipsForEntry(world.relationships, entry.id),
+      updatedAt: mutationTimestamp(updatedAt),
+    };
+  });
 }
 
 export function saveRelationshipInActiveWorkspace({
@@ -103,12 +113,16 @@ export function saveRelationshipInActiveWorkspace({
   relationship: WorldRelationship;
   updatedAt?: string;
 }): WorldDocument {
-  const timestamp = mutationTimestamp(updatedAt);
-  return updateActiveWorld(document, (world) => ({
-    ...world,
-    relationships: upsertRelationship(world.relationships, relationship),
-    updatedAt: timestamp,
-  }));
+  return updateActiveWorld(document, (world) => {
+    const relationships = upsertRelationship(world.relationships, relationship);
+    return relationships === world.relationships
+      ? world
+      : {
+          ...world,
+          relationships,
+          updatedAt: mutationTimestamp(updatedAt),
+        };
+  });
 }
 
 export function deleteRelationshipFromActiveWorkspace({
@@ -120,12 +134,19 @@ export function deleteRelationshipFromActiveWorkspace({
   relationshipId: string;
   updatedAt?: string;
 }): WorldDocument {
-  const timestamp = mutationTimestamp(updatedAt);
-  return updateActiveWorld(document, (world) => ({
-    ...world,
-    relationships: deleteRelationship(world.relationships, relationshipId),
-    updatedAt: timestamp,
-  }));
+  return updateActiveWorld(document, (world) => {
+    const relationships = deleteRelationship(
+      world.relationships,
+      relationshipId
+    );
+    return relationships === world.relationships
+      ? world
+      : {
+          ...world,
+          relationships,
+          updatedAt: mutationTimestamp(updatedAt),
+        };
+  });
 }
 
 export function moveTimelineEventInActiveWorkspace({

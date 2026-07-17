@@ -39,6 +39,17 @@ import { addVocabularyValue } from './workspaceManagement';
 import { getActiveWorld, updateActiveWorld } from './worldDocument';
 
 describe('codex entry helpers', () => {
+  it('returns the existing entry for an unchanged normalized draft', () => {
+    const world = getActiveWorld(createSeedWorldDocument());
+    const section = world.entryTypes.find(
+      (candidate) => candidate.id === 'characters'
+    )!;
+    const entry = getEntries(world.codex, section.id)[0]!;
+
+    expect(entryFromDraft(section, draftFromEntry(entry, section), entry)).toBe(
+      entry
+    );
+  });
   it('normalizes comma-separated tags without empty values', () => {
     expect(normalizeTags(' maps,  borderlands,, archive ')).toEqual([
       'maps',
@@ -79,12 +90,11 @@ describe('codex entry helpers', () => {
       notesPreviewKicker: 'Markdown preview',
       notesPreviewTitle: 'Notes preview',
       restoreLabel: 'Restore',
-      saveChangesLabel: 'Save Changes',
       summaryLabel: 'Summary',
       tagsLabel: 'Tags',
       hiddenDetailsTitle: 'Hidden details',
-      unsavedDraftMessage: 'Unsaved entry draft.',
-      unsavedLabel: 'Unsaved',
+      unappliedDraftMessage: 'Unapplied entry draft changes.',
+      unappliedLabel: 'Unapplied',
       useAsTemplateLabel: 'Use As Template',
     });
     expect(entryDisplayCopy.emptySummary).toBe('No summary yet.');
@@ -132,7 +142,7 @@ describe('codex entry helpers', () => {
         selectedEntry: codex.characters[0],
         stagedRelationshipCount: 2,
       })
-    ).toBe('Save Changes');
+    ).toBe('Update Character And 2 Links');
   });
 
   it('builds shared entry editor base fields and notes preview', () => {

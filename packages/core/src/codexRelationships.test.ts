@@ -24,6 +24,7 @@ import {
   getRelationshipManagementRoute,
   getRelationshipPickerItemActionModel,
   getRelationshipStudioModeModel,
+  getRelationshipSubmitLabel,
   getOrphanedEntries,
   getPlaceRelationshipGroups,
   getRelationshipHealthSummary,
@@ -77,7 +78,6 @@ describe('codexRelationships', () => {
       openSourceLabel: 'Open Source',
       openTargetLabel: 'Open Target',
       filterListLabel: 'Filter List',
-      saveRelationshipLabel: 'Save Relationship',
       clearTypeFilterLabel: 'Clear Type Filter',
       clearEntryFilterLabel: 'Clear Entry Filter',
       clearSearchLabel: 'Clear Search',
@@ -108,14 +108,14 @@ describe('codexRelationships', () => {
       duplicateRelationshipsLabel: 'Duplicate Relationships',
       duplicateRelationshipsReviewLabel: 'Duplicate relationship review',
       duplicateRelationshipsDetail:
-        'Saved relationships with the same source, target, type, status, direction, and note.',
+        'Current relationships with the same source, target, type, status, direction, and note.',
       duplicateRelationshipsCleanupLabel: 'Remove Duplicate Relationships',
       duplicateRelationshipsCleanupBlockedMessage:
-        'Save or discard the current relationship draft before running bulk cleanup.',
+        'Apply or discard the current relationship draft before running bulk cleanup.',
       noBrokenRelationshipsTitle: 'No broken relationships.',
       noConnectedGraphMatchesMessage:
         'No connected graph records match these filters.',
-      savedSectionTitle: 'Saved Relationships',
+      currentSectionTitle: 'Current Relationships',
       selectedEntryKickerLabel: 'Relationships',
       selectedEntrySectionTitle: 'Linked Records',
       selectedEntryEmptyTitle: 'No relationships yet.',
@@ -131,12 +131,12 @@ describe('codexRelationships', () => {
       graphNodeTagsLabel: 'Graph node tags',
       noGraphTitle: 'No graph yet.',
       noGraphDetail:
-        'Graph rows appear once saved relationships have valid endpoints.',
+        'Graph rows appear once current relationships have valid endpoints.',
       repairBrokenLinksTitle: 'Repair Broken Links',
       relationshipFormTitle: 'Relationship Form',
       minimumEntriesTitle: 'Create at least two entries first.',
       minimumEntriesDetail: 'Relationships need a source and a target record.',
-      unsavedDraftMessage: 'Unsaved relationship draft.',
+      unappliedDraftMessage: 'Unapplied relationship draft changes.',
       noMatchesTitle: 'No relationships match the filters.',
       emptyTitle: 'No relationships yet.',
       studioTitle: 'Relationship Studio',
@@ -179,7 +179,7 @@ describe('codexRelationships', () => {
         {
           id: 'links',
           label: 'Links',
-          detail: 'Search, edit, delete, or compose saved relationships.',
+          detail: 'Search, edit, delete, or compose current relationships.',
           isActive: false,
         },
         {
@@ -224,8 +224,8 @@ describe('codexRelationships', () => {
     expect(getRelationshipFormHeaderModel(null)).toEqual({
       kickerLabel: 'New link',
       title: 'Relationship Form',
-      unsavedDraftLabel: 'Unsaved relationship draft.',
-      unsavedDraftPillLabel: 'Unsaved',
+      unappliedDraftLabel: 'Unapplied relationship draft changes.',
+      unappliedDraftPillLabel: 'Unapplied',
     });
     expect(
       getRelationshipFormHeaderModel({
@@ -234,14 +234,18 @@ describe('codexRelationships', () => {
     ).toEqual({
       kickerLabel: 'Edit link',
       title: 'Edit member of',
-      unsavedDraftLabel: 'Unsaved relationship draft.',
-      unsavedDraftPillLabel: 'Unsaved',
+      unappliedDraftLabel: 'Unapplied relationship draft changes.',
+      unappliedDraftPillLabel: 'Unapplied',
     });
     expect(
       getRelationshipFormHeaderModel({
         type: '   ',
       }).title
     ).toBe('Relationship Form');
+    expect(getRelationshipSubmitLabel(null)).toBe('Create Relationship');
+    expect(getRelationshipSubmitLabel(fixedRelationship)).toBe(
+      'Update Relationship'
+    );
   });
 
   it('builds shared entry edit routes for relationship entry targets', () => {
@@ -416,6 +420,12 @@ describe('codexRelationships', () => {
     expect(relationship.note).toBe('Keeps ledgers.');
     expect(relationship.createdAt).toBeTruthy();
     expect(relationship.updatedAt).toBeTruthy();
+    expect(
+      relationshipFromDraft(
+        draftFromRelationship(fixedRelationship),
+        fixedRelationship
+      )
+    ).toBe(fixedRelationship);
   });
 
   it('converts a saved relationship into an editable draft', () => {

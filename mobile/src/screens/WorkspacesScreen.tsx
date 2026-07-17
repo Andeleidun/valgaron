@@ -510,7 +510,7 @@ export function WorkspacesScreen() {
             <ActionButton
               label={
                 selectedWorkspace
-                  ? workspaceFeatureActions.saveWorkspace
+                  ? workspaceFeatureActions.updateWorkspace
                   : workspaceFeatureActions.createWorkspace
               }
               tone="accent"
@@ -666,7 +666,7 @@ export function WorkspacesScreen() {
             <ActionButton
               label={
                 selectedPlanetaryWorld
-                  ? workspaceFeatureActions.saveWorld
+                  ? workspaceFeatureActions.updateWorld
                   : workspaceFeatureActions.createWorld
               }
               tone="accent"

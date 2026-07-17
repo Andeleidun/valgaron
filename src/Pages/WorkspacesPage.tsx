@@ -40,6 +40,7 @@ import {
   useUnsavedChangesWarning,
 } from '../Utlilities/unsavedChanges';
 import { useDialogFocus } from '../Utlilities/dialogFocus';
+import { useDocumentDraftRegistration } from '../Utlilities/documentDraftState';
 
 type PendingDelete =
   | { type: 'workspace'; id: string; name: string }
@@ -211,6 +212,15 @@ export function WorkspacesPage({
   const hasDirtyDraft = isWorkspaceDraftDirty || isPlanetaryWorldDraftDirty;
 
   useUnsavedChangesWarning(hasDirtyDraft);
+  useDocumentDraftRegistration({
+    isDirty: hasDirtyDraft,
+    onDiscard: () => {
+      setWorkspaceDraft(workspaceBaselineDraft);
+      setPlanetaryWorldDraft(planetaryWorldBaselineDraft);
+      setWorkspaceError('');
+      setPlanetaryWorldError('');
+    },
+  });
 
   useEffect(() => {
     if (activeWorkspaceIdRef.current === activeWorld.id) {
@@ -494,7 +504,7 @@ export function WorkspacesPage({
                 </div>
                 {isWorkspaceDraftDirty ? (
                   <span className="vwb-status-pill">
-                    {workspaceFeatureCopy.status.unsaved}
+                    {workspaceFeatureCopy.status.unapplied}
                   </span>
                 ) : null}
               </div>
@@ -527,7 +537,7 @@ export function WorkspacesPage({
               <div className="vwb-form-actions">
                 <button className="vwb-primary-button" type="submit">
                   {selectedWorkspace
-                    ? workspaceFeatureActions.saveWorkspace
+                    ? workspaceFeatureActions.updateWorkspace
                     : workspaceFeatureActions.createWorkspace}
                 </button>
                 {selectedWorkspace ? (
@@ -777,7 +787,7 @@ export function WorkspacesPage({
                 </div>
                 {isPlanetaryWorldDraftDirty ? (
                   <span className="vwb-status-pill">
-                    {workspaceFeatureCopy.status.unsaved}
+                    {workspaceFeatureCopy.status.unapplied}
                   </span>
                 ) : null}
               </div>
@@ -830,7 +840,7 @@ export function WorkspacesPage({
               <div className="vwb-form-actions">
                 <button className="vwb-primary-button" type="submit">
                   {selectedPlanetaryWorld
-                    ? workspaceFeatureActions.saveWorld
+                    ? workspaceFeatureActions.updateWorld
                     : workspaceFeatureActions.createWorld}
                 </button>
                 <button

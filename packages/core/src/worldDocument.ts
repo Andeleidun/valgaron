@@ -859,6 +859,9 @@ export function updateActiveWorld(
 ): WorldDocument {
   const activeWorld = getActiveWorld(document);
   const updatedWorld = updateWorld(activeWorld);
+  if (updatedWorld === activeWorld) {
+    return document;
+  }
   return {
     ...document,
     activeWorldId: updatedWorld.id,

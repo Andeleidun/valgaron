@@ -18,13 +18,13 @@ export const knowledgeSchemaCopy = {
   overviewFieldsLabel: 'Fields',
   overviewFieldsDetail: 'Text, category, and relationship-backed fields.',
   overviewRelationshipFieldsLabel: 'Linked fields',
-  overviewRelationshipFieldsDetail: 'Fields backed by saved relationships.',
+  overviewRelationshipFieldsDetail: 'Fields backed by current relationships.',
   overviewHiddenDetailsLabel: 'Hidden details',
   overviewHiddenDetailsDetail: 'Retained values from removed or hidden fields.',
   typeSetupTitle: 'Type Setup',
   typeSetupKickerLabel: 'Schema setup',
   typeSetupDetail:
-    'Create custom entry types, add durable user-defined fields, and review reusable schema choices in one place.',
+    'Create custom entry types, add user-defined fields, and review reusable schema choices in one place.',
   typeSetupActionLabel: 'Open Type Setup',
   typeSetupCustomTypeCountLabel: 'custom types in this workspace.',
   typeSetupEmptyCustomTypesText:
@@ -141,9 +141,9 @@ export type KnowledgeFieldRow = {
   retainedValueSummary: string;
   resetSettingsAccessibilityLabel: string;
   resetSettingsLabel: string;
-  saveFieldLabelAccessibilityLabel: string;
-  saveSettingsAccessibilityLabel: string;
-  saveSettingsLabel: string;
+  updateFieldLabelAccessibilityLabel: string;
+  updateSettingsAccessibilityLabel: string;
+  updateSettingsLabel: string;
   removeFieldAccessibilityHint: string;
   targetSectionTitles: string[];
 };
@@ -305,8 +305,8 @@ export type KnowledgeVocabularyValueRow = {
   moveUpLabel: string;
   restoreAccessibilityLabel: string;
   restoreLabel: string;
-  saveAccessibilityLabel: string;
-  saveLabel: string;
+  updateAccessibilityLabel: string;
+  updateLabel: string;
   status: WorldVocabularyValue['status'];
   order?: number;
 };
@@ -653,9 +653,9 @@ function toKnowledgeFieldRows(
         retainedValueSummary: `${field.label}: ${fieldModeLabels[mode]}; values stay saved under ${field.key}.`,
         resetSettingsAccessibilityLabel: `Reset ${field.label} settings in ${section.title} to defaults`,
         resetSettingsLabel: 'Reset to Defaults',
-        saveFieldLabelAccessibilityLabel: `Save ${field.label} label in ${section.title}`,
-        saveSettingsAccessibilityLabel: `Save ${field.label} settings in ${section.title}`,
-        saveSettingsLabel: 'Save Field Settings',
+        updateFieldLabelAccessibilityLabel: `Update ${field.label} label in ${section.title}`,
+        updateSettingsAccessibilityLabel: `Update ${field.label} settings in ${section.title}`,
+        updateSettingsLabel: 'Update Field Settings',
         targetSectionTitles,
       };
     });
@@ -696,8 +696,8 @@ function sortVocabularyValues(
       moveUpLabel: 'Move Up',
       restoreAccessibilityLabel: `Restore ${value.label} to ${vocabularyName}`,
       restoreLabel: `Restore ${value.label}`,
-      saveAccessibilityLabel: `Save ${value.label} in ${vocabularyName}`,
-      saveLabel: 'Save Value',
+      updateAccessibilityLabel: `Update ${value.label} in ${vocabularyName}`,
+      updateLabel: 'Update Value',
       status: value.status,
       ...(value.order !== undefined ? { order: value.order } : {}),
     }));

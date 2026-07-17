@@ -83,10 +83,13 @@ After a Pages deployment:
 2. Refresh a nested route such as `/entries?sectionId=characters` and verify the app shell still loads.
 3. In Chrome, confirm the manifest is detected and the app is installable.
 4. In Firefox and Chrome, verify the app still loads after one online visit when the network is disabled.
-5. Create a small test entry, use the header Save button, refresh, and confirm
-   it remains saved in that browser profile.
-6. Export active-workspace JSON and confirm the downloaded file can be imported
+5. Confirm a new entry uses **Create** and an existing entry uses **Update**.
+   Create a small test entry, then use header Undo and Redo to remove and
+   restore it without reloading.
+6. Use the header Save button, confirm Undo and Redo remain available, refresh,
+   and confirm the entry remains while both history controls reset to disabled.
+7. Export active-workspace JSON and confirm the downloaded file can be imported
    in a clean profile.
-7. Export full-document JSON and confirm all workspaces import in a clean
+8. Export full-document JSON and confirm all workspaces import in a clean
    profile.
-8. Publish release notes only after the deployed URL passes the smoke checklist.
+9. Publish release notes only after the deployed URL passes the smoke checklist.

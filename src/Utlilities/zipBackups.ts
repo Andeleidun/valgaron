@@ -12,6 +12,7 @@ import {
 } from '@valgaron/core';
 import {
   createZipArchive,
+  installBinaryAssetsWithRollback,
   installBinaryAssetsTransaction,
   readZipArchive,
   type BinaryAssetRepository,
@@ -34,6 +35,13 @@ export type ParsedWorldZipBackup = Extract<WorldImportResult, { ok: true }> & {
 export type WorldZipImportResult =
   | ParsedWorldZipBackup
   | Extract<WorldImportResult, { ok: false }>;
+
+export type WorldZipAssetInstallation =
+  | { ok: false; rollbackComplete: boolean }
+  | {
+      ok: true;
+      rollback: () => Promise<boolean>;
+    };
 
 export async function createWorldZipBackup(
   document: WorldDocument,
@@ -140,6 +148,19 @@ export async function installWorldZipAssets(
   repository: BinaryAssetRepository = browserImageAssetRepository
 ): Promise<boolean> {
   return installBinaryAssetsTransaction(
+    parsed.files.map((file) => ({
+      assetId: file.asset.id,
+      asset: { bytes: file.bytes, mediaType: file.asset.mediaType },
+    })),
+    repository
+  );
+}
+
+export async function installWorldZipAssetsWithRollback(
+  parsed: ParsedWorldZipBackup,
+  repository: BinaryAssetRepository = browserImageAssetRepository
+): Promise<WorldZipAssetInstallation> {
+  return installBinaryAssetsWithRollback(
     parsed.files.map((file) => ({
       assetId: file.asset.id,
       asset: { bytes: file.bytes, mediaType: file.asset.mediaType },

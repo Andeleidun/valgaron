@@ -23,18 +23,25 @@ export type BinaryAssetInstall = {
   asset: BinaryAsset;
 };
 
-export async function installBinaryAssetsTransaction(
+export type BinaryAssetInstallTransaction =
+  | { ok: false; rollbackComplete: boolean }
+  | { ok: true; rollback: () => Promise<boolean> };
+
+export async function installBinaryAssetsWithRollback(
   files: readonly BinaryAssetInstall[],
   repository: BinaryAssetRepository
-): Promise<boolean> {
+): Promise<BinaryAssetInstallTransaction> {
   const previous = new Map<string, BinaryAsset | null>();
   const written: string[] = [];
   const rollback = async (ids: readonly string[]) => {
+    const results: boolean[] = [];
     for (const id of ids) {
       const prior = previous.get(id);
-      if (prior) await repository.write(id, prior);
-      else await repository.remove(id);
+      results.push(
+        prior ? await repository.write(id, prior) : await repository.remove(id)
+      );
     }
+    return results.every(Boolean);
   };
   for (const file of files) {
     const existing = await repository.read(file.assetId);
@@ -44,18 +51,38 @@ export async function installBinaryAssetsTransaction(
         existing.bytes.byteLength !== file.asset.bytes.byteLength ||
         existing.bytes.some((value, index) => value !== file.asset.bytes[index])
       ) {
-        await rollback([...written].reverse());
-        return false;
+        const rollbackComplete = await rollback([...written].reverse());
+        return { ok: false, rollbackComplete };
       }
       continue;
     }
     if (!(await repository.write(file.assetId, file.asset))) {
-      await rollback([file.assetId, ...[...written].reverse()]);
-      return false;
+      const rollbackComplete = await rollback([
+        file.assetId,
+        ...[...written].reverse(),
+      ]);
+      return { ok: false, rollbackComplete };
     }
     written.push(file.assetId);
   }
-  return true;
+  let didRollback = false;
+  return {
+    ok: true,
+    rollback: async () => {
+      if (didRollback) {
+        return true;
+      }
+      didRollback = await rollback([...written].reverse());
+      return didRollback;
+    },
+  };
+}
+
+export async function installBinaryAssetsTransaction(
+  files: readonly BinaryAssetInstall[],
+  repository: BinaryAssetRepository
+): Promise<boolean> {
+  return (await installBinaryAssetsWithRollback(files, repository)).ok;
 }
 
 export type ZipArchiveLimits = {

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   addEntryTypeFieldsInActiveWorkspace,
   addVocabularyValue,
@@ -14,11 +14,22 @@ import {
   deleteRelationshipFromActiveWorkspace,
   deleteWorkspace,
   duplicateWorkspace,
+  canRedoWorldDocumentRevision,
+  canUndoWorldDocumentRevision,
+  commitWorldDocumentRevision,
+  createWorldDocumentHistory,
+  formatWorldDocumentActionLabel,
   getActiveWorld,
+  getRedoWorldDocumentActionLabel,
+  getUndoWorldDocumentActionLabel,
+  getWorldDocumentHistoryDocuments,
+  getWorldDocumentHistorySaveState,
+  hasUnpersistedWorldDocumentRevision,
   pruneUnreferencedAssetMetadata,
   localPersistenceCopy,
   moveEntryTypeFieldInActiveWorkspace,
   moveVocabularyValue,
+  markWorldDocumentRevisionPersisted,
   renameEntryTypeFieldInActiveWorkspace,
   removeEntryTypeFieldInActiveWorkspace,
   saveEntryInActiveWorkspace,
@@ -27,10 +38,12 @@ import {
   setActiveWorkspace,
   setVocabularyValueArchived,
   setWorkspaceArchived,
+  redoWorldDocumentRevision,
   updateActiveWorkspace,
   updateFieldOverride,
   updateVocabularyValue,
   updateWorkspaceMetadata,
+  undoWorldDocumentRevision,
   type EntryTypeDraft,
   type CustomEntryTypeFieldMoveDirection,
   type FieldOverrideDraft,
@@ -43,6 +56,8 @@ import {
   type WorldDocument,
   type WorldEntry,
   type WorldImageAsset,
+  type WorldDocumentHistory,
+  type WorldDocumentRevisionOrigin,
   type WorldRelationship,
   type WorldSectionConfig,
   type WorldWorkspace,
@@ -67,6 +82,7 @@ import { cleanupBrowserImageAssets } from './imageAssetGarbageCollection';
 export type WorldDocumentSaveStatus = {
   state: 'saved' | 'unsaved' | 'dirty' | 'failed' | 'paused';
   savedAt: string;
+  attemptedAt: string | null;
 };
 
 export type RecoverySnapshotStatus = {
@@ -74,6 +90,69 @@ export type RecoverySnapshotStatus = {
   message: string;
   updatedAt: string;
 };
+
+export type EntryRelationshipDocumentTransaction = {
+  actionLabel: string;
+  assets?: readonly WorldImageAsset[];
+  entries?: readonly WorldEntry[];
+  relationships?: readonly WorldRelationship[];
+  relationshipIdsToDelete?: readonly string[];
+};
+
+function getEntryRecordType(
+  world: WorldWorkspace,
+  entry: Pick<WorldEntry, 'kind'>
+): string {
+  return (
+    world.entryTypes.find((section) => section.id === entry.kind)
+      ?.singularTitle ?? 'Entry'
+  );
+}
+
+export function applyEntryRelationshipDocumentTransaction(
+  currentDocument: WorldDocument,
+  {
+    assets = [],
+    entries = [],
+    relationships: relationshipsToSave = [],
+    relationshipIdsToDelete = [],
+  }: Omit<EntryRelationshipDocumentTransaction, 'actionLabel'>
+): WorldDocument {
+  let nextDocument = currentDocument;
+  for (const relationshipId of relationshipIdsToDelete) {
+    nextDocument = deleteRelationshipFromActiveWorkspace({
+      document: nextDocument,
+      relationshipId,
+    });
+  }
+  for (const relationship of relationshipsToSave) {
+    nextDocument = saveRelationshipInActiveWorkspace({
+      document: nextDocument,
+      relationship,
+    });
+  }
+  for (const entry of entries) {
+    nextDocument = saveEntryInActiveWorkspace({
+      document: nextDocument,
+      entry,
+    });
+  }
+  const assetById = new Map(
+    [...nextDocument.assets, ...assets].map((asset) => [asset.id, asset])
+  );
+  const assetsChanged =
+    assetById.size !== nextDocument.assets.length ||
+    assets.some(
+      (asset) =>
+        nextDocument.assets.find((candidate) => candidate.id === asset.id) !==
+        asset
+    );
+  return pruneUnreferencedAssetMetadata(
+    assetsChanged
+      ? { ...nextDocument, assets: [...assetById.values()] }
+      : nextDocument
+  );
+}
 
 export type WorldDocumentState = {
   document: WorldDocument;
@@ -86,7 +165,18 @@ export type WorldDocumentState = {
   hasUnsavedDocumentChanges: boolean;
   recoverySnapshots: readonly RecoverySnapshotSummary[];
   recoverySnapshotStatus: RecoverySnapshotStatus;
-  saveCurrentDocument: () => void;
+  canUndo: boolean;
+  canRedo: boolean;
+  undoLabel: string | null;
+  redoLabel: string | null;
+  historyAnnouncement: string;
+  presentRevisionId: number;
+  undoDocumentChange: () => void;
+  redoDocumentChange: () => void;
+  saveCurrentDocument: (stagedAssetIds?: readonly string[]) => void;
+  commitEntryRelationshipTransaction: (
+    transaction: EntryRelationshipDocumentTransaction
+  ) => void;
   saveEntry: (entry: WorldEntry, assets?: readonly WorldImageAsset[]) => void;
   archiveEntry: (entry: WorldEntry, archived: boolean) => void;
   permanentlyDeleteEntry: (entry: WorldEntry) => void;
@@ -94,7 +184,7 @@ export type WorldDocumentState = {
   removeRelationship: (relationshipId: string) => void;
   unlinkRelationship: (relationshipId: string) => void;
   resetToSeed: () => void;
-  importDocument: (nextDocument: WorldDocument) => void;
+  importDocument: (nextDocument: WorldDocument) => boolean;
   restoreSnapshot: (snapshotId: string) => void;
   deleteSnapshot: (snapshotId: string) => void;
   createWorkspace: (draft: WorkspaceDraft) => void;
@@ -158,18 +248,29 @@ export type WorldDocumentState = {
 /** Owns browser document persistence and active-workspace mutation wiring. */
 export function useWorldDocumentState(): WorldDocumentState {
   const [initialLoadResult] = useState(() => loadWorldDocumentWithStatus());
-  const [document, setDocument] = useState<WorldDocument>(
-    () => initialLoadResult.document
+  const [initialHistory] = useState(() =>
+    createWorldDocumentHistory({
+      document: initialLoadResult.document,
+      persisted: initialLoadResult.status.source === 'current',
+      initialUnpersistedState: shouldPauseInitialSaveAfterLoad(
+        initialLoadResult.status
+      )
+        ? 'paused'
+        : initialLoadResult.status.source === 'current'
+        ? null
+        : 'unsaved',
+    })
   );
+  const [history, setHistory] = useState<WorldDocumentHistory>(initialHistory);
+  const historyRef = useRef(initialHistory);
   const [loadStatus, setLoadStatus] = useState<WorldDocumentLoadStatus>(
     () => initialLoadResult.status
   );
-  const [saveStatus, setSaveStatus] = useState<WorldDocumentSaveStatus>(() => ({
-    state: getInitialSaveStateAfterLoad(initialLoadResult.status),
-    savedAt: document.savedAt,
-  }));
-  const [hasUnsavedDocumentChanges, setHasUnsavedDocumentChanges] =
-    useState(false);
+  const [failedSaveAttempt, setFailedSaveAttempt] = useState<{
+    attemptedAt: string;
+    revisionId: number;
+  } | null>(null);
+  const [historyAnnouncement, setHistoryAnnouncement] = useState('');
   const [snapshots, setSnapshots] = useState<RecoverySnapshot[]>(() =>
     loadRecoverySnapshots()
   );
@@ -177,8 +278,21 @@ export function useWorldDocumentState(): WorldDocumentState {
     useState<RecoverySnapshotStatus>(() => ({
       state: 'idle',
       message: 'Recovery snapshots are ready.',
-      updatedAt: document.savedAt,
+      updatedAt: initialLoadResult.document.savedAt,
     }));
+  const document = history.present.document;
+  const baseSaveState = getWorldDocumentHistorySaveState(history);
+  const saveStatus: WorldDocumentSaveStatus = {
+    state:
+      failedSaveAttempt?.revisionId === history.present.id &&
+      baseSaveState !== 'saved'
+        ? 'failed'
+        : baseSaveState,
+    savedAt: history.lastPersistedAt ?? history.documentSavedAt,
+    attemptedAt: failedSaveAttempt?.attemptedAt ?? null,
+  };
+  const hasUnsavedDocumentChanges =
+    hasUnpersistedWorldDocumentRevision(history);
   const activeWorld = useMemo(() => getActiveWorld(document), [document]);
   const sections = activeWorld.entryTypes;
   const codex = activeWorld.codex;
@@ -189,39 +303,114 @@ export function useWorldDocumentState(): WorldDocumentState {
   );
 
   useEffect(() => {
-    void cleanupBrowserImageAssets(initialLoadResult.document);
-  }, [initialLoadResult.document]);
-
-  const markUnsaved = () => {
-    setHasUnsavedDocumentChanges(true);
-    setSaveStatus((currentStatus) => ({
-      state: 'dirty',
-      savedAt: currentStatus.savedAt,
-    }));
-  };
-
-  const setUnsavedDocument = (
-    updateDocument: (currentDocument: WorldDocument) => WorldDocument
-  ) => {
-    setDocument((currentDocument) => {
-      return applyUnsavedDocumentUpdate(currentDocument, updateDocument);
+    void cleanupBrowserImageAssets(initialLoadResult.document, {
+      retainedDocuments: getWorldDocumentHistoryDocuments(initialHistory),
     });
-    markUnsaved();
+  }, [initialHistory, initialLoadResult.document]);
+
+  const installHistory = (nextHistory: WorldDocumentHistory) => {
+    historyRef.current = nextHistory;
+    setHistory(nextHistory);
   };
 
-  const saveCurrentDocument = () => {
+  const commitDocumentChange = (
+    actionLabel: string,
+    prepareDocument: (currentDocument: WorldDocument) => WorldDocument,
+    options: {
+      origin?: Exclude<WorldDocumentRevisionOrigin, 'initial'>;
+      recoveryReason?: RecoverySnapshotReason;
+    } = {}
+  ): boolean => {
+    const currentHistory = historyRef.current;
+    const nextDocument = applyUnsavedDocumentUpdate(
+      currentHistory.present.document,
+      prepareDocument
+    );
+    const nextHistory = commitWorldDocumentRevision(currentHistory, {
+      actionLabel,
+      document: nextDocument,
+      ...(options.origin ? { origin: options.origin } : {}),
+    });
+    if (nextHistory === currentHistory) {
+      return false;
+    }
+    if (options.recoveryReason) {
+      captureSnapshot(currentHistory.present.document, options.recoveryReason);
+    }
+    installHistory(nextHistory);
+    setHistoryAnnouncement('');
+    return true;
+  };
+
+  const saveCurrentDocument = (stagedAssetIds: readonly string[] = []) => {
+    setHistoryAnnouncement('');
     const savedAt = new Date().toISOString();
-    const savedDocument = createManualSaveDocument(document, savedAt);
+    const currentHistory = historyRef.current;
+    const savedDocument = createManualSaveDocument(
+      currentHistory.present.document,
+      savedAt
+    );
     const didSave = saveWorldDocument(savedDocument);
     if (didSave) {
-      setDocument(savedDocument);
-      setHasUnsavedDocumentChanges(false);
-      void cleanupBrowserImageAssets(savedDocument);
+      const persistedHistory = markWorldDocumentRevisionPersisted(
+        currentHistory,
+        savedAt
+      );
+      installHistory(persistedHistory);
+      setFailedSaveAttempt(null);
+      void cleanupBrowserImageAssets(savedDocument, {
+        retainedDocuments: getWorldDocumentHistoryDocuments(persistedHistory),
+        snapshots,
+        stagedAssetIds,
+      });
+    } else {
+      setFailedSaveAttempt({
+        attemptedAt: savedAt,
+        revisionId: currentHistory.present.id,
+      });
     }
-    setSaveStatus({
-      state: didSave ? 'saved' : 'failed',
-      savedAt,
-    });
+  };
+
+  const undoDocumentChange = () => {
+    const currentHistory = historyRef.current;
+    const actionLabel = getUndoWorldDocumentActionLabel(currentHistory);
+    const nextHistory = undoWorldDocumentRevision(currentHistory);
+    if (nextHistory === currentHistory) {
+      return;
+    }
+    installHistory(nextHistory);
+    setFailedSaveAttempt(null);
+    setLoadStatus(
+      getLoadStatusForRevisionOrigin({
+        checkedAt: new Date().toISOString(),
+        initialStatus: initialLoadResult.status,
+        origin: nextHistory.present.origin,
+      })
+    );
+    setHistoryAnnouncement(
+      actionLabel ? `Undid ${actionLabel}.` : 'Undid change.'
+    );
+  };
+
+  const redoDocumentChange = () => {
+    const currentHistory = historyRef.current;
+    const actionLabel = getRedoWorldDocumentActionLabel(currentHistory);
+    const nextHistory = redoWorldDocumentRevision(currentHistory);
+    if (nextHistory === currentHistory) {
+      return;
+    }
+    installHistory(nextHistory);
+    setFailedSaveAttempt(null);
+    setLoadStatus(
+      getLoadStatusForRevisionOrigin({
+        checkedAt: new Date().toISOString(),
+        initialStatus: initialLoadResult.status,
+        origin: nextHistory.present.origin,
+      })
+    );
+    setHistoryAnnouncement(
+      actionLabel ? `Redid ${actionLabel}.` : 'Redid change.'
+    );
   };
 
   const captureSnapshot = (
@@ -243,47 +432,104 @@ export function useWorldDocumentState(): WorldDocumentState {
     entry: WorldEntry,
     assets: readonly WorldImageAsset[] = []
   ) => {
-    setUnsavedDocument((currentDocument) => {
-      const assetById = new Map(
-        [...currentDocument.assets, ...assets].map((asset) => [asset.id, asset])
-      );
-      return pruneUnreferencedAssetMetadata({
-        ...saveEntryInActiveWorkspace({ document: currentDocument, entry }),
-        assets: [...assetById.values()],
-      });
-    });
+    const currentWorld = getActiveWorld(historyRef.current.present.document);
+    const existingEntry = currentWorld.codex[entry.kind]?.some(
+      (candidate) => candidate.id === entry.id
+    );
+    const recordType = getEntryRecordType(currentWorld, entry);
+    commitDocumentChange(
+      formatWorldDocumentActionLabel({
+        action: existingEntry ? 'Update' : 'Create',
+        recordType,
+        subject: entry.name,
+      }),
+      (currentDocument) => {
+        const assetById = new Map(
+          [...currentDocument.assets, ...assets].map((asset) => [
+            asset.id,
+            asset,
+          ])
+        );
+        return pruneUnreferencedAssetMetadata({
+          ...saveEntryInActiveWorkspace({ document: currentDocument, entry }),
+          assets: [...assetById.values()],
+        });
+      }
+    );
+  };
+
+  const commitEntryRelationshipTransaction = ({
+    actionLabel,
+    assets = [],
+    entries = [],
+    relationships: relationshipsToSave = [],
+    relationshipIdsToDelete = [],
+  }: EntryRelationshipDocumentTransaction) => {
+    commitDocumentChange(actionLabel, (currentDocument) =>
+      applyEntryRelationshipDocumentTransaction(currentDocument, {
+        assets,
+        entries,
+        relationships: relationshipsToSave,
+        relationshipIdsToDelete,
+      })
+    );
   };
 
   const archiveEntry = (entry: WorldEntry, archived: boolean) => {
-    setUnsavedDocument((currentDocument) =>
-      archiveEntryInActiveWorkspace({
-        archived,
-        document: currentDocument,
-        entry,
-      })
+    const recordType = getEntryRecordType(
+      getActiveWorld(historyRef.current.present.document),
+      entry
+    );
+    commitDocumentChange(
+      formatWorldDocumentActionLabel({
+        action: archived ? 'Archive' : 'Restore',
+        recordType,
+        subject: entry.name,
+      }),
+      (currentDocument) =>
+        archiveEntryInActiveWorkspace({
+          archived,
+          document: currentDocument,
+          entry,
+        })
     );
   };
 
   const permanentlyDeleteEntry = (entry: WorldEntry) => {
-    captureSnapshot(document, 'permanent-delete');
-    setUnsavedDocument((currentDocument) =>
-      pruneUnreferencedAssetMetadata(
-        deleteEntryFromActiveWorkspace({ document: currentDocument, entry })
-      )
+    const recordType = getEntryRecordType(
+      getActiveWorld(historyRef.current.present.document),
+      entry
+    );
+    commitDocumentChange(
+      formatWorldDocumentActionLabel({
+        action: 'Delete',
+        recordType,
+        subject: entry.name,
+      }),
+      (currentDocument) =>
+        pruneUnreferencedAssetMetadata(
+          deleteEntryFromActiveWorkspace({ document: currentDocument, entry })
+        ),
+      { recoveryReason: 'permanent-delete' }
     );
   };
 
   const saveRelationship = (relationship: WorldRelationship) => {
-    setUnsavedDocument((currentDocument) =>
-      saveRelationshipInActiveWorkspace({
-        document: currentDocument,
-        relationship,
-      })
+    const exists = getActiveWorld(
+      historyRef.current.present.document
+    ).relationships.some((candidate) => candidate.id === relationship.id);
+    commitDocumentChange(
+      `${exists ? 'Update' : 'Create'} Relationship`,
+      (currentDocument) =>
+        saveRelationshipInActiveWorkspace({
+          document: currentDocument,
+          relationship,
+        })
     );
   };
 
   const unlinkRelationship = (relationshipId: string) => {
-    setUnsavedDocument((currentDocument) =>
+    commitDocumentChange('Delete Relationship', (currentDocument) =>
       deleteRelationshipFromActiveWorkspace({
         document: currentDocument,
         relationshipId,
@@ -292,32 +538,50 @@ export function useWorldDocumentState(): WorldDocumentState {
   };
 
   const removeRelationship = (relationshipId: string) => {
-    captureSnapshot(document, 'relationship-delete');
-    unlinkRelationship(relationshipId);
+    commitDocumentChange(
+      'Delete Relationship',
+      (currentDocument) =>
+        deleteRelationshipFromActiveWorkspace({
+          document: currentDocument,
+          relationshipId,
+        }),
+      { recoveryReason: 'relationship-delete' }
+    );
   };
 
   const resetToSeed = () => {
-    captureSnapshot(document, 'reset');
-    setLoadStatus({
-      state: 'loaded',
-      source: 'seed',
-      message: `Starter data was loaded by reset. Use Save to write it to ${localPersistenceCopy.browserSaveTarget}.`,
-      issues: [],
-      checkedAt: new Date().toISOString(),
-    });
-    setUnsavedDocument(() => resetWorldDocumentStorage());
+    const didCommit = commitDocumentChange(
+      'Reset to starter data',
+      () => resetWorldDocumentStorage(),
+      { origin: 'reset', recoveryReason: 'reset' }
+    );
+    if (didCommit) {
+      setLoadStatus(
+        getLoadStatusForRevisionOrigin({
+          origin: 'reset',
+          initialStatus: initialLoadResult.status,
+          checkedAt: new Date().toISOString(),
+        })
+      );
+    }
   };
 
   const importDocument = (nextDocument: WorldDocument) => {
-    captureSnapshot(document, 'import');
-    setLoadStatus({
-      state: 'loaded',
-      source: 'current',
-      message: `Imported backup is loaded in this session. Use Save to write it to ${localPersistenceCopy.browserSaveTarget}.`,
-      issues: [],
-      checkedAt: new Date().toISOString(),
-    });
-    setUnsavedDocument(() => nextDocument);
+    const didCommit = commitDocumentChange(
+      'Import backup',
+      () => nextDocument,
+      { origin: 'import', recoveryReason: 'import' }
+    );
+    if (didCommit) {
+      setLoadStatus(
+        getLoadStatusForRevisionOrigin({
+          origin: 'import',
+          initialStatus: initialLoadResult.status,
+          checkedAt: new Date().toISOString(),
+        })
+      );
+    }
+    return didCommit;
   };
 
   const restoreSnapshot = (snapshotId: string) => {
@@ -330,15 +594,25 @@ export function useWorldDocumentState(): WorldDocumentState {
       });
       return;
     }
-    captureSnapshot(document, 'restore');
-    setLoadStatus({
-      state: 'loaded',
-      source: 'current',
-      message: `Recovery snapshot is loaded in this session. Use Save to write it to ${localPersistenceCopy.browserSaveTarget}.`,
-      issues: [],
-      checkedAt: new Date().toISOString(),
-    });
-    setUnsavedDocument(() => snapshot.document);
+    const didCommit = commitDocumentChange(
+      formatWorldDocumentActionLabel({
+        action: 'Restore',
+        recordType: 'Recovery Snapshot',
+        subject: getActiveWorld(snapshot.document).name,
+      }),
+      () => snapshot.document,
+      { origin: 'recovery-restore', recoveryReason: 'restore' }
+    );
+    if (!didCommit) {
+      return;
+    }
+    setLoadStatus(
+      getLoadStatusForRevisionOrigin({
+        origin: 'recovery-restore',
+        initialStatus: initialLoadResult.status,
+        checkedAt: new Date().toISOString(),
+      })
+    );
     setRecoverySnapshotStatus({
       state: 'restored',
       message: `Restored ${
@@ -351,7 +625,10 @@ export function useWorldDocumentState(): WorldDocumentState {
   const deleteSnapshot = (snapshotId: string) => {
     const nextSnapshots = deleteRecoverySnapshot(snapshotId);
     setSnapshots(nextSnapshots);
-    void cleanupBrowserImageAssets(document);
+    void cleanupBrowserImageAssets(historyRef.current.present.document, {
+      retainedDocuments: getWorldDocumentHistoryDocuments(historyRef.current),
+      snapshots: nextSnapshots,
+    });
     setRecoverySnapshotStatus({
       state: 'deleted',
       message: 'Recovery snapshot deleted.',
@@ -360,41 +637,86 @@ export function useWorldDocumentState(): WorldDocumentState {
   };
 
   const createWorkspaceFromDraft = (draft: WorkspaceDraft) => {
-    setUnsavedDocument((currentDocument) =>
-      createWorkspace(currentDocument, draft)
+    commitDocumentChange(
+      formatWorldDocumentActionLabel({
+        action: 'Create',
+        recordType: 'Workspace',
+        subject: draft.name,
+      }),
+      (currentDocument) => createWorkspace(currentDocument, draft)
     );
   };
 
   const updateWorkspace = (workspaceId: string, draft: WorkspaceDraft) => {
-    setUnsavedDocument((currentDocument) =>
-      updateWorkspaceMetadata(currentDocument, workspaceId, draft)
+    commitDocumentChange(
+      formatWorldDocumentActionLabel({
+        action: 'Update',
+        recordType: 'Workspace',
+        subject: draft.name,
+      }),
+      (currentDocument) =>
+        updateWorkspaceMetadata(currentDocument, workspaceId, draft)
     );
   };
 
   const switchWorkspace = (workspaceId: string) => {
-    setUnsavedDocument((currentDocument) =>
-      setActiveWorkspace(currentDocument, workspaceId)
+    const workspace = historyRef.current.present.document.worlds.find(
+      (candidate) => candidate.id === workspaceId
+    );
+    commitDocumentChange(
+      formatWorldDocumentActionLabel({
+        action: 'Switch to',
+        recordType: 'Workspace',
+        subject: workspace?.name,
+      }),
+      (currentDocument) => setActiveWorkspace(currentDocument, workspaceId)
     );
   };
 
   const archiveWorkspace = (workspaceId: string, archived: boolean) => {
-    setUnsavedDocument((currentDocument) =>
-      setWorkspaceArchived(currentDocument, workspaceId, archived)
+    const workspace = historyRef.current.present.document.worlds.find(
+      (candidate) => candidate.id === workspaceId
+    );
+    commitDocumentChange(
+      formatWorldDocumentActionLabel({
+        action: archived ? 'Archive' : 'Restore',
+        recordType: 'Workspace',
+        subject: workspace?.name,
+      }),
+      (currentDocument) =>
+        setWorkspaceArchived(currentDocument, workspaceId, archived)
     );
   };
 
   const duplicateWorkspaceFromId = (workspaceId: string) => {
-    setUnsavedDocument((currentDocument) =>
-      duplicateWorkspace(currentDocument, workspaceId)
+    const workspace = historyRef.current.present.document.worlds.find(
+      (candidate) => candidate.id === workspaceId
+    );
+    commitDocumentChange(
+      formatWorldDocumentActionLabel({
+        action: 'Duplicate',
+        recordType: 'Workspace',
+        subject: workspace?.name,
+      }),
+      (currentDocument) => duplicateWorkspace(currentDocument, workspaceId)
     );
   };
 
   const permanentlyDeleteWorkspace = (workspaceId: string) => {
-    captureSnapshot(document, 'workspace-delete');
-    setUnsavedDocument((currentDocument) =>
-      pruneUnreferencedAssetMetadata(
-        deleteWorkspace(currentDocument, workspaceId)
-      )
+    const workspace = historyRef.current.present.document.worlds.find(
+      (candidate) => candidate.id === workspaceId
+    );
+    commitDocumentChange(
+      formatWorldDocumentActionLabel({
+        action: 'Delete',
+        recordType: 'Workspace',
+        subject: workspace?.name,
+      }),
+      (currentDocument) =>
+        pruneUnreferencedAssetMetadata(
+          deleteWorkspace(currentDocument, workspaceId)
+        ),
+      { recoveryReason: 'workspace-delete' }
     );
   };
 
@@ -402,12 +724,18 @@ export function useWorldDocumentState(): WorldDocumentState {
     draft: PlanetaryWorldDraft,
     existingPlanetaryWorld?: InFictionWorld
   ) => {
-    setUnsavedDocument((currentDocument) =>
-      savePlanetaryWorldInActiveWorkspace({
-        document: currentDocument,
-        draft,
-        existingPlanetaryWorld,
-      })
+    commitDocumentChange(
+      formatWorldDocumentActionLabel({
+        action: existingPlanetaryWorld ? 'Update' : 'Create',
+        recordType: 'World',
+        subject: draft.name,
+      }),
+      (currentDocument) =>
+        savePlanetaryWorldInActiveWorkspace({
+          document: currentDocument,
+          draft,
+          existingPlanetaryWorld,
+        })
     );
   };
 
@@ -415,33 +743,57 @@ export function useWorldDocumentState(): WorldDocumentState {
     planetaryWorldId: string,
     archived: boolean
   ) => {
-    setUnsavedDocument((currentDocument) =>
-      archivePlanetaryWorldInActiveWorkspace({
-        archived,
-        document: currentDocument,
-        planetaryWorldId,
-      })
+    const planetaryWorld = getActiveWorld(
+      historyRef.current.present.document
+    ).planetaryWorlds.find((candidate) => candidate.id === planetaryWorldId);
+    commitDocumentChange(
+      formatWorldDocumentActionLabel({
+        action: archived ? 'Archive' : 'Restore',
+        recordType: 'World',
+        subject: planetaryWorld?.name,
+      }),
+      (currentDocument) =>
+        archivePlanetaryWorldInActiveWorkspace({
+          archived,
+          document: currentDocument,
+          planetaryWorldId,
+        })
     );
   };
 
   const permanentlyDeletePlanetaryWorld = (planetaryWorldId: string) => {
-    captureSnapshot(document, 'planetary-world-delete');
-    setUnsavedDocument((currentDocument) =>
-      deletePlanetaryWorldFromActiveWorkspace({
-        document: currentDocument,
-        planetaryWorldId,
-      })
+    const planetaryWorld = getActiveWorld(
+      historyRef.current.present.document
+    ).planetaryWorlds.find((candidate) => candidate.id === planetaryWorldId);
+    commitDocumentChange(
+      formatWorldDocumentActionLabel({
+        action: 'Delete',
+        recordType: 'World',
+        subject: planetaryWorld?.name,
+      }),
+      (currentDocument) =>
+        deletePlanetaryWorldFromActiveWorkspace({
+          document: currentDocument,
+          planetaryWorldId,
+        }),
+      { recoveryReason: 'planetary-world-delete' }
     );
   };
 
   const createEntryType = (draft: EntryTypeDraft) => {
-    setUnsavedDocument((currentDocument) =>
-      createEntryTypeInActiveWorkspace({ document: currentDocument, draft })
+    commitDocumentChange(
+      formatWorldDocumentActionLabel({
+        action: 'Create',
+        recordType: 'Entry Type',
+        subject: draft.title,
+      }),
+      (currentDocument) =>
+        createEntryTypeInActiveWorkspace({ document: currentDocument, draft })
     );
   };
 
   const addEntryTypeFields = (sectionId: string, fieldsText: string) => {
-    setUnsavedDocument((currentDocument) =>
+    commitDocumentChange('Add Entry Type Fields', (currentDocument) =>
       addEntryTypeFieldsInActiveWorkspace({
         document: currentDocument,
         fieldsText,
@@ -455,13 +807,15 @@ export function useWorldDocumentState(): WorldDocumentState {
     fieldKey: string,
     direction: CustomEntryTypeFieldMoveDirection
   ) => {
-    setUnsavedDocument((currentDocument) =>
-      moveEntryTypeFieldInActiveWorkspace({
-        direction,
-        document: currentDocument,
-        fieldKey,
-        sectionId,
-      })
+    commitDocumentChange(
+      `Move Entry Type Field ${direction === 'up' ? 'Up' : 'Down'}`,
+      (currentDocument) =>
+        moveEntryTypeFieldInActiveWorkspace({
+          direction,
+          document: currentDocument,
+          fieldKey,
+          sectionId,
+        })
     );
   };
 
@@ -470,18 +824,24 @@ export function useWorldDocumentState(): WorldDocumentState {
     fieldKey: string,
     label: string
   ) => {
-    setUnsavedDocument((currentDocument) =>
-      renameEntryTypeFieldInActiveWorkspace({
-        document: currentDocument,
-        fieldKey,
-        label,
-        sectionId,
-      })
+    commitDocumentChange(
+      formatWorldDocumentActionLabel({
+        action: 'Update',
+        recordType: 'Field Label',
+        subject: label,
+      }),
+      (currentDocument) =>
+        renameEntryTypeFieldInActiveWorkspace({
+          document: currentDocument,
+          fieldKey,
+          label,
+          sectionId,
+        })
     );
   };
 
   const removeEntryTypeField = (sectionId: string, fieldKey: string) => {
-    setUnsavedDocument((currentDocument) =>
+    commitDocumentChange('Remove Entry Type Field', (currentDocument) =>
       removeEntryTypeFieldInActiveWorkspace({
         document: currentDocument,
         fieldKey,
@@ -494,10 +854,16 @@ export function useWorldDocumentState(): WorldDocumentState {
     vocabularyId: string,
     draft: VocabularyValueDraft
   ) => {
-    setUnsavedDocument((currentDocument) =>
-      updateActiveWorkspace(currentDocument, (workspace) =>
-        addVocabularyValue(workspace, vocabularyId, draft)
-      )
+    commitDocumentChange(
+      formatWorldDocumentActionLabel({
+        action: 'Add',
+        recordType: 'Vocabulary Value',
+        subject: draft.label,
+      }),
+      (currentDocument) =>
+        updateActiveWorkspace(currentDocument, (workspace) =>
+          addVocabularyValue(workspace, vocabularyId, draft)
+        )
     );
   };
 
@@ -506,10 +872,16 @@ export function useWorldDocumentState(): WorldDocumentState {
     valueId: string,
     draft: VocabularyValueDraft
   ) => {
-    setUnsavedDocument((currentDocument) =>
-      updateActiveWorkspace(currentDocument, (workspace) =>
-        updateVocabularyValue(workspace, vocabularyId, valueId, draft)
-      )
+    commitDocumentChange(
+      formatWorldDocumentActionLabel({
+        action: 'Update',
+        recordType: 'Vocabulary Value',
+        subject: draft.label,
+      }),
+      (currentDocument) =>
+        updateActiveWorkspace(currentDocument, (workspace) =>
+          updateVocabularyValue(workspace, vocabularyId, valueId, draft)
+        )
     );
   };
 
@@ -518,10 +890,12 @@ export function useWorldDocumentState(): WorldDocumentState {
     valueId: string,
     archived: boolean
   ) => {
-    setUnsavedDocument((currentDocument) =>
-      updateActiveWorkspace(currentDocument, (workspace) =>
-        setVocabularyValueArchived(workspace, vocabularyId, valueId, archived)
-      )
+    commitDocumentChange(
+      `${archived ? 'Archive' : 'Restore'} Vocabulary Value`,
+      (currentDocument) =>
+        updateActiveWorkspace(currentDocument, (workspace) =>
+          setVocabularyValueArchived(workspace, vocabularyId, valueId, archived)
+        )
     );
   };
 
@@ -530,10 +904,12 @@ export function useWorldDocumentState(): WorldDocumentState {
     valueId: string,
     direction: VocabularyValueMoveDirection
   ) => {
-    setUnsavedDocument((currentDocument) =>
-      updateActiveWorkspace(currentDocument, (workspace) =>
-        moveVocabularyValue(workspace, vocabularyId, valueId, direction)
-      )
+    commitDocumentChange(
+      `Move Vocabulary Value ${direction === 'up' ? 'Up' : 'Down'}`,
+      (currentDocument) =>
+        updateActiveWorkspace(currentDocument, (workspace) =>
+          moveVocabularyValue(workspace, vocabularyId, valueId, direction)
+        )
     );
   };
 
@@ -542,19 +918,27 @@ export function useWorldDocumentState(): WorldDocumentState {
     fieldKey: string,
     draft: FieldOverrideDraft
   ) => {
-    setUnsavedDocument((currentDocument) =>
-      updateActiveWorkspace(currentDocument, (workspace) =>
-        updateFieldOverride(workspace, sectionId, fieldKey, draft)
-      )
+    commitDocumentChange(
+      formatWorldDocumentActionLabel({
+        action: 'Update',
+        recordType: 'Field Settings',
+        subject: draft.label,
+      }),
+      (currentDocument) =>
+        updateActiveWorkspace(currentDocument, (workspace) =>
+          updateFieldOverride(workspace, sectionId, fieldKey, draft)
+        )
     );
   };
 
   const clearHiddenEntryDetails = () => {
-    captureSnapshot(document, 'schema-cleanup');
-    setUnsavedDocument((currentDocument) =>
-      clearHiddenEntryDetailsInActiveWorkspace({
-        document: currentDocument,
-      })
+    commitDocumentChange(
+      'Clear All Hidden Entry Details',
+      (currentDocument) =>
+        clearHiddenEntryDetailsInActiveWorkspace({
+          document: currentDocument,
+        }),
+      { recoveryReason: 'schema-cleanup' }
     );
   };
 
@@ -563,26 +947,37 @@ export function useWorldDocumentState(): WorldDocumentState {
     entryId: string,
     fieldKey: string
   ) => {
-    captureSnapshot(document, 'schema-cleanup');
-    setUnsavedDocument((currentDocument) =>
-      clearHiddenEntryDetailInActiveWorkspace({
-        document: currentDocument,
-        entryId,
-        fieldKey,
-        sectionId,
-      })
+    commitDocumentChange(
+      'Clear Hidden Entry Detail',
+      (currentDocument) =>
+        clearHiddenEntryDetailInActiveWorkspace({
+          document: currentDocument,
+          entryId,
+          fieldKey,
+          sectionId,
+        }),
+      { recoveryReason: 'schema-cleanup' }
     );
   };
 
   const permanentlyDeleteEntryType = (sectionId: string) => {
-    captureSnapshot(document, 'entry-type-delete');
-    setUnsavedDocument((currentDocument) =>
-      pruneUnreferencedAssetMetadata(
-        deleteEntryTypeFromActiveWorkspace({
-          document: currentDocument,
-          sectionId,
-        })
-      )
+    const section = getActiveWorld(
+      historyRef.current.present.document
+    ).entryTypes.find((candidate) => candidate.id === sectionId);
+    commitDocumentChange(
+      formatWorldDocumentActionLabel({
+        action: 'Delete',
+        recordType: 'Entry Type',
+        subject: section?.title,
+      }),
+      (currentDocument) =>
+        pruneUnreferencedAssetMetadata(
+          deleteEntryTypeFromActiveWorkspace({
+            document: currentDocument,
+            sectionId,
+          })
+        ),
+      { recoveryReason: 'entry-type-delete' }
     );
   };
 
@@ -597,7 +992,16 @@ export function useWorldDocumentState(): WorldDocumentState {
     hasUnsavedDocumentChanges,
     recoverySnapshots,
     recoverySnapshotStatus,
+    canUndo: canUndoWorldDocumentRevision(history),
+    canRedo: canRedoWorldDocumentRevision(history),
+    undoLabel: getUndoWorldDocumentActionLabel(history),
+    redoLabel: getRedoWorldDocumentActionLabel(history),
+    historyAnnouncement,
+    presentRevisionId: history.present.id,
+    undoDocumentChange,
+    redoDocumentChange,
     saveCurrentDocument,
+    commitEntryRelationshipTransaction,
     saveEntry,
     archiveEntry,
     permanentlyDeleteEntry,
@@ -653,14 +1057,56 @@ export function getInitialSaveStateAfterLoad(
   return status.source === 'current' ? 'saved' : 'unsaved';
 }
 
+export function getLoadStatusForRevisionOrigin({
+  checkedAt,
+  initialStatus,
+  origin,
+}: {
+  checkedAt: string;
+  initialStatus: WorldDocumentLoadStatus;
+  origin: WorldDocumentRevisionOrigin;
+}): WorldDocumentLoadStatus {
+  switch (origin) {
+    case 'initial':
+      return initialStatus;
+    case 'import':
+      return {
+        state: 'loaded',
+        source: 'current',
+        message: `Imported backup is loaded in this session. Use Save to write it to ${localPersistenceCopy.browserSaveTarget}.`,
+        issues: initialStatus.issues,
+        checkedAt,
+      };
+    case 'reset':
+      return {
+        state: 'loaded',
+        source: 'seed',
+        message: `Starter data was loaded by reset. Use Save to write it to ${localPersistenceCopy.browserSaveTarget}.`,
+        issues: initialStatus.issues,
+        checkedAt,
+      };
+    case 'recovery-restore':
+      return {
+        state: 'loaded',
+        source: 'current',
+        message: `Recovery snapshot is loaded in this session. Use Save to write it to ${localPersistenceCopy.browserSaveTarget}.`,
+        issues: initialStatus.issues,
+        checkedAt,
+      };
+  }
+}
+
 export function applyUnsavedDocumentUpdate(
   currentDocument: WorldDocument,
   updateDocument: (currentDocument: WorldDocument) => WorldDocument
 ): WorldDocument {
-  return {
-    ...updateDocument(currentDocument),
-    savedAt: currentDocument.savedAt,
-  };
+  const nextDocument = updateDocument(currentDocument);
+  if (nextDocument === currentDocument) {
+    return currentDocument;
+  }
+  return nextDocument.savedAt === currentDocument.savedAt
+    ? nextDocument
+    : { ...nextDocument, savedAt: currentDocument.savedAt };
 }
 
 export function createManualSaveDocument(

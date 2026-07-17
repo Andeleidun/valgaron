@@ -115,10 +115,12 @@ export function getDeviceSaveStatusModel({
 }
 
 export function getLocalSaveStatusModel({
+  attemptedAt,
   savedAt,
   state,
   targetLabel = localPersistenceCopy.browserSaveTarget,
 }: {
+  attemptedAt?: string | null;
   savedAt: string;
   state: LocalSaveStatusState;
   targetLabel?: string;
@@ -127,7 +129,7 @@ export function getLocalSaveStatusModel({
     case 'saved':
       return {
         label: 'Saved',
-        detail: `Last save attempt: ${formatUpdatedAt(savedAt)}.`,
+        detail: `Last successful save: ${formatUpdatedAt(savedAt)}.`,
         tone: 'success',
       };
     case 'paused':
@@ -157,7 +159,9 @@ export function getLocalSaveStatusModel({
     case 'failed':
       return {
         label: 'Save Failed',
-        detail: `Last save attempt: ${formatUpdatedAt(savedAt)}.`,
+        detail: `Last save attempt failed: ${formatUpdatedAt(
+          attemptedAt ?? savedAt
+        )}. Last successful save: ${formatUpdatedAt(savedAt)}.`,
         tone: 'danger',
       };
   }

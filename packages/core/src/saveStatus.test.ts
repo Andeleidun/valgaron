@@ -52,7 +52,7 @@ describe('save status models', () => {
       })
     ).toEqual({
       label: 'Saved',
-      detail: `Last save attempt: ${formatUpdatedAt(savedAt)}.`,
+      detail: `Last successful save: ${formatUpdatedAt(savedAt)}.`,
       tone: 'success',
     });
     expect(
@@ -86,12 +86,20 @@ describe('save status models', () => {
         state: 'dirty',
       }).label
     ).toBe('Unsaved');
+    const attemptedAt = '2026-06-02T09:00:00.000Z';
     expect(
       getLocalSaveStatusModel({
+        attemptedAt,
         savedAt,
         state: 'failed',
-      }).label
-    ).toBe('Save Failed');
+      })
+    ).toEqual({
+      label: 'Save Failed',
+      detail: `Last save attempt failed: ${formatUpdatedAt(
+        attemptedAt
+      )}. Last successful save: ${formatUpdatedAt(savedAt)}.`,
+      tone: 'danger',
+    });
   });
 
   it('builds shared browser manual save button labels', () => {

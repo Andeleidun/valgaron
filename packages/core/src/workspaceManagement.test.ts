@@ -44,6 +44,47 @@ import { getActiveWorld, parseWorldDocument } from './worldDocument';
 import { getEntryHiddenDetailCleanupModel } from './codexEntries';
 
 describe('workspace management', () => {
+  it('preserves references for unchanged workspace and world commands', () => {
+    const document = createSeedWorldDocument();
+    const workspace = getActiveWorld(document);
+    const workspaceWithPlanetaryWorld = upsertPlanetaryWorld(workspace, {
+      name: 'Aster',
+      summary: '',
+      classification: 'Realm',
+      climate: '',
+      dominantTerrain: '',
+      notes: '',
+      tags: '',
+    });
+    const planetaryWorld = workspaceWithPlanetaryWorld.planetaryWorlds[0]!;
+
+    expect(setActiveWorkspace(document, document.activeWorldId)).toBe(document);
+    expect(
+      updateWorkspaceMetadata(
+        document,
+        workspace.id,
+        workspaceDraftFrom(workspace)
+      )
+    ).toBe(document);
+    expect(setWorkspaceArchived(document, workspace.id, false)).toBe(document);
+    expect(
+      upsertPlanetaryWorld(
+        workspaceWithPlanetaryWorld,
+        planetaryWorldDraftFrom(planetaryWorld),
+        planetaryWorld
+      )
+    ).toBe(workspaceWithPlanetaryWorld);
+    expect(
+      setPlanetaryWorldArchived(
+        workspaceWithPlanetaryWorld,
+        planetaryWorld.id,
+        planetaryWorld.status === 'archived'
+      )
+    ).toBe(workspaceWithPlanetaryWorld);
+    expect(
+      deletePlanetaryWorld(workspaceWithPlanetaryWorld, 'missing-world')
+    ).toBe(workspaceWithPlanetaryWorld);
+  });
   it('creates shared workspace and entry type drafts', () => {
     const workspace = getActiveWorld(createSeedWorldDocument());
 

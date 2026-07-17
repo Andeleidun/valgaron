@@ -5,6 +5,7 @@ import {
   createImageReference,
   getImageAssetCounts,
   getReachableImageAssets,
+  getRetainedAssetIds,
   moveImageReference,
   pruneUnreferencedAssetMetadata,
   validateDocumentImageAssets,
@@ -144,6 +145,29 @@ describe('image asset domain', () => {
     const entry = document.worlds[0].codex.characters[0];
     entry.images = entry.images.filter((image) => image.uri !== asset.uri);
     expect(pruneUnreferencedAssetMetadata(document).assets).toEqual([]);
+  });
+
+  it('retains asset ids reachable only through history or recovery', () => {
+    const present = createSeedWorldDocument();
+    const historical = documentWithImages();
+    const recoveryDocument = {
+      ...createSeedWorldDocument(),
+      assets: [{ ...asset, id: 'asset-recovery', uri: 'images/recovery.png' }],
+    };
+    const retained = getRetainedAssetIds(
+      present,
+      [
+        {
+          id: 'snapshot-1',
+          reason: 'reset',
+          createdAt: '2026-07-17T00:00:00.000Z',
+          document: recoveryDocument,
+        },
+      ],
+      [historical]
+    );
+
+    expect([...retained].sort()).toEqual(['asset-map-1', 'asset-recovery']);
   });
 
   it('creates new reference ids without changing URI metadata', () => {

@@ -14,6 +14,7 @@ import type {
   WorldDetailFieldKey,
   WorldEntry,
   WorldImageAsset,
+  WorldImageReference,
   WorldEntryKind,
   WorldEntryStatus,
   WorldSectionConfig,
@@ -57,12 +58,11 @@ export const entryEditorCopy = {
   notesPreviewKicker: 'Markdown preview',
   notesPreviewTitle: 'Notes preview',
   restoreLabel: 'Restore',
-  saveChangesLabel: 'Save Changes',
   summaryLabel: 'Summary',
   tagsLabel: 'Tags',
   hiddenDetailsTitle: 'Hidden details',
-  unsavedDraftMessage: 'Unsaved entry draft.',
-  unsavedLabel: 'Unsaved',
+  unappliedDraftMessage: 'Unapplied entry draft changes.',
+  unappliedLabel: 'Unapplied',
   useAsTemplateLabel: 'Use As Template',
 } as const;
 
@@ -314,16 +314,15 @@ export function getEntryEditorSubmitLabel({
   selectedEntry: WorldEntry | null | undefined;
   stagedRelationshipCount?: number;
 }): string {
-  if (selectedEntry) {
-    return entryEditorCopy.saveChangesLabel;
-  }
-  const createLabel = getEntryEditorCreateTitle(section);
+  const actionLabel = selectedEntry
+    ? `Update ${section.singularTitle}`
+    : getEntryEditorCreateTitle(section);
   if (stagedRelationshipCount > 0) {
-    return `${createLabel} And ${stagedRelationshipCount} Link${
+    return `${actionLabel} And ${stagedRelationshipCount} Link${
       stagedRelationshipCount === 1 ? '' : 's'
     }`;
   }
-  return createLabel;
+  return actionLabel;
 }
 
 /** Return the display label for an entry status. */
@@ -898,6 +897,48 @@ function entryFieldsFromDraft(
   );
 }
 
+function haveSameStrings(
+  first: readonly string[],
+  second: readonly string[]
+): boolean {
+  return (
+    first.length === second.length &&
+    first.every((value, index) => value === second[index])
+  );
+}
+
+function haveSameStringRecord(
+  first: Readonly<Record<string, string>>,
+  second: Readonly<Record<string, string>>
+): boolean {
+  const firstKeys = Object.keys(first);
+  const secondKeys = Object.keys(second);
+  return (
+    firstKeys.length === secondKeys.length &&
+    firstKeys.every((key) => first[key] === second[key])
+  );
+}
+
+function haveSameImages(
+  first: readonly WorldImageReference[],
+  second: readonly WorldImageReference[]
+): boolean {
+  return (
+    first.length === second.length &&
+    first.every((image, index) => {
+      const candidate = second[index];
+      return (
+        candidate !== undefined &&
+        image.id === candidate.id &&
+        image.uri === candidate.uri &&
+        image.altText === candidate.altText &&
+        image.caption === candidate.caption &&
+        image.decorative === candidate.decorative
+      );
+    })
+  );
+}
+
 /** Convert a form draft into a saved codex entry. */
 export function entryFromDraft(
   section: WorldSectionConfig,
@@ -909,24 +950,42 @@ export function entryFromDraft(
     ...Object.keys(existingEntry?.fields ?? {}),
     ...Object.keys(draft.details),
   ]);
-  const base = {
-    id: existingEntry?.id ?? makeEntryId(section.kind, draft.name),
+  const name = draft.name.trim();
+  const summary = draft.summary.trim();
+  const notes = draft.notes.trim();
+  const tags = normalizeTags(draft.tags);
+  const fields = entryFieldsFromDraft(fieldKeys, draft);
+  const images = (draft.images ?? existingEntry?.images ?? []).map((image) => ({
+    ...image,
+  }));
+  if (
+    existingEntry &&
+    existingEntry.name === name &&
+    existingEntry.summary === summary &&
+    existingEntry.notes === notes &&
+    haveSameStrings(existingEntry.tags, tags) &&
+    existingEntry.status === draft.status &&
+    existingEntry.pinned === draft.pinned &&
+    haveSameStringRecord(existingEntry.fields, fields) &&
+    haveSameImages(existingEntry.images, images)
+  ) {
+    return existingEntry;
+  }
+  const timestamp = new Date().toISOString();
+  return {
+    id: existingEntry?.id ?? makeEntryId(section.kind, name),
     kind: section.kind,
-    name: draft.name.trim(),
-    summary: draft.summary.trim(),
-    notes: draft.notes.trim(),
-    tags: normalizeTags(draft.tags),
+    name,
+    summary,
+    notes,
+    tags,
     status: draft.status,
     pinned: draft.pinned,
-    createdAt: existingEntry?.createdAt ?? new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    fields: entryFieldsFromDraft(fieldKeys, draft),
-    images: (draft.images ?? existingEntry?.images ?? []).map((image) => ({
-      ...image,
-    })),
+    createdAt: existingEntry?.createdAt ?? timestamp,
+    updatedAt: timestamp,
+    fields,
+    images,
   };
-
-  return base;
 }
 
 function upsertEntry<TEntry extends WorldEntry>(
@@ -936,6 +995,9 @@ function upsertEntry<TEntry extends WorldEntry>(
   const existingIndex = entries.findIndex((item) => item.id === entry.id);
   if (existingIndex === -1) {
     return [entry, ...entries];
+  }
+  if (entries[existingIndex] === entry) {
+    return entries;
   }
   return entries.map((item) => (item.id === entry.id ? entry : item));
 }
@@ -948,9 +1010,14 @@ export function applyEntry(
 ): WorldCodex {
   const section = sections.find((item) => item.kind === entry.kind);
   const sectionId = section?.id ?? entry.kind;
+  const currentEntries = getEntries(codex, sectionId);
+  const nextEntries = upsertEntry(currentEntries, entry);
+  if (nextEntries === currentEntries) {
+    return codex;
+  }
   return {
     ...codex,
-    [sectionId]: upsertEntry(getEntries(codex, sectionId), entry),
+    [sectionId]: nextEntries,
   };
 }
 
@@ -962,11 +1029,13 @@ export function deleteEntry(
 ): WorldCodex {
   const section = sections.find((item) => item.kind === entry.kind);
   const sectionId = section?.id ?? entry.kind;
+  const currentEntries = getEntries(codex, sectionId);
+  if (!currentEntries.some((item) => item.id === entry.id)) {
+    return codex;
+  }
   return {
     ...codex,
-    [sectionId]: getEntries(codex, sectionId).filter(
-      (item) => item.id !== entry.id
-    ),
+    [sectionId]: currentEntries.filter((item) => item.id !== entry.id),
   };
 }
 
@@ -977,11 +1046,20 @@ export function setEntryArchived(
   archived: boolean,
   sections: readonly WorldSectionConfig[] = worldSections
 ): WorldCodex {
+  const sectionId =
+    sections.find((section) => section.kind === entry.kind)?.id ?? entry.kind;
+  const currentEntry = getEntries(codex, sectionId).find(
+    (candidate) => candidate.id === entry.id
+  );
+  const nextStatus = archived ? 'archived' : 'draft';
+  if (!currentEntry || currentEntry.status === nextStatus) {
+    return codex;
+  }
   return applyEntry(
     codex,
     {
       ...entry,
-      status: archived ? 'archived' : 'draft',
+      status: nextStatus,
       updatedAt: new Date().toISOString(),
     },
     sections

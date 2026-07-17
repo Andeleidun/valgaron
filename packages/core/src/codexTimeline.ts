@@ -202,8 +202,8 @@ export type TimelineEditorLegacyInvolvedText = {
 export type TimelineEditorInvolvedRecordsModel = {
   title: string;
   description: string;
-  savedEntryMessage: string;
-  saveBeforeEditMessage: string;
+  currentEntryMessage: string;
+  applyBeforeEditMessage: string;
   searchLabel: string;
   searchPlaceholder: string;
   optionListLabel: string;
@@ -257,7 +257,7 @@ export const timelineFeatureCopy = {
   duplicateOrdersLabel: 'Duplicate orders',
   duplicateOrderGroupsLabel: 'Duplicate order groups',
   duplicateStagedInvolvedRecordLabel:
-    'Duplicate involved links were removed from the save list. Only one link per involved record will be saved.',
+    'Duplicate involved links were removed from the pending link list. Only one link per involved record will be created or updated.',
   eraFilterLabel: 'Era',
   eraManagerTitle: 'Era Manager',
   eraReassignmentActionLabel: 'Apply Era Change',
@@ -555,10 +555,10 @@ export function getTimelineEventEditorModel({
       title: 'Involved records',
       description:
         'Link the characters, places, factions, and lore notes involved in this event.',
-      savedEntryMessage:
+      currentEntryMessage:
         'Use the relationship-backed controls below to update involved records.',
-      saveBeforeEditMessage:
-        'Save this timeline event before editing involved records.',
+      applyBeforeEditMessage:
+        'Create or update this timeline event before editing involved records.',
       searchLabel: 'Search involved records',
       searchPlaceholder: 'Character, place, faction, or lore note',
       optionListLabel: 'Choose involved records',
@@ -575,7 +575,7 @@ export function getTimelineEventEditorModel({
       display,
       legacyText: legacyValue
         ? {
-            title: relationshipTextReviewCopy.savedTextLinkNotesTitle,
+            title: relationshipTextReviewCopy.currentTextLinkNotesTitle,
             label: config.label,
             value: legacyValue,
             exactMatchCount: legacyMigration?.targetIds.length ?? 0,

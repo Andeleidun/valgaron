@@ -10,6 +10,7 @@ import { sha256Hex } from './imageFilePreparation';
 import {
   createWorldZipBackup,
   installWorldZipAssets,
+  installWorldZipAssetsWithRollback,
   parseWorldZipBackup,
 } from './zipBackups';
 
@@ -208,5 +209,32 @@ describe('web ZIP backups', () => {
       bytes: existingBytes,
       mediaType: 'image/png',
     });
+  });
+
+  it('rolls back only bytes newly installed before a document commit', async () => {
+    const document = await documentWithUpload();
+    const source = createMemoryBinaryAssetRepository({
+      'asset-map-test': { bytes: pngBytes, mediaType: 'image/png' },
+    });
+    const parsed = await parseWorldZipBackup(
+      (
+        await createWorldZipBackup(document, 'Atlas', 'full', source)
+      ).bytes
+    );
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+
+    const destination = createMemoryBinaryAssetRepository();
+    const installation = await installWorldZipAssetsWithRollback(
+      parsed,
+      destination
+    );
+    expect(installation.ok).toBe(true);
+    expect(await destination.read('asset-map-test')).not.toBeNull();
+    if (!installation.ok) return;
+
+    await expect(installation.rollback()).resolves.toBe(true);
+    await expect(installation.rollback()).resolves.toBe(true);
+    await expect(destination.read('asset-map-test')).resolves.toBeNull();
   });
 });

@@ -153,7 +153,7 @@ describe('EntryForm browser rendering', () => {
 
     expect(markup).toContain('Create Timeline Event And 1 Link');
     expect(markup).toContain(
-      'Duplicate involved links were removed from the save list.'
+      'Duplicate involved links were removed from the pending link list.'
     );
   });
 });

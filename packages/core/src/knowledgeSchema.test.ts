@@ -36,13 +36,13 @@ describe('knowledgeSchema', () => {
       fieldsLabel: 'Fields',
       fieldsDetail: 'Text, category, and relationship-backed fields.',
       relationshipFieldsLabel: 'Linked fields',
-      relationshipFieldsDetail: 'Fields backed by saved relationships.',
+      relationshipFieldsDetail: 'Fields backed by current relationships.',
       hiddenDetailsLabel: 'Hidden details',
       hiddenDetailsDetail: 'Retained values from removed or hidden fields.',
       mobileStructureSummary: `${model.totals.entryTypeCount} entry types, ${model.totals.fieldCount} fields, and ${model.totals.relationshipFieldCount} relationship-backed fields.`,
       mobileHiddenDetailSummary: '0 hidden detail cleanup targets.',
     });
-    expect(model.typeSetup.detail).toContain('durable user-defined fields');
+    expect(model.typeSetup.detail).toContain('user-defined fields');
     expect(model.typeSetup.actionAccessibilityLabel).toBe(
       'Open Type Setup section'
     );
@@ -245,9 +245,9 @@ describe('knowledgeSchema', () => {
       resetSettingsAccessibilityLabel:
         'Reset Lineage settings in Characters to defaults',
       resetSettingsLabel: 'Reset to Defaults',
-      saveFieldLabelAccessibilityLabel: 'Save Lineage label in Characters',
-      saveSettingsAccessibilityLabel: 'Save Lineage settings in Characters',
-      saveSettingsLabel: 'Save Field Settings',
+      updateFieldLabelAccessibilityLabel: 'Update Lineage label in Characters',
+      updateSettingsAccessibilityLabel: 'Update Lineage settings in Characters',
+      updateSettingsLabel: 'Update Field Settings',
       settingsHelpFieldLabel: 'Help text for Lineage in Characters',
       settingsHiddenFieldLabel: 'Hide Lineage from editors in Characters',
       settingsLabelFieldLabel: 'Label for Lineage in Characters',
@@ -342,8 +342,8 @@ describe('knowledgeSchema', () => {
           moveUpLabel: 'Move Up',
           restoreAccessibilityLabel: 'Restore Human to Character ancestry',
           restoreLabel: 'Restore Human',
-          saveAccessibilityLabel: 'Save Human in Character ancestry',
-          saveLabel: 'Save Value',
+          updateAccessibilityLabel: 'Update Human in Character ancestry',
+          updateLabel: 'Update Value',
         }),
       ])
     );
@@ -432,8 +432,8 @@ describe('knowledgeSchema', () => {
         restoreAccessibilityLabel:
           'Restore Trail Finder to Character profession',
         restoreLabel: 'Restore Trail Finder',
-        saveAccessibilityLabel: 'Save Trail Finder in Character profession',
-        saveLabel: 'Save Value',
+        updateAccessibilityLabel: 'Update Trail Finder in Character profession',
+        updateLabel: 'Update Value',
         status: 'active' as const,
       },
     ];
@@ -564,7 +564,7 @@ describe('knowledgeSchema', () => {
         'Removes this field from the custom type. Existing entry values stay saved as hidden details.',
       retainedValueSummary:
         'Origin: Free text; values stay saved under origin.',
-      saveFieldLabelAccessibilityLabel: 'Save Origin label in Artifacts',
+      updateFieldLabelAccessibilityLabel: 'Update Origin label in Artifacts',
     });
     expect(model.totals.hiddenDetailCount).toBe(1);
     expect(model.hiddenDetails.reviewActionAccessibilityLabel).toBe(

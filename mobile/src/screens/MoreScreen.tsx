@@ -920,10 +920,10 @@ export function MoreScreen() {
                     <ButtonRow>
                       <ActionButton
                         accessibilityLabel={
-                          field.saveSettingsAccessibilityLabel
+                          field.updateSettingsAccessibilityLabel
                         }
                         disabled={!isDraftChanged}
-                        label={field.saveSettingsLabel}
+                        label={field.updateSettingsLabel}
                         onPress={() => saveFieldOverride(section.id, field)}
                       />
                       <ActionButton
@@ -1024,7 +1024,7 @@ export function MoreScreen() {
                     <ButtonRow>
                       <ActionButton
                         accessibilityLabel={
-                          field.saveFieldLabelAccessibilityLabel
+                          field.updateFieldLabelAccessibilityLabel
                         }
                         disabled={
                           !(
@@ -1038,7 +1038,7 @@ export function MoreScreen() {
                             ] ?? field.label
                           ).trim() === field.label
                         }
-                        label={workspaceFeatureActions.saveFieldLabel}
+                        label={workspaceFeatureActions.updateFieldLabel}
                         onPress={() =>
                           saveEntryTypeFieldLabel(
                             section.id,
@@ -1304,9 +1304,11 @@ export function MoreScreen() {
                           ) : null}
                           <ButtonRow>
                             <ActionButton
-                              accessibilityLabel={value.saveAccessibilityLabel}
+                              accessibilityLabel={
+                                value.updateAccessibilityLabel
+                              }
                               disabled={!isDraftChanged}
-                              label={value.saveLabel}
+                              label={value.updateLabel}
                               onPress={() =>
                                 updateVocabularyValue(row.id, value)
                               }

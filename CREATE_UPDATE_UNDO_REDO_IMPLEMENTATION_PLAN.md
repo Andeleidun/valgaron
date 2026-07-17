@@ -362,6 +362,32 @@ Redo but permits unbounded orphan retention until reload and is not acceptable.
 **Recommendation:** Option A. It avoids silent data/history loss and does not
 invent an arbitrary byte promise for a browser-local prototype.
 
+### Decision resolution (2026-07-17)
+
+The user approved **Option A for Gates 1 through 7**. Implementation therefore
+uses web-only document history, committed atomic document actions, complete
+`WorldDocument` mutation coverage, a 20-step session-local limit, Save-preserved
+history, guarded draft discard, and retention of every image asset reachable
+from the bounded history.
+
+### Implementation completion (2026-07-17)
+
+Phases 1 through 6 are complete. Each phase was evaluated with its closest
+focused tests before the next phase began. Follow-up iterations added semantic
+no-op protection, atomic entry/relationship transactions, history-aware image
+cleanup, aggregate draft registration, error-boundary reset keys, single-region
+announcements, three-row phone header assertions, and a real browser
+Create/Undo/Redo/Save/reload flow.
+
+Final automated evidence: all 88 web/core Jest suites (581 tests), all 13 mobile
+suites (63 tests), web and mobile typechecks, ESLint, Prettier, the Vite
+production build, the large-world performance smoke, and the Chromium browser
+smoke pass. The browser smoke covers current Create/Update copy, dirty-draft
+route and header-history guarding, document-control order and narrow layouts,
+persistence across reload, and empty history after reload. Screen-reader-specific
+listening and real storage-quota exhaustion remain release-checklist manual
+checks rather than automated claims.
+
 ## Detailed Design
 
 ### 1. Context-aware action copy

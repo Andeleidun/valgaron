@@ -40,4 +40,5 @@ export * from './workspaceManagement';
 export * from './workbenchRecords';
 export * from './workflowDestinations';
 export * from './worldDocument';
+export * from './worldDocumentHistory';
 export * from './zipBackup';

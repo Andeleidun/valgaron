@@ -37,7 +37,7 @@ describe('help topics', () => {
       'selected-record review summaries'
     );
     expect(codexWorkflowHelpTopics[0]?.items.join(' ')).toContain(
-      'durable vocabulary rows'
+      'reusable vocabulary rows'
     );
     expect(codexWorkflowHelpTopics[0]?.items.join(' ')).toContain(
       'character category'
@@ -61,7 +61,7 @@ describe('help topics', () => {
       'grouped event editing'
     );
     expect(codexWorkflowHelpTopics[1]?.items.join(' ')).toContain(
-      'saved relationship summaries'
+      'current relationship summaries'
     );
     expect(codexWorkflowHelpTopics[1]?.items.join(' ')).toContain(
       'filtered new-event drafts'
@@ -145,13 +145,13 @@ describe('help topics', () => {
       'contextual new-event drafts'
     );
     expect(getCodexHelpFocus('timeline')?.detail).toContain(
-      'saved relationship summaries'
+      'current relationship summaries'
     );
     expect(getCodexHelpFocus('knowledge')?.detail).toContain(
       'create custom entry types'
     );
     expect(getCodexHelpFocus('knowledge')?.detail).toContain(
-      'manage durable vocabulary values'
+      'manage workspace-owned vocabulary values'
     );
     expect(getCodexHelpFocus('utilities')?.detail).toContain(
       'Project Tools hub'

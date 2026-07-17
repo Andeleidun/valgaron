@@ -20,6 +20,7 @@ import {
   getRelationshipListModel,
   getRelationshipStudioModeModel,
   getRelationshipStudioReviewModel,
+  getRelationshipSubmitLabel,
   getRelationshipTextReviewExactMatchLabel,
   getRelationshipTextReviewSummary,
   getRelationshipTextReviewUnresolvedLabel,
@@ -52,6 +53,8 @@ import {
   useUnsavedChangesWarning,
 } from '../Utlilities/unsavedChanges';
 import { useDialogFocus } from '../Utlilities/dialogFocus';
+import { useDocumentDraftRegistration } from '../Utlilities/documentDraftState';
+import type { EntryRelationshipDocumentTransaction } from '../Utlilities/useWorldDocumentState';
 
 type RelationshipPendingDelete = {
   id: string;
@@ -117,14 +120,16 @@ export function RelationshipsPage({
   relationships,
   sections,
   onDeleteRelationship,
-  onSaveEntry,
+  onCommitEntryRelationshipTransaction,
   onSaveRelationship,
 }: {
   codex: WorldCodex;
   relationships: readonly WorldRelationship[];
   sections: readonly WorldSectionConfig[];
   onDeleteRelationship: (relationshipId: string) => void;
-  onSaveEntry: (entry: WorldEntry) => void;
+  onCommitEntryRelationshipTransaction: (
+    transaction: EntryRelationshipDocumentTransaction
+  ) => void;
   onSaveRelationship: (relationship: WorldRelationship) => void;
 }) {
   const [searchParams] = useSearchParams();
@@ -404,6 +409,11 @@ export function RelationshipsPage({
     setError('');
   };
 
+  useDocumentDraftRegistration({
+    isDirty: isDraftDirty,
+    onDiscard: () => resetForm(true),
+  });
+
   const startEditing = (relationship: WorldRelationship) => {
     if (!confirmDiscardUnsavedChanges(isDraftDirty)) {
       return;
@@ -493,30 +503,38 @@ export function RelationshipsPage({
       relationships,
       sections,
     });
-    migration.relationshipIdsToDelete.forEach(onDeleteRelationship);
-    migration.relationshipsToSave.forEach(({ relationship }) =>
-      onSaveRelationship(relationship)
-    );
     const updatedAt = new Date().toISOString();
+    const updatedEntries: WorldEntry[] = [];
     for (const update of migration.entryFieldUpdates) {
       const entry = editableEntryById.get(update.entryId);
       if (entry) {
-        onSaveEntry({
+        updatedEntries.push({
           ...entry,
           fields: update.fields,
           updatedAt,
         });
       }
     }
+    onCommitEntryRelationshipTransaction({
+      actionLabel: 'Migrate All Exact Relationship Text',
+      entries: updatedEntries,
+      relationships: migration.relationshipsToSave.map(
+        ({ relationship }) => relationship
+      ),
+      relationshipIdsToDelete: migration.relationshipIdsToDelete,
+    });
   };
 
   const deleteDuplicateRelationships = () => {
     if (duplicateRelationshipGroups.length === 0 || isDraftDirty) {
       return;
     }
-    duplicateRelationshipGroups
-      .flatMap((group) => group.duplicateRelationshipIds)
-      .forEach(onDeleteRelationship);
+    onCommitEntryRelationshipTransaction({
+      actionLabel: 'Remove Duplicate Relationships',
+      relationshipIdsToDelete: duplicateRelationshipGroups.flatMap(
+        (group) => group.duplicateRelationshipIds
+      ),
+    });
   };
 
   return (
@@ -789,7 +807,7 @@ export function RelationshipsPage({
                 <div className="vwb-section-heading">
                   <div>
                     <p className="vwb-kicker">
-                      {relationshipTextReviewCopy.savedTextLinkNotesTitle}
+                      {relationshipTextReviewCopy.currentTextLinkNotesTitle}
                     </p>
                     <h3>{relationshipTextReviewCopy.title}</h3>
                   </div>
@@ -882,7 +900,7 @@ export function RelationshipsPage({
               </div>
               {isDraftDirty ? (
                 <span className="vwb-status-pill">
-                  {relationshipFormHeaderModel.unsavedDraftPillLabel}
+                  {relationshipFormHeaderModel.unappliedDraftPillLabel}
                 </span>
               ) : null}
             </div>
@@ -997,7 +1015,7 @@ export function RelationshipsPage({
                 ) : null}
                 <div className="vwb-form-actions">
                   <button className="vwb-primary-button" type="submit">
-                    {relationshipFeatureCopy.saveRelationshipLabel}
+                    {getRelationshipSubmitLabel(editingRelationship)}
                   </button>
                   {editingRelationship ? (
                     <button
@@ -1027,7 +1045,7 @@ export function RelationshipsPage({
                   links
                 </p>
                 <h2 id="relationship-list-title">
-                  {relationshipFeatureCopy.savedSectionTitle}
+                  {relationshipFeatureCopy.currentSectionTitle}
                 </h2>
               </div>
             </div>

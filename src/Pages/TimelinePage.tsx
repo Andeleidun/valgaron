@@ -7,6 +7,7 @@ import type {
   WorldWorkspaceSchema,
 } from '@valgaron/core';
 import { SectionPage } from './SectionPage';
+import type { EntryRelationshipDocumentTransaction } from '../Utlilities/useWorldDocumentState';
 
 export function TimelinePage({
   codex,
@@ -16,6 +17,7 @@ export function TimelinePage({
   onArchiveEntry,
   onDeleteEntry,
   onDeleteRelationship,
+  onCommitEntryRelationshipTransaction,
   onSaveEntry,
   onSaveRelationship,
 }: {
@@ -26,6 +28,9 @@ export function TimelinePage({
   onArchiveEntry: (entry: WorldEntry, archived: boolean) => void;
   onDeleteEntry: (entry: WorldEntry) => void;
   onDeleteRelationship: (relationshipId: string) => void;
+  onCommitEntryRelationshipTransaction: (
+    transaction: EntryRelationshipDocumentTransaction
+  ) => void;
   onSaveEntry: (entry: WorldEntry, assets?: readonly WorldImageAsset[]) => void;
   onSaveRelationship: (relationship: WorldRelationship) => void;
 }) {
@@ -36,6 +41,9 @@ export function TimelinePage({
       onArchiveEntry={onArchiveEntry}
       onDeleteEntry={onDeleteEntry}
       onDeleteRelationship={onDeleteRelationship}
+      onCommitEntryRelationshipTransaction={
+        onCommitEntryRelationshipTransaction
+      }
       onSaveEntry={onSaveEntry}
       onSaveRelationship={onSaveRelationship}
       relationships={relationships}

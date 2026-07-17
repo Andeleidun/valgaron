@@ -98,7 +98,7 @@ describe('KnowledgePage browser rendering', () => {
     expect(markup).toContain('aria-label="Edit Human label"');
     expect(markup).toContain('aria-label="Edit Human description"');
     expect(markup).toContain('aria-label="Edit Human aliases"');
-    expect(markup).toContain('aria-label="Save Human in Character ancestry"');
+    expect(markup).toContain('aria-label="Update Human in Character ancestry"');
     expect(markup).toContain(
       'aria-label="Move Human up in Character ancestry"'
     );
@@ -115,7 +115,7 @@ describe('KnowledgePage browser rendering', () => {
       'aria-label="Open Characters fields using Character ancestry"'
     );
     expect(markup).toContain(
-      'aria-label="Save Character category settings in Characters"'
+      'aria-label="Update Character category settings in Characters"'
     );
     expect(markup).toContain(
       'aria-label="Label for Character category in Characters"'
@@ -139,7 +139,7 @@ describe('KnowledgePage browser rendering', () => {
       'aria-label="Reset Character category settings in Characters to defaults"'
     );
     expect(markup).toContain('aria-label="Rename Origin in Artifacts"');
-    expect(markup).toContain('aria-label="Save Origin label in Artifacts"');
+    expect(markup).toContain('aria-label="Update Origin label in Artifacts"');
     expect(markup).toContain('aria-label="Move Origin up in Artifacts"');
     expect(markup).toContain('aria-label="Move Origin down in Artifacts"');
     expect(markup).toContain('aria-label="Remove Origin from Artifacts"');

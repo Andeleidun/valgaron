@@ -42,6 +42,7 @@ import {
   useUnsavedChangesWarning,
 } from '../Utlilities/unsavedChanges';
 import { useDialogFocus } from '../Utlilities/dialogFocus';
+import { useDocumentDraftRegistration } from '../Utlilities/documentDraftState';
 
 type PendingKnowledgeDestructiveAction = {
   actionId: Extract<
@@ -299,15 +300,32 @@ export function KnowledgePage({
       draft.aliases !== savedDraft.aliases
     );
   });
-
-  useUnsavedChangesWarning(
+  const hasDirtyDraft =
     isEntryTypeDraftDirty ||
-      hasPendingFieldDrafts ||
-      hasPendingLabelDrafts ||
-      hasPendingFieldOverrideDrafts ||
-      hasPendingVocabularyDrafts ||
-      hasPendingVocabularyEditDrafts
-  );
+    hasPendingFieldDrafts ||
+    hasPendingLabelDrafts ||
+    hasPendingFieldOverrideDrafts ||
+    hasPendingVocabularyDrafts ||
+    hasPendingVocabularyEditDrafts;
+
+  useUnsavedChangesWarning(hasDirtyDraft);
+  useDocumentDraftRegistration({
+    isDirty: hasDirtyDraft,
+    onDiscard: () => {
+      setEntryTypeDraft(emptyEntryTypeDraft());
+      setEntryTypeError('');
+      setEntryTypeFieldDrafts({});
+      setEntryTypeFieldErrors({});
+      setFieldLabelDrafts({});
+      setFieldLabelErrors({});
+      setFieldOverrideDrafts({});
+      setFieldOverrideErrors({});
+      setVocabularyValueDrafts({});
+      setVocabularyValueEditDrafts({});
+      setVocabularyValueErrors({});
+      setPendingDestructiveAction(null);
+    },
+  });
 
   useEffect(() => {
     const focusTargetId = getKnowledgeRouteFocusTargetIdFromHash(location.hash);
@@ -1033,7 +1051,7 @@ export function KnowledgePage({
                         ) : null}
                         <div className="vwb-form-actions">
                           <button
-                            aria-label={field.saveSettingsAccessibilityLabel}
+                            aria-label={field.updateSettingsAccessibilityLabel}
                             className="vwb-secondary-button"
                             disabled={!isDraftChanged}
                             type="button"
@@ -1041,7 +1059,7 @@ export function KnowledgePage({
                               submitFieldOverride(section.id, field)
                             }
                           >
-                            {field.saveSettingsLabel}
+                            {field.updateSettingsLabel}
                           </button>
                           <button
                             aria-label={field.resetSettingsAccessibilityLabel}
@@ -1137,7 +1155,7 @@ export function KnowledgePage({
                             <div className="vwb-form-actions">
                               <button
                                 aria-label={
-                                  field.saveFieldLabelAccessibilityLabel
+                                  field.updateFieldLabelAccessibilityLabel
                                 }
                                 className="vwb-secondary-button"
                                 type="button"
@@ -1167,7 +1185,7 @@ export function KnowledgePage({
                                   )
                                 }
                               >
-                                {workspaceFeatureActions.saveFieldLabel}
+                                {workspaceFeatureActions.updateFieldLabel}
                               </button>
                               <button
                                 className="vwb-secondary-button"
@@ -1332,7 +1350,7 @@ export function KnowledgePage({
                 </div>
                 {isEntryTypeDraftDirty ? (
                   <span className="vwb-status-pill">
-                    {workspaceFeatureCopy.status.unsaved}
+                    {workspaceFeatureCopy.status.unapplied}
                   </span>
                 ) : null}
               </div>
@@ -1556,7 +1574,7 @@ export function KnowledgePage({
                           ) : null}
                           <div className="vwb-form-actions">
                             <button
-                              aria-label={value.saveAccessibilityLabel}
+                              aria-label={value.updateAccessibilityLabel}
                               className="vwb-secondary-button"
                               type="button"
                               disabled={!isDraftChanged}
@@ -1564,7 +1582,7 @@ export function KnowledgePage({
                                 submitVocabularyValueEdit(row.id, value)
                               }
                             >
-                              {value.saveLabel}
+                              {value.updateLabel}
                             </button>
                             <button
                               className="vwb-secondary-button"

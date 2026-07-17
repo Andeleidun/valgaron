@@ -16,7 +16,7 @@ export const workspaceFeatureResultLimit = 40;
 export const workspaceFeatureActions = {
   workspaceHelp: 'Workspace Help',
   newWorkspace: 'New Workspace',
-  saveWorkspace: 'Save Workspace',
+  updateWorkspace: 'Update Workspace',
   createWorkspace: 'Create Workspace',
   edit: 'Edit',
   duplicate: 'Duplicate',
@@ -24,14 +24,14 @@ export const workspaceFeatureActions = {
   restore: 'Restore',
   deletePermanently: 'Delete Permanently',
   newWorld: 'New World',
-  saveWorld: 'Save World',
+  updateWorld: 'Update World',
   createWorld: 'Create World',
   newWorldDraft: 'New World Draft',
   createEntryType: 'Create Entry Type',
   addFields: 'Add Fields',
   moveFieldUp: 'Move Up',
   moveFieldDown: 'Move Down',
-  saveFieldLabel: 'Save Label',
+  updateFieldLabel: 'Update Label',
   removeField: 'Remove Field',
   deleteType: 'Delete Type',
 } as const;
@@ -44,7 +44,7 @@ export const workspaceFeatureCopy = {
   },
   status: {
     active: 'Active',
-    unsaved: 'Unsaved',
+    unapplied: 'Unapplied',
   },
   customEntryTypes: {
     kindLabel: 'Custom codex section',
@@ -61,9 +61,9 @@ export const workspaceFeatureCopy = {
     createEntryType: 'Create entry type',
   },
   draftStatus: {
-    workspace: 'Unsaved workspace draft.',
-    planetaryWorld: 'Unsaved in-fiction world draft.',
-    customEntryType: 'Unsaved custom type draft.',
+    workspace: 'Unapplied workspace draft changes.',
+    planetaryWorld: 'Unapplied in-fiction world draft changes.',
+    customEntryType: 'Unapplied custom type draft changes.',
   },
 } as const;
 

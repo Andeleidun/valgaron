@@ -129,17 +129,17 @@ export const relationshipTextReviewCopy = {
   title: 'Legacy Link Text',
   batchExactMatchLabel: 'Migrate All Exact Matches',
   draftBlockedMessage:
-    'Save or discard the current entry draft before migrating exact matches.',
+    'Apply or discard the current entry draft before migrating exact matches.',
   exactMatchMigrationLabel: 'Migrate Exact Matches',
   hiddenEntryDetailsTitle: 'Hidden entry details',
   linkedFieldsBlockedMessage:
-    'Save this entry before editing relationship links.',
+    'Create or update this entry before editing relationship links.',
   linkedFieldsDescription:
-    'These fields are saved as relationships so linked records stay navigable from both sides.',
+    'These fields are applied as relationships so linked records stay navigable from both sides.',
   linkedFieldsTitle: 'Linked relationship fields',
   noExactMatchesFound: 'No exact matches found.',
   reviewEntryLabel: 'Review Entry',
-  savedTextLinkNotesTitle: 'Saved text link notes',
+  currentTextLinkNotesTitle: 'Current text link notes',
   suggestionsLabel: 'Suggestions',
   unresolvedLabel: 'Unresolved',
   unmatchedTextWillRemain: 'Unmatched text will remain.',
@@ -164,7 +164,7 @@ export function getRelationshipFieldSearchLabel(
 export function getRelationshipTextReviewSummary(count: number): string {
   return `${count} relationship-backed field${count === 1 ? '' : 's'} ${
     count === 1 ? 'contains' : 'contain'
-  } saved text that can be reviewed or migrated to relationships.`;
+  } current text that can be reviewed or migrated to relationships.`;
 }
 
 export function getRelationshipTextReviewCountLabel(count: number): string {

@@ -22,6 +22,7 @@ import {
   getCodexMobileWebShellRouteLabel,
   getCodexShellChildRoutePath,
   getCodexShellRoutes,
+  getDiscardUnsavedChangesConfirmation,
   getLocalSaveButtonModel,
   getRelativeChildRoutePath,
   mobileWebPrimaryRouteOrder,
@@ -36,6 +37,11 @@ import { downloadTextFile, slugFilename } from './Utlilities/fileDownloads';
 import { formatRouteRedirectDestination } from './Utlilities/navigationRoutes';
 import { useBeforeUnloadWarning } from './Utlilities/unsavedChanges';
 import { useWorldDocumentState } from './Utlilities/useWorldDocumentState';
+import { DocumentPersistenceControls } from './Components/Common/DocumentPersistenceControls';
+import {
+  DocumentDraftStateProvider,
+  useDocumentDraftState,
+} from './Utlilities/documentDraftState';
 const DataPage = lazy(() =>
   import('./Pages/DataPage').then((module) => ({ default: module.DataPage }))
 );
@@ -148,9 +154,16 @@ function AppShell() {
     addVocabularyValue,
     updateVocabularyValue,
     archiveVocabularyValue,
+    canRedo,
+    canUndo,
     moveVocabularyValue,
     updateFieldOverride,
     hasUnsavedDocumentChanges,
+    historyAnnouncement,
+    commitEntryRelationshipTransaction,
+    presentRevisionId,
+    redoDocumentChange,
+    redoLabel,
     saveCurrentDocument,
     saveEntry,
     savePlanetaryWorld,
@@ -160,8 +173,11 @@ function AppShell() {
     switchWorkspace,
     unlinkRelationship,
     updateWorkspace,
+    undoDocumentChange,
+    undoLabel,
     archivePlanetaryWorld,
   } = useWorldDocumentState();
+  const documentDraftState = useDocumentDraftState();
 
   const confirmResetToSeed = () => {
     resetToSeed();
@@ -217,6 +233,26 @@ function AppShell() {
     state: saveStatus.state,
   });
   useBeforeUnloadWarning(hasUnsavedDocumentChanges);
+
+  const runGuardedHistoryAction = (
+    action: 'Undo' | 'Redo',
+    navigateHistory: () => void
+  ) => {
+    const confirmation = getDiscardUnsavedChangesConfirmation({
+      isDirty: documentDraftState.hasDirtyDraft,
+      title: `Discard unapplied draft changes before ${action}?`,
+      message: `The active draft has not been applied to the current document. Discard it before using ${action}.`,
+    });
+    if (
+      confirmation.kind === 'confirm' &&
+      (typeof window === 'undefined' ||
+        !window.confirm(confirmation.browserMessage))
+    ) {
+      return;
+    }
+    documentDraftState.discardDirtyDrafts();
+    navigateHistory();
+  };
 
   useEffect(() => {
     if (!isDataMenuOpen) {
@@ -325,22 +361,21 @@ function AppShell() {
               </NavLink>
             ))}
           </nav>
-          <button
-            className={`vwb-save-status ${
-              saveStatus.state === 'failed' || saveStatus.state === 'paused'
-                ? 'is-danger'
-                : saveStatus.state === 'dirty' || saveStatus.state === 'unsaved'
-                ? 'is-dirty'
-                : ''
-            }`}
-            type="button"
-            onClick={saveCurrentDocument}
-            disabled={saveButtonModel.disabled}
-            aria-label={saveButtonModel.accessibilityLabel}
-            aria-live="polite"
-          >
-            {saveButtonModel.label}
-          </button>
+          <DocumentPersistenceControls
+            canRedo={canRedo}
+            canUndo={canUndo}
+            hasDirtyDraft={documentDraftState.hasDirtyDraft}
+            historyAnnouncement={historyAnnouncement}
+            onRedo={() => runGuardedHistoryAction('Redo', redoDocumentChange)}
+            onSave={() =>
+              saveCurrentDocument(documentDraftState.stagedAssetIds)
+            }
+            onUndo={() => runGuardedHistoryAction('Undo', undoDocumentChange)}
+            redoActionLabel={redoLabel}
+            saveButtonModel={saveButtonModel}
+            saveState={saveStatus.state}
+            undoActionLabel={undoLabel}
+          />
           <div
             className="vwb-header-menu"
             onKeyDown={(event) => {
@@ -433,6 +468,7 @@ function AppShell() {
         </header>
 
         <ErrorBoundary
+          resetKeys={[presentRevisionId]}
           fallback={({ error, resetErrorBoundary }) => (
             <RuntimeErrorFallback
               basePath={appBasePath}
@@ -468,7 +504,9 @@ function AppShell() {
                   <RelationshipsPage
                     codex={codex}
                     onDeleteRelationship={unlinkRelationship}
-                    onSaveEntry={saveEntry}
+                    onCommitEntryRelationshipTransaction={
+                      commitEntryRelationshipTransaction
+                    }
                     onSaveRelationship={saveRelationship}
                     relationships={relationships}
                     sections={sections}
@@ -483,6 +521,9 @@ function AppShell() {
                     onArchiveEntry={archiveEntry}
                     onDeleteEntry={permanentlyDeleteEntry}
                     onDeleteRelationship={removeRelationship}
+                    onCommitEntryRelationshipTransaction={
+                      commitEntryRelationshipTransaction
+                    }
                     onSaveEntry={saveEntry}
                     onSaveRelationship={saveRelationship}
                     relationships={relationships}
@@ -608,6 +649,9 @@ function AppShell() {
                     onArchiveEntry={archiveEntry}
                     onDeleteEntry={permanentlyDeleteEntry}
                     onDeleteRelationship={removeRelationship}
+                    onCommitEntryRelationshipTransaction={
+                      commitEntryRelationshipTransaction
+                    }
                     onSaveEntry={saveEntry}
                     onSaveRelationship={saveRelationship}
                   />
@@ -628,4 +672,10 @@ function AppShell() {
   );
 }
 
-export default AppShell;
+export default function App() {
+  return (
+    <DocumentDraftStateProvider>
+      <AppShell />
+    </DocumentDraftStateProvider>
+  );
+}

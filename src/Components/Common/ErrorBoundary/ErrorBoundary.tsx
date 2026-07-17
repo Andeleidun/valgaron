@@ -90,7 +90,7 @@ export class ErrorBoundary extends React.Component<
 /**
  * Compare reset keys shallowly to decide whether the boundary should recover.
  */
-const didResetKeysChange = (
+export const didResetKeysChange = (
   previousKeys?: readonly unknown[],
   nextKeys?: readonly unknown[]
 ): boolean => {

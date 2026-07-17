@@ -93,6 +93,25 @@
   display: none;
 }
 
+.vwb-document-controls {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  min-width: 0;
+}
+
+.vwb-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 .vwb-top-nav::-webkit-scrollbar {
   height: 8px;
 }
@@ -2004,6 +2023,31 @@
 }
 
 @media (max-width: 768px) {
+  .vwb-app-header {
+    grid-template-columns: minmax(0, 1fr) max-content;
+  }
+
+  .vwb-brand {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .vwb-header-menu {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .vwb-document-controls {
+    display: grid;
+    grid-column: 1 / -1;
+    grid-row: 2;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .vwb-document-controls > button {
+    width: 100%;
+  }
+
   .vwb-main {
     width: calc(100% - 24px);
   }
@@ -2014,6 +2058,8 @@
 
   .vwb-mobile-primary-nav {
     display: flex;
+    grid-column: 1 / -1;
+    grid-row: 3;
   }
 
   .vwb-form-grid,
@@ -2063,33 +2109,20 @@
 
 @media (max-width: 520px) {
   .vwb-app-header {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
     gap: 8px;
     padding-block: 8px;
   }
 
   .vwb-brand {
-    order: 1;
-    flex: 1 1 150px;
     min-width: 0;
   }
 
   .vwb-top-nav {
-    order: 2;
-    flex: 1 0 100%;
     padding-bottom: 2px;
   }
 
-  .vwb-save-status {
-    order: 1;
-    flex: 0 0 auto;
-  }
-
-  .vwb-header-menu {
-    order: 1;
-    flex: 0 0 auto;
+  .vwb-document-controls {
+    gap: 4px;
   }
 
   .vwb-main {

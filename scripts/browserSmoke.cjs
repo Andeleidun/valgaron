@@ -68,6 +68,7 @@ const routeChecks = [
       'Mira Rowan',
       'Record basics',
       'Linked character fields',
+      'Update Character',
     ],
   },
   {
@@ -114,7 +115,7 @@ const routeChecks = [
       'Relationship Studio',
       'Links',
       'Relationship Form',
-      'Saved Relationships',
+      'Current Relationships',
       'Mira Rowan',
     ],
   },
@@ -1000,7 +1001,7 @@ async function assertWorkbenchDirtyRouteGuard(browserPath, profilePrefix) {
         if (window.__workbenchConfirmCount !== 1) {
           issues.push('discard confirmation count is ' + window.__workbenchConfirmCount);
         }
-        if (!window.__workbenchConfirmMessage.includes('Discard unsaved changes?')) {
+        if (!window.__workbenchConfirmMessage.includes('Discard unapplied draft changes?')) {
           issues.push('discard confirmation copy was not used');
         }
         if (!(dirtyInput instanceof HTMLInputElement)) {
@@ -1482,7 +1483,7 @@ async function assertShellLayout(browserPath, profilePrefix, check) {
         const mainSelector = ${JSON.stringify(mainSelector)};
         const selectors = {
           brand: '.vwb-brand',
-          save: '.vwb-save-status',
+          documentControls: '.vwb-document-controls',
           dataMenu: '.vwb-header-menu > button'
         };
         const viewportWidth = document.documentElement.clientWidth;
@@ -1570,6 +1571,51 @@ async function assertShellLayout(browserPath, profilePrefix, check) {
           }
           if (rect.top < 0 || rect.bottom > viewportHeight) {
             issues.push(name + ' is clipped vertically');
+          }
+        }
+        const documentControls = document.querySelector('.vwb-document-controls');
+        const documentButtons = Array.from(
+          documentControls?.querySelectorAll('button') ?? []
+        );
+        const documentButtonLabels = documentButtons.map((button) =>
+          button.textContent?.trim()
+        );
+        if (
+          documentButtons.length !== 3 ||
+          documentButtonLabels[0] !== 'Undo' ||
+          documentButtonLabels[1] !== 'Redo' ||
+          !['Save', 'Saved', 'Retry Save'].includes(documentButtonLabels[2])
+        ) {
+          issues.push(
+            'document controls are not ordered Undo, Redo, Save: ' +
+              JSON.stringify(documentButtonLabels)
+          );
+        }
+        for (const [index, button] of documentButtons.entries()) {
+          const rect = button.getBoundingClientRect();
+          if (rect.left < 0 || rect.right > viewportWidth) {
+            issues.push('document control ' + index + ' is clipped horizontally');
+          }
+        }
+        if (viewportWidth <= 768 && visibleNav && documentControls) {
+          const brand = document.querySelector('.vwb-brand');
+          const dataMenu = document.querySelector('.vwb-header-menu > button');
+          const brandRect = brand?.getBoundingClientRect();
+          const dataMenuRect = dataMenu?.getBoundingClientRect();
+          const controlsRect = documentControls.getBoundingClientRect();
+          const navRect = visibleNav.getBoundingClientRect();
+          if (
+            !brandRect ||
+            !dataMenuRect ||
+            Math.abs(brandRect.top - dataMenuRect.top) > 4
+          ) {
+            issues.push('brand and Data Menu are not on the first mobile row');
+          }
+          if (brandRect && controlsRect.top < brandRect.bottom) {
+            issues.push('document controls do not occupy the second mobile row');
+          }
+          if (navRect.top < controlsRect.bottom) {
+            issues.push('navigation does not occupy the third mobile row');
           }
         }
         return { issues, rects, viewportHeight, viewportWidth };
@@ -2145,6 +2191,276 @@ async function assertCharacterEditorLayout(browserPath, profilePrefix, check) {
   }
 }
 
+async function assertDocumentHistoryFlow(browserPath, profilePrefix) {
+  const debugPort = await findAvailablePort();
+  const path = '/entries?sectionId=characters&intent=new';
+  const url = `${baseUrl}${path}`;
+  const child = spawn(
+    browserPath,
+    [
+      ...browserCdpBaseArgs(profilePrefix, 'document-history-flow', '1280,900'),
+      `--remote-debugging-port=${debugPort}`,
+      url,
+    ],
+    {
+      cwd: rootDir,
+      stdio: ['ignore', 'pipe', 'pipe'],
+    }
+  );
+  let output = '';
+  child.stdout.on('data', (chunk) => {
+    output += chunk.toString();
+  });
+  child.stderr.on('data', (chunk) => {
+    output += chunk.toString();
+  });
+
+  let cdp;
+  try {
+    const webSocketUrl = await waitForDebugPage(debugPort, url);
+    cdp = await createCdpClient(webSocketUrl);
+    await waitForRuntimeCondition(
+      cdp,
+      "document.body.textContent.includes('Create Character') && Boolean(document.querySelector('.vwb-document-controls'))"
+    );
+    const initialResult = await evaluateRuntime(
+      cdp,
+      `(() => {
+        const controls = document.querySelector('.vwb-document-controls');
+        const buttons = Array.from(controls?.querySelectorAll('button') ?? []);
+        const issues = [];
+        if (buttons.length !== 3) {
+          issues.push('expected three document controls');
+          return { issues };
+        }
+        if (!buttons[0].disabled || !buttons[1].disabled) {
+          issues.push('history controls are not initially disabled');
+        }
+        buttons[2].click();
+        return { issues };
+      })()`
+    );
+    if (initialResult.issues.length > 0) {
+      throw new Error(
+        `document history initial-state issues: ${initialResult.issues.join(
+          ', '
+        )}`
+      );
+    }
+    await waitForRuntimeCondition(
+      cdp,
+      "document.querySelector('.vwb-save-status')?.textContent?.trim() === 'Saved'"
+    );
+    const createResult = await evaluateRuntime(
+      cdp,
+      `(() => {
+        const form = Array.from(document.querySelectorAll('form'))
+          .find((candidate) => candidate.textContent?.includes('Create Character'));
+        const nameLabel = Array.from(form?.querySelectorAll('label') ?? [])
+          .find((label) => label.textContent?.includes('Name'));
+        const nameInput = nameLabel?.querySelector('input');
+        const submit = Array.from(form?.querySelectorAll('button') ?? [])
+          .find((button) => button.textContent?.trim() === 'Create Character');
+        const issues = [];
+        if (!(nameInput instanceof HTMLInputElement)) {
+          issues.push('character name input is missing');
+        }
+        if (!(submit instanceof HTMLElement)) {
+          issues.push('Create Character button is missing');
+        }
+        if (issues.length > 0) {
+          return { issues };
+        }
+        const valueDescriptor = Object.getOwnPropertyDescriptor(
+          HTMLInputElement.prototype,
+          'value'
+        );
+        valueDescriptor?.set?.call(nameInput, 'History Smoke Character');
+        nameInput.dispatchEvent(new Event('input', { bubbles: true }));
+        submit.click();
+        return { issues };
+      })()`
+    );
+    if (createResult.issues.length > 0) {
+      throw new Error(
+        `document history create issues: ${createResult.issues.join(', ')}`
+      );
+    }
+    await waitForRuntimeCondition(
+      cdp,
+      `(() => {
+        const controls = document.querySelector('.vwb-document-controls');
+        const buttons = Array.from(controls?.querySelectorAll('button') ?? []);
+        const saveLabel = buttons[2]?.getAttribute('aria-label') ?? '';
+        return document.body.textContent.includes('History Smoke Character') &&
+          buttons[0] && !buttons[0].disabled && buttons[1]?.disabled &&
+          !saveLabel.includes('Unapplied draft changes');
+      })()`
+    );
+    await evaluateRuntime(
+      cdp,
+      `document.querySelector('.vwb-document-controls button')?.click()`
+    );
+    await waitForRuntimeCondition(
+      cdp,
+      `(() => {
+        const buttons = Array.from(
+          document.querySelectorAll('.vwb-document-controls button')
+        );
+        const hasRecord = Array.from(document.querySelectorAll('input'))
+          .some((input) => input.value.includes('History Smoke Character')) ||
+          Array.from(document.querySelectorAll('.vwb-entry-card'))
+            .some((card) => card.textContent?.includes('History Smoke Character'));
+        return !hasRecord &&
+          buttons[0]?.disabled && buttons[1] && !buttons[1].disabled;
+      })()`
+    );
+    await evaluateRuntime(
+      cdp,
+      `document.querySelectorAll('.vwb-document-controls button')[1]?.click()`
+    );
+    await waitForRuntimeCondition(
+      cdp,
+      "document.body.textContent.includes('History Smoke Character')"
+    );
+    const dirtyDraftResult = await evaluateRuntime(
+      cdp,
+      `(() => {
+        window.__historyConfirmCount = 0;
+        window.__historyConfirmMessage = '';
+        window.confirm = (message) => {
+          window.__historyConfirmCount += 1;
+          window.__historyConfirmMessage = String(message);
+          return false;
+        };
+        const nameInput = Array.from(document.querySelectorAll('input'))
+          .find((input) => input.value === 'History Smoke Character');
+        const issues = [];
+        if (!(nameInput instanceof HTMLInputElement)) {
+          issues.push('created character edit input is missing');
+          return { issues };
+        }
+        const valueDescriptor = Object.getOwnPropertyDescriptor(
+          HTMLInputElement.prototype,
+          'value'
+        );
+        valueDescriptor?.set?.call(nameInput, 'History Smoke Character Draft');
+        nameInput.dispatchEvent(new Event('input', { bubbles: true }));
+        return { issues };
+      })()`
+    );
+    if (dirtyDraftResult.issues.length > 0) {
+      throw new Error(
+        `document history dirty-draft setup issues: ${dirtyDraftResult.issues.join(
+          ', '
+        )}`
+      );
+    }
+    await waitForRuntimeCondition(
+      cdp,
+      `(() => {
+        const hasDirtyInput = Array.from(document.querySelectorAll('input'))
+          .some((input) => input.value === 'History Smoke Character Draft');
+        const saveLabel = document.querySelector('.vwb-save-status')
+          ?.getAttribute('aria-label') ?? '';
+        return hasDirtyInput && saveLabel.includes('Unapplied draft changes');
+      })()`
+    );
+    await evaluateRuntime(
+      cdp,
+      `document.querySelector('.vwb-document-controls button')?.click()`
+    );
+    await waitForRuntimeCondition(cdp, 'window.__historyConfirmCount === 1');
+    const canceledUndoResult = await evaluateRuntime(
+      cdp,
+      `(() => {
+        const issues = [];
+        if (!window.__historyConfirmMessage.includes('before Undo')) {
+          issues.push('Undo draft-discard confirmation lacks action context');
+        }
+        if (!Array.from(document.querySelectorAll('input')).some(
+          (input) => input.value === 'History Smoke Character Draft'
+        )) {
+          issues.push('canceling Undo did not retain the dirty draft');
+        }
+        const buttons = Array.from(
+          document.querySelectorAll('.vwb-document-controls button')
+        );
+        if (buttons[0]?.disabled || !buttons[1]?.disabled) {
+          issues.push('canceling Undo changed document history');
+        }
+        window.confirm = (message) => {
+          window.__historyConfirmCount += 1;
+          window.__historyConfirmMessage = String(message);
+          return true;
+        };
+        buttons[0]?.click();
+        return { issues };
+      })()`
+    );
+    if (canceledUndoResult.issues.length > 0) {
+      throw new Error(
+        `document history canceled Undo issues: ${canceledUndoResult.issues.join(
+          ', '
+        )}`
+      );
+    }
+    await waitForRuntimeCondition(
+      cdp,
+      `(() => {
+        const buttons = Array.from(
+          document.querySelectorAll('.vwb-document-controls button')
+        );
+        const hasRecord = Array.from(document.querySelectorAll('input'))
+          .some((input) => input.value.includes('History Smoke Character')) ||
+          Array.from(document.querySelectorAll('.vwb-entry-card'))
+            .some((card) => card.textContent?.includes('History Smoke Character'));
+        return window.__historyConfirmCount === 2 &&
+          !hasRecord &&
+          buttons[0]?.disabled && buttons[1] && !buttons[1].disabled;
+      })()`
+    );
+    await evaluateRuntime(
+      cdp,
+      `document.querySelectorAll('.vwb-document-controls button')[1]?.click()`
+    );
+    await waitForRuntimeCondition(
+      cdp,
+      "document.body.textContent.includes('History Smoke Character')"
+    );
+    await evaluateRuntime(
+      cdp,
+      `document.querySelector('.vwb-save-status')?.click()`
+    );
+    await waitForRuntimeCondition(
+      cdp,
+      "document.querySelector('.vwb-save-status')?.textContent?.trim() === 'Saved'"
+    );
+    await evaluateRuntime(cdp, 'location.reload()');
+    await waitForRuntimeCondition(
+      cdp,
+      `(() => {
+        const buttons = Array.from(
+          document.querySelectorAll('.vwb-document-controls button')
+        );
+        return document.readyState === 'complete' &&
+          document.body.textContent.includes('History Smoke Character') &&
+          buttons[0]?.disabled && buttons[1]?.disabled;
+      })()`
+    );
+  } finally {
+    cdp?.close();
+    child.kill();
+    await new Promise((resolve) => {
+      child.once('exit', resolve);
+      setTimeout(resolve, 1000);
+    });
+    if (child.exitCode && child.exitCode !== 0) {
+      writeError(output);
+    }
+  }
+}
+
 async function run() {
   const browserPaths = findBrowserExecutables();
   if (browserPaths.length === 0) {
@@ -2187,6 +2503,8 @@ async function run() {
         writeLine('route ok: workbench-review-queue-route');
         await assertKnowledgeDestructiveDialog(browserPath, profilePrefix);
         writeLine('dialog ok: knowledge-destructive-action');
+        await assertDocumentHistoryFlow(browserPath, profilePrefix);
+        writeLine('history ok: create-undo-redo-save-reload');
         for (const screenshotCheck of screenshotChecks) {
           assertScreenshot(browserPath, profilePrefix, screenshotCheck);
           writeLine(`screenshot ok: ${screenshotCheck.name}`);

@@ -4,6 +4,7 @@ import {
   createMemoryStringStorage,
   createZipArchive,
   isZipArchiveBytes,
+  installBinaryAssetsWithRollback,
   loadJsonValue,
   parseJsonValue,
   readZipArchive,
@@ -28,6 +29,67 @@ describe('binary asset and ZIP platform helpers', () => {
       bytes: new Uint8Array([1, 2, 3]),
       mediaType: 'image/png',
     });
+  });
+
+  it('rolls back only assets written by a successful install transaction', async () => {
+    const existingAsset = {
+      bytes: new Uint8Array([1, 2, 3]),
+      mediaType: 'image/png',
+    };
+    const repository = createMemoryBinaryAssetRepository({
+      existing: existingAsset,
+    });
+    const transaction = await installBinaryAssetsWithRollback(
+      [
+        { assetId: 'existing', asset: existingAsset },
+        {
+          assetId: 'new',
+          asset: {
+            bytes: new Uint8Array([4, 5, 6]),
+            mediaType: 'image/png',
+          },
+        },
+      ],
+      repository
+    );
+
+    expect(transaction.ok).toBe(true);
+    if (!transaction.ok) return;
+    await expect(transaction.rollback()).resolves.toBe(true);
+    await expect(repository.read('existing')).resolves.toEqual(existingAsset);
+    await expect(repository.read('new')).resolves.toBeNull();
+  });
+
+  it('reports when a failed write cannot be fully rolled back', async () => {
+    const repository = {
+      async read() {
+        return null;
+      },
+      async write() {
+        return false;
+      },
+      async remove() {
+        return false;
+      },
+      async listIds() {
+        return [];
+      },
+    };
+
+    await expect(
+      installBinaryAssetsWithRollback(
+        [
+          {
+            assetId: 'partial',
+            asset: {
+              bytes: new Uint8Array([1]),
+              mediaType: 'image/png',
+            },
+          },
+        ],
+        repository
+      )
+    ).resolves.toEqual({ ok: false, rollbackComplete: false });
   });
 
   it('creates and safely reads a ZIP archive', () => {

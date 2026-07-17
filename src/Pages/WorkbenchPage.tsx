@@ -5,6 +5,7 @@ import {
   draftFromEntry,
   formatExpansionControlLabel,
   formatHiddenCountText,
+  formatWorldDocumentActionLabel,
   formatWorkbenchEditorAccessibilityLabel,
   duplicateEntry,
   getCodexScreenIntro,
@@ -41,6 +42,7 @@ import {
   confirmDiscardUnsavedChanges,
   useUnsavedChangesWarning,
 } from '../Utlilities/unsavedChanges';
+import type { EntryRelationshipDocumentTransaction } from '../Utlilities/useWorldDocumentState';
 
 function RecordCard({
   isSelected,
@@ -91,6 +93,7 @@ export function WorkbenchPage({
   onArchiveEntry,
   onDeleteEntry,
   onDeleteRelationship,
+  onCommitEntryRelationshipTransaction,
   onSaveEntry,
   onSaveRelationship,
 }: {
@@ -98,6 +101,9 @@ export function WorkbenchPage({
   onArchiveEntry: (entry: WorldEntry, archived: boolean) => void;
   onDeleteEntry: (entry: WorldEntry) => void;
   onDeleteRelationship: (relationshipId: string) => void;
+  onCommitEntryRelationshipTransaction: (
+    transaction: EntryRelationshipDocumentTransaction
+  ) => void;
   onSaveEntry: (entry: WorldEntry, assets?: readonly WorldImageAsset[]) => void;
   onSaveRelationship: (relationship: WorldRelationship) => void;
 }) {
@@ -669,7 +675,8 @@ export function WorkbenchPage({
                   onSaveDraft={(
                     draft,
                     existingEntry,
-                    stagedRelationships = []
+                    stagedRelationships = [],
+                    relationshipChanges
                   ) => {
                     const result = commitEntryDraftTransaction({
                       codex: activeWorld.codex,
@@ -679,8 +686,21 @@ export function WorkbenchPage({
                       section: editorSection,
                       stagedRelationships,
                     });
-                    onSaveEntry(result.entry, draft.stagedAssets);
-                    result.savedRelationships.forEach(onSaveRelationship);
+                    onCommitEntryRelationshipTransaction({
+                      actionLabel: formatWorldDocumentActionLabel({
+                        action: existingEntry ? 'Update' : 'Create',
+                        recordType: editorSection.singularTitle,
+                        subject: result.entry.name,
+                      }),
+                      assets: draft.stagedAssets,
+                      entries: [result.entry],
+                      relationships: [
+                        ...result.savedRelationships,
+                        ...(relationshipChanges?.relationships ?? []),
+                      ],
+                      relationshipIdsToDelete:
+                        relationshipChanges?.relationshipIdsToDelete,
+                    });
                     setActiveSectionId(editorSection.id);
                     setSelectedEntryId(result.entry.id);
                     resetInlineEditor();

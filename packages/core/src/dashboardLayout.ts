@@ -667,7 +667,7 @@ export const dashboardCardDefinitions = [
   ),
   card('links', 'links.health', 'Link health', 'supporting', 'compact'),
   card('links', 'links.editor', 'Link editor', 'primary', 'wide'),
-  card('links', 'links.saved-list', 'Saved links', 'primary', 'wide'),
+  card('links', 'links.saved-list', 'Current links', 'primary', 'wide'),
   card('links', 'links.graph', 'Relationship graph', 'full', 'full', {
     allowedSizes: ['wide', 'full'],
   }),

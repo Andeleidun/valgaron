@@ -280,12 +280,15 @@ export function getImageAssetCounts(document: WorldDocument): ImageAssetCounts {
 
 export function getRetainedAssetIds(
   document: WorldDocument,
-  snapshots: readonly RecoverySnapshot[] = []
+  snapshots: readonly RecoverySnapshot[] = [],
+  retainedDocuments: readonly WorldDocument[] = []
 ): Set<string> {
   return new Set(
-    [document, ...snapshots.map((snapshot) => snapshot.document)].flatMap(
-      (item) => item.assets.map((asset) => asset.id)
-    )
+    [
+      document,
+      ...retainedDocuments,
+      ...snapshots.map((snapshot) => snapshot.document),
+    ].flatMap((item) => item.assets.map((asset) => asset.id))
   );
 }
 
@@ -323,8 +326,10 @@ export function pruneUnreferencedAssetMetadata(
         .map((image) => image.uri)
     )
   );
-  return {
-    ...document,
-    assets: document.assets.filter((asset) => reachableUris.has(asset.uri)),
-  };
+  const assets = document.assets.filter((asset) =>
+    reachableUris.has(asset.uri)
+  );
+  return assets.length === document.assets.length
+    ? document
+    : { ...document, assets };
 }

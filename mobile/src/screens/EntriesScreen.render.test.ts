@@ -353,7 +353,7 @@ describe('EntriesScreen render smoke', () => {
     expect(markup).toContain(
       'data-testid="entries.linkedField.homePlace.clear"'
     );
-    expect(markup).toContain('Saved text link notes');
+    expect(markup).toContain('Current text link notes');
     expect(markup).toContain('1 exact match found.');
     expect(markup).toContain('Migrate Exact Matches');
   });
@@ -838,7 +838,7 @@ describe('EntriesScreen render smoke', () => {
     expect(markup).toContain('Review Entry');
     expect(markup).toContain('Duplicate Relationships');
     expect(markup).toContain(
-      'Saved relationships with the same source, target, type, status, direction, and note.'
+      'Current relationships with the same source, target, type, status, direction, and note.'
     );
     expect(markup).toContain('Duplicate Relationships: 7 groups.');
     expect(markup).toContain('removes 1 duplicate');
@@ -961,7 +961,7 @@ describe('EntriesScreen render smoke', () => {
     );
 
     expect(markup).toContain('Relationship Form');
-    expect(markup).toContain('Saved Relationships');
+    expect(markup).toContain('Current Relationships');
     expect(markup).toContain('Source: Mira Rowan');
     expect(markup).toContain('value="Mira Rowan"');
     expect(markup).toContain(
@@ -1095,9 +1095,9 @@ describe('EntriesScreen render smoke', () => {
     expect(markup).toContain(
       'Vocabulary mode for Character category in Characters'
     );
-    expect(markup).toContain('Save Field Settings');
+    expect(markup).toContain('Update Field Settings');
     expect(markup).toContain(
-      'aria-label="Save Character category settings in Characters"'
+      'aria-label="Update Character category settings in Characters"'
     );
     expect(markup).toContain('Default settings');
     expect(markup).toContain('Reset to Defaults');
@@ -1112,8 +1112,8 @@ describe('EntriesScreen render smoke', () => {
     expect(markup).toContain('Add Fields');
     expect(markup).toContain('aria-label="Add fields to Artifacts"');
     expect(markup).toContain('Rename Origin in Artifacts');
-    expect(markup).toContain('Save Label');
-    expect(markup).toContain('aria-label="Save Origin label in Artifacts"');
+    expect(markup).toContain('Update Label');
+    expect(markup).toContain('aria-label="Update Origin label in Artifacts"');
     expect(markup).toContain('Move Up');
     expect(markup).toContain('aria-label="Move Origin up in Artifacts"');
     expect(markup).toContain('Move Down');
@@ -1134,12 +1134,12 @@ describe('EntriesScreen render smoke', () => {
     expect(markup).toContain('Edit Human label');
     expect(markup).toContain('Edit Human description');
     expect(markup).toContain('Edit Human aliases');
-    expect(markup).toContain('Save Value');
+    expect(markup).toContain('Update Value');
     expect(markup).toContain('Archive');
     expect(markup).toContain(
       'aria-label="Archive Human from Character ancestry"'
     );
-    expect(markup).toContain('aria-label="Save Human in Character ancestry"');
+    expect(markup).toContain('aria-label="Update Human in Character ancestry"');
     expect(markup).toContain(
       'aria-label="Move Human up in Character ancestry"'
     );

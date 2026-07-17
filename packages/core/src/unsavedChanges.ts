@@ -47,8 +47,9 @@ export type DiscardUnsavedChangesConfirmation =
     };
 
 export const unsavedChangesConfirmationCopy = {
-  title: 'Discard unsaved changes?',
-  message: 'This draft has local edits that have not been saved.',
+  title: 'Discard unapplied draft changes?',
+  message:
+    'This draft has local edits that have not been applied to the current document.',
   keepEditingLabel: 'Keep Editing',
   discardLabel: 'Discard',
 } as const;

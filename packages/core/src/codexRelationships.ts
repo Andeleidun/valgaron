@@ -49,13 +49,13 @@ export const relationshipFeatureCopy = {
   studioGraphDetail:
     'Browse connected records and inspect visible graph links.',
   studioLinksLabel: 'Links',
-  studioLinksDetail: 'Search, edit, delete, or compose saved relationships.',
+  studioLinksDetail: 'Search, edit, delete, or compose current relationships.',
   studioBulkEditLabel: 'Bulk Edit',
   studioBulkEditDetail: 'Prepare larger relationship cleanup passes.',
   studioModePickerAccessibilityLabel: 'Relationship Studio modes',
   clearFiltersLabel: 'Clear Filters',
   clearGraphFiltersLabel: 'Clear Graph Filters',
-  savedSectionTitle: 'Saved Relationships',
+  currentSectionTitle: 'Current Relationships',
   selectedEntryKickerLabel: 'Relationships',
   selectedEntrySectionTitle: 'Linked Records',
   selectedEntryEmptyTitle: 'No relationships yet.',
@@ -71,17 +71,17 @@ export const relationshipFeatureCopy = {
   brokenReferencesDetail:
     'Relationships with a missing source or target after imports or deletes.',
   orphanedRecordsLabel: 'Orphaned records',
-  orphanedRecordsDetail: 'Entries with no saved relationship links yet.',
+  orphanedRecordsDetail: 'Entries with no current relationship links yet.',
   duplicateRelationshipsLabel: 'Duplicate Relationships',
   duplicateRelationshipsReviewLabel: 'Duplicate relationship review',
   duplicateRelationshipsDetail:
-    'Saved relationships with the same source, target, type, status, direction, and note.',
+    'Current relationships with the same source, target, type, status, direction, and note.',
   duplicateRelationshipsCleanupLabel: 'Remove Duplicate Relationships',
   duplicateRelationshipsCleanupBlockedMessage:
-    'Save or discard the current relationship draft before running bulk cleanup.',
+    'Apply or discard the current relationship draft before running bulk cleanup.',
   noBrokenRelationshipsTitle: 'No broken relationships.',
   noBrokenRelationshipsDetail:
-    'Every saved relationship currently resolves to existing records.',
+    'Every current relationship resolves to existing records.',
   noOrphanedRecordsMessage: 'Every relationship-capable record is connected.',
   graphViewTitle: 'Graph view',
   graphBrowserTitle: 'Graph Browser',
@@ -93,7 +93,7 @@ export const relationshipFeatureCopy = {
   graphNodeTagsLabel: 'Graph node tags',
   noGraphTitle: 'No graph yet.',
   noGraphDetail:
-    'Graph rows appear once saved relationships have valid endpoints.',
+    'Graph rows appear once current relationships have valid endpoints.',
   repairBrokenLinksTitle: 'Repair Broken Links',
   noGraphSearchMatchesMessage: 'No graph records match this search.',
   noConnectedGraphMatchesMessage:
@@ -105,7 +105,6 @@ export const relationshipFeatureCopy = {
   openSourceLabel: 'Open Source',
   openTargetLabel: 'Open Target',
   relationshipFormTitle: 'Relationship Form',
-  saveRelationshipLabel: 'Save Relationship',
   clearTypeFilterLabel: 'Clear Type Filter',
   clearEntryFilterLabel: 'Clear Entry Filter',
   clearSearchLabel: 'Clear Search',
@@ -127,7 +126,7 @@ export const relationshipFeatureCopy = {
   searchRelationshipsPlaceholder: 'Entry, type, note, or id',
   sourcePickerLabel: 'Source',
   targetPickerLabel: 'Target',
-  unsavedDraftMessage: 'Unsaved relationship draft.',
+  unappliedDraftMessage: 'Unapplied relationship draft changes.',
   noMatchesTitle: 'No relationships match the filters.',
   noMatchesDetail: 'Clear filters or choose a different type or entry.',
   emptyTitle: 'No relationships yet.',
@@ -161,8 +160,8 @@ export function getRelationshipPickerItemActionModel(entry: {
 export type RelationshipFormHeaderModel = {
   kickerLabel: string;
   title: string;
-  unsavedDraftLabel: string;
-  unsavedDraftPillLabel: string;
+  unappliedDraftLabel: string;
+  unappliedDraftPillLabel: string;
 };
 
 export function getRelationshipFormHeaderModel(
@@ -174,9 +173,15 @@ export function getRelationshipFormHeaderModel(
     title: relationshipType
       ? `Edit ${relationshipType}`
       : relationshipFeatureCopy.relationshipFormTitle,
-    unsavedDraftLabel: relationshipFeatureCopy.unsavedDraftMessage,
-    unsavedDraftPillLabel: 'Unsaved',
+    unappliedDraftLabel: relationshipFeatureCopy.unappliedDraftMessage,
+    unappliedDraftPillLabel: 'Unapplied',
   };
+}
+
+export function getRelationshipSubmitLabel(
+  editingRelationship: Pick<WorldRelationship, 'id'> | null | undefined
+): string {
+  return editingRelationship ? 'Update Relationship' : 'Create Relationship';
 }
 
 export type RelationshipStudioModeId =
@@ -810,14 +815,27 @@ export function relationshipFromDraft(
   draft: RelationshipDraft,
   existingRelationship?: WorldRelationship
 ): WorldRelationship {
+  const type = draft.type.trim();
+  const note = draft.note.trim();
+  if (
+    existingRelationship &&
+    existingRelationship.sourceEntryId === draft.sourceEntryId &&
+    existingRelationship.targetEntryId === draft.targetEntryId &&
+    existingRelationship.type === type &&
+    existingRelationship.directional === draft.directional &&
+    existingRelationship.note === note &&
+    existingRelationship.status === draft.status
+  ) {
+    return existingRelationship;
+  }
   const timestamp = new Date().toISOString();
   return {
     id: existingRelationship?.id ?? makeRelationshipId(draft.type),
     sourceEntryId: draft.sourceEntryId,
     targetEntryId: draft.targetEntryId,
-    type: draft.type.trim(),
+    type,
     directional: draft.directional,
-    note: draft.note.trim(),
+    note,
     status: draft.status,
     createdAt: existingRelationship?.createdAt ?? timestamp,
     updatedAt: timestamp,
@@ -884,6 +902,9 @@ export function upsertRelationship(
   if (existingIndex === -1) {
     return [relationship, ...relationships];
   }
+  if (relationships[existingIndex] === relationship) {
+    return relationships as WorldRelationship[];
+  }
   return relationships.map((item) =>
     item.id === relationship.id ? relationship : item
   );
@@ -894,6 +915,11 @@ export function deleteRelationship(
   relationships: readonly WorldRelationship[],
   relationshipId: string
 ): WorldRelationship[] {
+  if (
+    !relationships.some((relationship) => relationship.id === relationshipId)
+  ) {
+    return relationships as WorldRelationship[];
+  }
   return relationships.filter(
     (relationship) => relationship.id !== relationshipId
   );

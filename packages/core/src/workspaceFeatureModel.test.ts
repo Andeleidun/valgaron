@@ -23,7 +23,7 @@ describe('workspace feature model', () => {
   it('centralizes Workspaces screen action labels', () => {
     expect(workspaceFeatureActions).toMatchObject({
       newWorkspace: 'New Workspace',
-      saveWorkspace: 'Save Workspace',
+      updateWorkspace: 'Update Workspace',
       createWorkspace: 'Create Workspace',
       deletePermanently: 'Delete Permanently',
       deleteType: 'Delete Type',
@@ -40,16 +40,16 @@ describe('workspace feature model', () => {
     });
     expect(workspaceFeatureCopy.status).toEqual({
       active: 'Active',
-      unsaved: 'Unsaved',
+      unapplied: 'Unapplied',
     });
     expect(workspaceFeatureCopy.customEntryTypes).toEqual({
       kindLabel: 'Custom codex section',
       fieldsPrefix: 'Fields',
     });
     expect(workspaceFeatureCopy.draftStatus).toEqual({
-      workspace: 'Unsaved workspace draft.',
-      planetaryWorld: 'Unsaved in-fiction world draft.',
-      customEntryType: 'Unsaved custom type draft.',
+      workspace: 'Unapplied workspace draft changes.',
+      planetaryWorld: 'Unapplied in-fiction world draft changes.',
+      customEntryType: 'Unapplied custom type draft changes.',
     });
     expect(getWorkspaceFormKicker()).toBe('New workspace metadata');
     expect(getWorkspaceFormTitle()).toBe('Create project/universe');
