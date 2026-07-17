@@ -50,6 +50,7 @@ export function DashboardToolbar({
         isCustomizing ? 'is-customizing' : ''
       }`}
       aria-label="Dashboard layout controls"
+      data-document-history-shortcuts="ignore"
       role="group"
     >
       <div className="vwb-dashboard-toolbar-summary">
@@ -155,7 +156,11 @@ export function DashboardShelf({
 }) {
   if (cards.length === 0) return null;
   return (
-    <div className="vwb-dashboard-shelf" aria-label="Collapsed cards">
+    <div
+      className="vwb-dashboard-shelf"
+      aria-label="Collapsed cards"
+      data-document-history-shortcuts="ignore"
+    >
       <span className="vwb-dashboard-shelf-label">Collapsed</span>
       {cards.map((card) => (
         <button
@@ -213,7 +218,10 @@ export function DashboardCardControls({
     setResizeCandidate(null);
   };
   return (
-    <div className="vwb-dashboard-card-controls">
+    <div
+      className="vwb-dashboard-card-controls"
+      data-document-history-shortcuts="ignore"
+    >
       {isCustomizing && definition.movable ? (
         <>
           <button

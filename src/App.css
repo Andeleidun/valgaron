@@ -163,6 +163,11 @@
   white-space: normal;
 }
 
+button:disabled {
+  cursor: not-allowed !important;
+  opacity: 0.52;
+}
+
 .vwb-primary-button,
 .vwb-secondary-button {
   text-decoration: none;
@@ -570,11 +575,6 @@
   font: inherit;
   font-weight: 800;
   padding: 6px 10px;
-}
-
-.vwb-dashboard-toolbar-actions button:disabled {
-  cursor: not-allowed;
-  opacity: 0.52;
 }
 
 .vwb-dashboard-toolbar.is-customizing {
@@ -1584,7 +1584,6 @@
 
 .vwb-save-status:disabled {
   color: var(--vwb-muted);
-  cursor: default;
 }
 
 .vwb-header-menu {
@@ -1889,11 +1888,6 @@
 
 .vwb-form-actions > * {
   flex: 0 1 auto;
-}
-
-.vwb-form-actions button:disabled {
-  cursor: not-allowed;
-  opacity: 0.55;
 }
 
 .vwb-danger-button {

@@ -5,7 +5,11 @@ import {
   getDashboardPreset,
   normalizeDashboardLayout,
 } from '@valgaron/core';
-import { DashboardCardControls, DashboardToolbar } from './DashboardControls';
+import {
+  DashboardCardControls,
+  DashboardShelf,
+  DashboardToolbar,
+} from './DashboardControls';
 
 describe('dashboard controls', () => {
   it('renders complete non-pointer customization alternatives', () => {
@@ -32,6 +36,7 @@ describe('dashboard controls', () => {
         onResize={jest.fn()}
       />
     );
+    expect(markup).toContain('data-document-history-shortcuts="ignore"');
     expect(markup).toContain('Move Records earlier');
     expect(markup).toContain('Size for Records');
     expect(markup).toContain('Region for Records');
@@ -58,9 +63,28 @@ describe('dashboard controls', () => {
         summary="Arrange the current workspace."
       />
     );
+    expect(markup).toContain('data-document-history-shortcuts="ignore"');
     expect(markup).toContain('Customize layout');
     expect(markup).toContain('Reset all dashboards');
     expect(markup).toContain('Cancel');
     expect(markup).toContain('disabled');
+  });
+
+  it('keeps collapsed-card layout actions separate from document history', () => {
+    const preset = getDashboardPreset('workbench', 'browse');
+    const card = normalizeDashboardLayout({
+      pageId: 'workbench',
+      definitions: dashboardCardDefinitions,
+      preset,
+      viewport: 'wide',
+    }).cards[0]!;
+    const markup = renderToStaticMarkup(
+      <DashboardShelf
+        cards={[{ ...card, region: 'shelf' }]}
+        onRestore={jest.fn()}
+      />
+    );
+
+    expect(markup).toContain('data-document-history-shortcuts="ignore"');
   });
 });

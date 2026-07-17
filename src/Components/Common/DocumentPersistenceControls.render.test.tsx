@@ -28,6 +28,8 @@ describe('DocumentPersistenceControls', () => {
     );
 
     expect(markup).toContain('role="group"');
+    expect(markup).toContain('aria-keyshortcuts="Control+Z"');
+    expect(markup).toContain('aria-keyshortcuts="Control+Y"');
     expect(markup).toContain('aria-label="Undo Update place “Emberfall”"');
     expect(markup).toContain('aria-label="Nothing to redo"');
     expect(markup).toContain(
@@ -58,5 +60,34 @@ describe('DocumentPersistenceControls', () => {
         saveState: 'saved',
       })
     ).toBe('Document saved.');
+  });
+
+  it('disables both history buttons when neither direction is available', () => {
+    const markup = renderToStaticMarkup(
+      <DocumentPersistenceControls
+        canRedo={false}
+        canUndo={false}
+        hasDirtyDraft={false}
+        historyAnnouncement=""
+        onRedo={jest.fn()}
+        onSave={jest.fn()}
+        onUndo={jest.fn()}
+        redoActionLabel={null}
+        saveButtonModel={{
+          accessibilityLabel: 'Document saved',
+          disabled: true,
+          label: 'Saved',
+        }}
+        saveState="saved"
+        undoActionLabel={null}
+      />
+    );
+
+    expect(markup).toContain(
+      'aria-label="Nothing to undo" class="vwb-secondary-button" disabled'
+    );
+    expect(markup).toContain(
+      'aria-label="Nothing to redo" class="vwb-secondary-button" disabled'
+    );
   });
 });

@@ -1,7 +1,9 @@
+import { useEffect } from 'react';
 import type {
   LocalSaveButtonModel,
   LocalSaveStatusState,
 } from '@valgaron/core';
+import { runDocumentHistoryKeyboardShortcut } from '../../Utlilities/documentHistoryShortcuts';
 
 const persistenceAnnouncementByState: Record<LocalSaveStatusState, string> = {
   dirty: 'Unsaved document changes.',
@@ -62,6 +64,25 @@ export function DocumentPersistenceControls({
     historyAnnouncement,
     saveState,
   });
+
+  useEffect(() => {
+    if (typeof document === 'undefined') {
+      return undefined;
+    }
+    const handleKeyDown = (event: KeyboardEvent) => {
+      runDocumentHistoryKeyboardShortcut({
+        canRedo,
+        canUndo,
+        event,
+        onRedo,
+        onUndo,
+      });
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [canRedo, canUndo, onRedo, onUndo]);
+
   return (
     <div
       aria-label="Document history and persistence"
@@ -69,6 +90,7 @@ export function DocumentPersistenceControls({
       role="group"
     >
       <button
+        aria-keyshortcuts="Control+Z"
         aria-label={
           undoActionLabel ? `Undo ${undoActionLabel}` : 'Nothing to undo'
         }
@@ -80,6 +102,7 @@ export function DocumentPersistenceControls({
         Undo
       </button>
       <button
+        aria-keyshortcuts="Control+Y"
         aria-label={
           redoActionLabel ? `Redo ${redoActionLabel}` : 'Nothing to redo'
         }
