@@ -1958,49 +1958,49 @@ async function assertCharacterEditorLayout(browserPath, profilePrefix, check) {
       cdp,
       "Array.from(document.querySelectorAll('h2')).some((node) => node.textContent?.trim() === 'Mira Rowan')"
     );
-    const relationshipDetailResult = await evaluateRuntime(
+    const relationshipFieldResult = await evaluateRuntime(
       cdp,
       `(() => {
-        const detailPanel = Array.from(document.querySelectorAll('.vwb-detail-panel'))
-          .find((panel) => panel.textContent?.includes('Mira Rowan'));
         const issues = [];
-        if (!detailPanel) {
-          issues.push('selected character detail panel is missing');
+        const linkedFieldPanel = document.querySelector(
+          '[aria-label="Relationship-backed character fields"]'
+        );
+        if (!linkedFieldPanel) {
+          issues.push('linked character field panel is missing');
           return { issues };
         }
-        const relationshipPanel = detailPanel.querySelector('.vwb-relationship-panel');
-        if (!relationshipPanel) {
-          issues.push('character relationship panel is missing');
+        const affiliationsField = Array.from(
+          linkedFieldPanel.querySelectorAll('.vwb-linked-field')
+        ).find((field) => field.querySelector('h4')?.textContent?.trim() === 'Affiliations');
+        if (!affiliationsField) {
+          issues.push('character affiliations relationship field is missing');
           return { issues };
         }
-        const groupHeadings = Array.from(
-          relationshipPanel.querySelectorAll('.vwb-relationship-group > h4')
-        )
-          .map((heading) => heading.textContent?.trim())
-          .filter(Boolean);
-        if (!groupHeadings.includes('Affiliations and service')) {
-          issues.push('character relationship group is missing');
-        }
-        const relationshipText = relationshipPanel.textContent || '';
-        for (const text of ['The Cartographers Guild', 'To - member of']) {
+        const relationshipText = affiliationsField.textContent || '';
+        for (const text of ['The Cartographers Guild', 'Linked as member of relationships.']) {
           if (!relationshipText.includes(text)) {
             issues.push('missing relationship detail: ' + text);
           }
         }
+        const selectedGuild = Array.from(affiliationsField.querySelectorAll('label'))
+          .find((label) => label.textContent?.includes('The Cartographers Guild'))
+          ?.querySelector('input');
+        if (!(selectedGuild instanceof HTMLInputElement) || !selectedGuild.checked) {
+          issues.push('Cartographers Guild affiliation is not selected');
+        }
         return {
-          groupHeadings,
           issues,
           relationshipText: relationshipText.replace(/\\s+/g, ' ').trim().slice(0, 240)
         };
       })()`
     );
-    if (relationshipDetailResult.issues.length > 0) {
+    if (relationshipFieldResult.issues.length > 0) {
       throw new Error(
         `${
           check.name
-        } character relationship detail issues: ${relationshipDetailResult.issues.join(
+        } character relationship field issues: ${relationshipFieldResult.issues.join(
           ', '
-        )}. Details: ${JSON.stringify(relationshipDetailResult)}`
+        )}. Details: ${JSON.stringify(relationshipFieldResult)}`
       );
     }
     const result = await evaluateRuntime(
