@@ -39,4 +39,33 @@ describe('WorkbenchPage browser rendering', () => {
     expect(markup).not.toContain('No editor target selected.');
     expect(markup).not.toContain('aria-current="page"');
   });
+
+  it('shows the inline editor without duplicating the read-only entry detail', () => {
+    const activeWorld = getActiveWorld(createSeedWorldDocument());
+
+    const markup = renderToStaticMarkup(
+      React.createElement(
+        MemoryRouter,
+        {
+          initialEntries: [
+            '/entries?sectionId=characters&entryId=character-mira-rowan',
+          ],
+        },
+        React.createElement(WorkbenchPage, {
+          activeWorld,
+          onArchiveEntry: jest.fn(),
+          onDeleteEntry: jest.fn(),
+          onDeleteRelationship: jest.fn(),
+          onCommitEntryRelationshipTransaction: jest.fn(),
+          onSaveEntry: jest.fn(),
+          onSaveRelationship: jest.fn(),
+        })
+      )
+    );
+
+    expect(markup).toContain('aria-label="Character Workbench editor"');
+    expect(markup).toContain('Character category');
+    expect(markup).not.toContain('aria-labelledby="entry-detail-title"');
+    expect(markup).not.toContain('<article class="vwb-detail-panel"');
+  });
 });

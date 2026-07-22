@@ -169,7 +169,11 @@ button:disabled {
 }
 
 .vwb-primary-button,
-.vwb-secondary-button {
+.vwb-secondary-button,
+.vwb-save-status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   text-decoration: none;
 }
 
@@ -382,6 +386,7 @@ button:disabled {
 .vwb-utility-summary-card {
   display: grid;
   gap: 12px;
+  align-content: start;
   border: 1px solid var(--vwb-border);
   border-radius: 8px;
   background: var(--vwb-surface-strong);
@@ -1735,16 +1740,21 @@ button:disabled {
   gap: 18px;
 }
 
-.vwb-form label {
+.vwb-panel
+  label:not(.vwb-checkbox-field):not(.vwb-inline-toggle):not(
+    .vwb-file-button
+  ):not(.vwb-dashboard-preset-control) {
   display: grid;
   gap: 8px;
   color: var(--vwb-heading);
   font-weight: 700;
 }
 
-.vwb-form input,
-.vwb-form select,
-.vwb-form textarea {
+.vwb-panel
+  label
+  > input:not([type='checkbox']):not([type='radio']):not([type='hidden']),
+.vwb-panel label > select,
+.vwb-panel label > textarea {
   width: 100%;
   box-sizing: border-box;
   border: 1px solid var(--vwb-border);
@@ -1755,7 +1765,7 @@ button:disabled {
   padding: 10px 12px;
 }
 
-.vwb-form textarea {
+.vwb-panel label > textarea {
   resize: vertical;
 }
 
@@ -1858,6 +1868,24 @@ button:disabled {
 
 .vwb-field-order-row .vwb-form-error {
   grid-column: 1 / -1;
+}
+
+.vwb-field-configuration-row {
+  display: grid;
+  gap: 16px;
+  border: 1px solid var(--vwb-border);
+  border-radius: 8px;
+  background: var(--vwb-surface);
+  padding: 16px;
+}
+
+.vwb-field-configuration-row > div:first-child {
+  display: grid;
+  gap: 6px;
+}
+
+.vwb-field-configuration-row > div:first-child > :is(p, span, strong) {
+  margin: 0;
 }
 
 .vwb-wide-field {

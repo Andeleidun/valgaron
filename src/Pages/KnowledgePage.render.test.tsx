@@ -138,6 +138,7 @@ describe('KnowledgePage browser rendering', () => {
     expect(markup).toContain(
       'aria-label="Reset Character category settings in Characters to defaults"'
     );
+    expect(markup).toContain('class="vwb-field-configuration-row"');
     expect(markup).toContain('aria-label="Rename Origin in Artifacts"');
     expect(markup).toContain('aria-label="Update Origin label in Artifacts"');
     expect(markup).toContain('aria-label="Move Origin up in Artifacts"');

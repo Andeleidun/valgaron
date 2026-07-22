@@ -67,7 +67,6 @@ import type { EntryRelationshipDocumentTransaction } from '../Utlilities/useWorl
 import {
   ConfirmationDialog,
   EntryCard,
-  EntryDetail,
   EntryForm,
   TimelineEventEditor,
   TimelineOverview,
@@ -1208,16 +1207,6 @@ export function SectionPage({
           data-dashboard-card-id="timeline.event-editor"
           aria-label={`${section.singularTitle} editor`}
         >
-          {selectedEntry && section.id !== 'timeline' ? (
-            <EntryDetail
-              codex={codex}
-              entry={selectedEntry}
-              relationships={relationships}
-              section={section}
-              sections={sections}
-              workspaceSchema={workspaceSchema}
-            />
-          ) : null}
           {section.id === 'timeline' ? (
             <TimelineEventEditor
               key={`${section.id}-${

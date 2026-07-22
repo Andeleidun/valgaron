@@ -45,6 +45,21 @@ describe('EntryForm browser rendering', () => {
     expect(markup).toContain('Ancestry suggestions');
     expect(markup).toContain('aria-label="Use Human for Ancestry"');
     expect(markup).toContain('class="vwb-field-suggestion-button"');
+    const orderedEditorMarkers = [
+      '>Name<',
+      'Character category',
+      '>Summary<',
+      '>Tags<',
+      'aria-label="Images"',
+      '>Notes<',
+      'aria-label="Notes preview"',
+    ];
+    const markerPositions = orderedEditorMarkers.map((marker) =>
+      markup.indexOf(marker)
+    );
+
+    expect(markerPositions).not.toContain(-1);
+    expect(markerPositions).toEqual([...markerPositions].sort((a, b) => a - b));
   });
 
   it('shows when capped suggestion actions have more values available', () => {

@@ -35,7 +35,6 @@ import {
 import { useDashboardWorkspace } from '../Components/Dashboard/useDashboardWorkspace';
 import {
   ConfirmationDialog,
-  EntryDetail,
   EntryForm,
 } from '../Components/Codex/CodexEntryViews';
 import {
@@ -608,16 +607,6 @@ export function WorkbenchPage({
                     />
                   ) : null}
                 </div>
-                {editorEntry ? (
-                  <EntryDetail
-                    codex={activeWorld.codex}
-                    entry={editorEntry}
-                    relationships={activeWorld.relationships}
-                    section={editorSection}
-                    sections={activeWorld.entryTypes}
-                    workspaceSchema={activeWorld.schema}
-                  />
-                ) : null}
                 <EntryForm
                   key={`${editorSection.id}-${
                     editorEntry?.id ?? templateDraft?.name ?? 'new'

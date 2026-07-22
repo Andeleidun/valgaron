@@ -882,7 +882,10 @@ export function KnowledgePage({
                     const canResetOverride = hasSavedOverride || isDraftChanged;
 
                     return (
-                      <div className="vwb-field-order-row" key={field.key}>
+                      <div
+                        className="vwb-field-configuration-row"
+                        key={field.key}
+                      >
                         <div>
                           <span className="vwb-entry-kind">
                             {field.key} - {field.modeLabel} -{' '}

@@ -1901,6 +1901,15 @@ export function EntryForm({
         )
       : visibleDetailFields;
   const baseFieldLayout = getEntryEditorBaseFieldLayout(section, draft);
+  const nameField = baseFieldLayout.fields.find(
+    (field) => field.key === 'name'
+  );
+  const supportingBaseFields = baseFieldLayout.fields.filter(
+    (field) => field.key === 'summary' || field.key === 'tags'
+  );
+  const notesField = baseFieldLayout.fields.find(
+    (field) => field.key === 'notes'
+  );
   const notesPreview = getEntryEditorNotesPreviewModel(draft.notes);
   const detailFieldGroups = useMemo(
     () =>
@@ -2184,6 +2193,39 @@ export function EntryForm({
     });
   };
 
+  const renderBaseField = (field: (typeof baseFieldLayout.fields)[number]) => (
+    <label
+      className={field.multiline ? 'vwb-wide-field' : undefined}
+      key={field.id}
+    >
+      {field.label}
+      {field.multiline ? (
+        <textarea
+          value={field.value}
+          onChange={(event) =>
+            setDraft((currentDraft) => ({
+              ...currentDraft,
+              [field.key]: event.target.value,
+            }))
+          }
+          placeholder={field.placeholder}
+          rows={field.rows}
+        />
+      ) : (
+        <input
+          value={field.value}
+          onChange={(event) =>
+            setDraft((currentDraft) => ({
+              ...currentDraft,
+              [field.key]: event.target.value,
+            }))
+          }
+          placeholder={field.placeholder}
+        />
+      )}
+    </label>
+  );
+
   return (
     <form className="vwb-form" onSubmit={handleSubmit}>
       <div className="vwb-section-heading">
@@ -2223,113 +2265,7 @@ export function EntryForm({
         )}
       </div>
 
-      {baseFieldLayout.leadingFields.map((field) => (
-        <label key={field.id}>
-          {field.label}
-          {field.multiline ? (
-            <textarea
-              value={field.value}
-              onChange={(event) =>
-                setDraft((currentDraft) => ({
-                  ...currentDraft,
-                  [field.key]: event.target.value,
-                }))
-              }
-              placeholder={field.placeholder}
-              rows={field.rows}
-            />
-          ) : (
-            <input
-              value={field.value}
-              onChange={(event) =>
-                setDraft((currentDraft) => ({
-                  ...currentDraft,
-                  [field.key]: event.target.value,
-                }))
-              }
-              placeholder={field.placeholder}
-            />
-          )}
-        </label>
-      ))}
-
-      <section className="vwb-markdown-preview" aria-label={notesPreview.title}>
-        <div className="vwb-section-heading">
-          <div>
-            <p className="vwb-kicker">{notesPreview.kicker}</p>
-            <h3>{notesPreview.title}</h3>
-          </div>
-        </div>
-        {notesPreview.hasContent ? (
-          <pre>{notesPreview.body}</pre>
-        ) : (
-          <p>{notesPreview.emptyText}</p>
-        )}
-      </section>
-
-      {baseFieldLayout.trailingFields.map((field) => (
-        <label key={field.id}>
-          {field.label}
-          <input
-            value={field.value}
-            onChange={(event) =>
-              setDraft((currentDraft) => ({
-                ...currentDraft,
-                [field.key]: event.target.value,
-              }))
-            }
-            placeholder={field.placeholder}
-          />
-        </label>
-      ))}
-
-      <EntryImagesEditor
-        images={draft.images ?? []}
-        stagedAssets={draft.stagedAssets}
-        onChange={(images, stagedAssets) =>
-          setDraft((currentDraft) => ({
-            ...currentDraft,
-            images,
-            stagedAssets,
-          }))
-        }
-      />
-
-      <div className="vwb-form-grid">
-        <label>
-          {entryDraftStatusControl.label}
-          <select
-            aria-label={entryDraftStatusControl.accessibilityLabel}
-            value={draft.status}
-            onChange={(event) =>
-              setDraft((currentDraft) => ({
-                ...currentDraft,
-                status: event.target.value as EntryDraft['status'],
-              }))
-            }
-          >
-            {entryDraftStatusControl.options.map((option) => (
-              <option value={option.value} key={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="vwb-checkbox-field">
-          <input
-            aria-label={entryPinnedControl.accessibilityLabel}
-            checked={draft.pinned}
-            onChange={(event) =>
-              setDraft((currentDraft) => ({
-                ...currentDraft,
-                pinned: event.target.checked,
-              }))
-            }
-            type="checkbox"
-          />
-          {entryPinnedControl.label}
-        </label>
-      </div>
+      {nameField ? renderBaseField(nameField) : null}
 
       {detailFieldGroups.map((group) => (
         <section
@@ -2414,6 +2350,42 @@ export function EntryForm({
           </div>
         </section>
       ))}
+
+      <div className="vwb-form-grid">
+        <label>
+          {entryDraftStatusControl.label}
+          <select
+            aria-label={entryDraftStatusControl.accessibilityLabel}
+            value={draft.status}
+            onChange={(event) =>
+              setDraft((currentDraft) => ({
+                ...currentDraft,
+                status: event.target.value as EntryDraft['status'],
+              }))
+            }
+          >
+            {entryDraftStatusControl.options.map((option) => (
+              <option value={option.value} key={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="vwb-checkbox-field">
+          <input
+            aria-label={entryPinnedControl.accessibilityLabel}
+            checked={draft.pinned}
+            onChange={(event) =>
+              setDraft((currentDraft) => ({
+                ...currentDraft,
+                pinned: event.target.checked,
+              }))
+            }
+            type="checkbox"
+          />
+          {entryPinnedControl.label}
+        </label>
+      </div>
 
       {canStageRelationshipLinks ? (
         <section
@@ -2602,6 +2574,36 @@ export function EntryForm({
           ) : null}
         </section>
       ) : null}
+
+      {supportingBaseFields.map(renderBaseField)}
+
+      <EntryImagesEditor
+        images={draft.images ?? []}
+        stagedAssets={draft.stagedAssets}
+        onChange={(images, stagedAssets) =>
+          setDraft((currentDraft) => ({
+            ...currentDraft,
+            images,
+            stagedAssets,
+          }))
+        }
+      />
+
+      {notesField ? renderBaseField(notesField) : null}
+
+      <section className="vwb-markdown-preview" aria-label={notesPreview.title}>
+        <div className="vwb-section-heading">
+          <div>
+            <p className="vwb-kicker">{notesPreview.kicker}</p>
+            <h3>{notesPreview.title}</h3>
+          </div>
+        </div>
+        {notesPreview.hasContent ? (
+          <pre>{notesPreview.body}</pre>
+        ) : (
+          <p>{notesPreview.emptyText}</p>
+        )}
+      </section>
 
       {hiddenDetailCleanup.fields.length > 0 ? (
         <section

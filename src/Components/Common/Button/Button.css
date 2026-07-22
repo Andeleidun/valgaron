@@ -1,4 +1,7 @@
 .button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
 }
 
@@ -18,6 +21,7 @@ button.button.image-button {
 .toggle-button-container .toggle-button {
   display: grid;
   grid-template-columns: 1fr 30px;
+  align-items: center;
   padding: 15px 0;
   margin: 0;
   text-transform: none;
