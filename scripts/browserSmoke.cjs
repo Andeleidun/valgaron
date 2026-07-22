@@ -95,7 +95,7 @@ const routeChecks = [
       'The Cartographers Guild',
       'Linked records',
       'Mira Rowan',
-      'From - member of',
+      'member of - Characters',
     ],
   },
   {
